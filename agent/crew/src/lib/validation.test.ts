@@ -183,7 +183,7 @@ describe('optional socials', () => {
   it('normalizes twitter handles and rejects junk', () => {
     expect(normalizeOptionalTwitter('')).toBeUndefined()
     expect(normalizeOptionalTwitter('@abc')).toBe('https://x.com/abc')
-    expect(() => normalizeOptionalTwitter('not a link')).toThrow(/X must/)
+    expect(() => normalizeOptionalTwitter('not a link')).toThrow(/X format/)
   })
 
   it('normalizes websites', () => {

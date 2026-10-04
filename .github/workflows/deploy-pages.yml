@@ -26,6 +26,9 @@ jobs:
           cache: npm
           cache-dependency-path: agent/crew/package-lock.json
       - name: Install, test & build
+        env:
+          VITE_PINATA_JWT: ${{ secrets.PINATA_JWT }}
+          VITE_RPC_URL: ${{ secrets.VITE_RPC_URL }}
         run: |
           npm ci --legacy-peer-deps
           npm test

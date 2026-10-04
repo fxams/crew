@@ -85,6 +85,7 @@ export async function launchMainnet(
       twitter: normalized.twitter,
       website: normalized.website,
       file: image,
+      wallet,
     })
 
     const mintKp = Keypair.generate()
