@@ -1,6 +1,6 @@
 import { assertSafeRpcUrl } from './security'
 
-export const CREW_VERSION = '2.1.0'
+export const CREW_VERSION = '2.2.0'
 
 const rawRpc =
   (import.meta.env.VITE_RPC_URL as string | undefined)?.trim() ||
@@ -20,6 +20,16 @@ export const CLUSTER = (import.meta.env.VITE_CLUSTER as string | undefined)?.tri
 
 export const PUMP_IPFS_URL = 'https://pump.fun/api/ipfs'
 export const PUMP_COIN_URL = (mint: string) => `https://pump.fun/coin/${mint}`
+/** Undocumented Pump frontend API — user profiles map username → wallet. */
+export const PUMP_FRONTEND_API = 'https://frontend-api-v3.pump.fun'
+/**
+ * Read-only CORS proxy for GH Pages (Pump API only allows Origin: pump.fun).
+ * Prefer allorigins `/get?url=` so upstream 404s are visible.
+ * Override with VITE_PUMP_RESOLVE_PROXY if you host your own.
+ */
+export const PUMP_RESOLVE_PROXY =
+  (import.meta.env.VITE_PUMP_RESOLVE_PROXY as string | undefined)?.trim() ||
+  'https://api.allorigins.win/get?url='
 export const SOLSCAN_TOKEN_URL = (mint: string) => `https://solscan.io/token/${mint}`
 export const SOLSCAN_TX_URL = (sig: string) => `https://solscan.io/tx/${sig}`
 
