@@ -50,8 +50,19 @@ export function persistLaunch(coin: CoinRecord, remits: RemitRecord[]) {
 }
 
 export function persistRemit(remit: RemitRecord) {
+  return persistRemits([remit])
+}
+
+export function persistRemits(remits: RemitRecord[]) {
   const board = loadBoard()
-  board.remits = [remit, ...board.remits].slice(0, 200)
+  board.remits = [...remits, ...board.remits].slice(0, 200)
   saveBoard(board)
   return board
+}
+
+export function resetBoard() {
+  localStorage.removeItem(STORE_KEY)
+  const seeded = emptyBoard()
+  saveBoard(seeded)
+  return seeded
 }

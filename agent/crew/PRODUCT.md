@@ -31,16 +31,19 @@ Ours is **KOL payroll + CT content** — the non-sophisticated use case Agency o
 | Dip Buyback | 20% desk reserve + editable dip rule (%, max SOL, cooldown) |
 | Raid Pool | 25% pot + editable quest board (bounty % + proof type) |
 
-## Platform features (v1.1)
+## Platform features (v1.2)
 
 - Phantom mainnet: Pump IPFS → `createV2` → permanent fee-share
 - Demo path + local board persistence
 - Launch templates (KOL pack / Dip desk / Raid squad)
 - Crew scoreboard (humans ranked by SOL remitted)
 - Desk pulse (remits + armed buyback rules + open raids)
-- Coin desk drawer (fee map, quests, CT receipt copy, crank)
+- Coin desk drawer (fee map, quests, visual CT receipt, crank)
+- **Simulate fees** / **Fire buyback** / **Claim raid** for live tape demos
+- Solscan + pump.fun deep links
 - Share receipt generator for X posts
 - vs Agency edges section on the landing surface
+- Lazy-loaded mainnet Pump SDK chunk
 
 ## Explicitly out (still)
 

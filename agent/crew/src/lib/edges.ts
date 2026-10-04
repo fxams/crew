@@ -137,7 +137,9 @@ export type ScoreRow = {
 export function buildScoreboard(remits: RemitRecord[], limit = 8): ScoreRow[] {
   const map = new Map<string, ScoreRow>()
   for (const r of remits) {
-    if (!r.handle || r.handle === '@desk') continue
+    if (!r.handle || r.handle === '@desk' || r.handle === '@buyback' || r.handle === '@raid') {
+      continue
+    }
     const key = r.handle.toLowerCase()
     const row = map.get(key) ?? {
       handle: r.handle,
@@ -155,15 +157,19 @@ export function buildScoreboard(remits: RemitRecord[], limit = 8): ScoreRow[] {
     .slice(0, limit)
 }
 
+function isHumanHandle(handle: string) {
+  return Boolean(handle) && !['@desk', '@buyback', '@raid'].includes(handle)
+}
+
 export function deskStats(coins: CoinRecord[], remits: RemitRecord[]) {
-  const paidSol = remits.reduce((s, r) => s + (r.amountSol || 0), 0)
-  const humanRemits = remits.filter((r) => r.handle && r.handle !== '@desk').length
+  const human = remits.filter((r) => isHumanHandle(r.handle))
+  const paidSol = human.reduce((s, r) => s + (r.amountSol || 0), 0)
   const mainnetCoins = coins.filter((c) => c.network === 'mainnet').length
   return {
     coins: coins.length,
     mainnetCoins,
     remits: remits.length,
-    humanRemits,
+    humanRemits: human.length,
     paidSol,
     platformCut: 0,
   }

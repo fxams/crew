@@ -1,4 +1,4 @@
-export const CREW_VERSION = '1.1.0'
+export const CREW_VERSION = '1.2.0'
 
 /** Default public RPC — override with VITE_RPC_URL for production throughput. */
 export const RPC_URL =
@@ -9,6 +9,8 @@ export const CLUSTER = (import.meta.env.VITE_CLUSTER as string | undefined)?.tri
 
 export const PUMP_IPFS_URL = 'https://pump.fun/api/ipfs'
 export const PUMP_COIN_URL = (mint: string) => `https://pump.fun/coin/${mint}`
+export const SOLSCAN_TOKEN_URL = (mint: string) => `https://solscan.io/token/${mint}`
+export const SOLSCAN_TX_URL = (sig: string) => `https://solscan.io/tx/${sig}`
 
 /** Desk reserve cut for buyback / raid modes (bps of total creator fees). */
 export const MODE_DESK_BPS = {
