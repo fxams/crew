@@ -33,7 +33,7 @@ They need:
 | Mode | Job |
 |------|-----|
 | Fee Split | 100% of creator fees to tagged X crew |
-| Dip Buyback | Crew % + desk reserve that buys dips on rules |
+| Dip Buyback | Crew % + desk reserve that buys dips when rules fire |
 | Raid Pool | Fees fund a public pot for holders who post |
 
 ### Explicitly out of v1
@@ -48,7 +48,9 @@ They need:
 - **Lower trust friction** — fee map is visible before first trade
 - **Still degenspeed** — one form, one click, Pump URL back
 
-## Build status
-- Landing + desk board + launch UI shipped as demo app in `/crew`
-- Launch button validates crew shares and returns a demo mint
-- Mainnet requires wallet connect + Pump SDK + fee-share config
+## Production status
+- App lives in `agent/crew` (Vite + React)
+- Demo launch validates **1–5** X handles and **exactly 100%** split; returns fake mint
+- Successful launches print onto the live remits feed + CREW tape
+- Mainnet stub: Pump IPFS → createV2 / fee-share → wallet sign (`src/lib/launch.ts`)
+- Hosting: **Render** static site via `render.yaml` — see `DEPLOY.md`

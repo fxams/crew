@@ -1,10 +1,6 @@
 # CREW
 
-**Launch with your crew. Fees hit their X.**
-
-Token / product name: **CREW** (`$CREW`)
-
-App lives in [`agent/crew`](./agent/crew).
+Pump.fun fee desk — tag your X crew, lock permanent creator-fee splits, watch the remits tape.
 
 ```bash
 cd agent/crew
@@ -12,4 +8,4 @@ npm install
 npm run dev
 ```
 
-See [`agent/crew/PRODUCT.md`](./agent/crew/PRODUCT.md) and [`agent/crew/README.md`](./agent/crew/README.md).
+Production hosting: **Render** — see [`agent/crew/DEPLOY.md`](./agent/crew/DEPLOY.md) and [`render.yaml`](./render.yaml).

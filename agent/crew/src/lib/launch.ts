@@ -16,36 +16,72 @@ export type LaunchError = {
   error: string;
 };
 
-/**
- * Demo launcher.
- * Real Pump.fun wiring belongs in a server/agent with a funded wallet:
- * 1) upload metadata to pump.fun IPFS
- * 2) createV2 (+ optional buy) via @pump-fun/pump-sdk
- * 3) route creator fee shares to crew wallets / social recipients
- */
-export async function launchCrewToken(
-  draft: LaunchDraft,
-): Promise<LaunchResult | LaunchError> {
-  await wait(900);
+const HANDLE_RE = /^@[a-z0-9_]{1,15}$/i;
 
-  if (!draft.name.trim() || !draft.ticker.trim()) {
-    return { ok: false, error: "Name and ticker are required." };
+function normalizeCrew(draft: LaunchDraft): LaunchDraft["crew"] | LaunchError {
+  if (draft.crew.length < 1 || draft.crew.length > 5) {
+    return { ok: false, error: "Tag between 1 and 5 X handles." };
   }
 
-  if (draft.crew.length === 0) {
-    return { ok: false, error: "Add at least one X handle to the crew." };
+  const seen = new Set<string>();
+  const crew = [];
+
+  for (const member of draft.crew) {
+    let handle = member.handle.trim();
+    if (!handle.startsWith("@")) handle = `@${handle}`;
+    handle = handle.toLowerCase();
+
+    if (!HANDLE_RE.test(handle)) {
+      return { ok: false, error: `Invalid X handle: ${member.handle || "(empty)"}` };
+    }
+    if (seen.has(handle)) {
+      return { ok: false, error: `Duplicate crew handle: ${handle}` };
+    }
+    seen.add(handle);
+
+    const share = Math.round(Number(member.share) || 0);
+    if (share <= 0 || share > 100) {
+      return { ok: false, error: `Bad split for ${handle}.` };
+    }
+    crew.push({ handle, share });
   }
 
-  const share = totalShare(draft.crew);
+  const share = totalShare(crew);
   if (share !== 100) {
     return { ok: false, error: `Crew shares must total 100% (currently ${share}%).` };
   }
 
-  for (const member of draft.crew) {
-    if (!member.handle.trim().startsWith("@")) {
-      return { ok: false, error: "Handles must look like @username." };
-    }
+  return crew;
+}
+
+/**
+ * Production demo launcher.
+ * Validates a permanent 100% crew fee split and returns a fake CA / pump URL.
+ * Mainnet path is stubbed in mainnetLaunch below.
+ */
+export async function launchCrewToken(
+  draft: LaunchDraft,
+): Promise<LaunchResult | LaunchError> {
+  await wait(700);
+
+  const name = draft.name.trim();
+  const ticker = draft.ticker.trim().toUpperCase();
+
+  if (name.length < 2 || name.length > 32) {
+    return { ok: false, error: "Name must be 2–32 characters." };
   }
+  if (!/^[A-Z0-9]{2,13}$/.test(ticker)) {
+    return { ok: false, error: "Ticker must be 2–13 letters/numbers." };
+  }
+  if (draft.vibe.trim().length > 280) {
+    return { ok: false, error: "Vibe max 280 characters." };
+  }
+  if (draft.initialBuySol < 0 || draft.initialBuySol > 100) {
+    return { ok: false, error: "Initial buy must be between 0 and 100 SOL." };
+  }
+
+  const crewOrError = normalizeCrew(draft);
+  if (!Array.isArray(crewOrError)) return crewOrError;
 
   const mint = fakeMint();
   return {
@@ -54,10 +90,24 @@ export async function launchCrewToken(
     pumpUrl: `https://pump.fun/${mint}`,
     signature: fakeSig(),
     mode: draft.mode,
-    crew: draft.crew,
+    crew: crewOrError,
     note:
-      "Demo launch only. Connect a wallet + Pump SDK to ship on mainnet. Fee routing uses Pump sharing config / social recipients.",
+      "Demo mint. Mainnet: Pump IPFS metadata → createV2 + fee-share → wallet sign.",
   };
+}
+
+/**
+ * Mainnet path — stubbed for production wiring.
+ * 1) Upload metadata JSON to Pump IPFS
+ * 2) Build createV2 (+ optional buy) via @pump-fun/pump-sdk
+ * 3) createFeeSharingConfig → updateFeeSharesV2 with permanent crew bps
+ * 4) Prompt wallet sign; confirm mint; register on CREW board
+ */
+export async function mainnetLaunch(_draft: LaunchDraft): Promise<never> {
+  void _draft;
+  throw new Error(
+    "mainnetLaunch is stubbed. Wire Pump SDK + wallet adapter before calling.",
+  );
 }
 
 function wait(ms: number) {

@@ -1,7 +1,13 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
-// https://vite.dev/config/
+// Production static deploy (Render). Base stays "/" for custom domains.
 export default defineConfig({
   plugins: [react()],
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    target: 'es2022',
+    cssMinify: true,
+  },
 })

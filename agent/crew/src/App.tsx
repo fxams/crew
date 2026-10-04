@@ -8,15 +8,21 @@ import {
   normalizeTicker,
   totalShare,
   type CrewMember,
+  type FeedItem,
   type LaunchDraft,
+  type TapeItem,
 } from "./data";
 import { launchCrewToken, type LaunchResult } from "./lib/launch";
+
+const MAX_CREW = 5;
 
 export default function App() {
   const [draft, setDraft] = useState<LaunchDraft>(DEFAULT_DRAFT);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<LaunchResult | null>(null);
+  const [feed, setFeed] = useState<FeedItem[]>(FEED);
+  const [tapeItems, setTapeItems] = useState<TapeItem[]>(TAPE);
 
   const shareTotal = useMemo(() => totalShare(draft.crew), [draft.crew]);
   const modeMeta = DESK_MODES.find((mode) => mode.id === draft.mode)!;
@@ -29,17 +35,23 @@ export default function App() {
   }
 
   function addCrew() {
-    setDraft((prev) => ({
-      ...prev,
-      crew: [...prev.crew, { handle: "@", share: 0 }],
-    }));
+    setDraft((prev) => {
+      if (prev.crew.length >= MAX_CREW) return prev;
+      return {
+        ...prev,
+        crew: [...prev.crew, { handle: "@", share: 0 }],
+      };
+    });
   }
 
   function removeCrew(index: number) {
-    setDraft((prev) => ({
-      ...prev,
-      crew: prev.crew.filter((_, i) => i !== index),
-    }));
+    setDraft((prev) => {
+      if (prev.crew.length <= 1) return prev;
+      return {
+        ...prev,
+        crew: prev.crew.filter((_, i) => i !== index),
+      };
+    });
   }
 
   async function onLaunch() {
@@ -53,9 +65,26 @@ export default function App() {
       return;
     }
     setResult(response);
+    setDraft((prev) => ({ ...prev, crew: response.crew, ticker: prev.ticker.toUpperCase() }));
+
+    const modeLabel = DESK_MODES.find((m) => m.id === response.mode)?.label ?? response.mode;
+    const receipt: FeedItem = {
+      id: `launch_${response.mint.slice(0, 8)}`,
+      time: "now",
+      title: `$${draft.ticker || "COIN"} crew locked`,
+      detail: `${response.crew.map((m) => `${m.handle} ${m.share}%`).join(" · ")} · ${modeLabel} · 0% platform cut`,
+      amount: "LIVE",
+    };
+    setFeed((prev) => [receipt, ...prev].slice(0, 24));
+
+    const prints: TapeItem[] = response.crew.map((member, i) => ({
+      id: `t_${response.mint.slice(0, 6)}_${i}`,
+      text: `paid ${member.handle} · ${member.share}% of $${draft.ticker || "COIN"} · demo mint`,
+    }));
+    setTapeItems((prev) => [...prints, ...prev].slice(0, 24));
   }
 
-  const tape = [...TAPE, ...TAPE];
+  const tape = [...tapeItems, ...tapeItems];
 
   return (
     <div className="site">
@@ -175,16 +204,18 @@ export default function App() {
                 <span className="live-dot">streaming</span>
               </div>
               <div className="feed">
-                {FEED.map((item, index) => (
+                {feed.map((item, index) => (
                   <motion.div
                     className="feed-row"
                     key={item.id}
                     initial={{ opacity: 0, x: -8 }}
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true }}
-                    transition={{ delay: index * 0.05 }}
+                    transition={{ delay: Math.min(index, 8) * 0.05 }}
                   >
-                    <div className="feed-time">{item.time} ago</div>
+                    <div className="feed-time">
+                      {item.time === "now" ? "just now" : `${item.time} ago`}
+                    </div>
                     <div className="feed-main">
                       <strong>{item.title}</strong>
                       <p>{item.detail}</p>
@@ -322,11 +353,16 @@ export default function App() {
                   ))}
                 </div>
                 <div className="hero-actions" style={{ marginTop: "0.35rem" }}>
-                  <button className="btn btn-ghost" type="button" onClick={addCrew}>
+                  <button
+                    className="btn btn-ghost"
+                    type="button"
+                    onClick={addCrew}
+                    disabled={draft.crew.length >= MAX_CREW}
+                  >
                     Add handle
                   </button>
                   <p className="hint" style={{ margin: 0 }}>
-                    Allocated {shareTotal}% / 100%
+                    {draft.crew.length}/{MAX_CREW} · Allocated {shareTotal}% / 100%
                   </p>
                 </div>
               </div>
