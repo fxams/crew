@@ -1,10 +1,23 @@
-export type DeskMode = 'split' | 'buyback' | 'raid'
+export type DeskMode = 'split' | 'buyback' | 'raid' | 'agent'
+
+export type HireRole = 'caller' | 'chart' | 'raid' | 'kol' | 'dev' | 'agent'
 
 export type CrewMember = {
   handle: string
   /** On-chain fee recipient. Required for launches. */
   wallet: string
   share: number
+  /** Role when hired by an AI agent desk. */
+  hireRole?: HireRole
+}
+
+export type AgentBrief = {
+  /** Public agent / mind name. */
+  name: string
+  /** Standing objective the agent hires crew to pursue. */
+  objective: string
+  /** Display label for the brain (not an API key). */
+  model: string
 }
 
 export type BuybackRule = {
@@ -34,6 +47,7 @@ export type LaunchDraft = {
   imageFile?: File | null
   buybackRule?: BuybackRule
   raidQuests?: RaidQuest[]
+  agent?: AgentBrief
 }
 
 export type CoinRecord = {
@@ -51,6 +65,7 @@ export type CoinRecord = {
   pumpUrl: string
   buybackRule?: BuybackRule
   raidQuests?: RaidQuest[]
+  agent?: AgentBrief
 }
 
 export type RemitRecord = {

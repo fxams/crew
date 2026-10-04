@@ -7,31 +7,31 @@ import type {
   RemitRecord,
 } from './types'
 
-/** Why CREW beats Agency for CT / KOL desks — not an AI mind clone. */
+/** Agency mind + CREW payroll — hybrid edges. */
 export const CREW_EDGES = [
   {
+    id: 'hybrid',
+    title: 'Agent hires humans',
+    agency: 'Every coin gets a mind — fees stay inside the AI treasury.',
+    crew: 'Agent mode: mind keeps 15% ops, hires KOLs/X accounts for the rest.',
+  },
+  {
     id: 'humans',
-    title: 'Humans get the fees',
-    agency: 'Agency takes 100% of creator fees for AI credits + treasury.',
-    crew: '0% platform cut. Named wallets lock a permanent on-chain split.',
+    title: 'KOLs get a real cut',
+    agency: 'Creators cannot route fees to shillers on-chain.',
+    crew: 'Named wallets lock permanent fee-share — payroll, not vibes.',
   },
   {
     id: 'control',
-    title: 'You own the desk',
+    title: 'You set the hire map',
     agency: 'Launcher cannot control the mind after launch.',
-    crew: 'Fee map is yours — crew, buyback reserve, or raid pool you configure.',
-  },
-  {
-    id: 'dayone',
-    title: 'Paid from crank one',
-    agency: 'Mind sleeps until ~$20 in fees; then 15% still burns $AGENCY.',
-    crew: 'Crank remits anytime. No wake-up tax. No token burn skim.',
+    crew: 'Assign caller / chart / raid roles + wallets before the first block.',
   },
   {
     id: 'tape',
-    title: 'Screenshotable receipts',
-    agency: 'Thought logs are cool — hard to tip a KOL with them.',
-    crew: 'Every remit hits the public tape with handle + SOL. CT-ready.',
+    title: 'Receipts beat thought logs',
+    agency: 'Public thoughts — hard to tip a KOL with them.',
+    crew: 'Every remit hits the tape with handle + SOL. CT-ready.',
   },
 ] as const
 
@@ -39,10 +39,19 @@ export type LaunchTemplate = {
   id: string
   label: string
   blurb: string
-  draft: Pick<LaunchDraft, 'name' | 'ticker' | 'vibe' | 'mode' | 'crew' | 'initialBuySol'> & {
+  draft: Pick<
+    LaunchDraft,
+    'name' | 'ticker' | 'vibe' | 'mode' | 'crew' | 'initialBuySol' | 'agent'
+  > & {
     buybackRule?: BuybackRule
     raidQuests?: RaidQuest[]
   }
+}
+
+export const DEFAULT_AGENT = {
+  name: 'Desk Mind',
+  objective: 'Hire KOLs who move the chart. Pay them from creator fees. No platform skim.',
+  model: 'Claude Sonnet',
 }
 
 export const DEFAULT_BUYBACK: BuybackRule = {
@@ -125,6 +134,24 @@ export const LAUNCH_TEMPLATES: LaunchTemplate[] = [
       raidQuests: DEFAULT_RAID_QUESTS.map((q) => ({ ...q })),
     },
   },
+  {
+    id: 'agent',
+    label: 'Agent hires',
+    blurb: 'AI agent + KOL payroll (Agency × CREW).',
+    draft: {
+      name: 'Hire Desk',
+      ticker: 'HIRE',
+      vibe: 'An agent that pays the humans who make the coin move.',
+      mode: 'agent',
+      initialBuySol: 0.15,
+      agent: { ...DEFAULT_AGENT },
+      crew: [
+        { handle: '@caller', wallet: '', share: 45, hireRole: 'caller' },
+        { handle: '@chartwitch', wallet: '', share: 30, hireRole: 'chart' },
+        { handle: '@kollead', wallet: '', share: 25, hireRole: 'kol' },
+      ],
+    },
+  },
 ]
 
 export type ScoreRow = {
@@ -137,7 +164,13 @@ export type ScoreRow = {
 export function buildScoreboard(remits: RemitRecord[], limit = 8): ScoreRow[] {
   const map = new Map<string, ScoreRow>()
   for (const r of remits) {
-    if (!r.handle || r.handle === '@desk' || r.handle === '@buyback' || r.handle === '@raid') {
+    if (
+      !r.handle ||
+      r.handle === '@desk' ||
+      r.handle === '@buyback' ||
+      r.handle === '@raid' ||
+      r.handle === '@agent'
+    ) {
       continue
     }
     const key = r.handle.toLowerCase()
@@ -158,7 +191,7 @@ export function buildScoreboard(remits: RemitRecord[], limit = 8): ScoreRow[] {
 }
 
 function isHumanHandle(handle: string) {
-  return Boolean(handle) && !['@desk', '@buyback', '@raid'].includes(handle)
+  return Boolean(handle) && !['@desk', '@buyback', '@raid', '@agent'].includes(handle)
 }
 
 export function deskStats(coins: CoinRecord[], remits: RemitRecord[]) {
@@ -174,16 +207,29 @@ export function deskStats(coins: CoinRecord[], remits: RemitRecord[]) {
 }
 
 export function shareReceiptText(coin: CoinRecord): string {
-  const split = coin.crew.map((m) => `${m.handle} ${m.share}%`).join(' · ')
+  const split = coin.crew
+    .map((m) =>
+      m.hireRole ? `${m.handle} (${m.hireRole}) ${m.share}%` : `${m.handle} ${m.share}%`,
+    )
+    .join(' · ')
   const label = modeLabel(coin.mode)
+  const agentLine =
+    coin.mode === 'agent' && coin.agent
+      ? `Agent ${coin.agent.name} hires · 15% ops`
+      : null
   return [
     `$${coin.ticker} crew locked on CREW`,
+    agentLine,
     split,
     `${label} · 0% platform cut`,
     coin.pumpUrl,
     '',
-    'Humans get paid — not an AI treasury.',
-  ].join('\n')
+    coin.mode === 'agent'
+      ? 'AI hires humans — KOLs get fee-share.'
+      : 'Humans get paid — not an AI treasury.',
+  ]
+    .filter(Boolean)
+    .join('\n')
 }
 
 export type PulseItem = {
@@ -238,6 +284,24 @@ export function buildDeskPulse(
     })
   }
 
+  for (const c of coins.filter((x) => x.mode === 'agent').slice(0, 3)) {
+    const hired = c.crew
+      .filter((m) => m.hireRole)
+      .map((m) => m.hireRole)
+      .slice(0, 3)
+      .join('/')
+    items.push({
+      id: `ag_${c.id}`,
+      kind: 'lock',
+      time: rel(c.launchedAt + 60_000, now),
+      title: `$${c.ticker} agent hiring`,
+      detail: c.agent
+        ? `${c.agent.name} · ${hired || 'crew'} · 15% ops`
+        : `Agent desk · ${hired || 'crew'}`,
+      amount: 'HIRE',
+    })
+  }
+
   return items
     .sort((a, b) => rankTime(a.time) - rankTime(b.time))
     .slice(0, 16)
@@ -263,5 +327,6 @@ function rankTime(t: string) {
 export function modeLabel(mode: DeskMode) {
   if (mode === 'buyback') return 'Dip Buyback'
   if (mode === 'raid') return 'Raid Pool'
+  if (mode === 'agent') return 'Agent Hire'
   return 'Fee Split'
 }

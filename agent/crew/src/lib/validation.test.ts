@@ -106,4 +106,42 @@ describe('validateDraft', () => {
     expect(out.shareholders).toHaveLength(2)
     expect(out.shareholders.reduce((s, r) => s + r.bps, 0)).toBe(10_000)
   })
+
+  it('reserves 15% agent ops and requires hire roles', () => {
+    const deskWallet = '11111111111111111111111111111111'
+    expect(() =>
+      validateDraft(
+        {
+          ...base,
+          mode: 'agent',
+          agent: {
+            name: 'Desk Mind',
+            objective: 'Hire KOLs who move the chart.',
+            model: 'Claude Sonnet',
+          },
+        },
+        { deskWallet },
+      ),
+    ).toThrow(/hire role/)
+
+    const out = validateDraft(
+      {
+        ...base,
+        mode: 'agent',
+        agent: {
+          name: 'Desk Mind',
+          objective: 'Hire KOLs who move the chart.',
+          model: 'Claude Sonnet',
+        },
+        crew: [
+          { ...base.crew[0], hireRole: 'caller' },
+          { ...base.crew[1], hireRole: 'kol' },
+        ],
+      },
+      { deskWallet },
+    )
+    expect(out.agent?.name).toBe('Desk Mind')
+    expect(out.shareholders.find((s) => s.handle === '@agent')?.bps).toBe(1500)
+    expect(out.shareholders.reduce((s, r) => s + r.bps, 0)).toBe(10_000)
+  })
 })

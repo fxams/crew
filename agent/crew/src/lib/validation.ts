@@ -1,8 +1,9 @@
 import { PublicKey } from '@solana/web3.js'
 import { MAX_CREW, MODE_DESK_BPS } from './config'
-import type { CrewMember, DeskMode, LaunchDraft } from './types'
+import type { AgentBrief, CrewMember, DeskMode, HireRole, LaunchDraft } from './types'
 
 const HANDLE_RE = /^@[a-z0-9_]{1,15}$/i
+const HIRE_ROLES = new Set<HireRole>(['caller', 'chart', 'raid', 'kol', 'dev', 'agent'])
 
 export type NormalizedLaunch = {
   name: string
@@ -11,7 +12,8 @@ export type NormalizedLaunch = {
   mode: DeskMode
   crew: CrewMember[]
   initialBuySol: number
-  /** Final on-chain shareholders in bps (includes desk reserve when mode ≠ split). */
+  agent?: AgentBrief
+  /** Final on-chain shareholders in bps (includes desk/agent reserve when mode ≠ split). */
   shareholders: { wallet: string; bps: number; handle: string; role: 'crew' | 'desk' }[]
 }
 
@@ -60,6 +62,16 @@ export function validateDraft(
     throw new Error(`Tag between 1 and ${MAX_CREW} crew members.`)
   }
 
+  let agent: AgentBrief | undefined
+  if (draft.mode === 'agent') {
+    const agentName = (draft.agent?.name || '').trim().slice(0, 48)
+    const objective = (draft.agent?.objective || '').trim().slice(0, 280)
+    const model = (draft.agent?.model || 'custom').trim().slice(0, 48)
+    if (agentName.length < 2) throw new Error('Agent needs a name (2+ chars).')
+    if (objective.length < 8) throw new Error('Agent objective must be at least 8 characters.')
+    agent = { name: agentName, objective, model: model || 'custom' }
+  }
+
   const seenHandles = new Set<string>()
   const seenWallets = new Set<string>()
   let shareSum = 0
@@ -78,7 +90,12 @@ export function validateDraft(
     if (seenWallets.has(wallet)) throw new Error(`Duplicate wallet: ${wallet}`)
     seenWallets.add(wallet)
 
-    crew.push({ handle, wallet, share })
+    const hireRole = member.hireRole && HIRE_ROLES.has(member.hireRole) ? member.hireRole : undefined
+    if (draft.mode === 'agent' && !hireRole) {
+      throw new Error(`Assign a hire role for ${handle}.`)
+    }
+
+    crew.push({ handle, wallet, share, hireRole })
   }
 
   if (shareSum !== 100) {
@@ -92,6 +109,7 @@ export function validateDraft(
     mode: draft.mode,
     crew,
     initialBuySol: draft.initialBuySol,
+    agent,
     shareholders: buildShareholders(crew, draft.mode, opts?.deskWallet),
   }
 }
@@ -133,16 +151,19 @@ function buildShareholders(
   }
 
   if (deskBps > 0 && deskWallet) {
+    const deskHandle =
+      mode === 'agent' ? '@agent' : mode === 'raid' ? '@raid' : mode === 'buyback' ? '@buyback' : '@desk'
     const existing = out.find((s) => s.wallet === deskWallet)
     if (existing) {
       // Launcher is also crew — merge desk reserve into one shareholder row.
       existing.bps += deskBps
       existing.role = 'desk'
+      if (mode === 'agent') existing.handle = '@agent'
     } else {
       out.unshift({
         wallet: deskWallet,
         bps: deskBps,
-        handle: '@desk',
+        handle: deskHandle,
         role: 'desk',
       })
     }
