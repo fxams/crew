@@ -67,6 +67,25 @@ describe('resolveHandleWallet', () => {
     expect(out.error).toMatch(/No Pump profile/)
   })
 
+  it('recovers wallet from truncated jina-style body', async () => {
+    const truncated =
+      'Markdown Content:\n{"address":"GcUKG8xWHqMck1yiBULYNjJXLfUKZ364HFLuWCkm8xW","username":"solana","x_username":null,"is_banned":false,"last_username_update_time'
+    const fetcher = vi.fn(async (url: string) => {
+      if (String(url).startsWith('https://frontend-api-v3.pump.fun/')) {
+        return new Response('forbidden', { status: 403 })
+      }
+      if (String(url).includes('r.jina.ai')) {
+        return new Response(truncated, { status: 200 })
+      }
+      return new Response('fail', { status: 500 })
+    })
+    const out = await resolveHandleWallet('@solana', { fetcher: fetcher as unknown as typeof fetch })
+    expect(out.ok).toBe(true)
+    if (!out.ok) return
+    expect(out.wallet).toBe('GcUKG8xWHqMck1yiBULYNjJXLfUKZ364HFLuWCkm8xW')
+    expect(out.pumpUsername).toBe('solana')
+  })
+
   it('parses allorigins get wrapper', async () => {
     const inner = {
       address: '9f6Y3vQW8CKfB1iwD7yJEAh2suQWSKdwAgLdYyyXoUTY',

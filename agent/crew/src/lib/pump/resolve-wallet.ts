@@ -67,6 +67,24 @@ function parsePumpUser(raw: unknown): PumpUser {
   return raw as PumpUser
 }
 
+/** Recover profile fields from truncated proxy/reader bodies (e.g. jina). */
+function extractPartialUser(text: string): PumpUser | null {
+  const wallet =
+    text.match(/"canonical_svm_wallet"\s*:\s*"([1-9A-HJ-NP-Za-km-z]{32,44})"/)?.[1] ||
+    text.match(/"address"\s*:\s*"([1-9A-HJ-NP-Za-km-z]{32,44})"/)?.[1]
+  if (!wallet) return null
+  const username = text.match(/"username"\s*:\s*"([^"]+)"/)?.[1]
+  const xUsername = text.match(/"x_username"\s*:\s*(null|"([^"]*)")/)
+  const banned = /"is_banned"\s*:\s*true/.test(text)
+  return {
+    address: wallet,
+    canonical_svm_wallet: wallet,
+    username: username || undefined,
+    x_username: xUsername ? (xUsername[1] === 'null' ? null : xUsername[2] || null) : null,
+    is_banned: banned,
+  }
+}
+
 async function readJson(res: Response): Promise<unknown> {
   const text = await res.text()
   // allorigins /get wraps: { contents: "<json string>", status: { http_code } }
@@ -77,17 +95,31 @@ async function readJson(res: Response): Promise<unknown> {
       if (code === 404) {
         throw Object.assign(new Error('not_found'), { status: 404 })
       }
-      return JSON.parse(outer.contents)
+      try {
+        return JSON.parse(outer.contents)
+      } catch {
+        const partial = extractPartialUser(outer.contents)
+        if (partial) return partial
+        throw new Error('Bad proxy payload')
+      }
     }
   } catch (err) {
     if (err && typeof err === 'object' && 'status' in err) throw err
   }
-  // jina markdown sometimes wraps JSON — pull first {...} block
+  // jina markdown / truncated JSON — full parse, then field recovery
   const brace = text.indexOf('{')
   const end = text.lastIndexOf('}')
   if (brace >= 0 && end > brace) {
-    return JSON.parse(text.slice(brace, end + 1))
+    const slice = text.slice(brace, end + 1)
+    try {
+      return JSON.parse(slice)
+    } catch {
+      const partial = extractPartialUser(text)
+      if (partial) return partial
+    }
   }
+  const partial = extractPartialUser(text)
+  if (partial) return partial
   return JSON.parse(text)
 }
 
@@ -103,20 +135,21 @@ export async function fetchPumpJson<T>(
   const target = `${PUMP_FRONTEND_API}${path.startsWith('/') ? path : `/${path}`}`
 
   const attempts: string[] = []
-  // Local/dev Vite proxy (see vite.config.ts)
-  if (typeof window !== 'undefined' && import.meta.env.DEV) {
+  // Local Vite proxy works for both `vite` and `vite preview` on localhost
+  const host =
+    typeof window !== 'undefined' ? window.location.hostname : ''
+  if (host === 'localhost' || host === '127.0.0.1') {
     attempts.push(`/pump-api${path.startsWith('/') ? path : `/${path}`}`)
   }
   attempts.push(target)
+  // Reader often succeeds when third-party CORS proxies are rate-limited
+  attempts.push(`https://r.jina.ai/${target}`)
   if (PUMP_RESOLVE_PROXY) {
-    // Prefer /get wrapper so upstream 404 is visible
     const proxyBase = PUMP_RESOLVE_PROXY.includes('/raw?')
       ? PUMP_RESOLVE_PROXY.replace('/raw?', '/get?')
       : PUMP_RESOLVE_PROXY
     attempts.push(`${proxyBase}${encodeURIComponent(target)}`)
   }
-  // Last-resort reader that allows CORS
-  attempts.push(`https://r.jina.ai/${target}`)
 
   let lastErr: Error | null = null
   for (const url of attempts) {
