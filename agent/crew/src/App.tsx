@@ -21,11 +21,13 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<LaunchResult | null>(null);
+  const [copied, setCopied] = useState(false);
   const [feed, setFeed] = useState<FeedItem[]>(FEED);
   const [tapeItems, setTapeItems] = useState<TapeItem[]>(TAPE);
 
   const shareTotal = useMemo(() => totalShare(draft.crew), [draft.crew]);
   const modeMeta = DESK_MODES.find((mode) => mode.id === draft.mode)!;
+  const allocOk = shareTotal === 100;
 
   function updateCrew(index: number, patch: Partial<CrewMember>) {
     setDraft((prev) => ({
@@ -58,6 +60,7 @@ export default function App() {
     setBusy(true);
     setError(null);
     setResult(null);
+    setCopied(false);
     const response = await launchCrewToken(draft);
     setBusy(false);
     if (!response.ok) {
@@ -65,13 +68,14 @@ export default function App() {
       return;
     }
     setResult(response);
-    setDraft((prev) => ({ ...prev, crew: response.crew, ticker: prev.ticker.toUpperCase() }));
+    setDraft((prev) => ({ ...prev, crew: response.crew }));
 
+    const ticker = draft.ticker || "COIN";
     const modeLabel = DESK_MODES.find((m) => m.id === response.mode)?.label ?? response.mode;
     const receipt: FeedItem = {
       id: `launch_${response.mint.slice(0, 8)}`,
       time: "now",
-      title: `$${draft.ticker || "COIN"} crew locked`,
+      title: `$${ticker} crew locked`,
       detail: `${response.crew.map((m) => `${m.handle} ${m.share}%`).join(" · ")} · ${modeLabel} · 0% platform cut`,
       amount: "LIVE",
     };
@@ -79,9 +83,20 @@ export default function App() {
 
     const prints: TapeItem[] = response.crew.map((member, i) => ({
       id: `t_${response.mint.slice(0, 6)}_${i}`,
-      text: `paid ${member.handle} · ${member.share}% of $${draft.ticker || "COIN"} · demo mint`,
+      text: `paid ${member.handle} · ${member.share}% of $${ticker} · demo mint`,
     }));
     setTapeItems((prev) => [...prints, ...prev].slice(0, 24));
+  }
+
+  async function copyMint() {
+    if (!result) return;
+    try {
+      await navigator.clipboard.writeText(result.mint);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setCopied(false);
+    }
   }
 
   const tape = [...tapeItems, ...tapeItems];
@@ -96,8 +111,8 @@ export default function App() {
             CREW
           </a>
           <nav className="nav-links">
-            <a href="#how">How it works</a>
-            <a href="#board">Desk board</a>
+            <a href="#how">How</a>
+            <a href="#board">Tape</a>
             <a href="#launch">Launch</a>
             <a className="btn btn-primary" href="#launch">
               Open desk
@@ -107,46 +122,51 @@ export default function App() {
 
         <main id="top">
           <section className="hero">
-            <motion.p
-              className="section-label"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              Pump.fun × X fee desks
-            </motion.p>
-            <motion.h1
-              className="hero-brand"
-              initial={{ opacity: 0, y: 28 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-            >
-              CREW
-              <span>gets paid.</span>
-            </motion.h1>
-            <motion.p
-              className="hero-copy"
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15, duration: 0.55 }}
-            >
-              Launch a Pump coin, tag the X accounts behind it, and let the desk
-              split creator fees automatically. No agency brain surgery. No
-              stock circus. Just a clean crew cut CT can understand in one scroll.
-            </motion.p>
-            <motion.div
-              className="hero-actions"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.28, duration: 0.5 }}
-            >
-              <a className="btn btn-primary" href="#launch">
-                Launch with crew
-              </a>
-              <a className="btn btn-ghost" href="#board">
-                Watch the tape
-              </a>
-            </motion.div>
+            <div className="hero-visual" aria-hidden="true">
+              <div className="hero-wave" />
+            </div>
+            <div className="hero-copy-wrap">
+              <motion.p
+                className="section-label"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45 }}
+              >
+                Pump.fun × X fee desks
+              </motion.p>
+              <motion.h1
+                className="hero-brand"
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+              >
+                CREW
+                <span>gets paid.</span>
+              </motion.h1>
+              <motion.p
+                className="hero-copy"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.12, duration: 0.5 }}
+              >
+                Launch a Pump coin, tag up to five X accounts, lock a permanent
+                creator-fee split, and watch remits hit the public tape. Zero
+                platform cut.
+              </motion.p>
+              <motion.div
+                className="hero-actions"
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.22, duration: 0.45 }}
+              >
+                <a className="btn btn-primary" href="#launch">
+                  Launch with crew
+                </a>
+                <a className="btn btn-ghost" href="#board">
+                  Watch the tape
+                </a>
+              </motion.div>
+            </div>
           </section>
         </main>
       </div>
@@ -174,17 +194,17 @@ export default function App() {
             <article className="step">
               <div className="step-num">Step 01</div>
               <h3>Name the coin</h3>
-              <p>Image, ticker, one-line vibe. Optional tiny initial buy. Same muscle memory as Pump.</p>
+              <p>Ticker, vibe, optional tiny initial buy. Same muscle memory as Pump.</p>
             </article>
             <article className="step">
               <div className="step-num">Step 02</div>
               <h3>Tag the crew</h3>
-              <p>Up to five X handles with permanent % cuts. KOLs, artists, mods — whoever ships the narrative.</p>
+              <p>Up to five X handles with permanent % cuts. KOLs, artists, mods.</p>
             </article>
             <article className="step">
               <div className="step-num">Step 03</div>
               <h3>Desk pays out</h3>
-              <p>Fees claim → split → receipt on the board. Pick split, dip-buyback, or raid-pool mode.</p>
+              <p>Fees claim → split → receipt on the board. Split, dip-buyback, or raid-pool.</p>
             </article>
           </div>
         </section>
@@ -193,9 +213,8 @@ export default function App() {
           <p className="section-label">02 · Desk board</p>
           <h2 className="section-title">Money on the tape.</h2>
           <p className="section-sub">
-            The feed is the product. If the community can see who got paid and
-            why, the launch feels less like a ghost coin and more like a desk
-            with a pulse.
+            The feed is the product. If CT can see who got paid, the launch feels
+            like a desk with a pulse — not a ghost coin.
           </p>
           <div className="board">
             <div className="panel">
@@ -211,7 +230,7 @@ export default function App() {
                     initial={{ opacity: 0, x: -8 }}
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true }}
-                    transition={{ delay: Math.min(index, 8) * 0.05 }}
+                    transition={{ delay: Math.min(index, 8) * 0.04 }}
                   >
                     <div className="feed-time">
                       {item.time === "now" ? "just now" : `${item.time} ago`}
@@ -228,7 +247,7 @@ export default function App() {
             <div className="panel">
               <div className="panel-head">
                 <h3>Why CT clicks</h3>
-                <span>non-sophisticated on purpose</span>
+                <span>thin on purpose</span>
               </div>
               <div className="stats">
                 <div className="stat">
@@ -248,10 +267,10 @@ export default function App() {
                   <strong>1</strong>
                 </div>
               </div>
-              <div className="why-list" style={{ padding: "0 1.1rem 1.2rem", gap: "0.85rem" }}>
+              <div className="why-list">
                 <div className="why-item">
                   <h3>Agency, stripped</h3>
-                  <p>No full autonomous treasury mind. Just a desk that remits and optionally buybacks.</p>
+                  <p>No autonomous treasury mind. A desk that remits — and optionally buys dips.</p>
                 </div>
                 <div className="why-item">
                   <h3>X-DESK, focused</h3>
@@ -259,7 +278,7 @@ export default function App() {
                 </div>
                 <div className="why-item">
                   <h3>Pump-native</h3>
-                  <p>Create on Pump bonding curve. Fee share config locked at launch. Receipts public.</p>
+                  <p>Create on the bonding curve. Fee share locked at launch. Receipts public.</p>
                 </div>
               </div>
             </div>
@@ -270,8 +289,8 @@ export default function App() {
           <p className="section-label">03 · Launch desk</p>
           <h2 className="section-title">Ship a crew coin.</h2>
           <p className="section-sub">
-            This UI is a working demo of the flow. Mainnet create needs a funded
-            wallet + Pump SDK createV2 / fee-share instructions.
+            Production demo: validates a clean 100% crew split and returns a fake
+            mint. Mainnet needs wallet + Pump SDK createV2 / fee-share.
           </p>
 
           <div className="launch">
@@ -284,6 +303,7 @@ export default function App() {
                     value={draft.name}
                     onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                     placeholder="Desk Cat"
+                    autoComplete="off"
                   />
                 </div>
                 <div className="field">
@@ -295,6 +315,7 @@ export default function App() {
                       setDraft({ ...draft, ticker: normalizeTicker(e.target.value) })
                     }
                     placeholder="DCAT"
+                    autoComplete="off"
                   />
                 </div>
               </div>
@@ -311,15 +332,18 @@ export default function App() {
 
               <div className="field">
                 <label>Desk mode</label>
-                <div className="mode-pills">
+                <div className="mode-grid" role="radiogroup" aria-label="Desk mode">
                   {DESK_MODES.map((mode) => (
                     <button
                       key={mode.id}
                       type="button"
-                      className={`mode-pill${draft.mode === mode.id ? " active" : ""}`}
+                      role="radio"
+                      aria-checked={draft.mode === mode.id}
+                      className={`mode-option${draft.mode === mode.id ? " active" : ""}`}
                       onClick={() => setDraft({ ...draft, mode: mode.id })}
                     >
-                      {mode.label}
+                      <strong>{mode.label}</strong>
+                      <span>{mode.blurb}</span>
                     </button>
                   ))}
                 </div>
@@ -335,6 +359,8 @@ export default function App() {
                         value={member.handle}
                         onChange={(e) => updateCrew(index, { handle: e.target.value })}
                         placeholder="@handle"
+                        autoComplete="off"
+                        spellCheck={false}
                       />
                       <input
                         type="number"
@@ -346,13 +372,18 @@ export default function App() {
                         }
                         placeholder="%"
                       />
-                      <button type="button" onClick={() => removeCrew(index)} aria-label="Remove">
+                      <button
+                        type="button"
+                        onClick={() => removeCrew(index)}
+                        disabled={draft.crew.length <= 1}
+                        aria-label="Remove"
+                      >
                         remove
                       </button>
                     </div>
                   ))}
                 </div>
-                <div className="hero-actions" style={{ marginTop: "0.35rem" }}>
+                <div className="alloc-row">
                   <button
                     className="btn btn-ghost"
                     type="button"
@@ -361,8 +392,14 @@ export default function App() {
                   >
                     Add handle
                   </button>
-                  <p className="hint" style={{ margin: 0 }}>
-                    {draft.crew.length}/{MAX_CREW} · Allocated {shareTotal}% / 100%
+                  <div className="alloc-meter" aria-hidden>
+                    <div
+                      className={`alloc-fill${allocOk ? " is-ok" : ""}`}
+                      style={{ width: `${Math.min(100, Math.max(0, shareTotal))}%` }}
+                    />
+                  </div>
+                  <p className={`hint${allocOk ? " is-ok" : " is-bad"}`}>
+                    {draft.crew.length}/{MAX_CREW} · {shareTotal}% / 100%
                   </p>
                 </div>
               </div>
@@ -381,13 +418,14 @@ export default function App() {
                 />
               </div>
 
-              {error ? (
-                <p className="hint" style={{ color: "var(--danger)" }}>
-                  {error}
-                </p>
-              ) : null}
+              {error ? <p className="form-error">{error}</p> : null}
 
-              <button className="btn btn-primary" type="button" onClick={onLaunch} disabled={busy}>
+              <button
+                className="btn btn-primary btn-wide"
+                type="button"
+                onClick={onLaunch}
+                disabled={busy}
+              >
                 {busy ? "Routing desk…" : "Launch crew coin (demo)"}
               </button>
             </div>
@@ -427,8 +465,8 @@ export default function App() {
 
               <p className="hint">
                 Mode: <strong style={{ color: "var(--ink)" }}>{modeMeta.label}</strong>.
-                Platform fee narrative stays at 0% for v1 — sustainability can
-                come from optional tip-on-launch later, not a silent skim.
+                Platform fee stays 0% — sustainability can come from an optional
+                tip later, not a silent skim.
               </p>
 
               {result ? (
@@ -443,12 +481,19 @@ export default function App() {
                     <br />
                     Sig <code>{result.signature.slice(0, 18)}…</code>
                     <br />
-                    <a href={result.pumpUrl} target="_blank" rel="noreferrer">
-                      Open pump.fun link
-                    </a>
-                    <br />
                     {result.note}
                   </p>
+                  <div className="success-actions">
+                    <button className="btn btn-ghost" type="button" onClick={copyMint}>
+                      {copied ? "Copied" : "Copy mint"}
+                    </button>
+                    <a className="btn btn-primary" href={result.pumpUrl} target="_blank" rel="noreferrer">
+                      Open pump.fun
+                    </a>
+                    <a className="btn btn-ghost" href="#board">
+                      View tape
+                    </a>
+                  </div>
                 </motion.div>
               ) : null}
             </div>
