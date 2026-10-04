@@ -8,7 +8,7 @@ Production Pump.fun fee desk on **Solana mainnet**.
 
 1. Connect Phantom
 2. Create a Pump coin on mainnet
-3. Tag up to 5 X handles + fee-recipient wallets
+3. Tag up to 5 X / Pump handles — wallets auto-fill from Pump.fun’s user DB when linked
 4. Pick a desk mode: **Fee Split**, **Dip Buyback**, **Raid Pool**, or **Agent Hire**
 5. Lock permanent on-chain fee-share and crank remits to the public tape
 

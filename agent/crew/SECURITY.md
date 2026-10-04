@@ -27,12 +27,23 @@ Mitigations in place:
 
 Re-audit when `@pump-fun/pump-sdk` or `@solana/web3.js` ship dependency bumps.
 
+## Pump handle → wallet lookup
+
+CREW resolves `@handle` → Solana wallet via Pump’s public user API
+(`frontend-api-v3.pump.fun/users/{username}` → `canonical_svm_wallet`).
+
+That API is CORS-locked to `pump.fun`, so GitHub Pages uses a read-only proxy
+(`VITE_PUMP_RESOLVE_PROXY`, default allorigins `/get`). Only handle-shaped paths
+are requested — never arbitrary URLs. Auto-fill never overwrites a wallet the
+user typed manually. Always confirm the address in Phantom before signing.
+
 ## Threat notes
 
 - **XSS via localStorage**: mitigated by sanitize-on-load / sanitize-on-save
 - **SSRF via custom RPC**: blocked for non-HTTPS and private hosts; production should set `VITE_RPC_URL` to a trusted provider
 - **Phishing**: users must verify mint + fee-share txs in their wallet before signing
-- **Social handles**: X handles are tape labels only; fee recipients are Solana wallets
+- **Social handles**: X handles are tape labels; fee recipients are Solana wallets (Pump-linked when available)
+
 
 ## Reporting
 
