@@ -63,7 +63,7 @@ export function normalizeOptionalTwitter(raw: string | undefined): string | unde
   if (/^@?[a-z0-9_]{1,15}$/i.test(value)) {
     return `https://x.com/${value.replace(/^@/, '')}`
   }
-  throw new Error('X must be @handle or https://x.com/…')
+  throw new Error('X format: https://x.com/username or @username')
 }
 
 /** Optional website — empty allowed; http(s) URL. */

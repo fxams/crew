@@ -409,7 +409,7 @@ export default function App() {
 
     setBusy(true);
     setError(null);
-    setStatus("Uploading metadata → createV2 → fee share…");
+    setStatus("Uploading metadata (approve Phantom if prompted)…");
     setResult(null);
     setCopied(null);
 
@@ -419,7 +419,12 @@ export default function App() {
     setStatus(null);
 
     if (!response.ok) {
-      setError(response.error);
+      const msg = response.error || "Launch failed.";
+      setError(
+        /load failed|failed to fetch/i.test(msg)
+          ? "Metadata upload failed. Approve the Phantom storage signature, then try again."
+          : msg,
+      );
       return;
     }
 
@@ -1046,7 +1051,7 @@ export default function App() {
                   <input
                     value={draft.twitter ?? ""}
                     onChange={(e) => setDraft({ ...draft, twitter: e.target.value })}
-                    placeholder="X / Twitter"
+                    placeholder="https://x.com/username"
                     autoComplete="off"
                     spellCheck={false}
                     aria-label="X or Twitter"
@@ -1054,12 +1059,15 @@ export default function App() {
                   <input
                     value={draft.website ?? ""}
                     onChange={(e) => setDraft({ ...draft, website: e.target.value })}
-                    placeholder="Website"
+                    placeholder="https://yoursite.com"
                     autoComplete="off"
                     spellCheck={false}
                     aria-label="Website"
                   />
                 </div>
+                <p className="hint">
+                  X format: https://x.com/username or @username · Website: https://…
+                </p>
               </div>
 
               <div className="field">

@@ -7,7 +7,7 @@ export default defineConfig({
   base: '/crew/',
   plugins: [
     nodePolyfills({
-      include: ['buffer', 'process'],
+      include: ['buffer', 'process', 'crypto', 'stream', 'util', 'events'],
       globals: {
         Buffer: true,
         global: true,
@@ -18,7 +18,7 @@ export default defineConfig({
     react(),
   ],
   optimizeDeps: {
-    include: ['buffer', 'process', 'bn.js'],
+    include: ['buffer', 'process', 'bn.js', 'crypto', 'stream'],
   },
   build: {
     outDir: 'dist',
@@ -28,7 +28,7 @@ export default defineConfig({
     commonjsOptions: {
       transformMixedEsModules: true,
     },
-    chunkSizeWarningLimit: 1200,
+    chunkSizeWarningLimit: 1600,
     rolldownOptions: {
       output: {
         codeSplitting: {
@@ -36,6 +36,10 @@ export default defineConfig({
             {
               name: 'solana',
               test: /node_modules[\\/](?:@solana|@pump-fun|bn\.js|bs58)/,
+            },
+            {
+              name: 'irys',
+              test: /node_modules[\\/]@irys/,
             },
           ],
         },
@@ -58,6 +62,16 @@ export default defineConfig({
           Referer: 'https://pump.fun/',
         },
       },
+      // Local/dev: Pump metadata IPFS has no CORS for GH Pages origins
+      '/pump-ipfs': {
+        target: 'https://pump.fun',
+        changeOrigin: true,
+        rewrite: () => '/api/ipfs',
+        headers: {
+          Origin: 'https://pump.fun',
+          Referer: 'https://pump.fun/create',
+        },
+      },
     },
   },
   preview: {
@@ -69,6 +83,15 @@ export default defineConfig({
         headers: {
           Origin: 'https://pump.fun',
           Referer: 'https://pump.fun/',
+        },
+      },
+      '/pump-ipfs': {
+        target: 'https://pump.fun',
+        changeOrigin: true,
+        rewrite: () => '/api/ipfs',
+        headers: {
+          Origin: 'https://pump.fun',
+          Referer: 'https://pump.fun/create',
         },
       },
     },
