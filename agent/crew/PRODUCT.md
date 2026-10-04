@@ -48,9 +48,14 @@ They need:
 - **Lower trust friction** — fee map is visible before first trade
 - **Still degenspeed** — one form, one click, Pump URL back
 
-## Production status
-- App lives in `agent/crew` (Vite + React)
-- Demo launch validates **1–5** X handles and **exactly 100%** split; returns fake mint
-- Successful launches print onto the live remits feed + CREW tape
-- Mainnet stub: Pump IPFS → createV2 / fee-share → wallet sign (`src/lib/launch.ts`)
-- Hosting: **Render** static site via `render.yaml` — see `DEPLOY.md`
+## Production status (platform)
+
+- App: `agent/crew` (Vite + React + TypeScript)
+- **Demo** — validates 1–5 handles, 100% split, localStorage board + tape
+- **Mainnet** — Phantom wallet → Pump IPFS → `createV2` / `createV2AndBuy` → `createFeeSharingConfig` + `updateFeeSharesV2`
+- X handles are **tape identity**; fee recipients are **Solana wallets** (Pump social fee PDAs officially support GitHub only)
+- Buyback / Raid desk reserve (20% / 25%) routes to the launcher wallet
+- **Crank remits** — `distributeCreatorFeesV2` for mainnet mints
+- Persistence: `localStorage` board (`crew.platform.v1`)
+- Hosting: **GitHub Pages** — https://fxams.github.io/crew/ — see `DEPLOY.md`
+- Optional RPC: `VITE_RPC_URL` (see `.env.example`)
