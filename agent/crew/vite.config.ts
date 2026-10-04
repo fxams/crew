@@ -1,16 +1,22 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
+import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 // GitHub Pages project site: https://fxams.github.io/crew/
 export default defineConfig({
   base: '/crew/',
-  plugins: [react()],
-  resolve: {
-    alias: {
-      buffer: 'buffer/',
-      process: 'process/browser',
-    },
-  },
+  plugins: [
+    nodePolyfills({
+      include: ['buffer', 'process'],
+      globals: {
+        Buffer: true,
+        global: true,
+        process: true,
+      },
+      protocolImports: true,
+    }),
+    react(),
+  ],
   optimizeDeps: {
     include: ['buffer', 'process', 'bn.js'],
   },
@@ -22,14 +28,14 @@ export default defineConfig({
     commonjsOptions: {
       transformMixedEsModules: true,
     },
-    chunkSizeWarningLimit: 900,
+    chunkSizeWarningLimit: 1200,
     rolldownOptions: {
       output: {
         codeSplitting: {
           groups: [
             {
               name: 'solana',
-              test: /node_modules[\\/](?:@solana|@pump-fun|bn\.js|bs58|buffer|process)/,
+              test: /node_modules[\\/](?:@solana|@pump-fun|bn\.js|bs58)/,
             },
           ],
         },
