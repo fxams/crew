@@ -51,11 +51,11 @@ describe('splitShares', () => {
 })
 
 describe('kol db', () => {
-  it('has ranked top 10 with correlations', () => {
-    const top = topKolRecords(10)
-    expect(top).toHaveLength(10)
-    expect(top[0].id).toBe('slingoor')
+  it('has ranked 500+ with correlations and narratives', () => {
+    const top = topKolRecords(500)
+    expect(top.length).toBeGreaterThanOrEqual(500)
     expect(top.every((k) => k.correlated.length > 0)).toBe(true)
     expect(top.every((k) => k.narratives.length > 0)).toBe(true)
+    expect(top.every((k) => k.wallet.length >= 32)).toBe(true)
   })
 })

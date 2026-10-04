@@ -31,7 +31,7 @@
 
 - Phantom → Pump IPFS → `createV2` → permanent fee-share
 - Agent Hire: mind label + objective (no API keys) · wallets are the payroll
-- **KOL DB**: ranked Pump profiles + narrative tags + correlation packs
+- **KOL DB**: 500+ ranked Pump profiles (followers) + wallets + narrative tags + correlation packs
 - **Auto-hire**: match token name/ticker/vibe → fill crew wallets from correlated KOLs
 - No demo mint path — empty desk until real launches
 - Launch templates (incl. Agent hires), scoreboard, desk pulse, CT receipts
