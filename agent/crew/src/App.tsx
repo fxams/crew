@@ -46,7 +46,19 @@ import {
   applyNarrativeHire,
   type NarrativeHirePlan,
 } from "./lib/pump/narrative-hire";
-import { loadBoard, persistLaunch, persistRemit, persistRemits, resetBoard } from "./lib/store";
+import {
+  clearDraft,
+  clearUiPrefs,
+  loadBoard,
+  loadDraft,
+  loadUiPrefs,
+  persistLaunch,
+  persistRemit,
+  persistRemits,
+  resetBoard,
+  saveDraft,
+  saveUiPrefs,
+} from "./lib/store";
 import type { CoinRecord, RemitRecord } from "./lib/types";
 
 type LinkStatus = {
@@ -76,22 +88,41 @@ function initialBoard() {
   return loadBoard();
 }
 
+function initialDraft(): LaunchDraft {
+  const saved = loadDraft();
+  if (!saved) return DEFAULT_DRAFT;
+  return {
+    ...DEFAULT_DRAFT,
+    ...saved,
+    crew: saved.crew?.length ? saved.crew.map((m) => ({ ...m })) : DEFAULT_DRAFT.crew.map((m) => ({ ...m })),
+    buybackRule: saved.buybackRule ? { ...saved.buybackRule } : undefined,
+    raidQuests: saved.raidQuests?.map((q) => ({ ...q })),
+    agent: saved.agent ? { ...saved.agent } : undefined,
+    imageFile: null,
+  };
+}
+
 export default function App() {
   const wallet = useWallet();
   const { setVisible } = useWalletModal();
-  const [draft, setDraft] = useState<LaunchDraft>(DEFAULT_DRAFT);
+  const [draft, setDraft] = useState<LaunchDraft>(() => initialDraft());
   const [busy, setBusy] = useState(false);
   const [cranking, setCranking] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [result, setResult] = useState<CoinRecord | null>(null);
   const [copied, setCopied] = useState<"mint" | "share" | null>(null);
-  const [selectedCoin, setSelectedCoin] = useState<CoinRecord | null>(null);
   const [acting, setActing] = useState(false);
   const [boardTick] = useState(() => Date.now());
   const [desk, setDesk] = useState(() => {
     const board = initialBoard();
     return { coins: board.coins, remits: board.remits };
+  });
+  const [selectedCoin, setSelectedCoin] = useState<CoinRecord | null>(() => {
+    const prefs = loadUiPrefs();
+    if (!prefs.selectedMint) return null;
+    const board = loadBoard();
+    return board.coins.find((c) => c.mint === prefs.selectedMint) ?? null;
   });
   const [linkStatus, setLinkStatus] = useState<Record<number, LinkStatus>>({});
   const [hirePlan, setHirePlan] = useState<NarrativeHirePlan | null>(null);
@@ -100,6 +131,17 @@ export default function App() {
   const remits = desk.remits;
   const setCoins = (next: CoinRecord[]) => setDesk((d) => ({ ...d, coins: next }));
   const setRemits = (next: RemitRecord[]) => setDesk((d) => ({ ...d, remits: next }));
+
+  // Persist launch draft (debounced) — survives refresh
+  useEffect(() => {
+    const t = window.setTimeout(() => saveDraft(draft), 300);
+    return () => window.clearTimeout(t);
+  }, [draft]);
+
+  // Persist selected mint
+  useEffect(() => {
+    if (selectedCoin?.mint) saveUiPrefs({ selectedMint: selectedCoin.mint });
+  }, [selectedCoin?.mint]);
 
   const shareTotal = useMemo(() => totalShare(draft.crew), [draft.crew]);
   const handleFingerprint = useMemo(
@@ -357,7 +399,8 @@ export default function App() {
     setRemits(board.remits);
     setResult(response.coin);
     setSelectedCoin(response.coin);
-    setDraft((prev) => ({ ...prev, crew: response.coin.crew }));
+    // Keep form values for a quick re-launch, but drop transient image blob.
+    setDraft((prev) => ({ ...prev, crew: response.coin.crew, imageFile: null }));
   }
 
   async function onCrank(mint: string, ticker: string) {
@@ -370,14 +413,15 @@ export default function App() {
     setError(null);
     try {
       const signature = await distributeCreatorFees(mint, wallet);
+      const coinMode = coins.find((c) => c.mint === mint)?.mode ?? "split";
       const board = persistRemit({
         id: `crank_${Math.random().toString(36).slice(2, 10)}`,
         mint,
         ticker,
-        handle: "@desk",
+        handle: coinMode === "agent" ? "@agent" : coinMode === "raid" ? "@raid" : coinMode === "buyback" ? "@buyback" : "@desk",
         wallet: wallet.publicKey?.toBase58() ?? "",
         amountSol: 0,
-        mode: "split",
+        mode: coinMode,
         at: Number(new Date()),
         signature,
       });
@@ -451,11 +495,15 @@ export default function App() {
 
   function onResetBoard() {
     const board = resetBoard();
+    clearDraft();
+    clearUiPrefs();
     setCoins(board.coins);
     setRemits(board.remits);
     setSelectedCoin(null);
     setResult(null);
-    setStatus("Desk board reset to seed.");
+    setHirePlan(null);
+    setDraft(DEFAULT_DRAFT);
+    setStatus("Desk board + draft cleared.");
   }
 
   const tape = [...tapeItems, ...tapeItems];

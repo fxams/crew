@@ -45,7 +45,19 @@ export const MODE_DESK_BPS = {
 } as const
 
 export const MAX_CREW = 5
+/** Board: launched coins + remit tape */
 export const STORE_KEY = 'crew.platform.v4'
+/** Older board keys — migrated once into STORE_KEY */
+export const STORE_LEGACY_KEYS = [
+  'crew.platform.v3',
+  'crew.platform.v2',
+  'crew.platform.v1',
+  'crew.board.v1',
+] as const
+/** In-progress launch form (survives refresh) */
+export const DRAFT_KEY = 'crew.draft.v1'
+/** Lightweight UI prefs */
+export const UI_KEY = 'crew.ui.v1'
 
 export const AGENT_MODELS = [
   'Claude Sonnet',
