@@ -1,4 +1,4 @@
-export const CREW_VERSION = '1.2.0'
+export const CREW_VERSION = '2.0.0'
 
 /** Default public RPC — override with VITE_RPC_URL for production throughput. */
 export const RPC_URL =
@@ -20,4 +20,4 @@ export const MODE_DESK_BPS = {
 } as const
 
 export const MAX_CREW = 5
-export const STORE_KEY = 'crew.platform.v2'
+export const STORE_KEY = 'crew.platform.v3'

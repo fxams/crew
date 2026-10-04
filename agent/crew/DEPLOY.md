@@ -41,8 +41,8 @@ npm run preview
 
 Open the printed URL (assets load under `/crew/`).
 
-## Mainnet notes
+## Production notes
 
-- Connect **Phantom** in the app; toggle **Mainnet** on the launch desk.
+- App is **mainnet-only** — connect Phantom to launch.
 - Set `VITE_RPC_URL` for production throughput (public RPC rate-limits).
 - Fee recipients are Solana wallets; X handles print on the tape only.

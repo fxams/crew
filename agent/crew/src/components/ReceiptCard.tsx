@@ -29,7 +29,7 @@ export function ReceiptCard({ coin, onCopy, copied }: Props) {
       </div>
       <div className="receipt-foot">
         <span>0% platform cut</span>
-        <span>{coin.network}</span>
+        <span>mainnet</span>
       </div>
       <button className="btn btn-ghost btn-sm receipt-copy" type="button" onClick={onCopy}>
         {copied ? 'Copied for X' : 'Copy CT receipt'}

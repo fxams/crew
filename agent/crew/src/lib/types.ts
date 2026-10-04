@@ -2,7 +2,7 @@ export type DeskMode = 'split' | 'buyback' | 'raid'
 
 export type CrewMember = {
   handle: string
-  /** On-chain fee recipient. Required for mainnet launches. */
+  /** On-chain fee recipient. Required for launches. */
   wallet: string
   share: number
 }
@@ -36,8 +36,6 @@ export type LaunchDraft = {
   raidQuests?: RaidQuest[]
 }
 
-export type LaunchNetwork = 'mainnet' | 'demo'
-
 export type CoinRecord = {
   id: string
   mint: string
@@ -46,7 +44,6 @@ export type CoinRecord = {
   vibe: string
   mode: DeskMode
   crew: CrewMember[]
-  network: LaunchNetwork
   signature: string
   feeShareSignature?: string
   launchedAt: number
@@ -66,7 +63,6 @@ export type RemitRecord = {
   mode: DeskMode
   at: number
   signature?: string
-  network: LaunchNetwork
 }
 
 export type LaunchOk = {

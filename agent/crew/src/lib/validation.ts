@@ -38,9 +38,8 @@ export function assertWallet(raw: string): string {
 
 export function validateDraft(
   draft: LaunchDraft,
-  opts?: { requireWallets?: boolean; deskWallet?: string },
+  opts?: { deskWallet?: string },
 ): NormalizedLaunch {
-  const requireWallets = opts?.requireWallets ?? false
   const name = draft.name.trim()
   const ticker = draft.ticker.trim().toUpperCase().replace(/^\$/, '')
   const vibe = draft.vibe.trim()
@@ -75,12 +74,9 @@ export function validateDraft(
     if (share <= 0 || share > 100) throw new Error(`Bad split for ${handle}.`)
     shareSum += share
 
-    let wallet = member.wallet.trim()
-    if (requireWallets || wallet) {
-      wallet = assertWallet(wallet)
-      if (seenWallets.has(wallet)) throw new Error(`Duplicate wallet: ${wallet}`)
-      seenWallets.add(wallet)
-    }
+    const wallet = assertWallet(member.wallet)
+    if (seenWallets.has(wallet)) throw new Error(`Duplicate wallet: ${wallet}`)
+    seenWallets.add(wallet)
 
     crew.push({ handle, wallet, share })
   }
@@ -125,7 +121,9 @@ function buildShareholders(
 
   for (const row of raw) {
     if (row.bps <= 0) continue
-    // Empty wallet is allowed for demo launches (share map is local only).
+    if (!row.member.wallet) {
+      throw new Error(`Wallet required for ${row.member.handle}.`)
+    }
     out.push({
       wallet: row.member.wallet,
       bps: row.bps,

@@ -11,8 +11,8 @@ function jitter(base: number, spread = 0.35) {
 }
 
 /**
- * Simulate creator-fee accrual and split to crew (demo / local tape).
- * Desk reserve (buyback/raid) is recorded as a separate @desk line.
+ * Project a fee accrual split onto the local tape (does not move on-chain funds).
+ * Use Distribute / crank for real remits.
  */
 export function simulateFeeAccrual(
   coin: CoinRecord,
@@ -31,11 +31,10 @@ export function simulateFeeAccrual(
       mint: coin.mint,
       ticker: coin.ticker,
       handle: coin.mode === 'raid' ? '@raid' : '@buyback',
-      wallet: coin.launcher === 'demo' ? '' : coin.launcher,
+      wallet: coin.launcher,
       amountSol: deskSol,
       mode: coin.mode,
       at: now,
-      network: coin.network,
     })
   }
 
@@ -60,14 +59,13 @@ export function simulateFeeAccrual(
       amountSol: row.amount,
       mode: coin.mode,
       at: now + (i + 1) * 40,
-      network: coin.network,
     })
   }
 
   return out
 }
 
-/** Simulate a dip-rule fire from the buyback reserve. */
+/** Project a dip-rule fire onto the local tape. */
 export function simulateBuybackFire(coin: CoinRecord): RemitRecord {
   if (coin.mode !== 'buyback') {
     throw new Error('Buyback fire only works on Dip Buyback coins.')
@@ -81,15 +79,14 @@ export function simulateBuybackFire(coin: CoinRecord): RemitRecord {
     mint: coin.mint,
     ticker: coin.ticker,
     handle: '@buyback',
-    wallet: coin.launcher === 'demo' ? '' : coin.launcher,
+    wallet: coin.launcher,
     amountSol: amount,
     mode: 'buyback',
     at: Number(new Date()),
-    network: coin.network,
   }
 }
 
-/** Simulate a raid quest payout from the raid pool. */
+/** Project a raid quest payout onto the local tape. */
 export function simulateRaidClaim(coin: CoinRecord, questId?: string): RemitRecord {
   if (coin.mode !== 'raid') {
     throw new Error('Raid claims only work on Raid Pool coins.')
@@ -111,17 +108,16 @@ export function simulateRaidClaim(coin: CoinRecord, questId?: string): RemitReco
     amountSol: Math.max(0.001, amount),
     mode: 'raid',
     at: Number(new Date()),
-    network: coin.network,
     signature: `quest:${quest.id}`,
   }
 }
 
 export function solscanTxUrl(signature: string) {
-  if (!signature || signature === 'seed' || signature.startsWith('quest:')) return null
+  if (!signature || signature.startsWith('quest:')) return null
   return `https://solscan.io/tx/${signature}`
 }
 
 export function solscanTokenUrl(mint: string) {
-  if (!mint || mint.startsWith('Crew')) return null
+  if (!mint) return null
   return `https://solscan.io/token/${mint}`
 }
