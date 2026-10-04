@@ -1,4 +1,12 @@
-import type { BuybackRule, CoinRecord, CrewMember, DeskMode, RaidQuest, RemitRecord } from './types'
+import type {
+  BuybackRule,
+  CoinRecord,
+  CrewMember,
+  DeskMode,
+  LaunchDraft,
+  RaidQuest,
+  RemitRecord,
+} from './types'
 
 const ALLOWED_RPC_HOSTS = new Set([
   'api.mainnet-beta.solana.com',
@@ -167,4 +175,43 @@ export function sanitizeBoard(raw: unknown): { coins: CoinRecord[]; remits: Remi
     ? board.remits.map(sanitizeRemit).filter((r): r is RemitRecord => Boolean(r)).slice(0, 200)
     : []
   return { coins, remits }
+}
+
+/** Persistable launch draft (no File / image). */
+export function sanitizeDraft(raw: unknown): LaunchDraft {
+  const fallback: LaunchDraft = {
+    name: '',
+    ticker: '',
+    vibe: '',
+    mode: 'split',
+    crew: [{ handle: '@', wallet: '', share: 100 }],
+    initialBuySol: 0.1,
+    imageFile: null,
+    buybackRule: undefined,
+    raidQuests: undefined,
+    agent: undefined,
+  }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return fallback
+  const r = raw as Record<string, unknown>
+  const mode = asString(r.mode, 16) as DeskMode
+  const safeMode = MODES.has(mode) ? mode : 'split'
+  const crew = sanitizeCrew(r.crew)
+  return {
+    name: asString(r.name, 64),
+    ticker: asString(r.ticker, 16).toUpperCase(),
+    vibe: asString(r.vibe, 280),
+    mode: safeMode,
+    crew: crew.length ? crew : fallback.crew,
+    initialBuySol: Math.max(0, Math.min(100, Number(r.initialBuySol) || 0.1)),
+    imageFile: null,
+    buybackRule: safeMode === 'buyback' ? sanitizeBuyback(r.buybackRule) : undefined,
+    raidQuests: safeMode === 'raid' ? sanitizeQuests(r.raidQuests) : undefined,
+    agent: safeMode === 'agent' ? sanitizeAgent(r.agent) : undefined,
+  }
+}
+
+export function sanitizeUiPrefs(raw: unknown): { selectedMint?: string } {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const mint = asString((raw as Record<string, unknown>).selectedMint, 64)
+  return mint ? { selectedMint: mint } : {}
 }
