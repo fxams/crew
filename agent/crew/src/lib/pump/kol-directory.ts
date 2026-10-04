@@ -1,5 +1,5 @@
 /**
- * CREW KOL database — 500+ Pump-verified wallets with rank, narrative tags,
+ * CREW KOL database — 1500 Pump-verified wallets with rank, narrative tags,
  * and correlation packs for automated hire + handle→wallet autofill.
  *
  * Data: `kol-db.json` harvested from Pump `/users?sort=followers`.

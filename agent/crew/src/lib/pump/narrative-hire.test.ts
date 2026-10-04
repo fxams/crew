@@ -51,9 +51,9 @@ describe('splitShares', () => {
 })
 
 describe('kol db', () => {
-  it('has ranked 500+ with correlations and narratives', () => {
-    const top = topKolRecords(500)
-    expect(top.length).toBeGreaterThanOrEqual(500)
+  it('has ranked 1500 with correlations and narratives', () => {
+    const top = topKolRecords(1500)
+    expect(top.length).toBeGreaterThanOrEqual(1500)
     expect(top.every((k) => k.correlated.length > 0)).toBe(true)
     expect(top.every((k) => k.narratives.length > 0)).toBe(true)
     expect(top.every((k) => k.wallet.length >= 32)).toBe(true)
