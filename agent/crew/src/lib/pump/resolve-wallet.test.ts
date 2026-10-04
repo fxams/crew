@@ -6,6 +6,11 @@ describe('bareHandle', () => {
     expect(bareHandle('@Bonk_Inu')).toBe('bonk_inu')
   })
 
+  it('parses pasted profile URLs', () => {
+    expect(bareHandle('https://x.com/slingoorio')).toBe('slingoorio')
+    expect(bareHandle('https://pump.fun/profile/slingoor')).toBe('slingoor')
+  })
+
   it('rejects invalid handles', () => {
     expect(bareHandle('')).toBeNull()
     expect(bareHandle('@')).toBeNull()

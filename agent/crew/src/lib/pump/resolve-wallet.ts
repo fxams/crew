@@ -37,9 +37,40 @@ type PumpUser = {
 
 const HANDLE_BODY = /^[a-z0-9_]{1,15}$/i
 
-/** Normalize @handle → bare lowercase username for Pump lookup. */
+/** Template / demo handles — never hit Pump for these. */
+const PLACEHOLDER_HANDLES = new Set([
+  'yourhandle',
+  'kolfriend',
+  'caller',
+  'chartwitch',
+  'replyguy',
+  'analyst',
+  'frogcaller',
+  'raidcap',
+  'kollead',
+  'handle',
+  'username',
+])
+
+export function isPlaceholderHandle(raw: string): boolean {
+  const h = bareHandle(raw)
+  return !h || PLACEHOLDER_HANDLES.has(h)
+}
+
+/**
+ * Normalize @handle → bare lowercase username for Pump lookup.
+ * Also accepts pasted profile URLs (x.com / twitter.com / pump.fun/profile).
+ */
 export function bareHandle(raw: string): string | null {
-  const h = raw.trim().replace(/^@+/, '').toLowerCase()
+  let h = raw.trim()
+  // Paste: https://x.com/slingoorio or pump.fun/profile/slingoor
+  const urlMatch = h.match(
+    /(?:(?:https?:\/\/)?(?:www\.)?(?:x\.com|twitter\.com)\/|pump\.fun\/profile\/)@?([a-zA-Z0-9_]{1,15})/i,
+  )
+  if (urlMatch) h = urlMatch[1]
+  h = h.replace(/^@+/, '').toLowerCase()
+  // Drop query/hash leftovers from bad pastes
+  h = h.split(/[/?#]/)[0] || ''
   if (!HANDLE_BODY.test(h)) return null
   // Nest path collision: /users/search is the user named "search"
   if (h === 'search') return null
