@@ -1,6 +1,5 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
-import { NodeGlobalsPolyfillPlugin } from '@esbuild-plugins/node-globals-polyfill'
 
 // GitHub Pages project site: https://fxams.github.io/crew/
 export default defineConfig({
@@ -9,21 +8,11 @@ export default defineConfig({
   resolve: {
     alias: {
       buffer: 'buffer/',
+      process: 'process/browser',
     },
   },
   optimizeDeps: {
-    esbuildOptions: {
-      define: {
-        global: 'globalThis',
-      },
-      plugins: [
-        NodeGlobalsPolyfillPlugin({
-          buffer: true,
-          process: true,
-        }),
-      ],
-    },
-    include: ['buffer', 'bn.js'],
+    include: ['buffer', 'process', 'bn.js'],
   },
   build: {
     outDir: 'dist',
@@ -33,9 +22,11 @@ export default defineConfig({
     commonjsOptions: {
       transformMixedEsModules: true,
     },
+    chunkSizeWarningLimit: 1600,
   },
   define: {
     'process.env': {},
+    global: 'globalThis',
   },
   test: {
     environment: 'node',
