@@ -22,7 +22,19 @@ export default defineConfig({
     commonjsOptions: {
       transformMixedEsModules: true,
     },
-    chunkSizeWarningLimit: 1600,
+    chunkSizeWarningLimit: 900,
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              name: 'solana',
+              test: /node_modules[\\/](?:@solana|@pump-fun|bn\.js|bs58|buffer|process)/,
+            },
+          ],
+        },
+      },
+    },
   },
   define: {
     'process.env': {},

@@ -10,7 +10,15 @@ import {
   type CrewMember,
   type LaunchDraft,
 } from "./data";
+import { ReceiptCard } from "./components/ReceiptCard";
 import { CREW_VERSION, MODE_DESK_BPS } from "./lib/config";
+import {
+  simulateBuybackFire,
+  simulateFeeAccrual,
+  simulateRaidClaim,
+  solscanTokenUrl,
+  solscanTxUrl,
+} from "./lib/desk-actions";
 import {
   CREW_EDGES,
   DEFAULT_BUYBACK,
@@ -25,7 +33,7 @@ import {
 } from "./lib/edges";
 import { launchDemo, launchMainnet } from "./lib/launch";
 import { distributeCreatorFees } from "./lib/pump/fees";
-import { loadBoard, persistLaunch, persistRemit } from "./lib/store";
+import { loadBoard, persistLaunch, persistRemit, persistRemits, resetBoard } from "./lib/store";
 import type { CoinRecord, LaunchNetwork, RemitRecord } from "./lib/types";
 
 const MAX_CREW = 5;
@@ -61,6 +69,7 @@ export default function App() {
   const [result, setResult] = useState<CoinRecord | null>(null);
   const [copied, setCopied] = useState<"mint" | "share" | null>(null);
   const [selectedCoin, setSelectedCoin] = useState<CoinRecord | null>(null);
+  const [acting, setActing] = useState(false);
   const [boardTick] = useState(() => Date.now());
   const [desk, setDesk] = useState(() => {
     const board = initialBoard();
@@ -256,6 +265,52 @@ export default function App() {
     }
   }
 
+  function runDeskAction(label: string, fn: () => RemitRecord[]) {
+    if (!selectedCoin) return;
+    setActing(true);
+    setError(null);
+    try {
+      const next = fn();
+      const board = persistRemits(next);
+      setRemits(board.remits);
+      setStatus(label);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Desk action failed.");
+    } finally {
+      setActing(false);
+    }
+  }
+
+  function onSimulateFees() {
+    if (!selectedCoin) return;
+    runDeskAction(`Simulated fees on $${selectedCoin.ticker}`, () =>
+      simulateFeeAccrual(selectedCoin),
+    );
+  }
+
+  function onFireBuyback() {
+    if (!selectedCoin) return;
+    runDeskAction(`Buyback fired on $${selectedCoin.ticker}`, () => [
+      simulateBuybackFire(selectedCoin),
+    ]);
+  }
+
+  function onRaidClaim(questId?: string) {
+    if (!selectedCoin) return;
+    runDeskAction(`Raid claim on $${selectedCoin.ticker}`, () => [
+      simulateRaidClaim(selectedCoin, questId),
+    ]);
+  }
+
+  function onResetBoard() {
+    const board = resetBoard();
+    setCoins(board.coins);
+    setRemits(board.remits);
+    setSelectedCoin(null);
+    setResult(null);
+    setStatus("Desk board reset to seed.");
+  }
+
   const tape = [...tapeItems, ...tapeItems];
   const launchLabel = busy
     ? network === "mainnet"
@@ -423,6 +478,9 @@ export default function App() {
               <span>
                 <strong>{stats.mainnetCoins}</strong> mainnet
               </span>
+              <button type="button" className="stat-reset" onClick={onResetBoard}>
+                Reset
+              </button>
             </div>
           </div>
 
@@ -522,61 +580,112 @@ export default function App() {
                   {selectedCoin.vibe || "No vibe."} · {selectedCoin.network} ·{" "}
                   {shortAddr(selectedCoin.mint)}
                 </p>
-                <div className="split-bars">
-                  {selectedCoin.crew.map((m) => (
-                    <div className="split-bar" key={`${selectedCoin.mint}-${m.handle}`}>
-                      <div className="split-meta">
-                        <span>{m.handle}</span>
-                        <span>{m.share}%</span>
-                      </div>
-                      <div className="split-track">
-                        <div className="split-fill" style={{ width: `${m.share}%` }} />
-                      </div>
+                <div className="coin-desk-layout">
+                  <div className="coin-desk-main">
+                    <div className="split-bars">
+                      {selectedCoin.crew.map((m) => (
+                        <div className="split-bar" key={`${selectedCoin.mint}-${m.handle}`}>
+                          <div className="split-meta">
+                            <span>{m.handle}</span>
+                            <span>{m.share}%</span>
+                          </div>
+                          <div className="split-track">
+                            <div className="split-fill" style={{ width: `${m.share}%` }} />
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-                {selectedCoin.mode === "buyback" && selectedCoin.buybackRule ? (
-                  <p className="hint">
-                    Dip rule: −{selectedCoin.buybackRule.dipPct}% → ≤
-                    {selectedCoin.buybackRule.maxSolPerFire} SOL ·{" "}
-                    {selectedCoin.buybackRule.cooldownHours}h cooldown
-                  </p>
-                ) : null}
-                {selectedCoin.mode === "raid" && selectedCoin.raidQuests?.length ? (
-                  <div className="quest-mini">
-                    {selectedCoin.raidQuests.map((q) => (
-                      <div className="quest-chip" key={q.id}>
-                        <strong>{(q.bountyBps / 100).toFixed(0)}%</strong> {q.title}
+                    {selectedCoin.mode === "buyback" && selectedCoin.buybackRule ? (
+                      <p className="hint">
+                        Dip rule: −{selectedCoin.buybackRule.dipPct}% → ≤
+                        {selectedCoin.buybackRule.maxSolPerFire} SOL ·{" "}
+                        {selectedCoin.buybackRule.cooldownHours}h cooldown
+                      </p>
+                    ) : null}
+                    {selectedCoin.mode === "raid" && selectedCoin.raidQuests?.length ? (
+                      <div className="quest-mini">
+                        {selectedCoin.raidQuests.map((q) => (
+                          <div className="quest-chip quest-chip-row" key={q.id}>
+                            <div>
+                              <strong>{(q.bountyBps / 100).toFixed(0)}%</strong> {q.title}
+                              <span className="quest-proof"> · {q.proof}</span>
+                            </div>
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              disabled={acting}
+                              onClick={() => onRaidClaim(q.id)}
+                            >
+                              Claim
+                            </button>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    ) : null}
+                    <div className="success-actions">
+                      <button
+                        className="btn btn-primary btn-sm"
+                        type="button"
+                        disabled={acting}
+                        onClick={onSimulateFees}
+                      >
+                        {acting ? "Routing…" : "Simulate fees"}
+                      </button>
+                      {selectedCoin.mode === "buyback" ? (
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          type="button"
+                          disabled={acting}
+                          onClick={onFireBuyback}
+                        >
+                          Fire buyback
+                        </button>
+                      ) : null}
+                      <a
+                        className="btn btn-ghost btn-sm"
+                        href={selectedCoin.pumpUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        pump.fun
+                      </a>
+                      {solscanTokenUrl(selectedCoin.mint) ? (
+                        <a
+                          className="btn btn-ghost btn-sm"
+                          href={solscanTokenUrl(selectedCoin.mint)!}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Solscan
+                        </a>
+                      ) : null}
+                      {solscanTxUrl(selectedCoin.signature) ? (
+                        <a
+                          className="btn btn-ghost btn-sm"
+                          href={solscanTxUrl(selectedCoin.signature)!}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Tx
+                        </a>
+                      ) : null}
+                      {selectedCoin.network === "mainnet" ? (
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          type="button"
+                          disabled={cranking === selectedCoin.mint}
+                          onClick={() => void onCrank(selectedCoin.mint, selectedCoin.ticker)}
+                        >
+                          {cranking === selectedCoin.mint ? "Cranking…" : "Distribute"}
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
-                ) : null}
-                <div className="success-actions">
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    type="button"
-                    onClick={() => void copyShare(selectedCoin)}
-                  >
-                    {copied === "share" ? "Copied receipt" : "Copy CT receipt"}
-                  </button>
-                  <a
-                    className="btn btn-primary btn-sm"
-                    href={selectedCoin.pumpUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    pump.fun
-                  </a>
-                  {selectedCoin.network === "mainnet" ? (
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      type="button"
-                      disabled={cranking === selectedCoin.mint}
-                      onClick={() => void onCrank(selectedCoin.mint, selectedCoin.ticker)}
-                    >
-                      {cranking === selectedCoin.mint ? "Cranking…" : "Distribute"}
-                    </button>
-                  ) : null}
+                  <ReceiptCard
+                    coin={selectedCoin}
+                    copied={copied === "share"}
+                    onCopy={() => void copyShare(selectedCoin)}
+                  />
                 </div>
               </div>
             </div>
@@ -1036,19 +1145,27 @@ export default function App() {
                         : ""}
                     </p>
                   ) : null}
+                  <ReceiptCard
+                    coin={result}
+                    copied={copied === "share"}
+                    onCopy={() => void copyShare(result)}
+                  />
                   <div className="success-actions">
                     <button className="btn btn-ghost btn-sm" type="button" onClick={copyMint}>
                       {copied === "mint" ? "Copied" : "Copy mint"}
                     </button>
                     <button
-                      className="btn btn-ghost btn-sm"
+                      className="btn btn-primary btn-sm"
                       type="button"
-                      onClick={() => void copyShare(result)}
+                      onClick={() => {
+                        setSelectedCoin(result);
+                        document.getElementById("board")?.scrollIntoView({ behavior: "smooth" });
+                      }}
                     >
-                      {copied === "share" ? "Receipt copied" : "Copy CT receipt"}
+                      Open desk
                     </button>
                     <a
-                      className="btn btn-primary btn-sm"
+                      className="btn btn-ghost btn-sm"
                       href={result.pumpUrl}
                       target="_blank"
                       rel="noreferrer"
