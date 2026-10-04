@@ -27,21 +27,29 @@ export type FeedItem = {
   amount: string;
 };
 
-export const DESK_MODES: { id: DeskMode; label: string; blurb: string }[] = [
+export const DESK_MODES: {
+  id: DeskMode
+  label: string
+  short: string
+  blurb: string
+}[] = [
   {
     id: "split",
     label: "Fee Split",
-    blurb: "Creator fees route to tagged X accounts. Simplest play.",
+    short: "Split",
+    blurb: "Creator fees route to tagged X accounts.",
   },
   {
     id: "buyback",
     label: "Dip Buyback",
-    blurb: "Desk keeps a cut and buys dips when rules fire.",
+    short: "Buyback",
+    blurb: "Crew share buys dips when rules fire.",
   },
   {
     id: "raid",
     label: "Raid Pool",
-    blurb: "Fees fund a public raid pot for holders who ship content.",
+    short: "Raid",
+    blurb: "Fees fund a public raid pot for posters.",
   },
 ];
 
