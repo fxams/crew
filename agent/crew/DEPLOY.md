@@ -1,34 +1,37 @@
-# Deploy CREW on Render
+# Deploy CREW on GitHub Pages
 
-## Service
+Live URL (after Pages is enabled): **https://fxams.github.io/crew/**
+
+## One-time setup
+
+1. Repo must allow Pages:
+   - **Public** on GitHub Free, or private with GitHub Pro
+2. GitHub → **Settings → Pages**
+3. **Source:** GitHub Actions
+4. Push to `main` (or this production branch) — workflow `Deploy CREW to GitHub Pages` builds `agent/crew` and publishes `dist`
+
+## Build settings (in workflow)
 
 | Field | Value |
 | --- | --- |
-| Type | Static Site |
-| Repo | `fxams/crew` |
-| Branch | `main` (or this production branch until merged) |
-| Root directory | `agent/crew` |
-| Build command | `npm ci && npm run build` |
-| Publish directory | `dist` |
+| App root | `agent/crew` |
+| Build | `npm ci && npm run build` |
+| Publish | `agent/crew/dist` |
+| Vite `base` | `/crew/` |
 
-Blueprint: repo-root [`render.yaml`](../../render.yaml).
+## Custom domain (optional)
 
-## Custom domain
+1. Pages → Custom domain → e.g. `crew.yourdomain.com`
+2. DNS: `CNAME` → `fxams.github.io`
+3. Enable **Enforce HTTPS**
 
-1. Render → CREW static site → **Settings → Custom Domains → Add**
-2. Enter your domain (e.g. `crew.example.com` or apex `example.com`)
-3. DNS at your registrar:
-   - **Subdomain:** `CNAME` → `crew.onrender.com` (or the target Render shows)
-   - **Apex:** follow Render’s A/ALIAS records for the account
-4. Wait for TLS to provision (usually a few minutes)
+## Local production check
 
-## API deploy (agent)
+```bash
+cd agent/crew
+npm ci
+npm run build
+npm run preview
+```
 
-Set secret `RENDER_API_KEY` (Render Dashboard → Account Settings → API Keys).
-
-Then the agent can create/update the static site and attach the domain via Render’s API.
-
-## Demo vs mainnet
-
-Production UI ships the **demo mint** (100% crew split validation + fake CA).  
-Mainnet path remains stubbed in `src/lib/launch.ts` (`mainnetLaunch`).
+Open the printed URL (assets load under `/crew/`).

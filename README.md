@@ -8,4 +8,5 @@ npm install
 npm run dev
 ```
 
-Production hosting: **Render** — see [`agent/crew/DEPLOY.md`](./agent/crew/DEPLOY.md) and [`render.yaml`](./render.yaml).
+**Hosting:** GitHub Pages → https://fxams.github.io/crew/  
+See [`agent/crew/DEPLOY.md`](./agent/crew/DEPLOY.md).
