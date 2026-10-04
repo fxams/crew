@@ -74,14 +74,17 @@ export async function launchMainnet(
     const online = getOnlineSdk()
     const sdk = getPumpSdk()
 
-    const twitter = normalized.crew[0]?.handle?.replace('@', 'https://x.com/')
+    const image = draft.imageFile
+    if (!image) {
+      return { ok: false, error: 'Coin image is required.' }
+    }
     const { metadataUri } = await uploadPumpMetadata({
       name: normalized.name,
       symbol: normalized.ticker,
-      description: normalized.vibe || `${normalized.name} — CREW fee desk`,
-      twitter,
-      website: 'https://fxams.github.io/crew/',
-      file: draft.imageFile,
+      description: normalized.vibe,
+      twitter: normalized.twitter,
+      website: normalized.website,
+      file: image,
     })
 
     const mintKp = Keypair.generate()

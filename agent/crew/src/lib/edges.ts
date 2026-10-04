@@ -41,7 +41,15 @@ export type LaunchTemplate = {
   blurb: string
   draft: Pick<
     LaunchDraft,
-    'name' | 'ticker' | 'vibe' | 'mode' | 'crew' | 'initialBuySol' | 'agent'
+    | 'name'
+    | 'ticker'
+    | 'vibe'
+    | 'mode'
+    | 'crew'
+    | 'initialBuySol'
+    | 'agent'
+    | 'twitter'
+    | 'website'
   > & {
     buybackRule?: BuybackRule
     raidQuests?: RaidQuest[]
@@ -81,37 +89,42 @@ export const DEFAULT_RAID_QUESTS: RaidQuest[] = [
   },
 ]
 
+/** Mode / crew skeletons only — name, ticker, image still required from the user. */
 export const LAUNCH_TEMPLATES: LaunchTemplate[] = [
   {
     id: 'kol',
     label: 'KOL pack',
-    blurb: 'Caller + chart witch + reply guy.',
+    blurb: '3-way fee split.',
     draft: {
-      name: 'Crew Signal',
-      ticker: 'SIG',
-      vibe: 'Fees tip the people who actually move the timeline.',
+      name: '',
+      ticker: '',
+      vibe: '',
       mode: 'split',
-      initialBuySol: 0.15,
+      initialBuySol: 0,
+      twitter: '',
+      website: '',
       crew: [
-        { handle: '@caller', wallet: '', share: 50 },
-        { handle: '@chartwitch', wallet: '', share: 30 },
-        { handle: '@replyguy', wallet: '', share: 20 },
+        { handle: '', wallet: '', share: 50 },
+        { handle: '', wallet: '', share: 30 },
+        { handle: '', wallet: '', share: 20 },
       ],
     },
   },
   {
     id: 'dip',
     label: 'Dip desk',
-    blurb: 'Crew + buyback reserve with dip rules.',
+    blurb: 'Crew + buyback reserve.',
     draft: {
-      name: 'Floor Guard',
-      ticker: 'FLOOR',
-      vibe: 'Crew gets paid. Desk buys verified dips.',
+      name: '',
+      ticker: '',
+      vibe: '',
       mode: 'buyback',
-      initialBuySol: 0.2,
+      initialBuySol: 0,
+      twitter: '',
+      website: '',
       crew: [
-        { handle: '@caller', wallet: '', share: 60 },
-        { handle: '@analyst', wallet: '', share: 40 },
+        { handle: '', wallet: '', share: 60 },
+        { handle: '', wallet: '', share: 40 },
       ],
       buybackRule: { ...DEFAULT_BUYBACK },
     },
@@ -119,17 +132,19 @@ export const LAUNCH_TEMPLATES: LaunchTemplate[] = [
   {
     id: 'raid',
     label: 'Raid squad',
-    blurb: 'Raid pool + 3 quests for posters.',
+    blurb: 'Raid pool + quests.',
     draft: {
-      name: 'Raid Frog',
-      ticker: 'FROG',
-      vibe: 'Post, raid, get paid from the pot.',
+      name: '',
+      ticker: '',
+      vibe: '',
       mode: 'raid',
-      initialBuySol: 0.1,
+      initialBuySol: 0,
+      twitter: '',
+      website: '',
       crew: [
-        { handle: '@frogcaller', wallet: '', share: 45 },
-        { handle: '@chartwitch', wallet: '', share: 35 },
-        { handle: '@raidcap', wallet: '', share: 20 },
+        { handle: '', wallet: '', share: 45 },
+        { handle: '', wallet: '', share: 35 },
+        { handle: '', wallet: '', share: 20 },
       ],
       raidQuests: DEFAULT_RAID_QUESTS.map((q) => ({ ...q })),
     },
@@ -137,18 +152,20 @@ export const LAUNCH_TEMPLATES: LaunchTemplate[] = [
   {
     id: 'agent',
     label: 'Agent hires',
-    blurb: 'AI agent + KOL payroll (Agency × CREW).',
+    blurb: 'AI agent + KOL payroll.',
     draft: {
-      name: 'Hire Desk',
-      ticker: 'HIRE',
-      vibe: 'An agent that pays the humans who make the coin move.',
+      name: '',
+      ticker: '',
+      vibe: '',
       mode: 'agent',
-      initialBuySol: 0.15,
-      agent: { ...DEFAULT_AGENT },
+      initialBuySol: 0,
+      twitter: '',
+      website: '',
+      agent: { name: '', objective: '', model: 'custom' },
       crew: [
-        { handle: '@caller', wallet: '', share: 45, hireRole: 'caller' },
-        { handle: '@chartwitch', wallet: '', share: 30, hireRole: 'chart' },
-        { handle: '@kollead', wallet: '', share: 25, hireRole: 'kol' },
+        { handle: '', wallet: '', share: 45, hireRole: 'caller' },
+        { handle: '', wallet: '', share: 30, hireRole: 'chart' },
+        { handle: '', wallet: '', share: 25, hireRole: 'kol' },
       ],
     },
   },

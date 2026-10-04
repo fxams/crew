@@ -21,7 +21,6 @@ import {
 } from "./lib/desk-actions";
 import {
   CREW_EDGES,
-  DEFAULT_AGENT,
   DEFAULT_BUYBACK,
   DEFAULT_RAID_QUESTS,
   LAUNCH_TEMPLATES,
@@ -60,6 +59,7 @@ import {
   saveUiPrefs,
 } from "./lib/store";
 import type { CoinRecord, RemitRecord } from "./lib/types";
+import { getLaunchBlockers, isLaunchReady } from "./lib/validation";
 
 type LinkStatus = {
   state: "idle" | "loading" | "linked" | "miss" | "error";
@@ -90,14 +90,18 @@ function initialBoard() {
 
 function initialDraft(): LaunchDraft {
   const saved = loadDraft();
-  if (!saved) return DEFAULT_DRAFT;
+  if (!saved) return { ...DEFAULT_DRAFT, crew: DEFAULT_DRAFT.crew.map((m) => ({ ...m })) };
   return {
     ...DEFAULT_DRAFT,
     ...saved,
-    crew: saved.crew?.length ? saved.crew.map((m) => ({ ...m })) : DEFAULT_DRAFT.crew.map((m) => ({ ...m })),
+    crew: saved.crew?.length
+      ? saved.crew.map((m) => ({ ...m }))
+      : DEFAULT_DRAFT.crew.map((m) => ({ ...m })),
     buybackRule: saved.buybackRule ? { ...saved.buybackRule } : undefined,
     raidQuests: saved.raidQuests?.map((q) => ({ ...q })),
     agent: saved.agent ? { ...saved.agent } : undefined,
+    twitter: saved.twitter ?? "",
+    website: saved.website ?? "",
     imageFile: null,
   };
 }
@@ -228,6 +232,17 @@ export default function App() {
   const allocOk = shareTotal === 100;
   const deskBps = MODE_DESK_BPS[draft.mode];
   const connected = Boolean(wallet.publicKey);
+  const launchReady = isLaunchReady(draft);
+  const launchBlockers = useMemo(() => getLaunchBlockers(draft), [draft]);
+  const imagePreviewUrl = useMemo(() => {
+    if (!draft.imageFile) return null;
+    return URL.createObjectURL(draft.imageFile);
+  }, [draft.imageFile]);
+  useEffect(() => {
+    return () => {
+      if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+    };
+  }, [imagePreviewUrl]);
   const stats = useMemo(() => deskStats(coins, remits), [coins, remits]);
   const scoreboard = useMemo(() => buildScoreboard(remits), [remits]);
   const pulse = useMemo(
@@ -337,14 +352,21 @@ export default function App() {
     setDraft((prev) => ({
       ...prev,
       ...tpl.draft,
+      // Keep name/ticker/description/socials/image the user already typed.
+      name: prev.name,
+      ticker: prev.ticker,
+      vibe: prev.vibe,
+      twitter: prev.twitter,
+      website: prev.website,
+      imageFile: prev.imageFile,
       crew: tpl.draft.crew.map((m) => ({ ...m })),
       buybackRule: tpl.draft.buybackRule ? { ...tpl.draft.buybackRule } : undefined,
       raidQuests: tpl.draft.raidQuests?.map((q) => ({ ...q })),
       agent: tpl.draft.agent ? { ...tpl.draft.agent } : undefined,
-      imageFile: prev.imageFile,
     }));
+    setHirePlan(null);
     setError(null);
-    setStatus(`Template: ${tpl.label}`);
+    setStatus(`Mode: ${tpl.label}`);
   }
 
   function setMode(mode: LaunchDraft["mode"]) {
@@ -357,7 +379,10 @@ export default function App() {
         mode === "raid"
           ? prev.raidQuests ?? DEFAULT_RAID_QUESTS.map((q) => ({ ...q }))
           : undefined,
-      agent: mode === "agent" ? prev.agent ?? { ...DEFAULT_AGENT } : undefined,
+      agent:
+        mode === "agent"
+          ? prev.agent ?? { name: "", objective: "", model: "custom" }
+          : undefined,
       crew:
         mode === "agent"
           ? prev.crew.map((m, i) => ({
@@ -372,6 +397,10 @@ export default function App() {
   }
 
   async function onLaunch() {
+    if (!isLaunchReady(draft)) {
+      setError(`Fill required fields: ${getLaunchBlockers(draft).slice(0, 3).join(", ")}`);
+      return;
+    }
     if (!connected) {
       setVisible(true);
       setError("Connect Phantom to launch on Solana mainnet.");
@@ -502,16 +531,21 @@ export default function App() {
     setSelectedCoin(null);
     setResult(null);
     setHirePlan(null);
-    setDraft(DEFAULT_DRAFT);
+    setDraft({
+      ...DEFAULT_DRAFT,
+      crew: DEFAULT_DRAFT.crew.map((m) => ({ ...m })),
+    });
     setStatus("Desk board + draft cleared.");
   }
 
   const tape = [...tapeItems, ...tapeItems];
   const launchLabel = busy
     ? "Signing…"
-    : connected
-      ? "Launch on mainnet"
-      : "Connect & launch";
+    : !launchReady
+      ? "Fill required fields"
+      : connected
+        ? "Launch on mainnet"
+        : "Connect & launch";
 
   const buyback = draft.buybackRule ?? DEFAULT_BUYBACK;
   const quests = draft.raidQuests ?? DEFAULT_RAID_QUESTS;
@@ -922,8 +956,8 @@ export default function App() {
           <p className="section-label">Launch desk</p>
           <h2 className="section-title">Ship a crew coin.</h2>
           <p className="section-sub">
-            Solana mainnet. Connect Phantom, hire crew wallets (or let an agent hire
-            KOLs), lock permanent fee-share. X handles are tape identity.
+            Same coin fields as pump.fun — name, ticker, image required. Description,
+            X, and website optional. Then lock crew fee-share on mainnet.
           </p>
 
           <div className="template-row" aria-label="Launch templates">
@@ -953,19 +987,16 @@ export default function App() {
                     ? `Connected · ${shortAddr(wallet.publicKey!.toBase58())}`
                     : "Connect Phantom"}
                 </button>
-                <p className="hint">
-                  Real SOL for rent, optional initial buy, and on-chain fee-share.
-                </p>
               </div>
 
               <div className="row-2">
                 <div className="field">
-                  <label htmlFor="name">Name</label>
+                  <label htmlFor="name">Coin name</label>
                   <input
                     id="name"
                     value={draft.name}
                     onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                    placeholder="Desk Cat"
+                    placeholder="name"
                     autoComplete="off"
                   />
                 </div>
@@ -977,7 +1008,7 @@ export default function App() {
                     onChange={(e) =>
                       setDraft({ ...draft, ticker: normalizeTicker(e.target.value) })
                     }
-                    placeholder="DCAT"
+                    placeholder="ticker"
                     autoComplete="off"
                     inputMode="text"
                   />
@@ -985,24 +1016,50 @@ export default function App() {
               </div>
 
               <div className="field">
-                <label htmlFor="vibe">Vibe</label>
+                <label htmlFor="vibe">Description (optional)</label>
                 <input
                   id="vibe"
                   value={draft.vibe}
                   onChange={(e) => setDraft({ ...draft, vibe: e.target.value })}
-                  placeholder="Who gets paid and why?"
+                  placeholder="description"
                   autoComplete="off"
                 />
               </div>
 
               <div className="field">
-                <label htmlFor="image">Coin image (optional)</label>
+                <label htmlFor="image">Coin image</label>
                 <input
                   id="image"
                   type="file"
                   accept="image/png,image/jpeg,image/gif,image/webp"
                   onChange={(e) => onImage(e.target.files?.[0] ?? null)}
+                  required
                 />
+                {draft.imageFile ? (
+                  <p className="hint is-ok">{draft.imageFile.name}</p>
+                ) : null}
+              </div>
+
+              <div className="field">
+                <label>Social links (optional)</label>
+                <div className="row-2">
+                  <input
+                    value={draft.twitter ?? ""}
+                    onChange={(e) => setDraft({ ...draft, twitter: e.target.value })}
+                    placeholder="X / Twitter"
+                    autoComplete="off"
+                    spellCheck={false}
+                    aria-label="X or Twitter"
+                  />
+                  <input
+                    value={draft.website ?? ""}
+                    onChange={(e) => setDraft({ ...draft, website: e.target.value })}
+                    placeholder="Website"
+                    autoComplete="off"
+                    spellCheck={false}
+                    aria-label="Website"
+                  />
+                </div>
               </div>
 
               <div className="field">
@@ -1022,14 +1079,6 @@ export default function App() {
                     </button>
                   ))}
                 </div>
-                <p className="hint">
-                  {modeMeta.blurb}
-                  {deskBps > 0
-                    ? draft.mode === "agent"
-                      ? ` Agent ops ${deskBps / 100}% → launcher (not burned).`
-                      : ` Desk reserve ${deskBps / 100}% → launcher wallet.`
-                    : ""}
-                </p>
               </div>
 
               {draft.mode === "agent" ? (
@@ -1042,7 +1091,7 @@ export default function App() {
                         setDraft({
                           ...draft,
                           agent: {
-                            ...(draft.agent ?? DEFAULT_AGENT),
+                            ...(draft.agent ?? { name: "", objective: "", model: "custom" }),
                             name: e.target.value,
                           },
                         })
@@ -1057,7 +1106,7 @@ export default function App() {
                         setDraft({
                           ...draft,
                           agent: {
-                            ...(draft.agent ?? DEFAULT_AGENT),
+                            ...(draft.agent ?? { name: "", objective: "", model: "custom" }),
                             model: e.target.value,
                           },
                         })
@@ -1077,17 +1126,14 @@ export default function App() {
                       setDraft({
                         ...draft,
                         agent: {
-                          ...(draft.agent ?? DEFAULT_AGENT),
+                          ...(draft.agent ?? { name: "", objective: "", model: "custom" }),
                           objective: e.target.value,
                         },
                       })
                     }
-                    placeholder="Objective — who should this agent hire and why?"
+                    placeholder="Objective"
                     autoComplete="off"
                   />
-                  <p className="hint">
-                    Display-only brain label — no API keys. Fees hire humans on-chain.
-                  </p>
                 </div>
               ) : null}
 
@@ -1150,9 +1196,6 @@ export default function App() {
                       />
                     </label>
                   </div>
-                  <p className="hint">
-                    Explicit rules you set — not an unsupervised mind spending treasury.
-                  </p>
                 </div>
               ) : null}
 
@@ -1191,25 +1234,17 @@ export default function App() {
                       </div>
                     ))}
                   </div>
-                  <p className="hint">
-                    Pot funded by the 25% raid reserve. Proofs stay human — post, raid,
-                    diamond.
-                  </p>
                 </div>
               ) : null}
 
               <div className="field">
                 <label>Crew split + wallets</label>
-                <p className="hint">
-                  Type an X / Pump handle — wallets auto-fill from our top 1500 Pump follower
-                  directory (plus live Pump lookup). Or auto-hire a correlated KOL pack from
-                  your token narrative. Always confirm before signing.
-                </p>
                 <div className="hire-actions">
                   <button
                     type="button"
                     className="btn btn-ghost btn-sm"
                     onClick={autoHireFromNarrative}
+                    disabled={!draft.name.trim() && !draft.vibe.trim() && !draft.ticker.trim()}
                   >
                     Auto-hire KOLs from narrative
                   </button>
@@ -1275,7 +1310,7 @@ export default function App() {
                         }`}
                         value={member.wallet}
                         onChange={(e) => updateCrew(index, { wallet: e.target.value })}
-                        placeholder="Solana wallet (auto from Pump, or paste)"
+                        placeholder="Solana wallet"
                         autoComplete="off"
                         spellCheck={false}
                         aria-label={`Crew wallet ${index + 1}`}
@@ -1286,7 +1321,7 @@ export default function App() {
                           role="status"
                         >
                           {linkStatus[index].state === "loading"
-                            ? "Looking up Pump…"
+                            ? "Looking up…"
                             : linkStatus[index].detail}
                         </p>
                       ) : null}
@@ -1349,12 +1384,18 @@ export default function App() {
 
               {error ? <p className="form-error">{error}</p> : null}
               {status ? <p className="form-status">{status}</p> : null}
+              {!launchReady && !busy ? (
+                <p className="hint is-bad">
+                  Required: {launchBlockers.slice(0, 4).join(" · ")}
+                  {launchBlockers.length > 4 ? "…" : ""}
+                </p>
+              ) : null}
 
               <button
                 className="btn btn-primary btn-wide desktop-launch"
                 type="button"
                 onClick={() => void onLaunch()}
-                disabled={busy}
+                disabled={busy || !launchReady}
               >
                 {launchLabel}
               </button>
@@ -1362,10 +1403,22 @@ export default function App() {
 
             <div className="panel preview">
               <div className="preview-token">
-                <div className="token-art" aria-hidden />
+                <div
+                  className="token-art"
+                  aria-hidden
+                  style={
+                    imagePreviewUrl
+                      ? {
+                          backgroundImage: `url(${imagePreviewUrl})`,
+                          backgroundSize: "cover",
+                          backgroundPosition: "center",
+                        }
+                      : undefined
+                  }
+                />
                 <div>
                   <h3>
-                    ${draft.ticker || "TICKER"} · {draft.name || "Untitled"}
+                    ${draft.ticker || "TICKER"} · {draft.name || "name"}
                   </h3>
                   <p>{draft.vibe || "Add a vibe."}</p>
                 </div>
@@ -1496,9 +1549,10 @@ export default function App() {
               document.getElementById("launch")?.scrollIntoView({ behavior: "smooth" });
               return;
             }
+            if (!launchReady) return;
             void onLaunch();
           }}
-          disabled={busy}
+          disabled={busy || !launchReady}
         >
           {launchLabel}
         </button>

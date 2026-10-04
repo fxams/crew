@@ -40,11 +40,17 @@ export type RaidQuest = {
 export type LaunchDraft = {
   name: string
   ticker: string
+  /** Coin description — optional, same as Pump.fun. */
   vibe: string
   mode: DeskMode
   crew: CrewMember[]
   initialBuySol: number
+  /** Required for launch (Pump.fun requires an image). Not persisted. */
   imageFile?: File | null
+  /** Optional coin X / Twitter link or @handle. */
+  twitter?: string
+  /** Optional project website. */
+  website?: string
   buybackRule?: BuybackRule
   raidQuests?: RaidQuest[]
   agent?: AgentBrief

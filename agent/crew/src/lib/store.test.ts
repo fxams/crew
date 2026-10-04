@@ -99,6 +99,8 @@ const draft: LaunchDraft = {
   ],
   initialBuySol: 0.25,
   imageFile: null,
+  twitter: '@draftcoin',
+  website: 'https://example.com',
   buybackRule: { dipPct: 22, maxSolPerFire: 0.5, cooldownHours: 6 },
 }
 
@@ -157,6 +159,8 @@ describe('persistence end-to-end', () => {
     expect(loaded?.buybackRule?.dipPct).toBe(22)
     expect(loaded?.crew).toHaveLength(2)
     expect(loaded?.crew[0].hireRole).toBe('chart')
+    expect(loaded?.twitter).toBe('@draftcoin')
+    expect(loaded?.website).toBe('https://example.com')
     expect(loaded?.imageFile).toBeNull()
     expect(localStorage.getItem(DRAFT_KEY)).toBeTruthy()
   })

@@ -6,7 +6,7 @@ export type IpfsUploadInput = {
   description: string
   twitter?: string
   website?: string
-  file?: File | null
+  file: File
 }
 
 export type IpfsUploadResult = {
@@ -14,23 +14,20 @@ export type IpfsUploadResult = {
   raw: unknown
 }
 
-/** Upload coin metadata to Pump's IPFS endpoint. */
+/** Upload coin metadata to Pump's IPFS endpoint (image required, same as pump.fun). */
 export async function uploadPumpMetadata(input: IpfsUploadInput): Promise<IpfsUploadResult> {
+  if (!input.file) {
+    throw new Error('Coin image is required.')
+  }
+
   const body = new FormData()
   body.append('name', input.name)
   body.append('symbol', input.symbol)
   body.append('description', input.description)
   body.append('showName', 'true')
+  body.append('file', input.file)
   if (input.twitter) body.append('twitter', input.twitter)
   if (input.website) body.append('website', input.website)
-
-  if (input.file) {
-    body.append('file', input.file)
-  } else {
-    // Minimal PNG placeholder so Pump accepts the form without a user image.
-    const blob = await placeholderPng()
-    body.append('file', blob, 'crew.png')
-  }
 
   const res = await fetch(PUMP_IPFS_URL, {
     method: 'POST',
@@ -48,15 +45,4 @@ export async function uploadPumpMetadata(input: IpfsUploadInput): Promise<IpfsUp
     throw new Error('Pump IPFS response missing metadataUri.')
   }
   return { metadataUri, raw: json }
-}
-
-async function placeholderPng(): Promise<Blob> {
-  // 1x1 acid-green PNG
-  const bytes = Uint8Array.from(
-    atob(
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO2X2ZcAAAAASUVORK5CYII=',
-    ),
-    (c) => c.charCodeAt(0),
-  )
-  return new Blob([bytes], { type: 'image/png' })
 }

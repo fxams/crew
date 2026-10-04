@@ -4,6 +4,8 @@ import type { AgentBrief, CrewMember, DeskMode, HireRole, LaunchDraft } from './
 
 const HANDLE_RE = /^@[a-z0-9_]{1,15}$/i
 const HIRE_ROLES = new Set<HireRole>(['caller', 'chart', 'raid', 'kol', 'dev', 'agent'])
+const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'])
+const MAX_IMAGE_BYTES = 15 * 1024 * 1024
 
 export type NormalizedLaunch = {
   name: string
@@ -12,6 +14,8 @@ export type NormalizedLaunch = {
   mode: DeskMode
   crew: CrewMember[]
   initialBuySol: number
+  twitter?: string
+  website?: string
   agent?: AgentBrief
   /** Final on-chain shareholders in bps (includes desk/agent reserve when mode ≠ split). */
   shareholders: { wallet: string; bps: number; handle: string; role: 'crew' | 'desk' }[]
@@ -38,6 +42,126 @@ export function assertWallet(raw: string): string {
   }
 }
 
+export function assertImageFile(file: File | null | undefined): File {
+  if (!file) throw new Error('Coin image is required.')
+  const type = (file.type || '').toLowerCase()
+  if (type && !IMAGE_TYPES.has(type)) {
+    throw new Error('Image must be PNG, JPG, GIF, or WebP.')
+  }
+  if (file.size <= 0) throw new Error('Coin image is empty.')
+  if (file.size > MAX_IMAGE_BYTES) throw new Error('Coin image must be 15MB or smaller.')
+  return file
+}
+
+/** Optional X link — empty allowed; @handle or x.com / twitter.com URL. */
+export function normalizeOptionalTwitter(raw: string | undefined): string | undefined {
+  const value = (raw || '').trim()
+  if (!value) return undefined
+  if (/^https?:\/\/(www\.)?(x\.com|twitter\.com)\/[A-Za-z0-9_]+/i.test(value)) {
+    return value.split('?')[0].replace(/\/$/, '')
+  }
+  if (/^@?[a-z0-9_]{1,15}$/i.test(value)) {
+    return `https://x.com/${value.replace(/^@/, '')}`
+  }
+  throw new Error('X must be @handle or https://x.com/…')
+}
+
+/** Optional website — empty allowed; http(s) URL. */
+export function normalizeOptionalWebsite(raw: string | undefined): string | undefined {
+  const value = (raw || '').trim()
+  if (!value) return undefined
+  try {
+    const url = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      throw new Error('bad protocol')
+    }
+    if (!url.hostname.includes('.')) throw new Error('bad host')
+    return url.toString().replace(/\/$/, '')
+  } catch {
+    throw new Error('Website must be a valid URL.')
+  }
+}
+
+/**
+ * Soft readiness check for enabling Launch CTAs.
+ * Does not require a connected wallet (Connect & launch still opens the modal).
+ */
+export function getLaunchBlockers(draft: LaunchDraft): string[] {
+  const blockers: string[] = []
+  const name = draft.name.trim()
+  const ticker = draft.ticker.trim().toUpperCase().replace(/^\$/, '')
+  const vibe = draft.vibe.trim()
+
+  if (name.length < 2 || name.length > 32) blockers.push('Name (2–32 chars)')
+  if (!/^[A-Z0-9]{2,13}$/.test(ticker)) blockers.push('Ticker (2–13 letters/numbers)')
+  if (vibe.length > 280) blockers.push('Description too long')
+  try {
+    assertImageFile(draft.imageFile)
+  } catch {
+    blockers.push('Coin image')
+  }
+  if (draft.initialBuySol < 0 || draft.initialBuySol > 100) {
+    blockers.push('Initial buy (0–100 SOL)')
+  }
+  if (draft.crew.length < 1 || draft.crew.length > MAX_CREW) {
+    blockers.push(`Crew (1–${MAX_CREW})`)
+  }
+
+  try {
+    normalizeOptionalTwitter(draft.twitter)
+  } catch {
+    blockers.push('X link')
+  }
+  try {
+    normalizeOptionalWebsite(draft.website)
+  } catch {
+    blockers.push('Website')
+  }
+
+  if (draft.mode === 'agent') {
+    const agentName = (draft.agent?.name || '').trim()
+    const objective = (draft.agent?.objective || '').trim()
+    if (agentName.length < 2) blockers.push('Agent name')
+    if (objective.length < 8) blockers.push('Agent objective')
+  }
+
+  let shareSum = 0
+  const seenHandles = new Set<string>()
+  const seenWallets = new Set<string>()
+  for (const member of draft.crew) {
+    try {
+      const handle = normalizeHandle(member.handle)
+      if (seenHandles.has(handle)) blockers.push(`Duplicate ${handle}`)
+      seenHandles.add(handle)
+    } catch {
+      blockers.push('Crew handle')
+    }
+    const share = Math.round(Number(member.share) || 0)
+    if (share <= 0 || share > 100) blockers.push('Crew share')
+    shareSum += share
+    try {
+      const wallet = assertWallet(member.wallet)
+      if (seenWallets.has(wallet)) blockers.push('Duplicate wallet')
+      seenWallets.add(wallet)
+    } catch {
+      blockers.push('Crew wallet')
+    }
+    if (draft.mode === 'agent' && !(member.hireRole && HIRE_ROLES.has(member.hireRole))) {
+      blockers.push('Hire role')
+    }
+  }
+  if (draft.crew.length && shareSum !== 100) {
+    blockers.push(`Shares must total 100% (now ${shareSum}%)`)
+  }
+
+  // Dedupe while preserving order
+  return [...new Set(blockers)]
+}
+
+export function isLaunchReady(draft: LaunchDraft): boolean {
+  return getLaunchBlockers(draft).length === 0
+}
+
 export function validateDraft(
   draft: LaunchDraft,
   opts?: { deskWallet?: string },
@@ -53,8 +177,11 @@ export function validateDraft(
     throw new Error('Ticker must be 2–13 letters/numbers.')
   }
   if (vibe.length > 280) {
-    throw new Error('Vibe max 280 characters.')
+    throw new Error('Description max 280 characters.')
   }
+  assertImageFile(draft.imageFile)
+  const twitter = normalizeOptionalTwitter(draft.twitter)
+  const website = normalizeOptionalWebsite(draft.website)
   if (draft.initialBuySol < 0 || draft.initialBuySol > 100) {
     throw new Error('Initial buy must be between 0 and 100 SOL.')
   }
@@ -109,6 +236,8 @@ export function validateDraft(
     mode: draft.mode,
     crew,
     initialBuySol: draft.initialBuySol,
+    twitter,
+    website,
     agent,
     shareholders: buildShareholders(crew, draft.mode, opts?.deskWallet),
   }
