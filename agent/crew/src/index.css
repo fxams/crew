@@ -662,6 +662,31 @@ a {
   box-shadow: 0 0 0 3px rgba(200, 255, 61, 0.1);
 }
 
+.wallet-input.is-linked {
+  border-color: rgba(200, 255, 61, 0.45);
+}
+
+.link-status {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+
+.link-status.link-loading {
+  color: var(--muted);
+}
+
+.link-status.link-linked {
+  color: var(--acid);
+}
+
+.link-status.link-miss,
+.link-status.link-error {
+  color: #ffb4a2;
+}
+
 .net-toggle {
   display: grid;
   grid-template-columns: 1fr 1fr;

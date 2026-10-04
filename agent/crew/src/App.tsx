@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
@@ -35,8 +35,20 @@ import {
 import type { HireRole } from "./lib/types";
 import { launchCrew } from "./lib/launch";
 import { distributeCreatorFees } from "./lib/pump/fees";
+import {
+  bareHandle,
+  linkLabel,
+  resolveHandleWallet,
+  type WalletResolveResult,
+} from "./lib/pump/resolve-wallet";
 import { loadBoard, persistLaunch, persistRemit, persistRemits, resetBoard } from "./lib/store";
 import type { CoinRecord, RemitRecord } from "./lib/types";
+
+type LinkStatus = {
+  state: "idle" | "loading" | "linked" | "miss" | "error";
+  detail?: string;
+  wallet?: string;
+};
 
 const MAX_CREW = 5;
 
@@ -76,12 +88,94 @@ export default function App() {
     const board = initialBoard();
     return { coins: board.coins, remits: board.remits };
   });
+  const [linkStatus, setLinkStatus] = useState<Record<number, LinkStatus>>({});
+  const autoFilledRef = useRef<Record<number, string>>({});
   const coins = desk.coins;
   const remits = desk.remits;
   const setCoins = (next: CoinRecord[]) => setDesk((d) => ({ ...d, coins: next }));
   const setRemits = (next: RemitRecord[]) => setDesk((d) => ({ ...d, remits: next }));
 
   const shareTotal = useMemo(() => totalShare(draft.crew), [draft.crew]);
+  const handleFingerprint = useMemo(
+    () => draft.crew.map((m) => bareHandle(m.handle) || "").join("|"),
+    [draft.crew],
+  );
+
+  // Auto-fill Solana wallets from Pump.fun user DB when a KOL/X handle is typed.
+  useEffect(() => {
+    const controllers: AbortController[] = [];
+    const timers: number[] = [];
+    const handles = handleFingerprint.split("|");
+
+    handles.forEach((handle, index) => {
+      if (!handle) {
+        setLinkStatus((prev) => {
+          if (!prev[index]) return prev;
+          const next = { ...prev };
+          delete next[index];
+          return next;
+        });
+        return;
+      }
+
+      setLinkStatus((prev) => ({
+        ...prev,
+        [index]: { state: "loading", detail: "Looking up Pump…" },
+      }));
+
+      const timer = window.setTimeout(() => {
+        const ac = new AbortController();
+        controllers.push(ac);
+        void resolveHandleWallet(`@${handle}`, { signal: ac.signal }).then(
+          (result: WalletResolveResult) => {
+            if (ac.signal.aborted) return;
+            if (!result.ok) {
+              setLinkStatus((prev) => ({
+                ...prev,
+                [index]: { state: "miss", detail: result.error },
+              }));
+              return;
+            }
+            setLinkStatus((prev) => ({
+              ...prev,
+              [index]: {
+                state: "linked",
+                detail: linkLabel(result),
+                wallet: result.wallet,
+              },
+            }));
+            setDraft((prev) => {
+              const row = prev.crew[index];
+              if (!row) return prev;
+              const current = (row.wallet || "").trim();
+              const priorAuto = autoFilledRef.current[index] || "";
+              // Don't clobber a manually typed wallet.
+              if (current && current !== priorAuto && current !== result.wallet) {
+                return prev;
+              }
+              if (current === result.wallet) {
+                autoFilledRef.current[index] = result.wallet;
+                return prev;
+              }
+              autoFilledRef.current[index] = result.wallet;
+              return {
+                ...prev,
+                crew: prev.crew.map((m, i) =>
+                  i === index ? { ...m, wallet: result.wallet } : m,
+                ),
+              };
+            });
+          },
+        );
+      }, 450);
+      timers.push(timer);
+    });
+
+    return () => {
+      timers.forEach((t) => window.clearTimeout(t));
+      controllers.forEach((c) => c.abort());
+    };
+  }, [handleFingerprint]);
   const modeMeta = DESK_MODES.find((mode) => mode.id === draft.mode)!;
   const allocOk = shareTotal === 100;
   const deskBps = MODE_DESK_BPS[draft.mode];
@@ -128,6 +222,12 @@ export default function App() {
   }, [coins, remits, boardTick]);
 
   function updateCrew(index: number, patch: Partial<CrewMember>) {
+    if (typeof patch.wallet === "string") {
+      const priorAuto = autoFilledRef.current[index] || "";
+      if (patch.wallet.trim() !== priorAuto) {
+        delete autoFilledRef.current[index];
+      }
+    }
     setDraft((prev) => ({
       ...prev,
       crew: prev.crew.map((member, i) => (i === index ? { ...member, ...patch } : member)),
@@ -1013,6 +1113,10 @@ export default function App() {
 
               <div className="field">
                 <label>Crew split + wallets</label>
+                <p className="hint">
+                  Type an X / Pump handle — we pull the linked Solana wallet from Pump.fun’s
+                  user DB when it exists. Always confirm before signing.
+                </p>
                 <div className="crew-list">
                   {draft.crew.map((member, index) => (
                     <div className="crew-block has-wallet" key={`crew-${index}`}>
@@ -1050,14 +1154,26 @@ export default function App() {
                         </button>
                       </div>
                       <input
-                        className="wallet-input"
+                        className={`wallet-input${
+                          linkStatus[index]?.state === "linked" ? " is-linked" : ""
+                        }`}
                         value={member.wallet}
                         onChange={(e) => updateCrew(index, { wallet: e.target.value })}
-                        placeholder="Solana wallet (fee recipient)"
+                        placeholder="Solana wallet (auto from Pump, or paste)"
                         autoComplete="off"
                         spellCheck={false}
                         aria-label={`Crew wallet ${index + 1}`}
                       />
+                      {linkStatus[index]?.detail ? (
+                        <p
+                          className={`link-status link-${linkStatus[index].state}`}
+                          role="status"
+                        >
+                          {linkStatus[index].state === "loading"
+                            ? "Looking up Pump…"
+                            : linkStatus[index].detail}
+                        </p>
+                      ) : null}
                       {draft.mode === "agent" ? (
                         <select
                           className="role-select"
