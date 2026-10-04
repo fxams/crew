@@ -125,20 +125,29 @@ export function splitShares(n: number): number[] {
   return [35, 25, 20, 12, 8]
 }
 
+const JUNK_USER = /^user\d+$/i
+
 /**
  * Rank KOLs for a narrative, boosting correlated packs.
  * Returns up to `limit` hires with wallets + shares.
  */
 export function planNarrativeHires(
   input: { name?: string; ticker?: string; vibe?: string },
-  opts?: { limit?: number },
+  opts?: { limit?: number; minFollowers?: number },
 ): NarrativeHirePlan {
   const limit = Math.max(1, Math.min(5, opts?.limit ?? 3))
+  // Avoid hiring empty "user123…" profiles and ultra-thin accounts by default
+  const minFollowers = opts?.minFollowers ?? 5_000
   const match = detectNarratives(input)
   const tagSet = new Set(match.tags)
 
   type Scored = { kol: KolRecord; score: number; reasons: string[] }
-  const scored: Scored[] = KOL_DB.map((kol) => {
+  const scored: Scored[] = KOL_DB.filter(
+    (kol) =>
+      kol.followers >= minFollowers &&
+      !JUNK_USER.test(kol.pump) &&
+      kol.wallet.length >= 32,
+  ).map((kol) => {
     let score = 0
     const reasons: string[] = []
     for (const t of kol.narratives) {
@@ -147,8 +156,10 @@ export function planNarrativeHires(
         reasons.push(`fits ${t}`)
       }
     }
-    // Rank bias — still prefer bigger accounts, lightly
-    score += Math.max(0, 11 - kol.rank)
+    // Follower weight across the full 1500 set (log scale) — not only top-10 rank bonus
+    const reach = Math.log10(kol.followers + 10) * 6
+    score += reach
+    if (kol.rank <= 50) reasons.push(`top ${kol.rank} by followers`)
     return { kol, score, reasons }
   }).filter((s) => s.score > 0)
 

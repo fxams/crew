@@ -37,6 +37,7 @@ import { launchCrew } from "./lib/launch";
 import { distributeCreatorFees } from "./lib/pump/fees";
 import {
   bareHandle,
+  isPlaceholderHandle,
   linkLabel,
   resolveHandleWallet,
   type WalletResolveResult,
@@ -113,7 +114,7 @@ export default function App() {
     const handles = handleFingerprint.split("|");
 
     handles.forEach((handle, index) => {
-      if (!handle) {
+      if (!handle || isPlaceholderHandle(handle)) {
         setLinkStatus((prev) => {
           if (!prev[index]) return prev;
           const next = { ...prev };
@@ -231,6 +232,13 @@ export default function App() {
       const priorAuto = autoFilledRef.current[index] || "";
       if (patch.wallet.trim() !== priorAuto) {
         delete autoFilledRef.current[index];
+      }
+    }
+    // Normalize pasted x.com / pump.fun/profile URLs into @handles
+    if (typeof patch.handle === "string") {
+      const bare = bareHandle(patch.handle);
+      if (bare && (patch.handle.includes("/") || patch.handle.includes("http"))) {
+        patch = { ...patch, handle: `@${bare}` };
       }
     }
     setDraft((prev) => ({
@@ -1169,6 +1177,8 @@ export default function App() {
                           <strong>#{h.kol.rank} @{h.kol.x || h.kol.pump}</strong>
                           {" · "}
                           {h.share}% · {h.role}
+                          {" · "}
+                          {(h.kol.followers / 1000).toFixed(h.kol.followers >= 10_000 ? 0 : 1)}k foll
                           {h.reasons[0] ? ` · ${h.reasons[0]}` : ""}
                         </li>
                       ))}

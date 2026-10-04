@@ -32,6 +32,9 @@ describe('planNarrativeHires', () => {
     expect(plan.crew.every((c) => c.wallet.length >= 32)).toBe(true)
     expect(plan.crew.reduce((s, c) => s + c.share, 0)).toBe(100)
     expect(new Set(plan.crew.map((c) => c.wallet)).size).toBe(3)
+    // Prefer real reach — not junk userN profiles
+    expect(plan.hires.every((h) => h.kol.followers >= 5_000)).toBe(true)
+    expect(plan.hires.every((h) => !/^user\d+$/i.test(h.kol.pump))).toBe(true)
   })
 
   it('boosts correlated packs', () => {
