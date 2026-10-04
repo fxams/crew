@@ -27,10 +27,12 @@
 | Raid Pool | 25% pot + editable quest board |
 | **Agent Hire** | AI agent brief + hire roles (caller / chart / raid / KOL / dev); 15% ops → launcher |
 
-## Platform (v2.1 production)
+## Platform (v2.3 production)
 
 - Phantom → Pump IPFS → `createV2` → permanent fee-share
 - Agent Hire: mind label + objective (no API keys) · wallets are the payroll
+- **KOL DB**: ranked Pump profiles + narrative tags + correlation packs
+- **Auto-hire**: match token name/ticker/vibe → fill crew wallets from correlated KOLs
 - No demo mint path — empty desk until real launches
 - Launch templates (incl. Agent hires), scoreboard, desk pulse, CT receipts
 - Crank remits via `distributeCreatorFeesV2`
