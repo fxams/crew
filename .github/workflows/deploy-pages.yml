@@ -2,7 +2,7 @@ name: Deploy CREW to GitHub Pages
 
 on:
   push:
-    branches: [main, cursor/crew-production-4090]
+    branches: [main, cursor/crew-production-4090, cursor/crew-platform-4090]
   workflow_dispatch:
 
 permissions:
@@ -29,7 +29,8 @@ jobs:
           cache-dependency-path: agent/crew/package-lock.json
       - name: Install & build
         run: |
-          npm ci
+          npm ci --legacy-peer-deps
+          npm test
           npm run build
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

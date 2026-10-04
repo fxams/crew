@@ -29,9 +29,16 @@ Live URL (after Pages is enabled): **https://fxams.github.io/crew/**
 
 ```bash
 cd agent/crew
-npm ci
+npm ci --legacy-peer-deps
+npm test
 npm run build
 npm run preview
 ```
 
 Open the printed URL (assets load under `/crew/`).
+
+## Mainnet notes
+
+- Connect **Phantom** in the app; toggle **Mainnet** on the launch desk.
+- Set `VITE_RPC_URL` for production throughput (public RPC rate-limits).
+- Fee recipients are Solana wallets; X handles print on the tape only.

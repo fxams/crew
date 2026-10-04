@@ -1,47 +1,47 @@
 # CREW
 
-**Launch with your crew. Fees hit their X.**
+**Launch with your crew. Fees hit their wallets. Handles hit the tape.**
 
-A non-sophisticated Pump.fun launch desk inspired by:
+A Pump.fun fee desk inspired by:
 
-- [Agency](https://x.com/tryagency) / [agencypad.fun](https://www.agencypad.fun/) — living tokens with AI minds funded by creator fees
-- [X-DESK](https://x.com/xdeskcash) / [xdesk.cash](https://xdesk.cash) — token launches that remit creator fees to X accounts
+- [Agency](https://x.com/tryagency) / [agencypad.fun](https://www.agencypad.fun/)
+- [X-DESK](https://x.com/xdeskcash) / [xdesk.cash](https://xdesk.cash)
 
-CREW keeps only the part CT actually uses on day one:
+## What it does
 
-1. Create a Pump coin
-2. Tag up to 5 X handles with permanent fee splits
-3. Pick one desk mode: **Fee Split**, **Dip Buyback**, or **Raid Pool**
-4. Watch remits on a public tape
+1. Create a Pump coin (demo or Solana mainnet)
+2. Tag up to 5 X handles + fee-recipient wallets
+3. Pick a desk mode: **Fee Split**, **Dip Buyback**, or **Raid Pool**
+4. Lock permanent on-chain fee-share (mainnet) and watch remits on the public tape
+5. Crank `distributeCreatorFeesV2` when creator fees accumulate
+
+Live: **https://fxams.github.io/crew/**
 
 ## Run locally
 
 ```bash
 cd agent/crew
-npm install
+npm install --legacy-peer-deps
 npm run dev
 ```
 
-## Production build
+Optional: copy `.env.example` → `.env` and set `VITE_RPC_URL` to a dedicated RPC.
+
+## Test / build
 
 ```bash
-cd agent/crew
-npm ci
+npm test
 npm run build
 npm run preview
 ```
 
-## Deploy (Render)
-
-See [`DEPLOY.md`](./DEPLOY.md). Blueprint at repo root: [`render.yaml`](../../render.yaml).
-
 ## Demo vs mainnet
 
-The Launch button is a **production demo flow** (strict validation + fake mint + tape print). Real deploy path:
+| Path | Behavior |
+|------|----------|
+| **Demo** | Strict validation + fake mint + local tape (no wallet) |
+| **Mainnet** | Phantom → Pump IPFS → `createV2` → fee-share config → pump.fun URL |
 
-1. Upload metadata via Pump IPFS
-2. Build `createV2` / `createV2AndBuy` with `@pump-fun/pump-sdk`
-3. Configure fee sharing for crew handles
-4. Sign with user wallet; show `https://pump.fun/<mint>`
+Pump social fee PDAs support GitHub only today — CREW uses **wallet-based** on-chain splits; X handles are display/tape identity.
 
-See `src/lib/launch.ts`.
+See `PRODUCT.md` and `src/lib/pump/`.
