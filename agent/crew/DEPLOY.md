@@ -46,3 +46,5 @@ Open the printed URL (assets load under `/crew/`).
 - App is **mainnet-only** — connect Phantom to launch.
 - Set `VITE_RPC_URL` for production throughput (public RPC rate-limits).
 - Fee recipients are Solana wallets; X handles print on the tape only.
+- **Metadata upload:** `pump.fun/api/ipfs` has no CORS for GitHub Pages. Production uses Irys (Phantom-signed) by default. Optional: set repo secret `PINATA_JWT` (wired as `VITE_PINATA_JWT`) for Pinata uploads instead.
+- Optional X field format: `https://x.com/username` or `@username`.
