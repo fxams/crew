@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { validateDraft, normalizeHandle, assertWallet } from './validation'
+import {
+  assertWallet,
+  getLaunchBlockers,
+  isLaunchReady,
+  normalizeHandle,
+  normalizeOptionalTwitter,
+  normalizeOptionalWebsite,
+  validateDraft,
+} from './validation'
 import type { LaunchDraft } from './types'
+
+function fakeImage(name = 'coin.png', type = 'image/png', size = 128): File {
+  const bytes = new Uint8Array(size)
+  return new File([bytes], name, { type })
+}
 
 const base: LaunchDraft = {
   name: 'Desk Cat',
@@ -20,6 +33,9 @@ const base: LaunchDraft = {
     },
   ],
   initialBuySol: 0.1,
+  imageFile: fakeImage(),
+  twitter: '',
+  website: '',
 }
 
 describe('normalizeHandle', () => {
@@ -143,5 +159,59 @@ describe('validateDraft', () => {
     expect(out.agent?.name).toBe('Desk Mind')
     expect(out.shareholders.find((s) => s.handle === '@agent')?.bps).toBe(1500)
     expect(out.shareholders.reduce((s, r) => s + r.bps, 0)).toBe(10_000)
+  })
+
+  it('requires a coin image', () => {
+    expect(() => validateDraft({ ...base, imageFile: null })).toThrow(/image/i)
+  })
+
+  it('keeps X and website optional, normalizes when present', () => {
+    const out = validateDraft(
+      {
+        ...base,
+        twitter: '@crewdesk',
+        website: 'crew.example',
+      },
+      { deskWallet: '11111111111111111111111111111111' },
+    )
+    expect(out.twitter).toBe('https://x.com/crewdesk')
+    expect(out.website).toBe('https://crew.example')
+  })
+})
+
+describe('optional socials', () => {
+  it('normalizes twitter handles and rejects junk', () => {
+    expect(normalizeOptionalTwitter('')).toBeUndefined()
+    expect(normalizeOptionalTwitter('@abc')).toBe('https://x.com/abc')
+    expect(() => normalizeOptionalTwitter('not a link')).toThrow(/X must/)
+  })
+
+  it('normalizes websites', () => {
+    expect(normalizeOptionalWebsite('')).toBeUndefined()
+    expect(normalizeOptionalWebsite('https://pump.fun')).toBe('https://pump.fun')
+    expect(() => normalizeOptionalWebsite('nope')).toThrow(/Website/)
+  })
+})
+
+describe('isLaunchReady', () => {
+  it('blocks empty default form', () => {
+    const empty: LaunchDraft = {
+      name: '',
+      ticker: '',
+      vibe: '',
+      mode: 'split',
+      crew: [{ handle: '', wallet: '', share: 100 }],
+      initialBuySol: 0,
+      imageFile: null,
+      twitter: '',
+      website: '',
+    }
+    expect(isLaunchReady(empty)).toBe(false)
+    expect(getLaunchBlockers(empty).join(' ')).toMatch(/Name|Ticker|image|handle|wallet/i)
+  })
+
+  it('passes a complete Pump-style draft', () => {
+    expect(isLaunchReady(base)).toBe(true)
+    expect(getLaunchBlockers(base)).toEqual([])
   })
 })

@@ -1,5 +1,4 @@
 import type { DeskMode, LaunchDraft } from './lib/types'
-import { DEFAULT_AGENT } from './lib/edges'
 
 export type { DeskMode, CrewMember, LaunchDraft } from './lib/types'
 
@@ -35,17 +34,17 @@ export const DESK_MODES: {
   },
 ]
 
+/** Empty Pump-style form — no prefilled name/ticker/image/handles. */
 export const DEFAULT_DRAFT: LaunchDraft = {
-  name: 'Desk Cat',
-  ticker: 'DCAT',
-  vibe: 'A trading-floor cat that tips the people who make the chart move.',
+  name: '',
+  ticker: '',
+  vibe: '',
   mode: 'split',
-  crew: [
-    { handle: '@yourhandle', wallet: '', share: 70 },
-    { handle: '@kolfriend', wallet: '', share: 30 },
-  ],
-  initialBuySol: 0.1,
+  crew: [{ handle: '', wallet: '', share: 100 }],
+  initialBuySol: 0,
   imageFile: null,
+  twitter: '',
+  website: '',
   buybackRule: undefined,
   raidQuests: undefined,
   agent: undefined,
@@ -58,5 +57,3 @@ export function totalShare(crew: { share: number }[]) {
 export function normalizeTicker(value: string) {
   return value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 10)
 }
-
-export { DEFAULT_AGENT }
