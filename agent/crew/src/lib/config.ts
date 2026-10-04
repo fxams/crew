@@ -1,6 +1,6 @@
 import { assertSafeRpcUrl } from './security'
 
-export const CREW_VERSION = '2.3.1'
+export const CREW_VERSION = '2.3.2'
 
 const rawRpc =
   (import.meta.env.VITE_RPC_URL as string | undefined)?.trim() ||

@@ -1145,7 +1145,7 @@ export default function App() {
               <div className="field">
                 <label>Crew split + wallets</label>
                 <p className="hint">
-                  Type an X / Pump handle — wallets auto-fill from our 500+ Pump follower
+                  Type an X / Pump handle — wallets auto-fill from our top 1500 Pump follower
                   directory (plus live Pump lookup). Or auto-hire a correlated KOL pack from
                   your token narrative. Always confirm before signing.
                 </p>

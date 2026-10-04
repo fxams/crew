@@ -8,8 +8,8 @@ import {
 import { resolveHandleWallet } from './resolve-wallet'
 
 describe('kol directory', () => {
-  it('ships at least 500 Pump wallets ranked by followers', () => {
-    expect(kolDbSize()).toBeGreaterThanOrEqual(500)
+  it('ships at least 1500 Pump wallets ranked by followers', () => {
+    expect(kolDbSize()).toBeGreaterThanOrEqual(1500)
     const top = topKolDirectory(10)
     expect(top).toHaveLength(10)
     expect(top.every((r) => r.wallet.length >= 32)).toBe(true)
@@ -25,7 +25,7 @@ describe('kol directory', () => {
   })
 
   it('resolves mid-rank accounts from the DB (not only top 10)', () => {
-    const mid = topKolRecords(500)[250]
+    const mid = topKolRecords(1500)[750]
     expect(mid).toBeTruthy()
     const hit = lookupKolDirectory(mid.pump)
     expect(hit?.wallet).toBe(mid.wallet)
@@ -50,8 +50,8 @@ describe('resolveHandleWallet + directory', () => {
     expect(out.xVerified).toBe(true)
   })
 
-  it('resolves rank-100 account without network', async () => {
-    const row = topKolRecords(100)[99]
+  it('resolves rank-1000 account without network', async () => {
+    const row = topKolRecords(1000)[999]
     const out = await resolveHandleWallet(`@${row.pump}`, { fetcher: viFetcherNever() })
     expect(out.ok).toBe(true)
     if (!out.ok) return

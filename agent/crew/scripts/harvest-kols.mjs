@@ -5,9 +5,11 @@
  * Usage (from agent/crew):
  *   node scripts/harvest-kols.mjs
  *
- * Requires curl + network. Writes ~500 ranked profiles with wallets,
+ * Requires curl + network. Writes ~1500 ranked profiles with wallets,
  * narrative tags, and correlation neighbors.
  */
+const TARGET = 1500
+const MAX_OFFSET = 1950
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -99,7 +101,7 @@ function guessRoles(narratives) {
 
 fs.mkdirSync(harvestDir, { recursive: true })
 
-for (let offset = 0; offset <= 950; offset += 50) {
+for (let offset = 0; offset <= MAX_OFFSET; offset += 50) {
   const out = path.join(harvestDir, `page-${String(offset).padStart(4, '0')}.json`)
   execFileSync(
     'curl',
@@ -154,10 +156,10 @@ for (const f of fs.readdirSync(harvestDir).filter((n) => n.endsWith('.json')).so
 
 const harvested = [...byWallet.values()].sort((a, b) => b.followers - a.followers)
 const harvestPath = path.join(__dirname, 'kol-harvest.json')
-fs.writeFileSync(harvestPath, JSON.stringify(harvested, null, 2))
+fs.writeFileSync(harvestPath, JSON.stringify(harvested))
 
 const map = new Map(harvested.map((r) => [r.id, r]))
-let top = harvested.slice(0, 500)
+let top = harvested.slice(0, TARGET)
 const have = new Set(top.map((r) => r.id))
 for (const id of [...Object.keys(NARRATIVE_OVERRIDES), 'leck', 'gake']) {
   if (!have.has(id) && map.has(id)) {
@@ -166,6 +168,7 @@ for (const id of [...Object.keys(NARRATIVE_OVERRIDES), 'leck', 'gake']) {
   }
 }
 top = [...top].sort((a, b) => b.followers - a.followers)
+if (top.length > TARGET + 20) top = top.slice(0, TARGET + 20)
 const idList = top.map((r) => r.id)
 
 const records = top.map((r, i) => {
