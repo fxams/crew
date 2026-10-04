@@ -1,29 +1,33 @@
 # Deploy CREW on GitHub Pages
 
-Live URL (after Pages is enabled): **https://fxams.github.io/crew/**
+Live URL: **https://fxams.github.io/crew/**
 
-## One-time setup
+## How it publishes
 
-1. Repo must allow Pages:
-   - **Public** on GitHub Free, or private with GitHub Pro
-2. GitHub → **Settings → Pages**
-3. **Source:** GitHub Actions
-4. Push to `main` (or this production branch) — workflow `Deploy CREW to GitHub Pages` builds `agent/crew` and publishes `dist`
+GitHub Pages is configured for the **`gh-pages`** branch (legacy source).
 
-## Build settings (in workflow)
+On every push to `main`, workflow `Deploy CREW to GitHub Pages`:
+
+1. Builds `agent/crew` (`npm ci --legacy-peer-deps && npm test && npm run build`)
+2. Publishes `agent/crew/dist` to the `gh-pages` branch via `peaceiris/actions-gh-pages`
+
+Manual publish (from a clean build):
+
+```bash
+cd agent/crew
+npm ci --legacy-peer-deps
+npm test
+npm run build
+# then copy dist → gh-pages branch and push
+```
+
+## Vite base
 
 | Field | Value |
 | --- | --- |
 | App root | `agent/crew` |
-| Build | `npm ci && npm run build` |
-| Publish | `agent/crew/dist` |
 | Vite `base` | `/crew/` |
-
-## Custom domain (optional)
-
-1. Pages → Custom domain → e.g. `crew.yourdomain.com`
-2. DNS: `CNAME` → `fxams.github.io`
-3. Enable **Enforce HTTPS**
+| Publish | `gh-pages` branch root |
 
 ## Local production check
 
