@@ -39,20 +39,14 @@ export default function App() {
   function addCrew() {
     setDraft((prev) => {
       if (prev.crew.length >= MAX_CREW) return prev;
-      return {
-        ...prev,
-        crew: [...prev.crew, { handle: "@", share: 0 }],
-      };
+      return { ...prev, crew: [...prev.crew, { handle: "@", share: 0 }] };
     });
   }
 
   function removeCrew(index: number) {
     setDraft((prev) => {
       if (prev.crew.length <= 1) return prev;
-      return {
-        ...prev,
-        crew: prev.crew.filter((_, i) => i !== index),
-      };
+      return { ...prev, crew: prev.crew.filter((_, i) => i !== index) };
     });
   }
 
@@ -72,20 +66,27 @@ export default function App() {
 
     const ticker = draft.ticker || "COIN";
     const modeLabel = DESK_MODES.find((m) => m.id === response.mode)?.label ?? response.mode;
-    const receipt: FeedItem = {
-      id: `launch_${response.mint.slice(0, 8)}`,
-      time: "now",
-      title: `$${ticker} crew locked`,
-      detail: `${response.crew.map((m) => `${m.handle} ${m.share}%`).join(" · ")} · ${modeLabel} · 0% platform cut`,
-      amount: "LIVE",
-    };
-    setFeed((prev) => [receipt, ...prev].slice(0, 24));
-
-    const prints: TapeItem[] = response.crew.map((member, i) => ({
-      id: `t_${response.mint.slice(0, 6)}_${i}`,
-      text: `paid ${member.handle} · ${member.share}% of $${ticker} · demo mint`,
-    }));
-    setTapeItems((prev) => [...prints, ...prev].slice(0, 24));
+    setFeed((prev) =>
+      [
+        {
+          id: `launch_${response.mint.slice(0, 8)}`,
+          time: "now",
+          title: `$${ticker} crew locked`,
+          detail: `${response.crew.map((m) => `${m.handle} ${m.share}%`).join(" · ")} · ${modeLabel}`,
+          amount: "LIVE",
+        },
+        ...prev,
+      ].slice(0, 24),
+    );
+    setTapeItems((prev) =>
+      [
+        ...response.crew.map((member, i) => ({
+          id: `t_${response.mint.slice(0, 6)}_${i}`,
+          text: `paid ${member.handle} · ${member.share}% of $${ticker}`,
+        })),
+        ...prev,
+      ].slice(0, 24),
+    );
   }
 
   async function copyMint() {
@@ -104,68 +105,51 @@ export default function App() {
   return (
     <div className="site">
       <div className="noise" aria-hidden />
-      <div className="app-shell">
-        <header className="nav">
+
+      <header className="nav-shell">
+        <div className="app-shell nav">
           <a className="brand" href="#top">
             <span className="brand-mark">C</span>
             CREW
           </a>
           <nav className="nav-links">
-            <a href="#how">How</a>
             <a href="#board">Tape</a>
-            <a href="#launch">Launch</a>
-            <a className="btn btn-primary" href="#launch">
-              Open desk
+            <a className="btn btn-primary btn-nav" href="#launch">
+              Launch
             </a>
           </nav>
-        </header>
+        </div>
+      </header>
 
+      <div className="app-shell">
         <main id="top">
           <section className="hero">
             <div className="hero-visual" aria-hidden="true">
               <div className="hero-wave" />
             </div>
             <div className="hero-copy-wrap">
-              <motion.p
-                className="section-label"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.45 }}
-              >
-                Pump.fun × X fee desks
-              </motion.p>
+              <p className="section-label">Pump.fun fee desk</p>
               <motion.h1
                 className="hero-brand"
-                initial={{ opacity: 0, y: 24 }}
+                initial={{ opacity: 0, y: 18 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+                transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
               >
                 CREW
                 <span>gets paid.</span>
               </motion.h1>
-              <motion.p
-                className="hero-copy"
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.12, duration: 0.5 }}
-              >
-                Launch a Pump coin, tag up to five X accounts, lock a permanent
-                creator-fee split, and watch remits hit the public tape. Zero
-                platform cut.
-              </motion.p>
-              <motion.div
-                className="hero-actions"
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.22, duration: 0.45 }}
-              >
+              <p className="hero-copy">
+                Tag up to five X handles. Lock a permanent fee split. Watch remits
+                on the tape. <em>0% platform cut.</em>
+              </p>
+              <div className="hero-actions">
                 <a className="btn btn-primary" href="#launch">
-                  Launch with crew
+                  Launch coin
                 </a>
                 <a className="btn btn-ghost" href="#board">
-                  Watch the tape
+                  Watch tape
                 </a>
-              </motion.div>
+              </div>
             </div>
           </section>
         </main>
@@ -175,129 +159,93 @@ export default function App() {
         <div className="tape-track">
           {tape.map((item, index) => (
             <div className="tape-item" key={`${item.id}-${index}`}>
-              <strong>CREW TAPE</strong> · {item.text}
+              <strong>TAPE</strong> · {item.text}
             </div>
           ))}
         </div>
       </div>
 
       <div className="app-shell">
-        <section className="section" id="how">
-          <p className="section-label">01 · Simple enough for CT</p>
-          <h2 className="section-title">Three moves. One desk.</h2>
-          <p className="section-sub">
-            Agency gave every coin a mind. X-DESK paid X users from fees. CREW
-            keeps the part Pump.fun degens actually click: launch, name who eats,
-            watch payouts hit the tape.
-          </p>
+        <section className="section section-tight" id="how">
           <div className="steps">
             <article className="step">
-              <div className="step-num">Step 01</div>
-              <h3>Name the coin</h3>
-              <p>Ticker, vibe, optional tiny initial buy. Same muscle memory as Pump.</p>
+              <div className="step-num">01</div>
+              <h3>Name it</h3>
+              <p>Ticker + vibe. Optional tiny buy.</p>
             </article>
             <article className="step">
-              <div className="step-num">Step 02</div>
-              <h3>Tag the crew</h3>
-              <p>Up to five X handles with permanent % cuts. KOLs, artists, mods.</p>
+              <div className="step-num">02</div>
+              <h3>Tag crew</h3>
+              <p>1–5 X handles. 100% split.</p>
             </article>
             <article className="step">
-              <div className="step-num">Step 03</div>
-              <h3>Desk pays out</h3>
-              <p>Fees claim → split → receipt on the board. Split, dip-buyback, or raid-pool.</p>
+              <div className="step-num">03</div>
+              <h3>Get paid</h3>
+              <p>Fees → split → public tape.</p>
             </article>
           </div>
         </section>
 
         <section className="section" id="board">
-          <p className="section-label">02 · Desk board</p>
-          <h2 className="section-title">Money on the tape.</h2>
-          <p className="section-sub">
-            The feed is the product. If CT can see who got paid, the launch feels
-            like a desk with a pulse — not a ghost coin.
-          </p>
-          <div className="board">
-            <div className="panel">
-              <div className="panel-head">
-                <h3>Live remits</h3>
-                <span className="live-dot">streaming</span>
-              </div>
-              <div className="feed">
-                {feed.map((item, index) => (
-                  <motion.div
-                    className="feed-row"
-                    key={item.id}
-                    initial={{ opacity: 0, x: -8 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: Math.min(index, 8) * 0.04 }}
-                  >
-                    <div className="feed-time">
-                      {item.time === "now" ? "just now" : `${item.time} ago`}
-                    </div>
-                    <div className="feed-main">
-                      <strong>{item.title}</strong>
-                      <p>{item.detail}</p>
-                    </div>
-                    <div className="feed-amt">{item.amount}</div>
-                  </motion.div>
-                ))}
-              </div>
+          <div className="section-head-row">
+            <div>
+              <p className="section-label">Desk board</p>
+              <h2 className="section-title">Money on the tape.</h2>
             </div>
-            <div className="panel">
-              <div className="panel-head">
-                <h3>Why CT clicks</h3>
-                <span>thin on purpose</span>
-              </div>
-              <div className="stats">
-                <div className="stat">
-                  <span>Platform cut</span>
-                  <strong>0%</strong>
-                </div>
-                <div className="stat">
-                  <span>Crew slots</span>
-                  <strong>5</strong>
-                </div>
-                <div className="stat">
-                  <span>Desk modes</span>
-                  <strong>3</strong>
-                </div>
-                <div className="stat">
-                  <span>Launch steps</span>
-                  <strong>1</strong>
-                </div>
-              </div>
-              <div className="why-list">
-                <div className="why-item">
-                  <h3>Agency, stripped</h3>
-                  <p>No autonomous treasury mind. A desk that remits — and optionally buys dips.</p>
-                </div>
-                <div className="why-item">
-                  <h3>X-DESK, focused</h3>
-                  <p>Skip stock pairs and FX rails for v1. SOL fee splits to named X crew first.</p>
-                </div>
-                <div className="why-item">
-                  <h3>Pump-native</h3>
-                  <p>Create on the bonding curve. Fee share locked at launch. Receipts public.</p>
-                </div>
-              </div>
+            <div className="stat-strip" aria-label="Desk stats">
+              <span>
+                <strong>0%</strong> cut
+              </span>
+              <span>
+                <strong>5</strong> crew
+              </span>
+              <span>
+                <strong>3</strong> modes
+              </span>
+            </div>
+          </div>
+
+          <div className="panel">
+            <div className="panel-head">
+              <h3>Live remits</h3>
+              <span className="live-dot">live</span>
+            </div>
+            <div className="feed">
+              {feed.map((item, index) => (
+                <motion.div
+                  className="feed-row"
+                  key={item.id}
+                  initial={{ opacity: 0, y: 6 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: Math.min(index, 6) * 0.03 }}
+                >
+                  <div className="feed-time">
+                    {item.time === "now" ? "now" : `${item.time}`}
+                  </div>
+                  <div className="feed-main">
+                    <strong>{item.title}</strong>
+                    <p>{item.detail}</p>
+                  </div>
+                  <div className="feed-amt">{item.amount}</div>
+                </motion.div>
+              ))}
             </div>
           </div>
         </section>
 
         <section className="section" id="launch">
-          <p className="section-label">03 · Launch desk</p>
+          <p className="section-label">Launch desk</p>
           <h2 className="section-title">Ship a crew coin.</h2>
           <p className="section-sub">
-            Production demo: validates a clean 100% crew split and returns a fake
-            mint. Mainnet needs wallet + Pump SDK createV2 / fee-share.
+            Demo mint validates a 100% crew split. Mainnet = Pump SDK + wallet.
           </p>
 
           <div className="launch">
             <div className="panel form">
               <div className="row-2">
                 <div className="field">
-                  <label htmlFor="name">Token name</label>
+                  <label htmlFor="name">Name</label>
                   <input
                     id="name"
                     value={draft.name}
@@ -316,22 +264,24 @@ export default function App() {
                     }
                     placeholder="DCAT"
                     autoComplete="off"
+                    inputMode="text"
                   />
                 </div>
               </div>
 
               <div className="field">
-                <label htmlFor="vibe">One-line vibe</label>
-                <textarea
+                <label htmlFor="vibe">Vibe</label>
+                <input
                   id="vibe"
                   value={draft.vibe}
                   onChange={(e) => setDraft({ ...draft, vibe: e.target.value })}
-                  placeholder="Who is this coin for?"
+                  placeholder="Who gets paid and why?"
+                  autoComplete="off"
                 />
               </div>
 
               <div className="field">
-                <label>Desk mode</label>
+                <label>Mode</label>
                 <div className="mode-grid" role="radiogroup" aria-label="Desk mode">
                   {DESK_MODES.map((mode) => (
                     <button
@@ -342,8 +292,8 @@ export default function App() {
                       className={`mode-option${draft.mode === mode.id ? " active" : ""}`}
                       onClick={() => setDraft({ ...draft, mode: mode.id })}
                     >
-                      <strong>{mode.label}</strong>
-                      <span>{mode.blurb}</span>
+                      <strong className="mode-full">{mode.label}</strong>
+                      <strong className="mode-short">{mode.short}</strong>
                     </button>
                   ))}
                 </div>
@@ -351,7 +301,7 @@ export default function App() {
               </div>
 
               <div className="field">
-                <label>Crew fee split</label>
+                <label>Crew split</label>
                 <div className="crew-list">
                   {draft.crew.map((member, index) => (
                     <div className="crew-row" key={`crew-${index}`}>
@@ -361,8 +311,10 @@ export default function App() {
                         placeholder="@handle"
                         autoComplete="off"
                         spellCheck={false}
+                        inputMode="text"
                       />
                       <input
+                        className="pct-input"
                         type="number"
                         min={0}
                         max={100}
@@ -371,26 +323,28 @@ export default function App() {
                           updateCrew(index, { share: Number(e.target.value) })
                         }
                         placeholder="%"
+                        inputMode="numeric"
                       />
                       <button
                         type="button"
+                        className="btn-remove"
                         onClick={() => removeCrew(index)}
                         disabled={draft.crew.length <= 1}
                         aria-label="Remove"
                       >
-                        remove
+                        ×
                       </button>
                     </div>
                   ))}
                 </div>
                 <div className="alloc-row">
                   <button
-                    className="btn btn-ghost"
+                    className="btn btn-ghost btn-sm"
                     type="button"
                     onClick={addCrew}
                     disabled={draft.crew.length >= MAX_CREW}
                   >
-                    Add handle
+                    + Handle
                   </button>
                   <div className="alloc-meter" aria-hidden>
                     <div
@@ -399,12 +353,12 @@ export default function App() {
                     />
                   </div>
                   <p className={`hint${allocOk ? " is-ok" : " is-bad"}`}>
-                    {draft.crew.length}/{MAX_CREW} · {shareTotal}% / 100%
+                    {shareTotal}%
                   </p>
                 </div>
               </div>
 
-              <div className="field">
+              <div className="field field-buy">
                 <label htmlFor="buy">Initial buy (SOL)</label>
                 <input
                   id="buy"
@@ -415,18 +369,19 @@ export default function App() {
                   onChange={(e) =>
                     setDraft({ ...draft, initialBuySol: Number(e.target.value) })
                   }
+                  inputMode="decimal"
                 />
               </div>
 
               {error ? <p className="form-error">{error}</p> : null}
 
               <button
-                className="btn btn-primary btn-wide"
+                className="btn btn-primary btn-wide desktop-launch"
                 type="button"
                 onClick={onLaunch}
                 disabled={busy}
               >
-                {busy ? "Routing desk…" : "Launch crew coin (demo)"}
+                {busy ? "Routing…" : "Launch (demo)"}
               </button>
             </div>
 
@@ -437,14 +392,12 @@ export default function App() {
                   <h3>
                     ${draft.ticker || "TICKER"} · {draft.name || "Untitled"}
                   </h3>
-                  <p>{draft.vibe || "Add a vibe so the desk has a story."}</p>
+                  <p>{draft.vibe || "Add a vibe."}</p>
                 </div>
               </div>
 
               <div>
-                <p className="section-label" style={{ marginBottom: "0.7rem" }}>
-                  Fee map
-                </p>
+                <p className="section-label fee-map-label">Fee map</p>
                 <div className="split-bars">
                   {draft.crew.map((member, index) => (
                     <div className="split-bar" key={`split-${index}`}>
@@ -455,7 +408,9 @@ export default function App() {
                       <div className="split-track">
                         <div
                           className="split-fill"
-                          style={{ width: `${Math.min(100, Math.max(0, member.share || 0))}%` }}
+                          style={{
+                            width: `${Math.min(100, Math.max(0, member.share || 0))}%`,
+                          }}
                         />
                       </div>
                     </div>
@@ -464,34 +419,34 @@ export default function App() {
               </div>
 
               <p className="hint">
-                Mode: <strong style={{ color: "var(--ink)" }}>{modeMeta.label}</strong>.
-                Platform fee stays 0% — sustainability can come from an optional
-                tip later, not a silent skim.
+                <strong style={{ color: "var(--ink)" }}>{modeMeta.label}</strong>
+                {" · "}0% platform cut
               </p>
 
               {result ? (
                 <motion.div
                   className="success"
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                 >
-                  <h4>Desk armed · demo mint ready</h4>
+                  <h4>Demo mint ready</h4>
                   <p>
-                    Mint <code>{result.mint}</code>
-                    <br />
-                    Sig <code>{result.signature.slice(0, 18)}…</code>
-                    <br />
-                    {result.note}
+                    <code>{result.mint}</code>
                   </p>
                   <div className="success-actions">
-                    <button className="btn btn-ghost" type="button" onClick={copyMint}>
-                      {copied ? "Copied" : "Copy mint"}
+                    <button className="btn btn-ghost btn-sm" type="button" onClick={copyMint}>
+                      {copied ? "Copied" : "Copy"}
                     </button>
-                    <a className="btn btn-primary" href={result.pumpUrl} target="_blank" rel="noreferrer">
-                      Open pump.fun
+                    <a
+                      className="btn btn-primary btn-sm"
+                      href={result.pumpUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      pump.fun
                     </a>
-                    <a className="btn btn-ghost" href="#board">
-                      View tape
+                    <a className="btn btn-ghost btn-sm" href="#board">
+                      Tape
                     </a>
                   </div>
                 </motion.div>
@@ -501,9 +456,27 @@ export default function App() {
         </section>
 
         <footer className="footer">
-          <div>CREW · non-sophisticated fee desks for Pump.fun</div>
-          <div>Inspired by Agency + X-DESK · not affiliated</div>
+          <div>CREW · Pump.fun fee desks</div>
+          <div>Agency + X-DESK inspired</div>
         </footer>
+      </div>
+
+      <div className="mobile-cta">
+        <button
+          className="btn btn-primary btn-wide"
+          type="button"
+          onClick={() => {
+            const top = document.getElementById("launch")?.getBoundingClientRect().top ?? 999;
+            if (top > 100 || top < -120) {
+              document.getElementById("launch")?.scrollIntoView({ behavior: "smooth" });
+              return;
+            }
+            void onLaunch();
+          }}
+          disabled={busy}
+        >
+          {busy ? "Routing…" : "Launch (demo)"}
+        </button>
       </div>
     </div>
   );
