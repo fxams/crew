@@ -2,7 +2,7 @@ name: Deploy CREW to GitHub Pages
 
 on:
   push:
-    branches: [main, cursor/crew-production-4090, cursor/crew-platform-4090]
+    branches: [main, cursor/crew-production-4090, cursor/crew-platform-4090, cursor/crew-edges-4090]
   workflow_dispatch:
 
 permissions:
