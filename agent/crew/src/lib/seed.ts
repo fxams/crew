@@ -1,4 +1,5 @@
 import type { CoinRecord, RemitRecord } from './types'
+import { DEFAULT_BUYBACK, DEFAULT_RAID_QUESTS } from './edges'
 
 export function seedCoins(): CoinRecord[] {
   const now = Date.now()
@@ -20,6 +21,7 @@ export function seedCoins(): CoinRecord[] {
       launchedAt: now - 42 * 60_000,
       launcher: 'demo',
       pumpUrl: 'https://pump.fun',
+      raidQuests: DEFAULT_RAID_QUESTS.map((q) => ({ ...q })),
     },
     {
       id: 'seed_desk',
@@ -37,6 +39,24 @@ export function seedCoins(): CoinRecord[] {
       launchedAt: now - 95 * 60_000,
       launcher: 'demo',
       pumpUrl: 'https://pump.fun',
+    },
+    {
+      id: 'seed_floor',
+      mint: 'CrewFloorDemo3333333333333333333333333333333',
+      name: 'Floor Guard',
+      ticker: 'FLOOR',
+      vibe: 'Dip desk with explicit buyback rules.',
+      mode: 'buyback',
+      crew: [
+        { handle: '@caller', wallet: '', share: 55 },
+        { handle: '@analyst', wallet: '', share: 45 },
+      ],
+      network: 'demo',
+      signature: 'seed',
+      launchedAt: now - 28 * 60_000,
+      launcher: 'demo',
+      pumpUrl: 'https://pump.fun',
+      buybackRule: { ...DEFAULT_BUYBACK, dipPct: 22 },
     },
   ]
 }
@@ -75,6 +95,28 @@ export function seedRemits(coins: CoinRecord[]): RemitRecord[] {
       amountSol: 0.0121,
       mode: 'raid',
       at: now - 21 * 60_000,
+      network: 'demo',
+    },
+    {
+      id: 'r4',
+      mint: coins[2].mint,
+      ticker: 'FLOOR',
+      handle: '@caller',
+      wallet: '',
+      amountSol: 0.0275,
+      mode: 'buyback',
+      at: now - 8 * 60_000,
+      network: 'demo',
+    },
+    {
+      id: 'r5',
+      mint: coins[2].mint,
+      ticker: 'FLOOR',
+      handle: '@analyst',
+      wallet: '',
+      amountSol: 0.0198,
+      mode: 'buyback',
+      at: now - 11 * 60_000,
       network: 'demo',
     },
   ]

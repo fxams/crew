@@ -14,8 +14,11 @@ A Pump.fun fee desk inspired by:
 3. Pick a desk mode: **Fee Split**, **Dip Buyback**, or **Raid Pool**
 4. Lock permanent on-chain fee-share (mainnet) and watch remits on the public tape
 5. Crank `distributeCreatorFeesV2` when creator fees accumulate
+6. Compete with Agency on **human payroll** — 0% cut, CT receipts, dip rules, raid quests
 
 Live: **https://fxams.github.io/crew/**
+
+**Edge vs [Agency](https://www.agencypad.fun):** they route 100% of fees to an AI mind + burn $AGENCY. CREW routes fees to named wallets you lock at launch.
 
 ## Run locally
 

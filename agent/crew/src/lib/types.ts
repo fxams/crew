@@ -7,6 +7,23 @@ export type CrewMember = {
   share: number
 }
 
+export type BuybackRule = {
+  /** Fire when price is this % below local high. */
+  dipPct: number
+  /** Max SOL from desk reserve per fire. */
+  maxSolPerFire: number
+  /** Cooldown hours between fires. */
+  cooldownHours: number
+}
+
+export type RaidQuest = {
+  id: string
+  title: string
+  /** Share of raid pool in bps. */
+  bountyBps: number
+  proof: string
+}
+
 export type LaunchDraft = {
   name: string
   ticker: string
@@ -15,6 +32,8 @@ export type LaunchDraft = {
   crew: CrewMember[]
   initialBuySol: number
   imageFile?: File | null
+  buybackRule?: BuybackRule
+  raidQuests?: RaidQuest[]
 }
 
 export type LaunchNetwork = 'mainnet' | 'demo'
@@ -33,6 +52,8 @@ export type CoinRecord = {
   launchedAt: number
   launcher: string
   pumpUrl: string
+  buybackRule?: BuybackRule
+  raidQuests?: RaidQuest[]
 }
 
 export type RemitRecord = {
