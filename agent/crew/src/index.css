@@ -687,6 +687,43 @@ a {
   color: #ffb4a2;
 }
 
+.hire-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.35rem 0 0.55rem;
+}
+
+.hire-plan {
+  margin: 0 0 0.65rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px dashed rgba(200, 255, 61, 0.28);
+  border-radius: 10px;
+  background: rgba(200, 255, 61, 0.04);
+}
+
+.hire-plan-tags {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--acid);
+}
+
+.hire-plan-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.hire-plan-list strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
 .net-toggle {
   display: grid;
   grid-template-columns: 1fr 1fr;

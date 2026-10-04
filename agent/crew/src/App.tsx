@@ -41,6 +41,10 @@ import {
   resolveHandleWallet,
   type WalletResolveResult,
 } from "./lib/pump/resolve-wallet";
+import {
+  applyNarrativeHire,
+  type NarrativeHirePlan,
+} from "./lib/pump/narrative-hire";
 import { loadBoard, persistLaunch, persistRemit, persistRemits, resetBoard } from "./lib/store";
 import type { CoinRecord, RemitRecord } from "./lib/types";
 
@@ -89,6 +93,7 @@ export default function App() {
     return { coins: board.coins, remits: board.remits };
   });
   const [linkStatus, setLinkStatus] = useState<Record<number, LinkStatus>>({});
+  const [hirePlan, setHirePlan] = useState<NarrativeHirePlan | null>(null);
   const autoFilledRef = useRef<Record<number, string>>({});
   const coins = desk.coins;
   const remits = desk.remits;
@@ -250,6 +255,32 @@ export default function App() {
 
   function onImage(file: File | null) {
     setDraft((prev) => ({ ...prev, imageFile: file }));
+  }
+
+  function autoHireFromNarrative() {
+    const { draft: next, plan } = applyNarrativeHire(draft, { limit: 3 });
+    autoFilledRef.current = {};
+    next.crew.forEach((m, i) => {
+      if (m.wallet) autoFilledRef.current[i] = m.wallet;
+    });
+    setDraft(next);
+    setHirePlan(plan);
+    setLinkStatus(
+      Object.fromEntries(
+        plan.hires.map((h, i) => [
+          i,
+          {
+            state: "linked" as const,
+            detail: `KOL #${h.kol.rank} · ${h.reasons[0] || "narrative fit"} · ${h.kol.wallet.slice(0, 4)}…${h.kol.wallet.slice(-4)}`,
+            wallet: h.kol.wallet,
+          },
+        ]),
+      ),
+    );
+    setStatus(
+      `Auto-hired ${plan.hires.length} KOLs for [${plan.match.tags.join(", ")}]`,
+    );
+    setError(null);
   }
 
   function applyTemplate(tpl: LaunchTemplate) {
@@ -1115,8 +1146,35 @@ export default function App() {
                 <label>Crew split + wallets</label>
                 <p className="hint">
                   Type an X / Pump handle — we pull the linked Solana wallet from Pump.fun’s
-                  user DB when it exists. Always confirm before signing.
+                  user DB when it exists. Or auto-hire a correlated KOL pack from your
+                  token narrative. Always confirm before signing.
                 </p>
+                <div className="hire-actions">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={autoHireFromNarrative}
+                  >
+                    Auto-hire KOLs from narrative
+                  </button>
+                </div>
+                {hirePlan ? (
+                  <div className="hire-plan" role="status">
+                    <p className="hire-plan-tags">
+                      Narrative: {hirePlan.match.tags.map((t) => `#${t}`).join(" · ")}
+                    </p>
+                    <ul className="hire-plan-list">
+                      {hirePlan.hires.map((h) => (
+                        <li key={h.kol.id}>
+                          <strong>#{h.kol.rank} @{h.kol.x || h.kol.pump}</strong>
+                          {" · "}
+                          {h.share}% · {h.role}
+                          {h.reasons[0] ? ` · ${h.reasons[0]}` : ""}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
                 <div className="crew-list">
                   {draft.crew.map((member, index) => (
                     <div className="crew-block has-wallet" key={`crew-${index}`}>
