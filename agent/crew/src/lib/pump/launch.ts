@@ -12,10 +12,24 @@ import {
 import BN from 'bn.js'
 import type { WalletContextState } from '@solana/wallet-adapter-react'
 import { PUMP_COIN_URL } from '../config'
+import { DEFAULT_BUYBACK, DEFAULT_RAID_QUESTS } from '../edges'
 import type { LaunchDraft, LaunchResult, RemitRecord } from '../types'
 import { validateDraft } from '../validation'
 import { getConnection, getOnlineSdk, getPumpSdk } from './connection'
 import { uploadPumpMetadata } from './ipfs'
+
+function deskPrograms(draft: LaunchDraft, mode: LaunchDraft['mode']) {
+  if (mode === 'buyback') {
+    return { buybackRule: draft.buybackRule ?? { ...DEFAULT_BUYBACK }, raidQuests: undefined }
+  }
+  if (mode === 'raid') {
+    return {
+      buybackRule: undefined,
+      raidQuests: (draft.raidQuests ?? DEFAULT_RAID_QUESTS).map((q) => ({ ...q })),
+    }
+  }
+  return { buybackRule: undefined, raidQuests: undefined }
+}
 
 function id(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`
@@ -68,6 +82,7 @@ export async function launchDemo(draft: LaunchDraft): Promise<LaunchResult> {
         launchedAt,
         launcher: 'demo',
         pumpUrl: PUMP_COIN_URL(mint),
+        ...deskPrograms(draft, normalized.mode),
       },
       remits,
     }
@@ -222,6 +237,7 @@ export async function launchMainnet(
         launchedAt,
         launcher: launcher.toBase58(),
         pumpUrl: PUMP_COIN_URL(mint.toBase58()),
+        ...deskPrograms(draft, normalized.mode),
       },
       remits,
     }

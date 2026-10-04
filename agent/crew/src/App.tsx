@@ -11,6 +11,18 @@ import {
   type LaunchDraft,
 } from "./data";
 import { CREW_VERSION, MODE_DESK_BPS } from "./lib/config";
+import {
+  CREW_EDGES,
+  DEFAULT_BUYBACK,
+  DEFAULT_RAID_QUESTS,
+  LAUNCH_TEMPLATES,
+  buildDeskPulse,
+  buildScoreboard,
+  deskStats,
+  modeLabel,
+  shareReceiptText,
+  type LaunchTemplate,
+} from "./lib/edges";
 import { launchDemo, launchMainnet } from "./lib/launch";
 import { distributeCreatorFees } from "./lib/pump/fees";
 import { loadBoard, persistLaunch, persistRemit } from "./lib/store";
@@ -47,7 +59,8 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [result, setResult] = useState<CoinRecord | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"mint" | "share" | null>(null);
+  const [selectedCoin, setSelectedCoin] = useState<CoinRecord | null>(null);
   const [boardTick] = useState(() => Date.now());
   const [desk, setDesk] = useState(() => {
     const board = initialBoard();
@@ -64,6 +77,12 @@ export default function App() {
   const deskBps = MODE_DESK_BPS[draft.mode];
   const connected = Boolean(wallet.publicKey);
   const needsWallet = network === "mainnet";
+  const stats = useMemo(() => deskStats(coins, remits), [coins, remits]);
+  const scoreboard = useMemo(() => buildScoreboard(remits), [remits]);
+  const pulse = useMemo(
+    () => buildDeskPulse(coins, remits, boardTick),
+    [coins, remits, boardTick],
+  );
 
   const tapeItems = useMemo(() => {
     const fromRemits = remits.slice(0, 16).map((r) => ({
@@ -85,7 +104,7 @@ export default function App() {
       detail: `${c.crew.map((m) => `${m.handle} ${m.share}%`).join(" · ")} · ${c.network}`,
       amount: c.network === "mainnet" ? "MAINNET" : "DEMO",
       mint: c.mint,
-      network: c.network,
+      coin: c,
     }));
     const remitRows = remits.slice(0, 12).map((r) => ({
       id: `remit_${r.id}`,
@@ -94,7 +113,7 @@ export default function App() {
       detail: `$${r.ticker} · ${r.mode}${r.wallet ? ` · ${shortAddr(r.wallet)}` : ""}`,
       amount: r.amountSol > 0 ? `+${r.amountSol.toFixed(4)}` : "LOCK",
       mint: r.mint,
-      network: r.network,
+      coin: coins.find((c) => c.mint === r.mint) ?? null,
     }));
     return [...remitRows, ...launchRows].slice(0, 24);
   }, [coins, remits, boardTick]);
@@ -124,6 +143,32 @@ export default function App() {
     setDraft((prev) => ({ ...prev, imageFile: file }));
   }
 
+  function applyTemplate(tpl: LaunchTemplate) {
+    setDraft((prev) => ({
+      ...prev,
+      ...tpl.draft,
+      crew: tpl.draft.crew.map((m) => ({ ...m })),
+      buybackRule: tpl.draft.buybackRule ? { ...tpl.draft.buybackRule } : undefined,
+      raidQuests: tpl.draft.raidQuests?.map((q) => ({ ...q })),
+      imageFile: prev.imageFile,
+    }));
+    setError(null);
+    setStatus(`Template: ${tpl.label}`);
+  }
+
+  function setMode(mode: LaunchDraft["mode"]) {
+    setDraft((prev) => ({
+      ...prev,
+      mode,
+      buybackRule:
+        mode === "buyback" ? prev.buybackRule ?? { ...DEFAULT_BUYBACK } : undefined,
+      raidQuests:
+        mode === "raid"
+          ? prev.raidQuests ?? DEFAULT_RAID_QUESTS.map((q) => ({ ...q }))
+          : undefined,
+    }));
+  }
+
   async function onLaunch() {
     if (needsWallet && !connected) {
       setVisible(true);
@@ -135,7 +180,7 @@ export default function App() {
     setError(null);
     setStatus(needsWallet ? "Uploading metadata → createV2 → fee share…" : "Validating desk…");
     setResult(null);
-    setCopied(false);
+    setCopied(null);
 
     const response =
       network === "mainnet"
@@ -154,6 +199,7 @@ export default function App() {
     setCoins(board.coins);
     setRemits(board.remits);
     setResult(response.coin);
+    setSelectedCoin(response.coin);
     setDraft((prev) => ({ ...prev, crew: response.coin.crew }));
   }
 
@@ -168,14 +214,14 @@ export default function App() {
     try {
       const signature = await distributeCreatorFees(mint, wallet);
       const board = persistRemit({
-        id: `crank_${Date.now().toString(36)}`,
+        id: `crank_${Math.random().toString(36).slice(2, 10)}`,
         mint,
         ticker,
         handle: "@desk",
         wallet: wallet.publicKey?.toBase58() ?? "",
         amountSol: 0,
         mode: "split",
-        at: Date.now(),
+        at: Number(new Date()),
         signature,
         network: "mainnet",
       });
@@ -192,10 +238,21 @@ export default function App() {
     if (!result) return;
     try {
       await navigator.clipboard.writeText(result.mint);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1600);
+      setCopied("mint");
+      window.setTimeout(() => setCopied(null), 1600);
     } catch {
-      setCopied(false);
+      setCopied(null);
+    }
+  }
+
+  async function copyShare(coin: CoinRecord) {
+    try {
+      await navigator.clipboard.writeText(shareReceiptText(coin));
+      setCopied("share");
+      setStatus("CT receipt copied.");
+      window.setTimeout(() => setCopied(null), 1800);
+    } catch {
+      setError("Could not copy share text.");
     }
   }
 
@@ -210,6 +267,9 @@ export default function App() {
         : "Connect & launch"
       : "Launch (demo)";
 
+  const buyback = draft.buybackRule ?? DEFAULT_BUYBACK;
+  const quests = draft.raidQuests ?? DEFAULT_RAID_QUESTS;
+
   return (
     <div className="site">
       <div className="noise" aria-hidden />
@@ -221,6 +281,7 @@ export default function App() {
             CREW
           </a>
           <nav className="nav-links">
+            <a href="#edges">Edges</a>
             <a href="#board">Tape</a>
             <button
               type="button"
@@ -254,15 +315,16 @@ export default function App() {
                 <span>gets paid.</span>
               </motion.h1>
               <p className="hero-copy">
-                Tag up to five wallets. Lock a permanent on-chain fee split. Crank
-                remits to the tape. <em>0% platform cut.</em>
+                Agency gives every coin a mind. CREW gives every coin a{" "}
+                <em>payroll</em> — permanent wallet splits, raid quests, dip rules, and a
+                public tape. <em>0% platform cut.</em>
               </p>
               <div className="hero-actions">
                 <a className="btn btn-primary" href="#launch">
                   Launch coin
                 </a>
-                <a className="btn btn-ghost" href="#board">
-                  Watch tape
+                <a className="btn btn-ghost" href="#edges">
+                  Why CREW
                 </a>
               </div>
             </div>
@@ -301,39 +363,134 @@ export default function App() {
           </div>
         </section>
 
+        <section className="section" id="edges">
+          <div className="section-head-row">
+            <div>
+              <p className="section-label">vs Agency</p>
+              <h2 className="section-title">Our edges.</h2>
+            </div>
+            <div className="stat-strip" aria-label="Desk stats">
+              <span>
+                <strong>{stats.platformCut}%</strong> cut
+              </span>
+              <span>
+                <strong>{stats.paidSol.toFixed(3)}</strong> SOL paid
+              </span>
+              <span>
+                <strong>{stats.humanRemits}</strong> human remits
+              </span>
+            </div>
+          </div>
+          <p className="section-sub edge-sub">
+            Agency is infrastructure for living AI tokens — fees fund minds and burn
+            $AGENCY. CREW is the fee desk for living <em>crews</em>.
+          </p>
+          <div className="edge-grid">
+            {CREW_EDGES.map((edge, index) => (
+              <motion.article
+                className="edge-card"
+                key={edge.id}
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: Math.min(index, 4) * 0.05 }}
+              >
+                <h3>{edge.title}</h3>
+                <p className="edge-agency">
+                  <span>Agency</span> {edge.agency}
+                </p>
+                <p className="edge-crew">
+                  <span>CREW</span> {edge.crew}
+                </p>
+              </motion.article>
+            ))}
+          </div>
+        </section>
+
         <section className="section" id="board">
           <div className="section-head-row">
             <div>
               <p className="section-label">Desk board</p>
               <h2 className="section-title">Money on the tape.</h2>
             </div>
-            <div className="stat-strip" aria-label="Desk stats">
-              <span>
-                <strong>0%</strong> cut
-              </span>
+            <div className="stat-strip" aria-label="Board counts">
               <span>
                 <strong>{coins.length}</strong> coins
               </span>
               <span>
                 <strong>{remits.length}</strong> remits
               </span>
+              <span>
+                <strong>{stats.mainnetCoins}</strong> mainnet
+              </span>
             </div>
           </div>
 
-          <div className="panel">
+          <div className="board-grid">
+            <div className="panel">
+              <div className="panel-head">
+                <h3>Desk pulse</h3>
+                <span className="live-dot">live</span>
+              </div>
+              <div className="feed">
+                {pulse.map((item, index) => (
+                  <motion.div
+                    className={`feed-row pulse-${item.kind}`}
+                    key={item.id}
+                    initial={{ opacity: 0, y: 6 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: Math.min(index, 6) * 0.03 }}
+                  >
+                    <div className="feed-time">{item.time}</div>
+                    <div className="feed-main">
+                      <strong>{item.title}</strong>
+                      <p>{item.detail}</p>
+                    </div>
+                    <div className="feed-amt">{item.amount}</div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+
+            <div className="panel">
+              <div className="panel-head">
+                <h3>Crew scoreboard</h3>
+                <span>humans paid</span>
+              </div>
+              <div className="score-list">
+                {scoreboard.length === 0 ? (
+                  <p className="hint score-empty">No remits yet — launch and get paid.</p>
+                ) : (
+                  scoreboard.map((row, index) => (
+                    <div className="score-row" key={row.handle}>
+                      <div className="score-rank">#{index + 1}</div>
+                      <div className="score-main">
+                        <strong>{row.handle}</strong>
+                        <p>
+                          {row.remits} remits · {row.tickers.map((t) => `$${t}`).join(" ")}
+                        </p>
+                      </div>
+                      <div className="score-amt">{row.totalSol.toFixed(4)}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="panel crank-panel">
             <div className="panel-head">
               <h3>Live remits</h3>
-              <span className="live-dot">live</span>
+              <span className="live-dot">tape</span>
             </div>
             <div className="feed">
-              {feed.map((item, index) => (
-                <motion.div
-                  className="feed-row"
+              {feed.map((item) => (
+                <button
+                  type="button"
+                  className="feed-row feed-btn"
                   key={item.id}
-                  initial={{ opacity: 0, y: 6 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: Math.min(index, 6) * 0.03 }}
+                  onClick={() => item.coin && setSelectedCoin(item.coin)}
                 >
                   <div className="feed-time">{item.time}</div>
                   <div className="feed-main">
@@ -341,10 +498,89 @@ export default function App() {
                     <p>{item.detail}</p>
                   </div>
                   <div className="feed-amt">{item.amount}</div>
-                </motion.div>
+                </button>
               ))}
             </div>
           </div>
+
+          {selectedCoin ? (
+            <div className="panel coin-desk">
+              <div className="panel-head">
+                <h3>
+                  ${selectedCoin.ticker} desk · {modeLabel(selectedCoin.mode)}
+                </h3>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setSelectedCoin(null)}
+                >
+                  Close
+                </button>
+              </div>
+              <div className="coin-desk-body">
+                <p className="hint">
+                  {selectedCoin.vibe || "No vibe."} · {selectedCoin.network} ·{" "}
+                  {shortAddr(selectedCoin.mint)}
+                </p>
+                <div className="split-bars">
+                  {selectedCoin.crew.map((m) => (
+                    <div className="split-bar" key={`${selectedCoin.mint}-${m.handle}`}>
+                      <div className="split-meta">
+                        <span>{m.handle}</span>
+                        <span>{m.share}%</span>
+                      </div>
+                      <div className="split-track">
+                        <div className="split-fill" style={{ width: `${m.share}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {selectedCoin.mode === "buyback" && selectedCoin.buybackRule ? (
+                  <p className="hint">
+                    Dip rule: −{selectedCoin.buybackRule.dipPct}% → ≤
+                    {selectedCoin.buybackRule.maxSolPerFire} SOL ·{" "}
+                    {selectedCoin.buybackRule.cooldownHours}h cooldown
+                  </p>
+                ) : null}
+                {selectedCoin.mode === "raid" && selectedCoin.raidQuests?.length ? (
+                  <div className="quest-mini">
+                    {selectedCoin.raidQuests.map((q) => (
+                      <div className="quest-chip" key={q.id}>
+                        <strong>{(q.bountyBps / 100).toFixed(0)}%</strong> {q.title}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+                <div className="success-actions">
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    type="button"
+                    onClick={() => void copyShare(selectedCoin)}
+                  >
+                    {copied === "share" ? "Copied receipt" : "Copy CT receipt"}
+                  </button>
+                  <a
+                    className="btn btn-primary btn-sm"
+                    href={selectedCoin.pumpUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    pump.fun
+                  </a>
+                  {selectedCoin.network === "mainnet" ? (
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      type="button"
+                      disabled={cranking === selectedCoin.mint}
+                      onClick={() => void onCrank(selectedCoin.mint, selectedCoin.ticker)}
+                    >
+                      {cranking === selectedCoin.mint ? "Cranking…" : "Distribute"}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {coins.some((c) => c.network === "mainnet") ? (
             <div className="panel crank-panel">
@@ -381,10 +617,23 @@ export default function App() {
           <p className="section-label">Launch desk</p>
           <h2 className="section-title">Ship a crew coin.</h2>
           <p className="section-sub">
-            Demo validates the split. Mainnet runs Pump IPFS → createV2 → permanent
-            wallet fee-share (X handles are tape identity — Pump social PDAs are
-            GitHub-only).
+            Pick a template or build your own. Mainnet locks wallet fee-share on-chain.
+            X handles are tape identity.
           </p>
+
+          <div className="template-row" aria-label="Launch templates">
+            {LAUNCH_TEMPLATES.map((tpl) => (
+              <button
+                key={tpl.id}
+                type="button"
+                className="template-chip"
+                onClick={() => applyTemplate(tpl)}
+              >
+                <strong>{tpl.label}</strong>
+                <span>{tpl.blurb}</span>
+              </button>
+            ))}
+          </div>
 
           <div className="launch">
             <div className="panel form">
@@ -476,7 +725,7 @@ export default function App() {
                       role="radio"
                       aria-checked={draft.mode === mode.id}
                       className={`mode-option${draft.mode === mode.id ? " active" : ""}`}
-                      onClick={() => setDraft({ ...draft, mode: mode.id })}
+                      onClick={() => setMode(mode.id)}
                     >
                       <strong className="mode-full">{mode.label}</strong>
                       <strong className="mode-short">{mode.short}</strong>
@@ -490,6 +739,113 @@ export default function App() {
                     : ""}
                 </p>
               </div>
+
+              {draft.mode === "buyback" ? (
+                <div className="field program-box">
+                  <label>Buyback rule</label>
+                  <div className="row-3">
+                    <label className="mini-field">
+                      Dip %
+                      <input
+                        type="number"
+                        min={5}
+                        max={80}
+                        value={buyback.dipPct}
+                        onChange={(e) =>
+                          setDraft({
+                            ...draft,
+                            buybackRule: {
+                              ...buyback,
+                              dipPct: Number(e.target.value),
+                            },
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="mini-field">
+                      Max SOL
+                      <input
+                        type="number"
+                        min={0.01}
+                        step={0.01}
+                        value={buyback.maxSolPerFire}
+                        onChange={(e) =>
+                          setDraft({
+                            ...draft,
+                            buybackRule: {
+                              ...buyback,
+                              maxSolPerFire: Number(e.target.value),
+                            },
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="mini-field">
+                      Cooldown h
+                      <input
+                        type="number"
+                        min={1}
+                        max={72}
+                        value={buyback.cooldownHours}
+                        onChange={(e) =>
+                          setDraft({
+                            ...draft,
+                            buybackRule: {
+                              ...buyback,
+                              cooldownHours: Number(e.target.value),
+                            },
+                          })
+                        }
+                      />
+                    </label>
+                  </div>
+                  <p className="hint">
+                    Explicit rules you set — not an unsupervised mind spending treasury.
+                  </p>
+                </div>
+              ) : null}
+
+              {draft.mode === "raid" ? (
+                <div className="field program-box">
+                  <label>Raid quests</label>
+                  <div className="quest-edit">
+                    {quests.map((q, index) => (
+                      <div className="quest-edit-row" key={q.id}>
+                        <input
+                          value={q.title}
+                          onChange={(e) => {
+                            const next = quests.map((item, i) =>
+                              i === index ? { ...item, title: e.target.value } : item,
+                            );
+                            setDraft({ ...draft, raidQuests: next });
+                          }}
+                          aria-label={`Quest ${index + 1} title`}
+                        />
+                        <input
+                          className="pct-input"
+                          type="number"
+                          min={1}
+                          max={100}
+                          value={Math.round(q.bountyBps / 100)}
+                          onChange={(e) => {
+                            const next = quests.map((item, i) =>
+                              i === index
+                                ? { ...item, bountyBps: Number(e.target.value) * 100 }
+                                : item,
+                            );
+                            setDraft({ ...draft, raidQuests: next });
+                          }}
+                          aria-label={`Quest ${index + 1} bounty %`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <p className="hint">
+                    Pot funded by the 25% raid reserve. Proofs stay human — post, raid,
+                    diamond.
+                  </p>
+                </div>
+              ) : null}
 
               <div className="field">
                 <label>Crew split {needsWallet ? "+ wallets" : ""}</label>
@@ -612,7 +968,9 @@ export default function App() {
                   {deskBps > 0 ? (
                     <div className="split-bar">
                       <div className="split-meta">
-                        <span>@desk (launcher)</span>
+                        <span>
+                          {draft.mode === "raid" ? "@raid pool" : "@desk (buyback)"}
+                        </span>
                         <span>{deskBps / 100}%</span>
                       </div>
                       <div className="split-track">
@@ -680,7 +1038,14 @@ export default function App() {
                   ) : null}
                   <div className="success-actions">
                     <button className="btn btn-ghost btn-sm" type="button" onClick={copyMint}>
-                      {copied ? "Copied" : "Copy"}
+                      {copied === "mint" ? "Copied" : "Copy mint"}
+                    </button>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      type="button"
+                      onClick={() => void copyShare(result)}
+                    >
+                      {copied === "share" ? "Receipt copied" : "Copy CT receipt"}
                     </button>
                     <a
                       className="btn btn-primary btn-sm"
@@ -690,20 +1055,6 @@ export default function App() {
                     >
                       pump.fun
                     </a>
-                    {result.network === "mainnet" ? (
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        type="button"
-                        onClick={() => void onCrank(result.mint, result.ticker)}
-                        disabled={cranking === result.mint}
-                      >
-                        Crank
-                      </button>
-                    ) : (
-                      <a className="btn btn-ghost btn-sm" href="#board">
-                        Tape
-                      </a>
-                    )}
                   </div>
                 </motion.div>
               ) : null}
@@ -712,8 +1063,8 @@ export default function App() {
         </section>
 
         <footer className="footer">
-          <div>CREW · Pump.fun fee desks · v{CREW_VERSION}</div>
-          <div>Phantom · createV2 · fee-share · 0% cut</div>
+          <div>CREW · humans get paid · v{CREW_VERSION}</div>
+          <div>0% cut · no AI skim · no $CREW burn tax</div>
         </footer>
       </div>
 

@@ -39,6 +39,8 @@ export const DEFAULT_DRAFT: LaunchDraft = {
   ],
   initialBuySol: 0.1,
   imageFile: null,
+  buybackRule: undefined,
+  raidQuests: undefined,
 }
 
 export function totalShare(crew: { share: number }[]) {

@@ -1,61 +1,55 @@
 # CREW — product review & scope
 
-## What we reviewed
+## Competitive frame (Agency)
 
-### Agency (`@tryagency` → agencypad.fun)
-- Pump launchpad where **every coin gets an AI mind + treasury**
-- Creator fees permanently route to Agency
-- Mind observes market/holders, researches X/web, buybacks, rewards, contests
-- Powerful, but heavy: models, firewall, policy engine, signer, ledger
+[Agency](https://www.agencypad.fun) launches Pump coins with an autonomous AI mind + treasury.
+**100% of creator fees** route to Agency (credits → treasury → 15% $AGENCY burn). The launcher
+does not control the mind and does not receive creator fees.
 
-### X-DESK (`@xdeskcash` → xdesk.cash)
-- Launch tokens **paired with SOL / stocks / majors**
-- Assign creator fees to **X accounts**, pay out via **X Money** (USD)
-- **0% platform fee** narrative
-- Desk board shows generated vs paid
+CREW competes on a different axis:
 
-## The gap (non-sophisticated use case)
+> **Tag your crew at launch. Their cut of creator fees is permanent. The desk is the remittance machine + public tape.**
 
-Pump.fun CT does not need the full Agency brain or X-DESK stock/FX stack to feel the magic.
+### CREW edges vs Agency
 
-They need:
+| | Agency | CREW |
+|--|--|--|
+| Who gets fees | AI credits + Agency treasury (+ burn) | Named human wallets (0% platform cut) |
+| Control after launch | Mind decides; launcher cannot command | You set fee map, dip rules, raid quests |
+| Time-to-pay | Sleeps until ~$20 fees | Crank remits anytime |
+| Social proof | Thought logs | Screenshotable remit tape + CT receipts |
+| Programs | Mind-run contests / DCA / jackpots | Explicit buyback rules + raid quest board |
 
-1. Fast launch that feels native to Pump
-2. A reason the coin is not a ghost after block 1
-3. Named people getting paid in public
-4. A tape they can screenshot into CT
+We are **not** cloning Agency’s model firewall / signer / ledger stack. That is their moat.
+Ours is **KOL payroll + CT content** — the non-sophisticated use case Agency overshoots.
 
-## CREW thesis
+## Modes
 
-> **Tag your crew at launch. Their cut of creator fees is permanent. The desk is just the remittance machine + public tape.**
-
-### v1 modes
 | Mode | Job |
 |------|-----|
-| Fee Split | 100% of creator fees to tagged X crew |
-| Dip Buyback | Crew % + desk reserve that buys dips when rules fire |
-| Raid Pool | Fees fund a public pot for holders who post |
+| Fee Split | 100% of creator fees to tagged crew wallets |
+| Dip Buyback | 20% desk reserve + editable dip rule (%, max SOL, cooldown) |
+| Raid Pool | 25% pot + editable quest board (bounty % + proof type) |
 
-### Explicitly out of v1
+## Platform features (v1.1)
+
+- Phantom mainnet: Pump IPFS → `createV2` → permanent fee-share
+- Demo path + local board persistence
+- Launch templates (KOL pack / Dip desk / Raid squad)
+- Crew scoreboard (humans ranked by SOL remitted)
+- Desk pulse (remits + armed buyback rules + open raids)
+- Coin desk drawer (fee map, quests, CT receipt copy, crank)
+- Share receipt generator for X posts
+- vs Agency edges section on the landing surface
+
+## Explicitly out (still)
+
 - Multi-model autonomous “mind”
-- Stock quote pairs + Kraken conversion
-- X Money rails (can add later; start with SOL remits / claim links)
-- Contests, vesting, strategy lab, browser research agents
+- Prompt firewall / isolated signer / double-entry ledger
+- Stock quote pairs + Kraken / X Money rails
+- Browser research agents
 
-## Why the community would use it
-- **KOL alignment without DMs** — shillers get a real cut on-chain/config
-- **Content engine** — every payout is a postable receipt
-- **Lower trust friction** — fee map is visible before first trade
-- **Still degenspeed** — one form, one click, Pump URL back
+## Hosting
 
-## Production status (platform)
-
-- App: `agent/crew` (Vite + React + TypeScript)
-- **Demo** — validates 1–5 handles, 100% split, localStorage board + tape
-- **Mainnet** — Phantom wallet → Pump IPFS → `createV2` / `createV2AndBuy` → `createFeeSharingConfig` + `updateFeeSharesV2`
-- X handles are **tape identity**; fee recipients are **Solana wallets** (Pump social fee PDAs officially support GitHub only)
-- Buyback / Raid desk reserve (20% / 25%) routes to the launcher wallet
-- **Crank remits** — `distributeCreatorFeesV2` for mainnet mints
-- Persistence: `localStorage` board (`crew.platform.v1`)
-- Hosting: **GitHub Pages** — https://fxams.github.io/crew/ — see `DEPLOY.md`
-- Optional RPC: `VITE_RPC_URL` (see `.env.example`)
+- Live Pages: https://fxams.github.io/crew/
+- See `DEPLOY.md` · optional `VITE_RPC_URL`
