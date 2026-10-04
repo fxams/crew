@@ -31,10 +31,10 @@ import {
   shareReceiptText,
   type LaunchTemplate,
 } from "./lib/edges";
-import { launchDemo, launchMainnet } from "./lib/launch";
+import { launchCrew } from "./lib/launch";
 import { distributeCreatorFees } from "./lib/pump/fees";
 import { loadBoard, persistLaunch, persistRemit, persistRemits, resetBoard } from "./lib/store";
-import type { CoinRecord, LaunchNetwork, RemitRecord } from "./lib/types";
+import type { CoinRecord, RemitRecord } from "./lib/types";
 
 const MAX_CREW = 5;
 
@@ -61,7 +61,6 @@ export default function App() {
   const wallet = useWallet();
   const { setVisible } = useWalletModal();
   const [draft, setDraft] = useState<LaunchDraft>(DEFAULT_DRAFT);
-  const [network, setNetwork] = useState<LaunchNetwork>("demo");
   const [busy, setBusy] = useState(false);
   const [cranking, setCranking] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -85,7 +84,6 @@ export default function App() {
   const allocOk = shareTotal === 100;
   const deskBps = MODE_DESK_BPS[draft.mode];
   const connected = Boolean(wallet.publicKey);
-  const needsWallet = network === "mainnet";
   const stats = useMemo(() => deskStats(coins, remits), [coins, remits]);
   const scoreboard = useMemo(() => buildScoreboard(remits), [remits]);
   const pulse = useMemo(
@@ -102,7 +100,7 @@ export default function App() {
           : `locked ${r.handle} · $${r.ticker} fee share`,
     }));
     if (fromRemits.length) return fromRemits;
-    return [{ id: "empty", text: "desk quiet — launch a crew coin" }];
+    return [{ id: "empty", text: "desk live — connect Phantom and launch a crew coin" }];
   }, [remits]);
 
   const feed = useMemo(() => {
@@ -110,8 +108,8 @@ export default function App() {
       id: `coin_${c.id}`,
       time: relativeTime(c.launchedAt, boardTick),
       title: `$${c.ticker} crew locked`,
-      detail: `${c.crew.map((m) => `${m.handle} ${m.share}%`).join(" · ")} · ${c.network}`,
-      amount: c.network === "mainnet" ? "MAINNET" : "DEMO",
+      detail: `${c.crew.map((m) => `${m.handle} ${m.share}%`).join(" · ")} · mainnet`,
+      amount: "LIVE",
       mint: c.mint,
       coin: c,
     }));
@@ -179,22 +177,19 @@ export default function App() {
   }
 
   async function onLaunch() {
-    if (needsWallet && !connected) {
+    if (!connected) {
       setVisible(true);
-      setError("Connect Phantom to launch on mainnet.");
+      setError("Connect Phantom to launch on Solana mainnet.");
       return;
     }
 
     setBusy(true);
     setError(null);
-    setStatus(needsWallet ? "Uploading metadata → createV2 → fee share…" : "Validating desk…");
+    setStatus("Uploading metadata → createV2 → fee share…");
     setResult(null);
     setCopied(null);
 
-    const response =
-      network === "mainnet"
-        ? await launchMainnet(draft, { wallet })
-        : await launchDemo(draft);
+    const response = await launchCrew(draft, { wallet });
 
     setBusy(false);
     setStatus(null);
@@ -232,7 +227,6 @@ export default function App() {
         mode: "split",
         at: Number(new Date()),
         signature,
-        network: "mainnet",
       });
       setRemits(board.remits);
       setStatus(`Remits cranked · ${shortAddr(signature)}`);
@@ -313,14 +307,10 @@ export default function App() {
 
   const tape = [...tapeItems, ...tapeItems];
   const launchLabel = busy
-    ? network === "mainnet"
-      ? "Signing…"
-      : "Routing…"
-    : network === "mainnet"
-      ? connected
-        ? "Launch on mainnet"
-        : "Connect & launch"
-      : "Launch (demo)";
+    ? "Signing…"
+    : connected
+      ? "Launch on mainnet"
+      : "Connect & launch";
 
   const buyback = draft.buybackRule ?? DEFAULT_BUYBACK;
   const quests = draft.raidQuests ?? DEFAULT_RAID_QUESTS;
@@ -370,9 +360,8 @@ export default function App() {
                 <span>gets paid.</span>
               </motion.h1>
               <p className="hero-copy">
-                Agency gives every coin a mind. CREW gives every coin a{" "}
-                <em>payroll</em> — permanent wallet splits, raid quests, dip rules, and a
-                public tape. <em>0% platform cut.</em>
+                Production fee desk on Solana mainnet. Tag wallets, lock permanent
+                fee-share, crank remits to the tape. <em>0% platform cut.</em>
               </p>
               <div className="hero-actions">
                 <a className="btn btn-primary" href="#launch">
@@ -476,10 +465,10 @@ export default function App() {
                 <strong>{remits.length}</strong> remits
               </span>
               <span>
-                <strong>{stats.mainnetCoins}</strong> mainnet
+                <strong>mainnet</strong> live
               </span>
               <button type="button" className="stat-reset" onClick={onResetBoard}>
-                Reset
+                Clear
               </button>
             </div>
           </div>
@@ -491,23 +480,27 @@ export default function App() {
                 <span className="live-dot">live</span>
               </div>
               <div className="feed">
-                {pulse.map((item, index) => (
-                  <motion.div
-                    className={`feed-row pulse-${item.kind}`}
-                    key={item.id}
-                    initial={{ opacity: 0, y: 6 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: Math.min(index, 6) * 0.03 }}
-                  >
-                    <div className="feed-time">{item.time}</div>
-                    <div className="feed-main">
-                      <strong>{item.title}</strong>
-                      <p>{item.detail}</p>
-                    </div>
-                    <div className="feed-amt">{item.amount}</div>
-                  </motion.div>
-                ))}
+                {pulse.length === 0 ? (
+                  <p className="hint score-empty">Waiting for the first mainnet launch.</p>
+                ) : (
+                  pulse.map((item, index) => (
+                    <motion.div
+                      className={`feed-row pulse-${item.kind}`}
+                      key={item.id}
+                      initial={{ opacity: 0, y: 6 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: Math.min(index, 6) * 0.03 }}
+                    >
+                      <div className="feed-time">{item.time}</div>
+                      <div className="feed-main">
+                        <strong>{item.title}</strong>
+                        <p>{item.detail}</p>
+                      </div>
+                      <div className="feed-amt">{item.amount}</div>
+                    </motion.div>
+                  ))
+                )}
               </div>
             </div>
 
@@ -543,21 +536,27 @@ export default function App() {
               <span className="live-dot">tape</span>
             </div>
             <div className="feed">
-              {feed.map((item) => (
-                <button
-                  type="button"
-                  className="feed-row feed-btn"
-                  key={item.id}
-                  onClick={() => item.coin && setSelectedCoin(item.coin)}
-                >
-                  <div className="feed-time">{item.time}</div>
-                  <div className="feed-main">
-                    <strong>{item.title}</strong>
-                    <p>{item.detail}</p>
-                  </div>
-                  <div className="feed-amt">{item.amount}</div>
-                </button>
-              ))}
+              {feed.length === 0 ? (
+                <p className="hint score-empty">
+                  No launches yet. Connect Phantom and ship a crew coin on mainnet.
+                </p>
+              ) : (
+                feed.map((item) => (
+                  <button
+                    type="button"
+                    className="feed-row feed-btn"
+                    key={item.id}
+                    onClick={() => item.coin && setSelectedCoin(item.coin)}
+                  >
+                    <div className="feed-time">{item.time}</div>
+                    <div className="feed-main">
+                      <strong>{item.title}</strong>
+                      <p>{item.detail}</p>
+                    </div>
+                    <div className="feed-amt">{item.amount}</div>
+                  </button>
+                ))
+              )}
             </div>
           </div>
 
@@ -577,7 +576,7 @@ export default function App() {
               </div>
               <div className="coin-desk-body">
                 <p className="hint">
-                  {selectedCoin.vibe || "No vibe."} · {selectedCoin.network} ·{" "}
+                  {selectedCoin.vibe || "No vibe."} · mainnet ·{" "}
                   {shortAddr(selectedCoin.mint)}
                 </p>
                 <div className="coin-desk-layout">
@@ -629,7 +628,7 @@ export default function App() {
                         disabled={acting}
                         onClick={onSimulateFees}
                       >
-                        {acting ? "Routing…" : "Simulate fees"}
+                        {acting ? "Routing…" : "Preview fee split"}
                       </button>
                       {selectedCoin.mode === "buyback" ? (
                         <button
@@ -669,16 +668,14 @@ export default function App() {
                           Tx
                         </a>
                       ) : null}
-                      {selectedCoin.network === "mainnet" ? (
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          type="button"
-                          disabled={cranking === selectedCoin.mint}
-                          onClick={() => void onCrank(selectedCoin.mint, selectedCoin.ticker)}
-                        >
-                          {cranking === selectedCoin.mint ? "Cranking…" : "Distribute"}
-                        </button>
-                      ) : null}
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        type="button"
+                        disabled={cranking === selectedCoin.mint}
+                        onClick={() => void onCrank(selectedCoin.mint, selectedCoin.ticker)}
+                      >
+                        {cranking === selectedCoin.mint ? "Cranking…" : "Distribute"}
+                      </button>
                     </div>
                   </div>
                   <ReceiptCard
@@ -691,32 +688,29 @@ export default function App() {
             </div>
           ) : null}
 
-          {coins.some((c) => c.network === "mainnet") ? (
+          {coins.length ? (
             <div className="panel crank-panel">
               <div className="panel-head">
                 <h3>Crank remits</h3>
                 <span>mainnet</span>
               </div>
               <div className="crank-list">
-                {coins
-                  .filter((c) => c.network === "mainnet")
-                  .slice(0, 6)
-                  .map((c) => (
-                    <div className="crank-row" key={c.mint}>
-                      <div>
-                        <strong>${c.ticker}</strong>
-                        <p>{shortAddr(c.mint)}</p>
-                      </div>
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        disabled={cranking === c.mint}
-                        onClick={() => void onCrank(c.mint, c.ticker)}
-                      >
-                        {cranking === c.mint ? "Cranking…" : "Distribute"}
-                      </button>
+                {coins.slice(0, 8).map((c) => (
+                  <div className="crank-row" key={c.mint}>
+                    <div>
+                      <strong>${c.ticker}</strong>
+                      <p>{shortAddr(c.mint)}</p>
                     </div>
-                  ))}
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      disabled={cranking === c.mint}
+                      onClick={() => void onCrank(c.mint, c.ticker)}
+                    >
+                      {cranking === c.mint ? "Cranking…" : "Distribute"}
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
           ) : null}
@@ -726,8 +720,8 @@ export default function App() {
           <p className="section-label">Launch desk</p>
           <h2 className="section-title">Ship a crew coin.</h2>
           <p className="section-sub">
-            Pick a template or build your own. Mainnet locks wallet fee-share on-chain.
-            X handles are tape identity.
+            Solana mainnet only. Connect Phantom, tag crew wallets, lock permanent
+            fee-share. X handles are tape identity.
           </p>
 
           <div className="template-row" aria-label="Launch templates">
@@ -747,33 +741,18 @@ export default function App() {
           <div className="launch">
             <div className="panel form">
               <div className="field">
-                <label>Network</label>
-                <div className="net-toggle" role="radiogroup" aria-label="Launch network">
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={network === "demo"}
-                    className={`net-option${network === "demo" ? " active" : ""}`}
-                    onClick={() => setNetwork("demo")}
-                  >
-                    Demo
-                  </button>
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={network === "mainnet"}
-                    className={`net-option${network === "mainnet" ? " active" : ""}`}
-                    onClick={() => setNetwork("mainnet")}
-                  >
-                    Mainnet
-                  </button>
-                </div>
+                <label>Wallet</label>
+                <button
+                  type="button"
+                  className={`btn btn-wide${connected ? " btn-ghost" : " btn-primary"}`}
+                  onClick={() => setVisible(true)}
+                >
+                  {connected
+                    ? `Connected · ${shortAddr(wallet.publicKey!.toBase58())}`
+                    : "Connect Phantom"}
+                </button>
                 <p className="hint">
-                  {network === "mainnet"
-                    ? connected
-                      ? `Signer ${shortAddr(wallet.publicKey!.toBase58())} · real SOL + fees`
-                      : "Connect Phantom — creates coin + fee-share on Solana mainnet."
-                    : "No wallet needed. Strict validation + fake mint + local tape."}
+                  Real SOL for rent, optional initial buy, and on-chain fee-share.
                 </p>
               </div>
 
@@ -957,13 +936,10 @@ export default function App() {
               ) : null}
 
               <div className="field">
-                <label>Crew split {needsWallet ? "+ wallets" : ""}</label>
+                <label>Crew split + wallets</label>
                 <div className="crew-list">
                   {draft.crew.map((member, index) => (
-                    <div
-                      className={`crew-block${needsWallet ? " has-wallet" : ""}`}
-                      key={`crew-${index}`}
-                    >
+                    <div className="crew-block has-wallet" key={`crew-${index}`}>
                       <div className="crew-row">
                         <input
                           value={member.handle}
@@ -997,17 +973,15 @@ export default function App() {
                           ×
                         </button>
                       </div>
-                      {needsWallet ? (
-                        <input
-                          className="wallet-input"
-                          value={member.wallet}
-                          onChange={(e) => updateCrew(index, { wallet: e.target.value })}
-                          placeholder="Solana wallet (fee recipient)"
-                          autoComplete="off"
-                          spellCheck={false}
-                          aria-label={`Crew wallet ${index + 1}`}
-                        />
-                      ) : null}
+                      <input
+                        className="wallet-input"
+                        value={member.wallet}
+                        onChange={(e) => updateCrew(index, { wallet: e.target.value })}
+                        placeholder="Solana wallet (fee recipient)"
+                        autoComplete="off"
+                        spellCheck={false}
+                        aria-label={`Crew wallet ${index + 1}`}
+                      />
                     </div>
                   ))}
                 </div>
@@ -1120,9 +1094,7 @@ export default function App() {
 
               <p className="hint">
                 <strong style={{ color: "var(--ink)" }}>{modeMeta.label}</strong>
-                {" · "}
-                {network === "mainnet" ? "on-chain fee-share" : "demo mint"}
-                {" · "}0% platform cut
+                {" · on-chain fee-share · "}0% platform cut
               </p>
 
               {result ? (
@@ -1131,9 +1103,7 @@ export default function App() {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                 >
-                  <h4>
-                    {result.network === "mainnet" ? "Mainnet mint live" : "Demo mint ready"}
-                  </h4>
+                  <h4>Mainnet mint live</h4>
                   <p>
                     <code>{result.mint}</code>
                   </p>

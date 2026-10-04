@@ -54,7 +54,6 @@ export async function launchMainnet(
 
     const launcher = wallet.publicKey
     const normalized = validateDraft(draft, {
-      requireWallets: true,
       deskWallet: launcher.toBase58(),
     })
 
@@ -156,7 +155,6 @@ export async function launchMainnet(
         mode: normalized.mode,
         at: launchedAt + i,
         signature: feeShareSignature,
-        network: 'mainnet',
       }))
 
     return {
@@ -169,7 +167,6 @@ export async function launchMainnet(
         vibe: normalized.vibe,
         mode: normalized.mode,
         crew: normalized.crew,
-        network: 'mainnet',
         signature: createSig,
         feeShareSignature,
         launchedAt,
@@ -183,7 +180,7 @@ export async function launchMainnet(
     console.error(err)
     return {
       ok: false,
-      error: err instanceof Error ? err.message : 'Mainnet launch failed.',
+      error: err instanceof Error ? err.message : 'Launch failed.',
     }
   }
 }

@@ -21,14 +21,9 @@ export function loadBoard(): Board {
       return seeded
     }
     const parsed = JSON.parse(raw) as Board
-    if (!parsed.coins?.length) {
-      const seeded = emptyBoard()
-      saveBoard(seeded)
-      return seeded
-    }
     return {
-      coins: parsed.coins,
-      remits: parsed.remits ?? [],
+      coins: Array.isArray(parsed.coins) ? parsed.coins : [],
+      remits: Array.isArray(parsed.remits) ? parsed.remits : [],
     }
   } catch {
     const seeded = emptyBoard()

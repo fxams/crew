@@ -18,7 +18,6 @@ const remits: RemitRecord[] = [
     amountSol: 0.02,
     mode: 'split',
     at: 1,
-    network: 'demo',
   },
   {
     id: '2',
@@ -29,7 +28,6 @@ const remits: RemitRecord[] = [
     amountSol: 0.01,
     mode: 'split',
     at: 2,
-    network: 'demo',
   },
   {
     id: '3',
@@ -40,7 +38,6 @@ const remits: RemitRecord[] = [
     amountSol: 0.03,
     mode: 'raid',
     at: 3,
-    network: 'demo',
   },
 ]
 
@@ -56,11 +53,11 @@ describe('buildScoreboard', () => {
 
 describe('deskStats', () => {
   it('tracks 0% platform cut and paid SOL', () => {
-    const coins = [{ network: 'demo' }, { network: 'mainnet' }] as CoinRecord[]
+    const coins = [{}, {}] as CoinRecord[]
     const stats = deskStats(coins, remits)
     expect(stats.platformCut).toBe(0)
     expect(stats.paidSol).toBeCloseTo(0.06)
-    expect(stats.mainnetCoins).toBe(1)
+    expect(stats.coins).toBe(2)
   })
 })
 
@@ -77,10 +74,9 @@ describe('shareReceiptText', () => {
         { handle: '@a', wallet: '', share: 70 },
         { handle: '@b', wallet: '', share: 30 },
       ],
-      network: 'demo',
       signature: 'x',
       launchedAt: 1,
-      launcher: 'demo',
+      launcher: 'launcher',
       pumpUrl: 'https://pump.fun/coin/mint',
     })
     expect(text).toContain('$TST crew locked on CREW')

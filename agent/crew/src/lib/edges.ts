@@ -164,10 +164,8 @@ function isHumanHandle(handle: string) {
 export function deskStats(coins: CoinRecord[], remits: RemitRecord[]) {
   const human = remits.filter((r) => isHumanHandle(r.handle))
   const paidSol = human.reduce((s, r) => s + (r.amountSol || 0), 0)
-  const mainnetCoins = coins.filter((c) => c.network === 'mainnet').length
   return {
     coins: coins.length,
-    mainnetCoins,
     remits: remits.length,
     humanRemits: human.length,
     paidSol,

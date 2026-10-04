@@ -10,20 +10,19 @@ import { DEFAULT_BUYBACK, DEFAULT_RAID_QUESTS } from './edges'
 
 const splitCoin: CoinRecord = {
   id: 'c1',
-  mint: 'mint1',
+  mint: 'So11111111111111111111111111111111111111112',
   name: 'A',
   ticker: 'AAA',
   vibe: 'v',
   mode: 'split',
   crew: [
-    { handle: '@a', wallet: '', share: 70 },
-    { handle: '@b', wallet: '', share: 30 },
+    { handle: '@a', wallet: '11111111111111111111111111111112', share: 70 },
+    { handle: '@b', wallet: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', share: 30 },
   ],
-  network: 'demo',
   signature: 'x',
   launchedAt: 1,
-  launcher: 'demo',
-  pumpUrl: 'https://pump.fun/coin/mint1',
+  launcher: '11111111111111111111111111111111',
+  pumpUrl: 'https://pump.fun/coin/So11111111111111111111111111111111111111112',
 }
 
 describe('simulateFeeAccrual', () => {
@@ -76,10 +75,7 @@ describe('simulateRaidClaim', () => {
 })
 
 describe('solscanTokenUrl', () => {
-  it('skips demo seed mints', () => {
-    expect(solscanTokenUrl('CrewFrogDemo111')).toBeNull()
-    expect(solscanTokenUrl('So11111111111111111111111111111111111111112')).toContain(
-      'solscan.io/token/',
-    )
+  it('builds token URLs', () => {
+    expect(solscanTokenUrl(splitCoin.mint)).toContain('solscan.io/token/')
   })
 })

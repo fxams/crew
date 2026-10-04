@@ -45,7 +45,7 @@ describe('assertWallet', () => {
 })
 
 describe('validateDraft', () => {
-  it('accepts a 100% split without wallets in demo mode', () => {
+  it('requires wallets for every crew member', () => {
     const draft: LaunchDraft = {
       ...base,
       crew: [
@@ -53,39 +53,31 @@ describe('validateDraft', () => {
         { handle: '@bob', wallet: '', share: 30 },
       ],
     }
-    const out = validateDraft(draft, { requireWallets: false })
+    expect(() => validateDraft(draft)).toThrow(/Invalid Solana wallet/)
+  })
+
+  it('accepts a valid 100% split with wallets', () => {
+    const out = validateDraft(base, {
+      deskWallet: '11111111111111111111111111111111',
+    })
     expect(out.ticker).toBe('DCAT')
     expect(out.shareholders).toHaveLength(2)
     expect(out.shareholders.reduce((s, r) => s + r.bps, 0)).toBe(10_000)
   })
 
-  it('requires wallets on mainnet', () => {
-    const draft: LaunchDraft = {
-      ...base,
-      crew: [
-        { handle: '@alice', wallet: '', share: 70 },
-        { handle: '@bob', wallet: '', share: 30 },
-      ],
-    }
-    expect(() => validateDraft(draft, { requireWallets: true })).toThrow(/Invalid Solana wallet/)
-  })
-
   it('rejects non-100% splits', () => {
     const draft: LaunchDraft = {
       ...base,
-      crew: [{ handle: '@alice', wallet: '', share: 50 }],
+      crew: [{ handle: '@alice', wallet: base.crew[0].wallet, share: 50 }],
     }
-    expect(() => validateDraft(draft, { requireWallets: false })).toThrow(/total 100%/)
+    expect(() => validateDraft(draft)).toThrow(/total 100%/)
   })
 
   it('reserves desk bps for buyback mode', () => {
     const deskWallet = '11111111111111111111111111111111'
     const out = validateDraft(
       { ...base, mode: 'buyback' },
-      {
-        requireWallets: true,
-        deskWallet,
-      },
+      { deskWallet },
     )
     const desk = out.shareholders.find((s) => s.role === 'desk')
     expect(desk?.wallet).toBe(deskWallet)
@@ -97,10 +89,7 @@ describe('validateDraft', () => {
   it('reserves 25% for raid mode', () => {
     const out = validateDraft(
       { ...base, mode: 'raid' },
-      {
-        requireWallets: true,
-        deskWallet: '11111111111111111111111111111111',
-      },
+      { deskWallet: '11111111111111111111111111111111' },
     )
     expect(out.shareholders.find((s) => s.role === 'desk')?.bps).toBe(2500)
   })
@@ -109,11 +98,11 @@ describe('validateDraft', () => {
     const launcher = base.crew[0].wallet
     const out = validateDraft(
       { ...base, mode: 'buyback' },
-      { requireWallets: true, deskWallet: launcher },
+      { deskWallet: launcher },
     )
     const merged = out.shareholders.find((s) => s.wallet === launcher)
     expect(merged?.role).toBe('desk')
-    expect(merged?.bps).toBe(2000 + 4800) // 20% desk + 60% of remaining 80%
+    expect(merged?.bps).toBe(2000 + 4800)
     expect(out.shareholders).toHaveLength(2)
     expect(out.shareholders.reduce((s, r) => s + r.bps, 0)).toBe(10_000)
   })
