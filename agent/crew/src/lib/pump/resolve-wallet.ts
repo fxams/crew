@@ -1,5 +1,6 @@
 import { PublicKey } from '@solana/web3.js'
 import { PUMP_FRONTEND_API, PUMP_RESOLVE_PROXY } from '../config'
+import { lookupKolDirectory } from './kol-directory'
 
 export type WalletLinkKind = 'x_linked' | 'pump_username' | 'unverified'
 
@@ -185,9 +186,32 @@ export async function fetchPumpJson<T>(
   throw lastErr ?? new Error('Pump lookup failed.')
 }
 
+function fromDirectory(handle: string): WalletResolveOk | null {
+  const row = lookupKolDirectory(handle)
+  if (!row || !isWallet(row.wallet)) return null
+  const x = row.x ? row.x.replace(/^@+/, '') : null
+  const xVerified = Boolean(x && x.toLowerCase() === handle)
+  const pumpMatch = row.pump.toLowerCase() === handle
+  const kind: WalletLinkKind = xVerified
+    ? 'x_linked'
+    : pumpMatch
+      ? 'pump_username'
+      : 'unverified'
+  return {
+    ok: true,
+    handle: `@${handle}`,
+    wallet: row.wallet,
+    pumpUsername: row.pump,
+    xUsername: x,
+    kind,
+    xVerified,
+  }
+}
+
 /**
  * Resolve an X / Pump handle to a Solana fee-recipient wallet via Pump.fun’s user DB.
  * Prefer `canonical_svm_wallet`. Trust `x_username` match when present.
+ * Falls back to curated KOL directory (aliases like @slingoorio → @slingoor).
  */
 export async function resolveHandleWallet(
   rawHandle: string,
@@ -198,8 +222,15 @@ export async function resolveHandleWallet(
     return { ok: false, handle: rawHandle.trim(), error: 'Enter a valid X handle to look up.' }
   }
 
+  // Instant path for popular KOLs + X aliases (works even when proxies flake).
+  const cached = fromDirectory(handle)
+  if (cached) return cached
+
+  const directory = lookupKolDirectory(handle)
+  const pumpPath = directory ? directory.pump.toLowerCase() : handle
+
   try {
-    const user = await fetchPumpJson<PumpUser>(`/users/${encodeURIComponent(handle)}`, opts)
+    const user = await fetchPumpJson<PumpUser>(`/users/${encodeURIComponent(pumpPath)}`, opts)
     if (user.is_banned) {
       return { ok: false, handle: `@${handle}`, error: 'Pump profile is banned.' }
     }
@@ -207,9 +238,9 @@ export async function resolveHandleWallet(
     if (!wallet || !isWallet(wallet)) {
       return { ok: false, handle: `@${handle}`, error: 'Pump profile has no wallet.' }
     }
-    const pumpUsername = (user.username || handle).replace(/^@+/, '')
+    const pumpUsername = (user.username || pumpPath).replace(/^@+/, '')
     const xUsername = user.x_username ? user.x_username.replace(/^@+/, '') : null
-    const kind = classify(handle, user)
+    const kind = classify(handle, { ...user, username: pumpUsername, x_username: xUsername })
     return {
       ok: true,
       handle: `@${handle}`,
@@ -221,6 +252,8 @@ export async function resolveHandleWallet(
       profileImage: user.profile_image || undefined,
     }
   } catch (err) {
+    const fallback = fromDirectory(handle)
+    if (fallback) return fallback
     if (err && typeof err === 'object' && 'status' in err && (err as { status: number }).status === 404) {
       return {
         ok: false,
