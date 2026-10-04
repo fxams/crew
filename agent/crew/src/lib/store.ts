@@ -1,4 +1,5 @@
 import { STORE_KEY } from './config'
+import { sanitizeBoard } from './security'
 import type { CoinRecord, RemitRecord } from './types'
 import { seedCoins, seedRemits } from './seed'
 
@@ -20,11 +21,8 @@ export function loadBoard(): Board {
       saveBoard(seeded)
       return seeded
     }
-    const parsed = JSON.parse(raw) as Board
-    return {
-      coins: Array.isArray(parsed.coins) ? parsed.coins : [],
-      remits: Array.isArray(parsed.remits) ? parsed.remits : [],
-    }
+    const parsed = JSON.parse(raw) as unknown
+    return sanitizeBoard(parsed)
   } catch {
     const seeded = emptyBoard()
     saveBoard(seeded)
@@ -33,7 +31,8 @@ export function loadBoard(): Board {
 }
 
 export function saveBoard(board: Board) {
-  localStorage.setItem(STORE_KEY, JSON.stringify(board))
+  const clean = sanitizeBoard(board)
+  localStorage.setItem(STORE_KEY, JSON.stringify(clean))
 }
 
 export function persistLaunch(coin: CoinRecord, remits: RemitRecord[]) {

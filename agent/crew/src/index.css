@@ -598,6 +598,10 @@ a {
   gap: 0.4rem;
 }
 
+.mode-grid-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .mode-option {
   text-align: center;
   border: 1px solid var(--line);
@@ -1053,6 +1057,29 @@ a {
   background: rgba(200, 255, 61, 0.03);
 }
 
+.role-select {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(5, 10, 7, 0.75);
+  color: var(--ink);
+  padding: 0.65rem 0.85rem;
+  outline: none;
+  font-size: 14px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+
+.role-select:focus {
+  border-color: rgba(200, 255, 61, 0.5);
+  box-shadow: 0 0 0 3px rgba(200, 255, 61, 0.1);
+}
+
+.program-box .role-select,
+.program-box input {
+  margin-top: 0.35rem;
+}
+
 .row-3 {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1400,6 +1427,10 @@ a {
 
   .mode-option {
     padding: 0.65rem 0.25rem;
+  }
+
+  .mode-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .feed {

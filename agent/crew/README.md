@@ -9,12 +9,12 @@ Production Pump.fun fee desk on **Solana mainnet**.
 1. Connect Phantom
 2. Create a Pump coin on mainnet
 3. Tag up to 5 X handles + fee-recipient wallets
-4. Pick a desk mode: **Fee Split**, **Dip Buyback**, or **Raid Pool**
+4. Pick a desk mode: **Fee Split**, **Dip Buyback**, **Raid Pool**, or **Agent Hire**
 5. Lock permanent on-chain fee-share and crank remits to the public tape
 
 Live: **https://fxams.github.io/crew/**
 
-**Edge vs [Agency](https://www.agencypad.fun):** they route 100% of fees to an AI mind + burn $AGENCY. CREW routes fees to named wallets you lock at launch — **0% platform cut**.
+**Agency × CREW:** Agency routes 100% of fees to an AI mind. CREW’s **Agent Hire** mode lets an AI keep 15% ops and **hire KOLs / X accounts** for the rest — permanent wallet fee-share, **0% platform cut**.
 
 ## Run locally
 

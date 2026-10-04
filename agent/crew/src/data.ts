@@ -1,4 +1,5 @@
 import type { DeskMode, LaunchDraft } from './lib/types'
+import { DEFAULT_AGENT } from './lib/edges'
 
 export type { DeskMode, CrewMember, LaunchDraft } from './lib/types'
 
@@ -26,6 +27,12 @@ export const DESK_MODES: {
     short: 'Raid',
     blurb: '25% raid pool · 75% to crew wallets.',
   },
+  {
+    id: 'agent',
+    label: 'Agent Hire',
+    short: 'Agent',
+    blurb: 'AI agent keeps 15% ops · hires KOLs/X for 85%.',
+  },
 ]
 
 export const DEFAULT_DRAFT: LaunchDraft = {
@@ -41,6 +48,7 @@ export const DEFAULT_DRAFT: LaunchDraft = {
   imageFile: null,
   buybackRule: undefined,
   raidQuests: undefined,
+  agent: undefined,
 }
 
 export function totalShare(crew: { share: number }[]) {
@@ -50,3 +58,5 @@ export function totalShare(crew: { share: number }[]) {
 export function normalizeTicker(value: string) {
   return value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 10)
 }
+
+export { DEFAULT_AGENT }

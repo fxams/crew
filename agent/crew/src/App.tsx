@@ -11,7 +11,7 @@ import {
   type LaunchDraft,
 } from "./data";
 import { ReceiptCard } from "./components/ReceiptCard";
-import { CREW_VERSION, MODE_DESK_BPS } from "./lib/config";
+import { AGENT_MODELS, CREW_VERSION, HIRE_ROLE_OPTIONS, MODE_DESK_BPS } from "./lib/config";
 import {
   simulateBuybackFire,
   simulateFeeAccrual,
@@ -21,6 +21,7 @@ import {
 } from "./lib/desk-actions";
 import {
   CREW_EDGES,
+  DEFAULT_AGENT,
   DEFAULT_BUYBACK,
   DEFAULT_RAID_QUESTS,
   LAUNCH_TEMPLATES,
@@ -31,6 +32,7 @@ import {
   shareReceiptText,
   type LaunchTemplate,
 } from "./lib/edges";
+import type { HireRole } from "./lib/types";
 import { launchCrew } from "./lib/launch";
 import { distributeCreatorFees } from "./lib/pump/fees";
 import { loadBoard, persistLaunch, persistRemit, persistRemits, resetBoard } from "./lib/store";
@@ -157,6 +159,7 @@ export default function App() {
       crew: tpl.draft.crew.map((m) => ({ ...m })),
       buybackRule: tpl.draft.buybackRule ? { ...tpl.draft.buybackRule } : undefined,
       raidQuests: tpl.draft.raidQuests?.map((q) => ({ ...q })),
+      agent: tpl.draft.agent ? { ...tpl.draft.agent } : undefined,
       imageFile: prev.imageFile,
     }));
     setError(null);
@@ -173,6 +176,17 @@ export default function App() {
         mode === "raid"
           ? prev.raidQuests ?? DEFAULT_RAID_QUESTS.map((q) => ({ ...q }))
           : undefined,
+      agent: mode === "agent" ? prev.agent ?? { ...DEFAULT_AGENT } : undefined,
+      crew:
+        mode === "agent"
+          ? prev.crew.map((m, i) => ({
+              ...m,
+              hireRole:
+                m.hireRole ??
+                (["caller", "chart", "kol", "raid", "dev"][i] as HireRole) ??
+                "kol",
+            }))
+          : prev.crew,
     }));
   }
 
@@ -360,8 +374,9 @@ export default function App() {
                 <span>gets paid.</span>
               </motion.h1>
               <p className="hero-copy">
-                Production fee desk on Solana mainnet. Tag wallets, lock permanent
-                fee-share, crank remits to the tape. <em>0% platform cut.</em>
+                Agency minds meet CREW payroll. Spin an agent that{" "}
+                <em>hires</em> KOLs and X accounts — permanent on-chain fee splits,{" "}
+                <em>0% platform cut.</em>
               </p>
               <div className="hero-actions">
                 <a className="btn btn-primary" href="#launch">
@@ -396,8 +411,8 @@ export default function App() {
             </article>
             <article className="step">
               <div className="step-num">02</div>
-              <h3>Tag crew</h3>
-              <p>Handles + wallets. 100%.</p>
+              <h3>Hire crew</h3>
+              <p>KOLs / X + wallets. Or agent mode.</p>
             </article>
             <article className="step">
               <div className="step-num">03</div>
@@ -720,8 +735,8 @@ export default function App() {
           <p className="section-label">Launch desk</p>
           <h2 className="section-title">Ship a crew coin.</h2>
           <p className="section-sub">
-            Solana mainnet only. Connect Phantom, tag crew wallets, lock permanent
-            fee-share. X handles are tape identity.
+            Solana mainnet. Connect Phantom, hire crew wallets (or let an agent hire
+            KOLs), lock permanent fee-share. X handles are tape identity.
           </p>
 
           <div className="template-row" aria-label="Launch templates">
@@ -805,7 +820,7 @@ export default function App() {
 
               <div className="field">
                 <label>Mode</label>
-                <div className="mode-grid" role="radiogroup" aria-label="Desk mode">
+                <div className="mode-grid mode-grid-4" role="radiogroup" aria-label="Desk mode">
                   {DESK_MODES.map((mode) => (
                     <button
                       key={mode.id}
@@ -823,10 +838,71 @@ export default function App() {
                 <p className="hint">
                   {modeMeta.blurb}
                   {deskBps > 0
-                    ? ` Desk reserve ${deskBps / 100}% → launcher wallet.`
+                    ? draft.mode === "agent"
+                      ? ` Agent ops ${deskBps / 100}% → launcher (not burned).`
+                      : ` Desk reserve ${deskBps / 100}% → launcher wallet.`
                     : ""}
                 </p>
               </div>
+
+              {draft.mode === "agent" ? (
+                <div className="field program-box">
+                  <label>Agent brief</label>
+                  <div className="row-2">
+                    <input
+                      value={draft.agent?.name ?? ""}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          agent: {
+                            ...(draft.agent ?? DEFAULT_AGENT),
+                            name: e.target.value,
+                          },
+                        })
+                      }
+                      placeholder="Agent name"
+                      autoComplete="off"
+                    />
+                    <select
+                      className="role-select"
+                      value={draft.agent?.model ?? "custom"}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          agent: {
+                            ...(draft.agent ?? DEFAULT_AGENT),
+                            model: e.target.value,
+                          },
+                        })
+                      }
+                      aria-label="Agent model label"
+                    >
+                      {AGENT_MODELS.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <input
+                    value={draft.agent?.objective ?? ""}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        agent: {
+                          ...(draft.agent ?? DEFAULT_AGENT),
+                          objective: e.target.value,
+                        },
+                      })
+                    }
+                    placeholder="Objective — who should this agent hire and why?"
+                    autoComplete="off"
+                  />
+                  <p className="hint">
+                    Display-only brain label — no API keys. Fees hire humans on-chain.
+                  </p>
+                </div>
+              ) : null}
 
               {draft.mode === "buyback" ? (
                 <div className="field program-box">
@@ -982,6 +1058,24 @@ export default function App() {
                         spellCheck={false}
                         aria-label={`Crew wallet ${index + 1}`}
                       />
+                      {draft.mode === "agent" ? (
+                        <select
+                          className="role-select"
+                          value={member.hireRole ?? "kol"}
+                          onChange={(e) =>
+                            updateCrew(index, {
+                              hireRole: e.target.value as HireRole,
+                            })
+                          }
+                          aria-label={`Hire role ${index + 1}`}
+                        >
+                          {HIRE_ROLE_OPTIONS.map((role) => (
+                            <option key={role.id} value={role.id}>
+                              Hire as {role.label}
+                            </option>
+                          ))}
+                        </select>
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -1052,7 +1146,11 @@ export default function App() {
                     <div className="split-bar">
                       <div className="split-meta">
                         <span>
-                          {draft.mode === "raid" ? "@raid pool" : "@desk (buyback)"}
+                          {draft.mode === "agent"
+                            ? `@agent · ${draft.agent?.name || "ops"}`
+                            : draft.mode === "raid"
+                              ? "@raid pool"
+                              : "@desk (buyback)"}
                         </span>
                         <span>{deskBps / 100}%</span>
                       </div>
@@ -1074,6 +1172,7 @@ export default function App() {
                         <div className="split-meta">
                           <span>
                             {member.handle || "@?"}
+                            {member.hireRole ? ` · ${member.hireRole}` : ""}
                             {member.wallet ? ` · ${shortAddr(member.wallet)}` : ""}
                           </span>
                           <span>{crewPct}%</span>

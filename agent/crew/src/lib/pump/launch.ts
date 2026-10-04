@@ -17,15 +17,29 @@ import { uploadPumpMetadata } from './ipfs'
 
 function deskPrograms(draft: LaunchDraft, mode: LaunchDraft['mode']) {
   if (mode === 'buyback') {
-    return { buybackRule: draft.buybackRule ?? { ...DEFAULT_BUYBACK }, raidQuests: undefined }
+    return {
+      buybackRule: draft.buybackRule ?? { ...DEFAULT_BUYBACK },
+      raidQuests: undefined,
+      agent: undefined,
+    }
   }
   if (mode === 'raid') {
     return {
       buybackRule: undefined,
       raidQuests: (draft.raidQuests ?? DEFAULT_RAID_QUESTS).map((q) => ({ ...q })),
+      agent: undefined,
     }
   }
-  return { buybackRule: undefined, raidQuests: undefined }
+  if (mode === 'agent') {
+    return {
+      buybackRule: undefined,
+      raidQuests: undefined,
+      agent: draft.agent
+        ? { ...draft.agent }
+        : { name: 'Crew Agent', objective: 'Hire KOLs. Pay the tape.', model: 'custom' },
+    }
+  }
+  return { buybackRule: undefined, raidQuests: undefined, agent: undefined }
 }
 
 function id(prefix: string) {
