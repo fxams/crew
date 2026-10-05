@@ -1,19 +1,45 @@
 import { assertSafeRpcUrl } from './security'
 
-export const CREW_VERSION = '2.3.4'
+export const CREW_VERSION = '2.3.5'
 
-const rawRpc =
-  (import.meta.env.VITE_RPC_URL as string | undefined)?.trim() ||
-  'https://api.mainnet-beta.solana.com'
+/**
+ * Public browser-safe mainnet RPCs.
+ * Official `api.mainnet-beta.solana.com` returns 403 from many web origins (incl. GH Pages).
+ */
+export const DEFAULT_RPC_CANDIDATES = [
+  'https://solana-rpc.publicnode.com',
+  'https://solana.leorpc.com/?api_key=FREE',
+  'https://api.mainnet-beta.solana.com',
+] as const
 
-/** Validated HTTPS RPC — override with VITE_RPC_URL for production throughput. */
+const rawRpc = (import.meta.env.VITE_RPC_URL as string | undefined)?.trim()
+
+/** Validated HTTPS RPC — set VITE_RPC_URL (Helius/Alchemy/etc.) for production reliability. */
 export const RPC_URL = (() => {
+  const preferred = rawRpc || DEFAULT_RPC_CANDIDATES[0]
   try {
-    return assertSafeRpcUrl(rawRpc)
+    return assertSafeRpcUrl(preferred)
   } catch (err) {
     console.error(err)
-    return 'https://api.mainnet-beta.solana.com'
+    return DEFAULT_RPC_CANDIDATES[0]
   }
+})()
+
+/** Ordered failover list — preferred first, then other public candidates. */
+export const RPC_FAILOVER = (() => {
+  const seen = new Set<string>()
+  const list: string[] = []
+  for (const candidate of [RPC_URL, ...DEFAULT_RPC_CANDIDATES]) {
+    try {
+      const safe = assertSafeRpcUrl(candidate)
+      if (seen.has(safe)) continue
+      seen.add(safe)
+      list.push(safe)
+    } catch {
+      /* skip invalid */
+    }
+  }
+  return list.length ? list : [...DEFAULT_RPC_CANDIDATES]
 })()
 
 export const CLUSTER = (import.meta.env.VITE_CLUSTER as string | undefined)?.trim() || 'mainnet-beta'

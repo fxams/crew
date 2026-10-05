@@ -12,7 +12,13 @@ import { PUMP_COIN_URL } from '../config'
 import { DEFAULT_BUYBACK, DEFAULT_RAID_QUESTS } from '../edges'
 import type { LaunchDraft, LaunchResult, RemitRecord } from '../types'
 import { validateDraft } from '../validation'
-import { getConnection, getOnlineSdk, getPumpSdk } from './connection'
+import {
+  formatRpcError,
+  getConnection,
+  getLatestBlockhashSafe,
+  getOnlineSdk,
+  getPumpSdk,
+} from './connection'
 import { uploadPumpMetadata } from './ipfs'
 
 function deskPrograms(draft: LaunchDraft, mode: LaunchDraft['mode']) {
@@ -71,6 +77,8 @@ export async function launchMainnet(
       deskWallet: launcher.toBase58(),
     })
 
+    // Pick a browser-safe RPC before any chain reads (official mainnet often 403s).
+    await getLatestBlockhashSafe('confirmed')
     const online = getOnlineSdk()
     const sdk = getPumpSdk()
 
@@ -198,7 +206,7 @@ export async function launchMainnet(
     console.error(err)
     return {
       ok: false,
-      error: err instanceof Error ? err.message : 'Launch failed.',
+      error: formatRpcError(err instanceof Error ? err : new Error('Launch failed.')),
     }
   }
 }
@@ -211,8 +219,8 @@ async function sendWithMintSigner(
   if (!wallet.publicKey || !wallet.sendTransaction) {
     throw new Error('Wallet not ready.')
   }
+  const { blockhash, lastValidBlockHeight } = await getLatestBlockhashSafe('confirmed')
   const connection = getConnection()
-  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed')
   const tx = new Transaction({
     feePayer: wallet.publicKey,
     blockhash,
