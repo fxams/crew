@@ -289,7 +289,7 @@ export default function App() {
           : `locked ${r.handle} · $${r.ticker} fee share`,
     }));
     if (fromRemits.length) return fromRemits;
-    return [{ id: "empty", text: "desk live — connect Phantom and launch a crew coin" }];
+    return [{ id: "empty", text: "on-chain tape — remits appear after Distribute creator fees" }];
   }, [remits]);
 
   const feed = useMemo(() => {
