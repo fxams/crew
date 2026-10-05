@@ -129,6 +129,11 @@ export default function App() {
   const [holderTick, setHolderTick] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [launchFollowUp, setLaunchFollowUp] = useState<string | null>(null);
+  const [deskMessage, setDeskMessage] = useState<{
+    kind: "info" | "error";
+    text: string;
+  } | null>(null);
   const [result, setResult] = useState<CoinRecord | null>(null);
   const [copied, setCopied] = useState<"mint" | "share" | null>(null);
   const [acting, setActing] = useState(false);
@@ -177,8 +182,9 @@ export default function App() {
 
   // Holder KOL: refresh top holders ∩ 1500 KOL DB every 60s for the selected coin.
   useEffect(() => {
-    if (!selectedCoin?.mint) {
+    if (!selectedCoin?.mint || !selectedCoin.holderKol) {
       setHolderScan(null);
+      setHolderError(null);
       return;
     }
     let cancelled = false;
@@ -306,7 +312,6 @@ export default function App() {
       controllers.forEach((c) => c.abort());
     };
   }, [handleFingerprint]);
-  const modeMeta = DESK_MODES.find((mode) => mode.id === draft.mode)!;
   const allocOk = shareTotal === 100;
   const deskBps = MODE_DESK_BPS[draft.mode];
   const connected = Boolean(wallet.publicKey);
@@ -490,8 +495,11 @@ export default function App() {
 
     setBusy(true);
     setError(null);
+    setLaunchFollowUp(null);
+    setDeskMessage(null);
     setStatus("Uploading metadata → approve Phantom quickly (~60s blockhash)…");
     setResult(null);
+    setSelectedCoin(null);
     setCopied(null);
 
     const response = await launchCrew(draft, { wallet });
@@ -513,24 +521,32 @@ export default function App() {
     setCoins(board.coins);
     setRemits(board.remits);
     setResult(response.coin);
-    setSelectedCoin(response.coin);
-    if (response.warning) {
-      setError(response.warning);
-      setStatus("Mint live — wire crew fees before remits can pay out.");
-    }
+    setLaunchFollowUp(response.warning ?? null);
+    setStatus(null);
+    setDeskMessage({
+      kind: "info",
+      text: response.coin.holderKol
+        ? `$${response.coin.ticker} mint live — open the desk to lock Holder KOL fees (one-shot).`
+        : response.warning
+          ? `$${response.coin.ticker} mint live — finish fee-share from the preview or desk.`
+          : `$${response.coin.ticker} mint live on mainnet.`,
+    });
     // Keep form values for a quick re-launch, but drop transient image blob.
     setDraft((prev) => ({ ...prev, crew: response.coin.crew, imageFile: null }));
     void refreshTapeFromChain([response.coin, ...coins.filter((c) => c.mint !== response.coin.mint)]);
+    window.requestAnimationFrame(() => {
+      document.getElementById("launch-success")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
   }
 
   async function onWireFees(coin: CoinRecord) {
     if (!connected) {
       setVisible(true);
-      setError("Connect Phantom to wire crew fees.");
+      setDeskMessage({ kind: "error", text: "Connect Phantom to wire crew fees." });
       return;
     }
     setWiring(coin.mint);
-    setError(null);
+    setDeskMessage(null);
     try {
       const wired = await wireCrewFeeShares({
         mint: coin.mint,
@@ -542,11 +558,20 @@ export default function App() {
       const board = persistLaunch(wired.coin, []);
       setCoins(board.coins);
       setSelectedCoin(wired.coin);
-      if (result?.mint === wired.coin.mint) setResult(wired.coin);
-      setStatus(`Crew fees locked · ${shortAddr(wired.feeShareSignature)}`);
+      if (result?.mint === wired.coin.mint) {
+        setResult(wired.coin);
+        setLaunchFollowUp(null);
+      }
+      setDeskMessage({
+        kind: "info",
+        text: `Crew fees locked · ${shortAddr(wired.feeShareSignature)}`,
+      });
       await refreshTapeFromChain(board.coins);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Wire fees failed.");
+      setDeskMessage({
+        kind: "error",
+        text: err instanceof Error ? err.message : "Wire fees failed.",
+      });
     } finally {
       setWiring(null);
     }
@@ -556,19 +581,25 @@ export default function App() {
     if (!selectedCoin) return;
     if (!connected) {
       setVisible(true);
-      setError("Connect Phantom to lock holder KOLs.");
+      setDeskMessage({ kind: "error", text: "Connect Phantom to lock holder KOLs." });
       return;
     }
     if (!holderScan?.matches.length) {
-      setError("No KOLs from the 1500 list are in the top 20 holders yet.");
+      setDeskMessage({
+        kind: "error",
+        text: "No KOLs from the 1500 list are in the top 20 holders yet.",
+      });
       return;
     }
     if (!holderScan.editable) {
-      setError(holderScan.editReason || "Fee-share already finalized on-chain.");
+      setDeskMessage({
+        kind: "error",
+        text: holderScan.editReason || "Fee-share already finalized on-chain.",
+      });
       return;
     }
     setHolderLocking(true);
-    setError(null);
+    setDeskMessage(null);
     try {
       const locked = await lockHolderKolFeeShares({
         mint: selectedCoin.mint,
@@ -581,14 +612,21 @@ export default function App() {
       const board = persistLaunch(locked.coin, []);
       setCoins(board.coins);
       setSelectedCoin(locked.coin);
-      if (result?.mint === locked.coin.mint) setResult(locked.coin);
-      setStatus(
-        `Holder KOLs locked · ${holderScan.matches.length} wallets · ${shortAddr(locked.feeShareSignature)}`,
-      );
+      if (result?.mint === locked.coin.mint) {
+        setResult(locked.coin);
+        setLaunchFollowUp(null);
+      }
+      setDeskMessage({
+        kind: "info",
+        text: `Holder KOLs locked · ${holderScan.matches.length} wallets · ${shortAddr(locked.feeShareSignature)}`,
+      });
       setHolderTick((t) => t + 1);
       await refreshTapeFromChain(board.coins);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Lock holder KOLs failed.");
+      setDeskMessage({
+        kind: "error",
+        text: err instanceof Error ? err.message : "Lock holder KOLs failed.",
+      });
     } finally {
       setHolderLocking(false);
     }
@@ -597,24 +635,33 @@ export default function App() {
   async function onAdoptMint() {
     if (!connected) {
       setVisible(true);
-      setError("Connect Phantom to adopt a mint.");
+      setDeskMessage({ kind: "error", text: "Connect Phantom to adopt a mint." });
       return;
     }
     const mint = adoptMint.trim();
     if (mint.length < 32) {
-      setError("Paste the mint address from the create tx / pump.fun.");
+      setDeskMessage({
+        kind: "error",
+        text: "Paste the mint address from the create tx / pump.fun.",
+      });
       return;
     }
     if (!draft.name.trim() || !draft.ticker.trim()) {
-      setError("Fill name + ticker (and crew wallets) to adopt this mint.");
+      setDeskMessage({
+        kind: "error",
+        text: "Fill name + ticker (and crew wallets) to adopt this mint.",
+      });
       return;
     }
     if (totalShare(draft.crew) !== 100) {
-      setError("Crew shares must total 100% before wiring fees.");
+      setDeskMessage({
+        kind: "error",
+        text: "Crew shares must total 100% before wiring fees.",
+      });
       return;
     }
     setWiring(mint);
-    setError(null);
+    setDeskMessage(null);
     try {
       const wired = await wireCrewFeeShares({
         mint,
@@ -637,10 +684,16 @@ export default function App() {
       setSelectedCoin(wired.coin);
       setResult(wired.coin);
       setAdoptMint("");
-      setStatus(`Adopted $${wired.coin.ticker} · fees ${shortAddr(wired.feeShareSignature)}`);
+      setDeskMessage({
+        kind: "info",
+        text: `Adopted $${wired.coin.ticker} · fees ${shortAddr(wired.feeShareSignature)}`,
+      });
       await refreshTapeFromChain(board.coins);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Adopt mint failed.");
+      setDeskMessage({
+        kind: "error",
+        text: err instanceof Error ? err.message : "Adopt mint failed.",
+      });
     } finally {
       setWiring(null);
     }
@@ -649,16 +702,19 @@ export default function App() {
   async function onCrank(mint: string, ticker: string) {
     if (!connected) {
       setVisible(true);
-      setError("Connect Phantom to crank remits.");
+      setDeskMessage({ kind: "error", text: "Connect Phantom to crank remits." });
       return;
     }
     const coin = coins.find((c) => c.mint === mint);
     if (coin && !coin.feeShareSignature) {
-      setError(`$${ticker} has no fee-share yet — Wire fees first or crew stays unpaid.`);
+      setDeskMessage({
+        kind: "error",
+        text: `$${ticker} has no fee-share yet — Wire fees first or crew stays unpaid.`,
+      });
       return;
     }
     setCranking(mint);
-    setError(null);
+    setDeskMessage(null);
     try {
       const signature = await distributeCreatorFees(mint, wallet);
       if (coin) {
@@ -668,9 +724,12 @@ export default function App() {
         }
       }
       await refreshTapeFromChain(coins);
-      setStatus(`Remits cranked · ${shortAddr(signature)}`);
+      setDeskMessage({ kind: "info", text: `Remits cranked · ${shortAddr(signature)}` });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Crank failed.");
+      setDeskMessage({
+        kind: "error",
+        text: err instanceof Error ? err.message : "Crank failed.",
+      });
     } finally {
       setCranking(null);
     }
@@ -691,25 +750,29 @@ export default function App() {
     try {
       await navigator.clipboard.writeText(shareReceiptText(coin));
       setCopied("share");
-      setStatus("CT receipt copied.");
+      setDeskMessage({ kind: "info", text: "CT receipt copied." });
       window.setTimeout(() => setCopied(null), 1800);
     } catch {
-      setError("Could not copy share text.");
+      setDeskMessage({ kind: "error", text: "Could not copy share text." });
     }
   }
 
   function onSimulateFees() {
     if (!selectedCoin) return;
     setActing(true);
-    setError(null);
+    setDeskMessage(null);
     try {
       const preview = simulateFeeAccrual(selectedCoin);
       const total = preview.reduce((sum, row) => sum + row.amountSol, 0);
-      setStatus(
-        `Preview only · ${total.toFixed(4)} SOL split — use Distribute for on-chain tape.`,
-      );
+      setDeskMessage({
+        kind: "info",
+        text: `Preview only · ${total.toFixed(4)} SOL split — use Distribute for on-chain tape.`,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Preview failed.");
+      setDeskMessage({
+        kind: "error",
+        text: err instanceof Error ? err.message : "Preview failed.",
+      });
     } finally {
       setActing(false);
     }
@@ -718,14 +781,18 @@ export default function App() {
   function onFireBuyback() {
     if (!selectedCoin) return;
     setActing(true);
-    setError(null);
+    setDeskMessage(null);
     try {
       const row = simulateBuybackFire(selectedCoin);
-      setStatus(
-        `Preview only · buyback ${row.amountSol.toFixed(4)} SOL — not written to tape.`,
-      );
+      setDeskMessage({
+        kind: "info",
+        text: `Preview only · buyback ${row.amountSol.toFixed(4)} SOL — not written to tape.`,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Preview failed.");
+      setDeskMessage({
+        kind: "error",
+        text: err instanceof Error ? err.message : "Preview failed.",
+      });
     } finally {
       setActing(false);
     }
@@ -734,14 +801,18 @@ export default function App() {
   function onRaidClaim(questId?: string) {
     if (!selectedCoin) return;
     setActing(true);
-    setError(null);
+    setDeskMessage(null);
     try {
       const row = simulateRaidClaim(selectedCoin, questId);
-      setStatus(
-        `Preview only · ${row.handle} ${row.amountSol.toFixed(4)} SOL — not on-chain.`,
-      );
+      setDeskMessage({
+        kind: "info",
+        text: `Preview only · ${row.handle} ${row.amountSol.toFixed(4)} SOL — not on-chain.`,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Preview failed.");
+      setDeskMessage({
+        kind: "error",
+        text: err instanceof Error ? err.message : "Preview failed.",
+      });
     } finally {
       setActing(false);
     }
@@ -755,6 +826,8 @@ export default function App() {
     setRemits(board.remits);
     setSelectedCoin(null);
     setResult(null);
+    setLaunchFollowUp(null);
+    setDeskMessage(null);
     setHirePlan(null);
     setDraft({
       ...DEFAULT_DRAFT,
@@ -774,6 +847,17 @@ export default function App() {
 
   const buyback = draft.buybackRule ?? DEFAULT_BUYBACK;
   const quests = draft.raidQuests ?? DEFAULT_RAID_QUESTS;
+  const feePreview = useMemo(() => {
+    if (result) {
+      return {
+        mode: result.mode,
+        crew: result.crew,
+        deskBps: MODE_DESK_BPS[result.mode],
+      };
+    }
+    return { mode: draft.mode, crew: draft.crew, deskBps };
+  }, [result, draft.mode, draft.crew, deskBps]);
+  const previewModeMeta = DESK_MODES.find((mode) => mode.id === feePreview.mode)!;
 
   return (
     <div className="site">
@@ -934,6 +1018,15 @@ export default function App() {
             </div>
           </div>
 
+          {deskMessage ? (
+            <p
+              className={`desk-message desk-message-${deskMessage.kind}`}
+              role="status"
+            >
+              {deskMessage.text}
+            </p>
+          ) : null}
+
           <div className="board-grid">
             <div className="panel">
               <div className="panel-head">
@@ -994,15 +1087,17 @@ export default function App() {
           <div className="panel crank-panel">
             <div className="panel-head">
               <h3>Live remits</h3>
-              <span className="live-dot">{tapeSyncing ? "syncing…" : "on-chain"}</span>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                disabled={tapeSyncing || !coins.length}
-                onClick={() => void refreshTapeFromChain()}
-              >
-                {tapeSyncing ? "Refreshing…" : "Refresh tape"}
-              </button>
+              <div className="panel-head-actions">
+                <span className="live-dot">{tapeSyncing ? "syncing…" : "on-chain"}</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={tapeSyncing || !coins.length}
+                  onClick={() => void refreshTapeFromChain()}
+                >
+                  {tapeSyncing ? "Refreshing…" : "Refresh tape"}
+                </button>
+              </div>
             </div>
             <div className="feed">
               {feed.length === 0 ? (
@@ -1051,10 +1146,16 @@ export default function App() {
                     ? " · fees locked"
                     : " · fees NOT locked — crew unpaid"}
                 </p>
-                {!selectedCoin.feeShareSignature ? (
-                  <p className="hint" style={{ color: "var(--danger, #b45309)" }}>
+                {!selectedCoin.feeShareSignature && !selectedCoin.holderKol ? (
+                  <p className="hint desk-alert">
                     Create landed without fee-share. Wire crew fees or remits stay with the
                     launcher only.
+                  </p>
+                ) : null}
+                {!selectedCoin.feeShareSignature && selectedCoin.holderKol ? (
+                  <p className="hint desk-alert">
+                    Holder KOL mode — lock fee-share once from the panel below when the holder
+                    set looks right.
                   </p>
                 ) : null}
                 <div className="coin-desk-layout">
@@ -1100,9 +1201,10 @@ export default function App() {
                       </div>
                     ) : null}
 
+                    {selectedCoin.holderKol ? (
                     <div className="holder-kol-panel">
-                      <div className="panel-head" style={{ padding: 0, marginBottom: "0.5rem" }}>
-                        <h4 style={{ margin: 0 }}>Holder KOLs</h4>
+                      <div className="holder-kol-head">
+                        <h4>Holder KOLs</h4>
                         <span className="live-dot">
                           {holderScanning ? "scanning…" : "every 60s"}
                         </span>
@@ -1181,6 +1283,7 @@ export default function App() {
                         </button>
                       </div>
                     </div>
+                    ) : null}
 
                     <div className="success-actions">
                       <button
@@ -1802,9 +1905,9 @@ export default function App() {
                 />
               </div>
 
-              {error ? <p className="form-error">{error}</p> : null}
-              {status ? <p className="form-status">{status}</p> : null}
-              {!launchReady && !busy ? (
+              {error && !result ? <p className="form-error">{error}</p> : null}
+              {status && !result ? <p className="form-status">{status}</p> : null}
+              {!launchReady && !busy && !result ? (
                 <p className="hint is-bad">
                   Required: {launchBlockers.slice(0, 4).join(" · ")}
                   {launchBlockers.length > 4 ? "…" : ""}
@@ -1838,39 +1941,42 @@ export default function App() {
                 />
                 <div>
                   <h3>
-                    ${draft.ticker || "TICKER"} · {draft.name || "name"}
+                    ${(result?.ticker || draft.ticker) || "TICKER"} ·{" "}
+                    {result?.name || draft.name || "name"}
                   </h3>
-                  <p>{draft.vibe || "Add a vibe."}</p>
+                  <p>{result?.vibe || draft.vibe || "Add a vibe."}</p>
                 </div>
               </div>
 
               <div>
                 <p className="section-label fee-map-label">Fee map</p>
                 <div className="split-bars">
-                  {deskBps > 0 ? (
+                  {feePreview.deskBps > 0 ? (
                     <div className="split-bar">
                       <div className="split-meta">
                         <span>
-                          {draft.mode === "agent"
+                          {feePreview.mode === "agent"
                             ? `@agent · ${draft.agent?.name || "ops"}`
-                            : draft.mode === "raid"
+                            : feePreview.mode === "raid"
                               ? "@raid pool"
                               : "@desk (buyback)"}
                         </span>
-                        <span>{deskBps / 100}%</span>
+                        <span>{feePreview.deskBps / 100}%</span>
                       </div>
                       <div className="split-track">
                         <div
                           className="split-fill desk-fill"
-                          style={{ width: `${deskBps / 100}%` }}
+                          style={{ width: `${feePreview.deskBps / 100}%` }}
                         />
                       </div>
                     </div>
                   ) : null}
-                  {draft.crew.map((member, index) => {
+                  {feePreview.crew.map((member, index) => {
                     const crewPct =
-                      deskBps > 0
-                        ? Math.round(((10_000 - deskBps) * (member.share || 0)) / 100) / 100
+                      feePreview.deskBps > 0
+                        ? Math.round(
+                            ((10_000 - feePreview.deskBps) * (member.share || 0)) / 100,
+                          ) / 100
                         : member.share || 0;
                     return (
                       <div className="split-bar" key={`split-${index}`}>
@@ -1897,12 +2003,14 @@ export default function App() {
               </div>
 
               <p className="hint">
-                <strong style={{ color: "var(--ink)" }}>{modeMeta.label}</strong>
+                <strong style={{ color: "var(--ink)" }}>{previewModeMeta.label}</strong>
+                {result ? ` · $${result.ticker} live` : ""}
                 {" · on-chain fee-share · "}0% platform cut
               </p>
 
               {result ? (
                 <motion.div
+                  id="launch-success"
                   className="success"
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -1916,10 +2024,15 @@ export default function App() {
                       tx {shortAddr(result.signature)}
                       {result.feeShareSignature
                         ? ` · fees ${shortAddr(result.feeShareSignature)}`
-                        : " · fees NOT locked"}
+                        : result.holderKol
+                          ? " · holder KOL lock pending"
+                          : " · fees NOT locked"}
                     </p>
                   ) : null}
-                  {!result.feeShareSignature ? (
+                  {launchFollowUp ? (
+                    <p className="success-followup">{launchFollowUp}</p>
+                  ) : null}
+                  {!result.feeShareSignature && !result.holderKol ? (
                     <button
                       className="btn btn-primary btn-sm"
                       type="button"
@@ -1928,6 +2041,12 @@ export default function App() {
                     >
                       {wiring === result.mint ? "Wiring…" : "Wire crew fees now"}
                     </button>
+                  ) : null}
+                  {!result.feeShareSignature && result.holderKol ? (
+                    <p className="hint">
+                      Open the desk → Holder KOLs → Lock when scans look right (one on-chain
+                      shot).
+                    </p>
                   ) : null}
                   <ReceiptCard
                     coin={result}
@@ -1942,7 +2061,9 @@ export default function App() {
                       className="btn btn-primary btn-sm"
                       type="button"
                       onClick={() => {
-                        setSelectedCoin(result);
+                        const live =
+                          coins.find((c) => c.mint === result.mint) ?? result;
+                        setSelectedCoin(live);
                         document.getElementById("board")?.scrollIntoView({ behavior: "smooth" });
                       }}
                     >
