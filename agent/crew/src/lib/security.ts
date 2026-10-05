@@ -154,16 +154,23 @@ export function sanitizeRemit(raw: unknown): RemitRecord | null {
   const handle = asString(r.handle, 32)
   const mode = asString(r.mode, 16) as DeskMode
   if (!mint || !handle || !MODES.has(mode)) return null
+  const amountSol = Math.max(0, Math.min(1_000_000, Number(r.amountSol) || 0))
+  const signature = asString(r.signature, 128) || undefined
+  const source = r.source === 'chain' ? ('chain' as const) : undefined
+  // Drop legacy simulated / lock rows from older builds.
+  if (amountSol <= 0) return null
+  if (!signature || signature.startsWith('quest:')) return null
   return {
     id: asString(r.id, 40) || `r_${mint.slice(0, 8)}`,
     mint,
     ticker: asString(r.ticker, 16),
     handle,
     wallet: asString(r.wallet, 64),
-    amountSol: Math.max(0, Math.min(1_000_000, Number(r.amountSol) || 0)),
+    amountSol,
     mode,
     at: Math.max(0, Number(r.at) || 0),
-    signature: asString(r.signature, 128) || undefined,
+    signature,
+    source,
   }
 }
 

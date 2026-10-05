@@ -1,6 +1,6 @@
 import { assertSafeRpcUrl } from './security'
 
-export const CREW_VERSION = '2.3.7'
+export const CREW_VERSION = '2.3.8'
 
 /**
  * Public browser-safe mainnet RPCs.

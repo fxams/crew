@@ -5,7 +5,7 @@ import BN from 'bn.js'
 import type { WalletContextState } from '@solana/wallet-adapter-react'
 import { PUMP_COIN_URL } from '../config'
 import { DEFAULT_BUYBACK, DEFAULT_RAID_QUESTS } from '../edges'
-import type { LaunchDraft, LaunchResult, RemitRecord } from '../types'
+import type { LaunchDraft, LaunchResult } from '../types'
 import { validateDraft } from '../validation'
 import {
   formatRpcError,
@@ -187,24 +187,10 @@ export async function launchMainnet(
         updateShareIx,
       ])
 
-      const remits: RemitRecord[] = normalized.shareholders
-        .filter((s) => s.role === 'crew')
-        .map((s, i) => ({
-          id: id('remit'),
-          mint: mintStr,
-          ticker: normalized.ticker,
-          handle: s.handle,
-          wallet: s.wallet,
-          amountSol: 0,
-          mode: normalized.mode,
-          at: launchedAt + i,
-          signature: feeShareSignature,
-        }))
-
       return {
         ok: true,
         coin: { ...baseCoin, feeShareSignature },
-        remits,
+        remits: [],
       }
     } catch (feeErr) {
       console.error('Fee-share failed after create — coin preserved for wire retry', feeErr)

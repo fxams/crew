@@ -113,6 +113,29 @@ export function persistRemits(remits: RemitRecord[]) {
   return board
 }
 
+/** Replace tape with on-chain distribute rows (deduped, newest first). */
+export function persistChainRemits(remits: RemitRecord[]) {
+  const board = loadBoard()
+  board.remits = remits.slice(0, 200)
+  saveBoard(board)
+  return board
+}
+
+export function mergeChainRemits(incoming: RemitRecord[]) {
+  const board = loadBoard()
+  const seen = new Set(board.remits.map((r) => `${r.signature}:${r.wallet}`))
+  const merged = [...board.remits]
+  for (const row of incoming) {
+    const key = `${row.signature}:${row.wallet}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    merged.unshift(row)
+  }
+  board.remits = merged.slice(0, 200)
+  saveBoard(board)
+  return board
+}
+
 export function resetBoard() {
   removeRaw(STORE_KEY)
   for (const key of STORE_LEGACY_KEYS) removeRaw(key)
