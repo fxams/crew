@@ -409,7 +409,7 @@ export default function App() {
 
     setBusy(true);
     setError(null);
-    setStatus("Uploading metadata (approve Phantom if prompted)…");
+    setStatus("Uploading metadata → approve Phantom quickly (~60s blockhash)…");
     setResult(null);
     setCopied(null);
 

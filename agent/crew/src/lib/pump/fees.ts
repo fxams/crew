@@ -1,8 +1,9 @@
-import { PublicKey, Transaction } from '@solana/web3.js'
+import { PublicKey } from '@solana/web3.js'
 import { NATIVE_MINT, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { feeSharingConfigPda } from '@pump-fun/pump-sdk'
 import type { WalletContextState } from '@solana/wallet-adapter-react'
-import { getConnection, getLatestBlockhashSafe, getPumpSdk } from './connection'
+import { getConnection, getPumpSdk } from './connection'
+import { sendInstructions } from './send'
 
 export async function distributeCreatorFees(mintStr: string, wallet: WalletContextState) {
   if (!wallet.publicKey || !wallet.sendTransaction) {
@@ -29,15 +30,5 @@ export async function distributeCreatorFees(mintStr: string, wallet: WalletConte
     quoteTokenProgram: TOKEN_PROGRAM_ID,
   })
 
-  const { blockhash, lastValidBlockHeight } = await getLatestBlockhashSafe('confirmed')
-  const tx = new Transaction({
-    feePayer: wallet.publicKey,
-    blockhash,
-    lastValidBlockHeight,
-  }).add(ix)
-
-  const live = getConnection()
-  const signature = await wallet.sendTransaction(tx, live)
-  await live.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed')
-  return signature
+  return sendInstructions({ wallet, ixs: [ix], attempts: 2 })
 }
