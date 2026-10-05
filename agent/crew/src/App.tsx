@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
@@ -35,6 +35,10 @@ import type { HireRole } from "./lib/types";
 import { launchCrew } from "./lib/launch";
 import { distributeCreatorFees, wireCrewFeeShares } from "./lib/pump/fees";
 import {
+  remitsFromSignature,
+  syncChainRemitsForCoins,
+} from "./lib/pump/remits-chain";
+import {
   bareHandle,
   isPlaceholderHandle,
   linkLabel,
@@ -51,9 +55,9 @@ import {
   loadBoard,
   loadDraft,
   loadUiPrefs,
+  mergeChainRemits,
+  persistChainRemits,
   persistLaunch,
-  persistRemit,
-  persistRemits,
   resetBoard,
   saveDraft,
   saveUiPrefs,
@@ -113,6 +117,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [cranking, setCranking] = useState<string | null>(null);
   const [wiring, setWiring] = useState<string | null>(null);
+  const [tapeSyncing, setTapeSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [result, setResult] = useState<CoinRecord | null>(null);
@@ -137,6 +142,29 @@ export default function App() {
   const remits = desk.remits;
   const setCoins = (next: CoinRecord[]) => setDesk((d) => ({ ...d, coins: next }));
   const setRemits = (next: RemitRecord[]) => setDesk((d) => ({ ...d, remits: next }));
+
+  const refreshTapeFromChain = useCallback(async (coinList: CoinRecord[] = coins) => {
+    setTapeSyncing(true);
+    try {
+      if (!coinList.length) {
+        const board = persistChainRemits([]);
+        setRemits(board.remits);
+        return;
+      }
+      const chain = await syncChainRemitsForCoins(coinList);
+      const board = persistChainRemits(chain);
+      setRemits(board.remits);
+    } catch (err) {
+      console.warn("On-chain tape sync failed", err);
+    } finally {
+      setTapeSyncing(false);
+    }
+  }, [coins]);
+
+  // Hydrate tape from mainnet distributeCreatorFees events (not local simulations).
+  useEffect(() => {
+    void refreshTapeFromChain(coins);
+  }, [coins, refreshTapeFromChain]);
 
   // Persist launch draft (debounced) — survives refresh
   useEffect(() => {
@@ -253,7 +281,7 @@ export default function App() {
   );
 
   const tapeItems = useMemo(() => {
-    const fromRemits = remits.slice(0, 16).map((r) => ({
+    const fromRemits = remits.filter((r) => r.amountSol > 0).slice(0, 16).map((r) => ({
       id: r.id,
       text:
         r.amountSol > 0
@@ -274,15 +302,18 @@ export default function App() {
       mint: c.mint,
       coin: c,
     }));
-    const remitRows = remits.slice(0, 12).map((r) => ({
-      id: `remit_${r.id}`,
-      time: relativeTime(r.at, boardTick),
-      title: `${r.handle} remit`,
-      detail: `$${r.ticker} · ${r.mode}${r.wallet ? ` · ${shortAddr(r.wallet)}` : ""}`,
-      amount: r.amountSol > 0 ? `+${r.amountSol.toFixed(4)}` : "LOCK",
-      mint: r.mint,
-      coin: coins.find((c) => c.mint === r.mint) ?? null,
-    }));
+    const remitRows = remits
+      .filter((r) => r.amountSol > 0)
+      .slice(0, 12)
+      .map((r) => ({
+        id: `remit_${r.id}`,
+        time: relativeTime(r.at, boardTick),
+        title: `${r.handle} remit`,
+        detail: `$${r.ticker} · ${r.mode}${r.wallet ? ` · ${shortAddr(r.wallet)}` : ""}`,
+        amount: `+${r.amountSol.toFixed(4)}`,
+        mint: r.mint,
+        coin: coins.find((c) => c.mint === r.mint) ?? null,
+      }));
     return [...remitRows, ...launchRows].slice(0, 24);
   }, [coins, remits, boardTick]);
 
@@ -441,6 +472,7 @@ export default function App() {
     }
     // Keep form values for a quick re-launch, but drop transient image blob.
     setDraft((prev) => ({ ...prev, crew: response.coin.crew, imageFile: null }));
+    void refreshTapeFromChain([response.coin, ...coins.filter((c) => c.mint !== response.coin.mint)]);
   }
 
   async function onWireFees(coin: CoinRecord) {
@@ -459,12 +491,12 @@ export default function App() {
         wallet,
         coin,
       });
-      const board = persistLaunch(wired.coin, wired.remits);
+      const board = persistLaunch(wired.coin, []);
       setCoins(board.coins);
-      setRemits(board.remits);
       setSelectedCoin(wired.coin);
       if (result?.mint === wired.coin.mint) setResult(wired.coin);
       setStatus(`Crew fees locked · ${shortAddr(wired.feeShareSignature)}`);
+      await refreshTapeFromChain(board.coins);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Wire fees failed.");
     } finally {
@@ -510,13 +542,13 @@ export default function App() {
           agent: draft.agent,
         },
       });
-      const board = persistLaunch(wired.coin, wired.remits);
+      const board = persistLaunch(wired.coin, []);
       setCoins(board.coins);
-      setRemits(board.remits);
       setSelectedCoin(wired.coin);
       setResult(wired.coin);
       setAdoptMint("");
       setStatus(`Adopted $${wired.coin.ticker} · fees ${shortAddr(wired.feeShareSignature)}`);
+      await refreshTapeFromChain(board.coins);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Adopt mint failed.");
     } finally {
@@ -539,19 +571,13 @@ export default function App() {
     setError(null);
     try {
       const signature = await distributeCreatorFees(mint, wallet);
-      const coinMode = coin?.mode ?? "split";
-      const board = persistRemit({
-        id: `crank_${Math.random().toString(36).slice(2, 10)}`,
-        mint,
-        ticker,
-        handle: coinMode === "agent" ? "@agent" : coinMode === "raid" ? "@raid" : coinMode === "buyback" ? "@buyback" : "@desk",
-        wallet: wallet.publicKey?.toBase58() ?? "",
-        amountSol: 0,
-        mode: coinMode,
-        at: Number(new Date()),
-        signature,
-      });
-      setRemits(board.remits);
+      if (coin) {
+        const parsed = await remitsFromSignature(signature, coin);
+        if (parsed.length) {
+          setRemits(mergeChainRemits(parsed).remits);
+        }
+      }
+      await refreshTapeFromChain(coins);
       setStatus(`Remits cranked · ${shortAddr(signature)}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Crank failed.");
@@ -582,41 +608,53 @@ export default function App() {
     }
   }
 
-  function runDeskAction(label: string, fn: () => RemitRecord[]) {
+  function onSimulateFees() {
     if (!selectedCoin) return;
     setActing(true);
     setError(null);
     try {
-      const next = fn();
-      const board = persistRemits(next);
-      setRemits(board.remits);
-      setStatus(label);
+      const preview = simulateFeeAccrual(selectedCoin);
+      const total = preview.reduce((sum, row) => sum + row.amountSol, 0);
+      setStatus(
+        `Preview only · ${total.toFixed(4)} SOL split — use Distribute for on-chain tape.`,
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Desk action failed.");
+      setError(err instanceof Error ? err.message : "Preview failed.");
     } finally {
       setActing(false);
     }
   }
 
-  function onSimulateFees() {
-    if (!selectedCoin) return;
-    runDeskAction(`Simulated fees on $${selectedCoin.ticker}`, () =>
-      simulateFeeAccrual(selectedCoin),
-    );
-  }
-
   function onFireBuyback() {
     if (!selectedCoin) return;
-    runDeskAction(`Buyback fired on $${selectedCoin.ticker}`, () => [
-      simulateBuybackFire(selectedCoin),
-    ]);
+    setActing(true);
+    setError(null);
+    try {
+      const row = simulateBuybackFire(selectedCoin);
+      setStatus(
+        `Preview only · buyback ${row.amountSol.toFixed(4)} SOL — not written to tape.`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Preview failed.");
+    } finally {
+      setActing(false);
+    }
   }
 
   function onRaidClaim(questId?: string) {
     if (!selectedCoin) return;
-    runDeskAction(`Raid claim on $${selectedCoin.ticker}`, () => [
-      simulateRaidClaim(selectedCoin, questId),
-    ]);
+    setActing(true);
+    setError(null);
+    try {
+      const row = simulateRaidClaim(selectedCoin, questId);
+      setStatus(
+        `Preview only · ${row.handle} ${row.amountSol.toFixed(4)} SOL — not on-chain.`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Preview failed.");
+    } finally {
+      setActing(false);
+    }
   }
 
   function onResetBoard() {
@@ -866,7 +904,15 @@ export default function App() {
           <div className="panel crank-panel">
             <div className="panel-head">
               <h3>Live remits</h3>
-              <span className="live-dot">tape</span>
+              <span className="live-dot">{tapeSyncing ? "syncing…" : "on-chain"}</span>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={tapeSyncing || !coins.length}
+                onClick={() => void refreshTapeFromChain()}
+              >
+                {tapeSyncing ? "Refreshing…" : "Refresh tape"}
+              </button>
             </div>
             <div className="feed">
               {feed.length === 0 ? (
@@ -970,7 +1016,7 @@ export default function App() {
                         disabled={acting}
                         onClick={onSimulateFees}
                       >
-                        {acting ? "Routing…" : "Preview fee split"}
+                        {acting ? "Preview…" : "Preview fee split"}
                       </button>
                       {selectedCoin.mode === "buyback" ? (
                         <button

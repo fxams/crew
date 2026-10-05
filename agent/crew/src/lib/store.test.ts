@@ -67,6 +67,9 @@ const coin: CoinRecord = {
   },
 }
 
+const SAMPLE_TX_SIG =
+  '52ngPYbrgeLMyGSo9n84hCGykKk9PMZiKaLdh1FnUefbQJMucqyPKMypJgWb8roXfeJepRzV9eJocCEwVxiWQ72v'
+
 const remit: RemitRecord = {
   id: 'r1',
   mint: coin.mint,
@@ -76,7 +79,8 @@ const remit: RemitRecord = {
   amountSol: 0.42,
   mode: 'agent',
   at: 1_700_000_000_100,
-  signature: 'sig_remit',
+  signature: SAMPLE_TX_SIG,
+  source: 'chain',
 }
 
 const draft: LaunchDraft = {
@@ -136,10 +140,13 @@ describe('persistence end-to-end', () => {
     const crank: RemitRecord = {
       ...remit,
       id: 'crank_1',
-      amountSol: 0,
+      amountSol: 0.08,
       mode: 'agent',
       handle: '@agent',
       at: Date.now(),
+      signature:
+        '3zzcEQasoFpxoSBfkUEE4tKzF53EEUPEgKPYf8qCjxRez5A6CvSaAPsVAKRoiGxk9ZmAMQHDARoUMXjD8YaK7JHH',
+      source: 'chain',
     }
     const afterCrank = persistRemit(crank)
     expect(afterCrank.remits[0].id).toBe('crank_1')

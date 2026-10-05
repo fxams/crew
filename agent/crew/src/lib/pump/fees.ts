@@ -3,7 +3,7 @@ import { NATIVE_MINT, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { feeSharingConfigPda } from '@pump-fun/pump-sdk'
 import type { WalletContextState } from '@solana/wallet-adapter-react'
 import { PUMP_COIN_URL } from '../config'
-import type { CoinRecord, CrewMember, DeskMode, RemitRecord } from '../types'
+import type { CoinRecord, CrewMember, DeskMode } from '../types'
 import { buildCrewShareholders } from '../validation'
 import { formatRpcError, getConnection, getLatestBlockhashSafe, getPumpSdk } from './connection'
 import { sendInstructions } from './send'
@@ -58,7 +58,6 @@ export type WireFeesOpts = {
 
 export type WireFeesResult = {
   feeShareSignature: string
-  remits: RemitRecord[]
   coin: CoinRecord
 }
 
@@ -130,19 +129,6 @@ export async function wireCrewFeeShares(opts: WireFeesOpts): Promise<WireFeesRes
   const launchedAt = opts.coin?.launchedAt ?? Number(new Date())
   const mintStr = mint.toBase58()
   const ticker = (opts.coin?.ticker || 'COIN').toUpperCase().replace(/^\$/, '')
-  const remits: RemitRecord[] = shareholders
-    .filter((s) => s.role === 'crew')
-    .map((s, i) => ({
-      id: id('remit'),
-      mint: mintStr,
-      ticker,
-      handle: s.handle,
-      wallet: s.wallet,
-      amountSol: 0,
-      mode: opts.mode,
-      at: launchedAt + i,
-      signature: feeShareSignature,
-    }))
 
   const coin: CoinRecord = {
     id: opts.coin?.id || id('coin'),
@@ -162,5 +148,5 @@ export async function wireCrewFeeShares(opts: WireFeesOpts): Promise<WireFeesRes
     agent: opts.coin?.agent,
   }
 
-  return { feeShareSignature, remits, coin }
+  return { feeShareSignature, coin }
 }
