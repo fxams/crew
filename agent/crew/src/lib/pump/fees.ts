@@ -1,6 +1,6 @@
 import { PublicKey } from '@solana/web3.js'
 import { NATIVE_MINT, TOKEN_PROGRAM_ID } from '@solana/spl-token'
-import { feeSharingConfigPda } from '@pump-fun/pump-sdk'
+import { feeSharingConfigPda, isSharingConfigEditable } from '@pump-fun/pump-sdk'
 import type { WalletContextState } from '@solana/wallet-adapter-react'
 import { PUMP_COIN_URL } from '../config'
 import type { CoinRecord, CrewMember, DeskMode } from '../types'
@@ -59,6 +59,122 @@ export type WireFeesOpts = {
 export type WireFeesResult = {
   feeShareSignature: string
   coin: CoinRecord
+}
+
+export type LockHolderKolOpts = {
+  mint: string
+  mode: DeskMode
+  wallet: WalletContextState
+  shareholders: { wallet: string; bps: number; handle: string; role: 'crew' | 'desk' }[]
+  crew: CrewMember[]
+  coin?: Partial<CoinRecord> & Pick<CoinRecord, 'name' | 'ticker'>
+}
+
+/**
+ * Finalize fee-share once with holder-KOL shareholders.
+ * Pump revokes admin after updateFeeSharesV2 — this cannot be re-run.
+ */
+export async function lockHolderKolFeeShares(
+  opts: LockHolderKolOpts,
+): Promise<WireFeesResult> {
+  const { wallet } = opts
+  if (!wallet.publicKey || !wallet.sendTransaction) {
+    throw new Error('Connect a wallet to lock holder KOLs.')
+  }
+  if (!opts.shareholders.length) {
+    throw new Error('No KOL holders matched in the top 20 — nothing to lock.')
+  }
+
+  let mint: PublicKey
+  try {
+    mint = new PublicKey(opts.mint.trim())
+  } catch {
+    throw new Error('Invalid mint address.')
+  }
+
+  const launcher = wallet.publicKey
+  await getLatestBlockhashSafe('confirmed')
+  const sdk = getPumpSdk()
+  const connection = getConnection()
+  const sharingPda = feeSharingConfigPda(mint)
+  const existing = await connection.getAccountInfo(sharingPda)
+
+  const ixs = []
+  if (!existing) {
+    ixs.push(
+      await sdk.createFeeSharingConfig({
+        creator: launcher,
+        mint,
+        pool: null,
+      }),
+    )
+  } else {
+    const sharing = sdk.decodeSharingConfig(existing)
+    if (!isSharingConfigEditable({ sharingConfig: sharing })) {
+      throw new Error(
+        'Fee-share already finalized on this mint. Pump allows one shareholder lock only.',
+      )
+    }
+  }
+
+  const currentShareholders = existing
+    ? sdk.decodeSharingConfig(existing).shareholders.map((s) => s.address)
+    : [launcher]
+
+  const newShareholders = opts.shareholders.map((s) => ({
+    address: new PublicKey(s.wallet),
+    shareBps: s.bps,
+  }))
+
+  const total = newShareholders.reduce((s, r) => s + r.shareBps, 0)
+  if (total !== 10_000) {
+    throw new Error(`Shareholders must total 10000 bps (got ${total}).`)
+  }
+
+  ixs.push(
+    await sdk.updateFeeSharesV2({
+      authority: launcher,
+      mint,
+      currentShareholders,
+      newShareholders,
+      quoteMint: NATIVE_MINT,
+      quoteTokenProgram: TOKEN_PROGRAM_ID,
+    }),
+  )
+
+  let feeShareSignature: string
+  try {
+    feeShareSignature = await sendInstructions({ wallet, ixs, attempts: 2 })
+  } catch (err) {
+    throw new Error(
+      formatRpcError(err instanceof Error ? err : new Error('Lock holder KOLs failed.')),
+    )
+  }
+
+  const launchedAt = opts.coin?.launchedAt ?? Number(new Date())
+  const mintStr = mint.toBase58()
+  const ticker = (opts.coin?.ticker || 'COIN').toUpperCase().replace(/^\$/, '')
+
+  const coin: CoinRecord = {
+    id: opts.coin?.id || id('coin'),
+    mint: mintStr,
+    name: opts.coin?.name || ticker,
+    ticker,
+    vibe: opts.coin?.vibe || '',
+    mode: opts.mode,
+    crew: opts.crew.map((m) => ({ ...m })),
+    signature: opts.coin?.signature || feeShareSignature,
+    feeShareSignature,
+    launchedAt,
+    launcher: opts.coin?.launcher || launcher.toBase58(),
+    pumpUrl: opts.coin?.pumpUrl || PUMP_COIN_URL(mintStr),
+    buybackRule: opts.coin?.buybackRule,
+    raidQuests: opts.coin?.raidQuests,
+    agent: opts.coin?.agent,
+    holderKol: true,
+  }
+
+  return { feeShareSignature, coin }
 }
 
 /**

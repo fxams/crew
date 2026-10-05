@@ -168,6 +168,25 @@ export async function launchMainnet(
         pool: null,
       })
 
+      // Holder KOL: create config only — finalize later from top holders ∩ KOL DB.
+      if (draft.holderKol) {
+          const openSig = await sendWithMintSigner(wallet, [createShareIx])
+        return {
+          ok: true,
+          coin: {
+            ...baseCoin,
+            crew: normalized.crew,
+            holderKol: true,
+            // Config created; shares not finalized until Holder KOL lock.
+            // openSig proves createFeeSharingConfig landed.
+            feeShareSignature: undefined,
+          },
+          remits: [],
+          warning:
+            `Mint live · fee config ${openSig.slice(0, 8)}… · Holder KOL open. Poll top holders on the desk, then Lock once (Pump allows one lock).`,
+        }
+      }
+
       const newShareholders = normalized.shareholders.map((s) => ({
         address: new PublicKey(s.wallet),
         shareBps: s.bps,
@@ -199,9 +218,11 @@ export async function launchMainnet(
       )
       return {
         ok: true,
-        coin: baseCoin,
+        coin: { ...baseCoin, holderKol: Boolean(draft.holderKol) },
         remits: [],
-        warning: `Mint live but crew fee-share not locked — Wire fees on the desk or crew stays unpaid. ${detail}`,
+        warning: draft.holderKol
+          ? `Mint live but fee-share config missing — open Holder KOL on the desk to create + lock. ${detail}`
+          : `Mint live but crew fee-share not locked — Wire fees on the desk or crew stays unpaid. ${detail}`,
       }
     }
   } catch (err) {
