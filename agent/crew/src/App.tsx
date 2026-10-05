@@ -33,7 +33,7 @@ import {
 } from "./lib/edges";
 import type { HireRole } from "./lib/types";
 import { launchCrew } from "./lib/launch";
-import { distributeCreatorFees } from "./lib/pump/fees";
+import { distributeCreatorFees, wireCrewFeeShares } from "./lib/pump/fees";
 import {
   bareHandle,
   isPlaceholderHandle,
@@ -112,11 +112,13 @@ export default function App() {
   const [draft, setDraft] = useState<LaunchDraft>(() => initialDraft());
   const [busy, setBusy] = useState(false);
   const [cranking, setCranking] = useState<string | null>(null);
+  const [wiring, setWiring] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [result, setResult] = useState<CoinRecord | null>(null);
   const [copied, setCopied] = useState<"mint" | "share" | null>(null);
   const [acting, setActing] = useState(false);
+  const [adoptMint, setAdoptMint] = useState("");
   const [boardTick] = useState(() => Date.now());
   const [desk, setDesk] = useState(() => {
     const board = initialBoard();
@@ -433,8 +435,93 @@ export default function App() {
     setRemits(board.remits);
     setResult(response.coin);
     setSelectedCoin(response.coin);
+    if (response.warning) {
+      setError(response.warning);
+      setStatus("Mint live — wire crew fees before remits can pay out.");
+    }
     // Keep form values for a quick re-launch, but drop transient image blob.
     setDraft((prev) => ({ ...prev, crew: response.coin.crew, imageFile: null }));
+  }
+
+  async function onWireFees(coin: CoinRecord) {
+    if (!connected) {
+      setVisible(true);
+      setError("Connect Phantom to wire crew fees.");
+      return;
+    }
+    setWiring(coin.mint);
+    setError(null);
+    try {
+      const wired = await wireCrewFeeShares({
+        mint: coin.mint,
+        mode: coin.mode,
+        crew: coin.crew,
+        wallet,
+        coin,
+      });
+      const board = persistLaunch(wired.coin, wired.remits);
+      setCoins(board.coins);
+      setRemits(board.remits);
+      setSelectedCoin(wired.coin);
+      if (result?.mint === wired.coin.mint) setResult(wired.coin);
+      setStatus(`Crew fees locked · ${shortAddr(wired.feeShareSignature)}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Wire fees failed.");
+    } finally {
+      setWiring(null);
+    }
+  }
+
+  async function onAdoptMint() {
+    if (!connected) {
+      setVisible(true);
+      setError("Connect Phantom to adopt a mint.");
+      return;
+    }
+    const mint = adoptMint.trim();
+    if (mint.length < 32) {
+      setError("Paste the mint address from the create tx / pump.fun.");
+      return;
+    }
+    if (!draft.name.trim() || !draft.ticker.trim()) {
+      setError("Fill name + ticker (and crew wallets) to adopt this mint.");
+      return;
+    }
+    if (totalShare(draft.crew) !== 100) {
+      setError("Crew shares must total 100% before wiring fees.");
+      return;
+    }
+    setWiring(mint);
+    setError(null);
+    try {
+      const wired = await wireCrewFeeShares({
+        mint,
+        mode: draft.mode,
+        crew: draft.crew,
+        wallet,
+        coin: {
+          name: draft.name.trim(),
+          ticker: normalizeTicker(draft.ticker),
+          vibe: draft.vibe.trim(),
+          mode: draft.mode,
+          crew: draft.crew,
+          buybackRule: draft.buybackRule,
+          raidQuests: draft.raidQuests,
+          agent: draft.agent,
+        },
+      });
+      const board = persistLaunch(wired.coin, wired.remits);
+      setCoins(board.coins);
+      setRemits(board.remits);
+      setSelectedCoin(wired.coin);
+      setResult(wired.coin);
+      setAdoptMint("");
+      setStatus(`Adopted $${wired.coin.ticker} · fees ${shortAddr(wired.feeShareSignature)}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Adopt mint failed.");
+    } finally {
+      setWiring(null);
+    }
   }
 
   async function onCrank(mint: string, ticker: string) {
@@ -443,11 +530,16 @@ export default function App() {
       setError("Connect Phantom to crank remits.");
       return;
     }
+    const coin = coins.find((c) => c.mint === mint);
+    if (coin && !coin.feeShareSignature) {
+      setError(`$${ticker} has no fee-share yet — Wire fees first or crew stays unpaid.`);
+      return;
+    }
     setCranking(mint);
     setError(null);
     try {
       const signature = await distributeCreatorFees(mint, wallet);
-      const coinMode = coins.find((c) => c.mint === mint)?.mode ?? "split";
+      const coinMode = coin?.mode ?? "split";
       const board = persistRemit({
         id: `crank_${Math.random().toString(36).slice(2, 10)}`,
         mint,
@@ -819,7 +911,16 @@ export default function App() {
                 <p className="hint">
                   {selectedCoin.vibe || "No vibe."} · mainnet ·{" "}
                   {shortAddr(selectedCoin.mint)}
+                  {selectedCoin.feeShareSignature
+                    ? " · fees locked"
+                    : " · fees NOT locked — crew unpaid"}
                 </p>
+                {!selectedCoin.feeShareSignature ? (
+                  <p className="hint" style={{ color: "var(--danger, #b45309)" }}>
+                    Create landed without fee-share. Wire crew fees or remits stay with the
+                    launcher only.
+                  </p>
+                ) : null}
                 <div className="coin-desk-layout">
                   <div className="coin-desk-main">
                     <div className="split-bars">
@@ -909,14 +1010,25 @@ export default function App() {
                           Tx
                         </a>
                       ) : null}
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        type="button"
-                        disabled={cranking === selectedCoin.mint}
-                        onClick={() => void onCrank(selectedCoin.mint, selectedCoin.ticker)}
-                      >
-                        {cranking === selectedCoin.mint ? "Cranking…" : "Distribute"}
-                      </button>
+                      {!selectedCoin.feeShareSignature ? (
+                        <button
+                          className="btn btn-primary btn-sm"
+                          type="button"
+                          disabled={wiring === selectedCoin.mint}
+                          onClick={() => void onWireFees(selectedCoin)}
+                        >
+                          {wiring === selectedCoin.mint ? "Wiring…" : "Wire crew fees"}
+                        </button>
+                      ) : (
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          type="button"
+                          disabled={cranking === selectedCoin.mint}
+                          onClick={() => void onCrank(selectedCoin.mint, selectedCoin.ticker)}
+                        >
+                          {cranking === selectedCoin.mint ? "Cranking…" : "Distribute"}
+                        </button>
+                      )}
                     </div>
                   </div>
                   <ReceiptCard
@@ -940,21 +1052,64 @@ export default function App() {
                   <div className="crank-row" key={c.mint}>
                     <div>
                       <strong>${c.ticker}</strong>
-                      <p>{shortAddr(c.mint)}</p>
+                      <p>
+                        {shortAddr(c.mint)}
+                        {c.feeShareSignature ? "" : " · fees open"}
+                      </p>
                     </div>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      disabled={cranking === c.mint}
-                      onClick={() => void onCrank(c.mint, c.ticker)}
-                    >
-                      {cranking === c.mint ? "Cranking…" : "Distribute"}
-                    </button>
+                    {!c.feeShareSignature ? (
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        disabled={wiring === c.mint}
+                        onClick={() => void onWireFees(c)}
+                      >
+                        {wiring === c.mint ? "Wiring…" : "Wire fees"}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        disabled={cranking === c.mint}
+                        onClick={() => void onCrank(c.mint, c.ticker)}
+                      >
+                        {cranking === c.mint ? "Cranking…" : "Distribute"}
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
             </div>
           ) : null}
+
+          <div className="panel crank-panel">
+            <div className="panel-head">
+              <h3>Adopt orphan mint</h3>
+              <span>repair</span>
+            </div>
+            <p className="hint">
+              If create landed but the desk never saved the coin (like Kibble), paste the mint,
+              keep crew wallets filled above, then lock fee-share.
+            </p>
+            <div className="crank-row" style={{ gap: "0.75rem", alignItems: "center" }}>
+              <input
+                className="wallet-input"
+                value={adoptMint}
+                onChange={(e) => setAdoptMint(e.target.value)}
+                placeholder="Mint address"
+                spellCheck={false}
+                style={{ flex: 1 }}
+              />
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                disabled={Boolean(wiring) || !adoptMint.trim()}
+                onClick={() => void onAdoptMint()}
+              >
+                {wiring === adoptMint.trim() ? "Wiring…" : "Adopt + wire fees"}
+              </button>
+            </div>
+          </div>
         </section>
 
         <section className="section" id="launch">
@@ -1504,8 +1659,18 @@ export default function App() {
                       tx {shortAddr(result.signature)}
                       {result.feeShareSignature
                         ? ` · fees ${shortAddr(result.feeShareSignature)}`
-                        : ""}
+                        : " · fees NOT locked"}
                     </p>
+                  ) : null}
+                  {!result.feeShareSignature ? (
+                    <button
+                      className="btn btn-primary btn-sm"
+                      type="button"
+                      disabled={wiring === result.mint}
+                      onClick={() => void onWireFees(result)}
+                    >
+                      {wiring === result.mint ? "Wiring…" : "Wire crew fees now"}
+                    </button>
                   ) : null}
                   <ReceiptCard
                     coin={result}

@@ -239,11 +239,12 @@ export function validateDraft(
     twitter,
     website,
     agent,
-    shareholders: buildShareholders(crew, draft.mode, opts?.deskWallet),
+    shareholders: buildCrewShareholders(crew, draft.mode, opts?.deskWallet),
   }
 }
 
-function buildShareholders(
+/** Map crew % + desk mode reserve into on-chain shareholder bps (must total 10000). */
+export function buildCrewShareholders(
   crew: CrewMember[],
   mode: DeskMode,
   deskWallet?: string,

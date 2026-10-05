@@ -90,6 +90,8 @@ export type LaunchOk = {
   ok: true
   coin: CoinRecord
   remits: RemitRecord[]
+  /** Create landed but fee-share did not — wire fees from the desk. */
+  warning?: string
 }
 
 export type LaunchErr = {
