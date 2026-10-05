@@ -570,6 +570,31 @@ a {
   letter-spacing: 0.1em;
 }
 
+.field label.checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: var(--font-body, inherit);
+  font-size: 0.88rem;
+  color: var(--ink);
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.field label.checkbox-row input {
+  margin-top: 0.2rem;
+  width: auto;
+  flex-shrink: 0;
+}
+
+.holder-kol-panel {
+  margin: 0.85rem 0 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
 .field input {
   width: 100%;
   border-radius: 10px;

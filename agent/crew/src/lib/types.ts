@@ -54,6 +54,11 @@ export type LaunchDraft = {
   buybackRule?: BuybackRule
   raidQuests?: RaidQuest[]
   agent?: AgentBrief
+  /**
+   * When true, launch creates fee-sharing config but does NOT finalize shares —
+   * desk Holder KOL lock sets the one-shot shareholder list from top holders.
+   */
+  holderKol?: boolean
 }
 
 export type CoinRecord = {
@@ -72,6 +77,8 @@ export type CoinRecord = {
   buybackRule?: BuybackRule
   raidQuests?: RaidQuest[]
   agent?: AgentBrief
+  /** Fee-share locked from top-holder ∩ KOL directory (one-shot). */
+  holderKol?: boolean
 }
 
 export type RemitRecord = {

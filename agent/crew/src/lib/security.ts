@@ -144,6 +144,7 @@ export function sanitizeCoin(raw: unknown): CoinRecord | null {
     buybackRule: sanitizeBuyback(r.buybackRule),
     raidQuests: sanitizeQuests(r.raidQuests),
     agent: sanitizeAgent(r.agent),
+    holderKol: Boolean(r.holderKol),
   }
 }
 
@@ -220,6 +221,7 @@ export function sanitizeDraft(raw: unknown): LaunchDraft {
     buybackRule: safeMode === 'buyback' ? sanitizeBuyback(r.buybackRule) : undefined,
     raidQuests: safeMode === 'raid' ? sanitizeQuests(r.raidQuests) : undefined,
     agent: safeMode === 'agent' ? sanitizeAgent(r.agent) : undefined,
+    holderKol: Boolean(r.holderKol),
   }
 }
 

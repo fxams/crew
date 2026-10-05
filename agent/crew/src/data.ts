@@ -48,6 +48,7 @@ export const DEFAULT_DRAFT: LaunchDraft = {
   buybackRule: undefined,
   raidQuests: undefined,
   agent: undefined,
+  holderKol: false,
 }
 
 export function totalShare(crew: { share: number }[]) {

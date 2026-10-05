@@ -103,7 +103,7 @@ export function getLaunchBlockers(draft: LaunchDraft): string[] {
   if (draft.initialBuySol < 0 || draft.initialBuySol > 100) {
     blockers.push('Initial buy (0–100 SOL)')
   }
-  if (draft.crew.length < 1 || draft.crew.length > MAX_CREW) {
+  if (!draft.holderKol && (draft.crew.length < 1 || draft.crew.length > MAX_CREW)) {
     blockers.push(`Crew (1–${MAX_CREW})`)
   }
 
@@ -123,6 +123,11 @@ export function getLaunchBlockers(draft: LaunchDraft): string[] {
     const objective = (draft.agent?.objective || '').trim()
     if (agentName.length < 2) blockers.push('Agent name')
     if (objective.length < 8) blockers.push('Agent objective')
+  }
+
+  // Holder KOL launches finalize crew from top holders later — skip crew form checks.
+  if (draft.holderKol) {
+    return [...new Set(blockers)]
   }
 
   let shareSum = 0
@@ -185,9 +190,6 @@ export function validateDraft(
   if (draft.initialBuySol < 0 || draft.initialBuySol > 100) {
     throw new Error('Initial buy must be between 0 and 100 SOL.')
   }
-  if (draft.crew.length < 1 || draft.crew.length > MAX_CREW) {
-    throw new Error(`Tag between 1 and ${MAX_CREW} crew members.`)
-  }
 
   let agent: AgentBrief | undefined
   if (draft.mode === 'agent') {
@@ -199,34 +201,44 @@ export function validateDraft(
     agent = { name: agentName, objective, model: model || 'custom' }
   }
 
-  const seenHandles = new Set<string>()
-  const seenWallets = new Set<string>()
-  let shareSum = 0
-  const crew: CrewMember[] = []
-
-  for (const member of draft.crew) {
-    const handle = normalizeHandle(member.handle)
-    if (seenHandles.has(handle)) throw new Error(`Duplicate handle: ${handle}`)
-    seenHandles.add(handle)
-
-    const share = Math.round(Number(member.share) || 0)
-    if (share <= 0 || share > 100) throw new Error(`Bad split for ${handle}.`)
-    shareSum += share
-
-    const wallet = assertWallet(member.wallet)
-    if (seenWallets.has(wallet)) throw new Error(`Duplicate wallet: ${wallet}`)
-    seenWallets.add(wallet)
-
-    const hireRole = member.hireRole && HIRE_ROLES.has(member.hireRole) ? member.hireRole : undefined
-    if (draft.mode === 'agent' && !hireRole) {
-      throw new Error(`Assign a hire role for ${handle}.`)
+  let crew: CrewMember[] = []
+  if (draft.holderKol) {
+    const desk = opts?.deskWallet
+    if (!desk) throw new Error('Connect a wallet for Holder KOL launch.')
+    crew = [{ handle: '@holder', wallet: desk, share: 100, hireRole: 'kol' }]
+  } else {
+    if (draft.crew.length < 1 || draft.crew.length > MAX_CREW) {
+      throw new Error(`Tag between 1 and ${MAX_CREW} crew members.`)
     }
 
-    crew.push({ handle, wallet, share, hireRole })
-  }
+    const seenHandles = new Set<string>()
+    const seenWallets = new Set<string>()
+    let shareSum = 0
 
-  if (shareSum !== 100) {
-    throw new Error(`Crew shares must total 100% (currently ${shareSum}%).`)
+    for (const member of draft.crew) {
+      const handle = normalizeHandle(member.handle)
+      if (seenHandles.has(handle)) throw new Error(`Duplicate handle: ${handle}`)
+      seenHandles.add(handle)
+
+      const share = Math.round(Number(member.share) || 0)
+      if (share <= 0 || share > 100) throw new Error(`Bad split for ${handle}.`)
+      shareSum += share
+
+      const wallet = assertWallet(member.wallet)
+      if (seenWallets.has(wallet)) throw new Error(`Duplicate wallet: ${wallet}`)
+      seenWallets.add(wallet)
+
+      const hireRole = member.hireRole && HIRE_ROLES.has(member.hireRole) ? member.hireRole : undefined
+      if (draft.mode === 'agent' && !hireRole) {
+        throw new Error(`Assign a hire role for ${handle}.`)
+      }
+
+      crew.push({ handle, wallet, share, hireRole })
+    }
+
+    if (shareSum !== 100) {
+      throw new Error(`Crew shares must total 100% (currently ${shareSum}%).`)
+    }
   }
 
   return {

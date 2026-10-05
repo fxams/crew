@@ -33,11 +33,13 @@ import {
 } from "./lib/edges";
 import type { HireRole } from "./lib/types";
 import { launchCrew } from "./lib/launch";
-import { distributeCreatorFees, wireCrewFeeShares } from "./lib/pump/fees";
+import { distributeCreatorFees, lockHolderKolFeeShares, wireCrewFeeShares } from "./lib/pump/fees";
 import {
   remitsFromSignature,
   syncChainRemitsForCoins,
 } from "./lib/pump/remits-chain";
+import { scanHolderKols } from "./lib/pump/holders-chain";
+import type { HolderKolProposal } from "./lib/pump/holder-kol";
 import {
   bareHandle,
   isPlaceholderHandle,
@@ -118,6 +120,13 @@ export default function App() {
   const [cranking, setCranking] = useState<string | null>(null);
   const [wiring, setWiring] = useState<string | null>(null);
   const [tapeSyncing, setTapeSyncing] = useState(false);
+  const [holderScan, setHolderScan] = useState<
+    (HolderKolProposal & { editable: boolean; editReason?: string }) | null
+  >(null);
+  const [holderScanning, setHolderScanning] = useState(false);
+  const [holderLocking, setHolderLocking] = useState(false);
+  const [holderError, setHolderError] = useState<string | null>(null);
+  const [holderTick, setHolderTick] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [result, setResult] = useState<CoinRecord | null>(null);
@@ -165,6 +174,45 @@ export default function App() {
   useEffect(() => {
     void refreshTapeFromChain(coins);
   }, [coins, refreshTapeFromChain]);
+
+  // Holder KOL: refresh top holders ∩ 1500 KOL DB every 60s for the selected coin.
+  useEffect(() => {
+    if (!selectedCoin?.mint) {
+      setHolderScan(null);
+      return;
+    }
+    let cancelled = false;
+    async function run() {
+      setHolderScanning(true);
+      setHolderError(null);
+      try {
+        const next = await scanHolderKols({
+          mint: selectedCoin!.mint,
+          mode: selectedCoin!.mode,
+          deskWallet: wallet.publicKey?.toBase58() || selectedCoin!.launcher,
+        });
+        if (!cancelled) setHolderScan(next);
+      } catch (err) {
+        if (!cancelled) {
+          setHolderError(err instanceof Error ? err.message : "Holder scan failed.");
+        }
+      } finally {
+        if (!cancelled) setHolderScanning(false);
+      }
+    }
+    void run();
+    const id = window.setInterval(() => void run(), 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [
+    selectedCoin?.mint,
+    selectedCoin?.mode,
+    selectedCoin?.launcher,
+    wallet.publicKey,
+    holderTick,
+  ]);
 
   // Persist launch draft (debounced) — survives refresh
   useEffect(() => {
@@ -501,6 +549,48 @@ export default function App() {
       setError(err instanceof Error ? err.message : "Wire fees failed.");
     } finally {
       setWiring(null);
+    }
+  }
+
+  async function onLockHolderKols() {
+    if (!selectedCoin) return;
+    if (!connected) {
+      setVisible(true);
+      setError("Connect Phantom to lock holder KOLs.");
+      return;
+    }
+    if (!holderScan?.matches.length) {
+      setError("No KOLs from the 1500 list are in the top 20 holders yet.");
+      return;
+    }
+    if (!holderScan.editable) {
+      setError(holderScan.editReason || "Fee-share already finalized on-chain.");
+      return;
+    }
+    setHolderLocking(true);
+    setError(null);
+    try {
+      const locked = await lockHolderKolFeeShares({
+        mint: selectedCoin.mint,
+        mode: selectedCoin.mode,
+        wallet,
+        shareholders: holderScan.shareholders,
+        crew: holderScan.crew,
+        coin: selectedCoin,
+      });
+      const board = persistLaunch(locked.coin, []);
+      setCoins(board.coins);
+      setSelectedCoin(locked.coin);
+      if (result?.mint === locked.coin.mint) setResult(locked.coin);
+      setStatus(
+        `Holder KOLs locked · ${holderScan.matches.length} wallets · ${shortAddr(locked.feeShareSignature)}`,
+      );
+      setHolderTick((t) => t + 1);
+      await refreshTapeFromChain(board.coins);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Lock holder KOLs failed.");
+    } finally {
+      setHolderLocking(false);
     }
   }
 
@@ -1009,6 +1099,89 @@ export default function App() {
                         ))}
                       </div>
                     ) : null}
+
+                    <div className="holder-kol-panel">
+                      <div className="panel-head" style={{ padding: 0, marginBottom: "0.5rem" }}>
+                        <h4 style={{ margin: 0 }}>Holder KOLs</h4>
+                        <span className="live-dot">
+                          {holderScanning ? "scanning…" : "every 60s"}
+                        </span>
+                      </div>
+                      <p className="hint">
+                        Top 20 holders ∩ 1500 KOL DB · shares by balance · Pump max 10
+                        shareholders ·{" "}
+                        <strong>on-chain lock is one-shot</strong>
+                        {holderScan?.deskBps
+                          ? ` · desk reserve ${(holderScan.deskBps / 100).toFixed(0)}%`
+                          : ""}
+                      </p>
+                      {holderError ? (
+                        <p className="hint" style={{ color: "var(--danger)" }}>
+                          {holderError}
+                        </p>
+                      ) : null}
+                      {holderScan?.editReason ? (
+                        <p className="hint">{holderScan.editReason}</p>
+                      ) : null}
+                      {holderScan?.matches.length ? (
+                        <div className="split-bars">
+                          {holderScan.matches.map((m) => (
+                            <div className="split-bar" key={m.wallet}>
+                              <div className="split-meta">
+                                <span>
+                                  {m.handle}{" "}
+                                  <span className="hint">#{m.rank}</span>
+                                </span>
+                                <span>
+                                  {m.share}% · {m.uiAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })} tok
+                                </span>
+                              </div>
+                              <div className="split-track">
+                                <div
+                                  className="split-fill"
+                                  style={{ width: `${Math.min(100, m.share)}%` }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="hint score-empty">
+                          {holderScanning
+                            ? "Scanning holders…"
+                            : "No KOLs from the directory in the top 20 holders yet."}
+                        </p>
+                      )}
+                      <div className="success-actions">
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          disabled={holderScanning}
+                          onClick={() => setHolderTick((t) => t + 1)}
+                        >
+                          {holderScanning ? "Scanning…" : "Scan now"}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          disabled={
+                            holderLocking ||
+                            holderScanning ||
+                            !holderScan?.matches.length ||
+                            !holderScan.editable ||
+                            Boolean(selectedCoin.feeShareSignature && !holderScan.editable)
+                          }
+                          onClick={() => void onLockHolderKols()}
+                        >
+                          {holderLocking
+                            ? "Locking…"
+                            : holderScan?.editable
+                              ? "Lock holder KOLs on-chain"
+                              : "Already locked"}
+                        </button>
+                      </div>
+                    </div>
+
                     <div className="success-actions">
                       <button
                         className="btn btn-primary btn-sm"
@@ -1057,14 +1230,18 @@ export default function App() {
                         </a>
                       ) : null}
                       {!selectedCoin.feeShareSignature ? (
-                        <button
-                          className="btn btn-primary btn-sm"
-                          type="button"
-                          disabled={wiring === selectedCoin.mint}
-                          onClick={() => void onWireFees(selectedCoin)}
-                        >
-                          {wiring === selectedCoin.mint ? "Wiring…" : "Wire crew fees"}
-                        </button>
+                        selectedCoin.holderKol ? (
+                          <span className="hint">Use Lock holder KOLs above (one-shot).</span>
+                        ) : (
+                          <button
+                            className="btn btn-primary btn-sm"
+                            type="button"
+                            disabled={wiring === selectedCoin.mint}
+                            onClick={() => void onWireFees(selectedCoin)}
+                          >
+                            {wiring === selectedCoin.mint ? "Wiring…" : "Wire crew fees"}
+                          </button>
+                        )
                       ) : (
                         <button
                           className="btn btn-ghost btn-sm"
@@ -1104,14 +1281,24 @@ export default function App() {
                       </p>
                     </div>
                     {!c.feeShareSignature ? (
-                      <button
-                        type="button"
-                        className="btn btn-primary btn-sm"
-                        disabled={wiring === c.mint}
-                        onClick={() => void onWireFees(c)}
-                      >
-                        {wiring === c.mint ? "Wiring…" : "Wire fees"}
-                      </button>
+                      c.holderKol ? (
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          onClick={() => setSelectedCoin(c)}
+                        >
+                          Holder KOLs
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          disabled={wiring === c.mint}
+                          onClick={() => void onWireFees(c)}
+                        >
+                          {wiring === c.mint ? "Wiring…" : "Wire fees"}
+                        </button>
+                      )
                     ) : (
                       <button
                         type="button"
@@ -1447,7 +1634,29 @@ export default function App() {
               ) : null}
 
               <div className="field">
+                <label className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(draft.holderKol)}
+                    onChange={(e) => setDraft({ ...draft, holderKol: e.target.checked })}
+                  />
+                  <span>
+                    Holder KOL mode — skip manual crew; lock fee-share once from top holders ∩
+                    1500 KOL list (polled every minute on the desk)
+                  </span>
+                </label>
+              </div>
+
+              <div className="field">
                 <label>Crew split + wallets</label>
+                {draft.holderKol ? (
+                  <p className="hint">
+                    Manual crew skipped. After launch, open the coin desk → Holder KOLs → Lock
+                    when the set looks right (Pump allows one on-chain lock).
+                  </p>
+                ) : null}
+                {!draft.holderKol ? (
+                <>
                 <div className="hire-actions">
                   <button
                     type="button"
@@ -1574,6 +1783,8 @@ export default function App() {
                     {shareTotal}%
                   </p>
                 </div>
+                </>
+                ) : null}
               </div>
 
               <div className="field field-buy">
