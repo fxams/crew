@@ -1,9 +1,4 @@
-import {
-  Keypair,
-  PublicKey,
-  Transaction,
-  TransactionInstruction,
-} from '@solana/web3.js'
+import { Keypair, PublicKey, type TransactionInstruction } from '@solana/web3.js'
 import { NATIVE_MINT, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { getBuyTokenAmountFromSolAmount } from '@pump-fun/pump-sdk'
 import BN from 'bn.js'
@@ -14,11 +9,11 @@ import type { LaunchDraft, LaunchResult, RemitRecord } from '../types'
 import { validateDraft } from '../validation'
 import {
   formatRpcError,
-  getConnection,
   getLatestBlockhashSafe,
   getOnlineSdk,
   getPumpSdk,
 } from './connection'
+import { sendInstructions } from './send'
 import { uploadPumpMetadata } from './ipfs'
 
 function deskPrograms(draft: LaunchDraft, mode: LaunchDraft['mode']) {
@@ -216,21 +211,11 @@ async function sendWithMintSigner(
   ixs: TransactionInstruction[],
   mintKp?: Keypair,
 ): Promise<string> {
-  if (!wallet.publicKey || !wallet.sendTransaction) {
-    throw new Error('Wallet not ready.')
-  }
-  const { blockhash, lastValidBlockHeight } = await getLatestBlockhashSafe('confirmed')
-  const connection = getConnection()
-  const tx = new Transaction({
-    feePayer: wallet.publicKey,
-    blockhash,
-    lastValidBlockHeight,
-  }).add(...ixs)
-
-  const signature = await wallet.sendTransaction(tx, connection, {
+  return sendInstructions({
+    wallet,
+    ixs,
     signers: mintKp ? [mintKp] : [],
-    skipPreflight: false,
+    // Mint create cannot safely retry (key would change); fee-share can.
+    attempts: mintKp ? 1 : 2,
   })
-  await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed')
-  return signature
 }
