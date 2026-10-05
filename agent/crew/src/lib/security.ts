@@ -11,6 +11,8 @@ import type {
 const ALLOWED_RPC_HOSTS = new Set([
   'api.mainnet-beta.solana.com',
   'api.devnet.solana.com',
+  'solana-rpc.publicnode.com',
+  'solana.leorpc.com',
   'solana-mainnet.g.alchemy.com',
   'mainnet.helius-rpc.com',
   'rpc.ankr.com',
