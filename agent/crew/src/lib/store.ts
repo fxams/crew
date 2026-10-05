@@ -94,6 +94,14 @@ export function persistLaunch(coin: CoinRecord, remits: RemitRecord[]) {
   return board
 }
 
+/** Upsert a coin row (e.g. after wiring fees on an orphan mint). */
+export function persistCoin(coin: CoinRecord) {
+  const board = loadBoard()
+  board.coins = [coin, ...board.coins.filter((c) => c.mint !== coin.mint)].slice(0, 100)
+  saveBoard(board)
+  return board
+}
+
 export function persistRemit(remit: RemitRecord) {
   return persistRemits([remit])
 }

@@ -56,6 +56,9 @@ export type MainnetLaunchCtx = {
  * 1) Upload metadata to Pump IPFS
  * 2) createV2 (+ optional first buy)
  * 3) createFeeSharingConfig + updateFeeSharesV2 (permanent crew / desk bps)
+ *
+ * If step 3 fails after create lands, still return the coin so the desk can
+ * retry fee-share — otherwise the mint is orphaned and crew never gets paid.
  */
 export async function launchMainnet(
   draft: LaunchDraft,
@@ -141,61 +144,79 @@ export async function launchMainnet(
     const createSig = await sendWithMintSigner(wallet, createIxs, mintKp)
 
     const mint = mintKp.publicKey
-    const createShareIx = await sdk.createFeeSharingConfig({
-      creator: launcher,
-      mint,
-      pool: null,
-    })
-
-    const newShareholders = normalized.shareholders.map((s) => ({
-      address: new PublicKey(s.wallet),
-      shareBps: s.bps,
-    }))
-
-    const updateShareIx = await sdk.updateFeeSharesV2({
-      authority: launcher,
-      mint,
-      currentShareholders: [launcher],
-      newShareholders,
-      quoteMint: NATIVE_MINT,
-      quoteTokenProgram: TOKEN_PROGRAM_ID,
-    })
-
-    const feeShareSignature = await sendWithMintSigner(wallet, [createShareIx, updateShareIx])
-
+    const mintStr = mint.toBase58()
     const launchedAt = Number(new Date())
-    const remits: RemitRecord[] = normalized.shareholders
-      .filter((s) => s.role === 'crew')
-      .map((s, i) => ({
-        id: id('remit'),
-        mint: mint.toBase58(),
-        ticker: normalized.ticker,
-        handle: s.handle,
-        wallet: s.wallet,
-        amountSol: 0,
-        mode: normalized.mode,
-        at: launchedAt + i,
-        signature: feeShareSignature,
+    const baseCoin = {
+      id: id('coin'),
+      mint: mintStr,
+      name: normalized.name,
+      ticker: normalized.ticker,
+      vibe: normalized.vibe,
+      mode: normalized.mode,
+      crew: normalized.crew,
+      signature: createSig,
+      launchedAt,
+      launcher: launcher.toBase58(),
+      pumpUrl: PUMP_COIN_URL(mintStr),
+      ...deskPrograms(draft, normalized.mode),
+    }
+
+    try {
+      const createShareIx = await sdk.createFeeSharingConfig({
+        creator: launcher,
+        mint,
+        pool: null,
+      })
+
+      const newShareholders = normalized.shareholders.map((s) => ({
+        address: new PublicKey(s.wallet),
+        shareBps: s.bps,
       }))
 
-    return {
-      ok: true,
-      coin: {
-        id: id('coin'),
-        mint: mint.toBase58(),
-        name: normalized.name,
-        ticker: normalized.ticker,
-        vibe: normalized.vibe,
-        mode: normalized.mode,
-        crew: normalized.crew,
-        signature: createSig,
-        feeShareSignature,
-        launchedAt,
-        launcher: launcher.toBase58(),
-        pumpUrl: PUMP_COIN_URL(mint.toBase58()),
-        ...deskPrograms(draft, normalized.mode),
-      },
-      remits,
+      const updateShareIx = await sdk.updateFeeSharesV2({
+        authority: launcher,
+        mint,
+        currentShareholders: [launcher],
+        newShareholders,
+        quoteMint: NATIVE_MINT,
+        quoteTokenProgram: TOKEN_PROGRAM_ID,
+      })
+
+      const feeShareSignature = await sendWithMintSigner(wallet, [
+        createShareIx,
+        updateShareIx,
+      ])
+
+      const remits: RemitRecord[] = normalized.shareholders
+        .filter((s) => s.role === 'crew')
+        .map((s, i) => ({
+          id: id('remit'),
+          mint: mintStr,
+          ticker: normalized.ticker,
+          handle: s.handle,
+          wallet: s.wallet,
+          amountSol: 0,
+          mode: normalized.mode,
+          at: launchedAt + i,
+          signature: feeShareSignature,
+        }))
+
+      return {
+        ok: true,
+        coin: { ...baseCoin, feeShareSignature },
+        remits,
+      }
+    } catch (feeErr) {
+      console.error('Fee-share failed after create — coin preserved for wire retry', feeErr)
+      const detail = formatRpcError(
+        feeErr instanceof Error ? feeErr : new Error('Fee-share failed.'),
+      )
+      return {
+        ok: true,
+        coin: baseCoin,
+        remits: [],
+        warning: `Mint live but crew fee-share not locked — Wire fees on the desk or crew stays unpaid. ${detail}`,
+      }
     }
   } catch (err) {
     console.error(err)

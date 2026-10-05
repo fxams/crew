@@ -11,6 +11,7 @@ import {
   loadBoard,
   loadDraft,
   loadUiPrefs,
+  persistCoin,
   persistLaunch,
   persistRemit,
   resetBoard,
@@ -144,6 +145,13 @@ describe('persistence end-to-end', () => {
     expect(afterCrank.remits[0].id).toBe('crank_1')
     expect(afterCrank.remits[1].id).toBe('r1')
     expect(loadBoard().remits).toHaveLength(2)
+  })
+
+  it('persistCoin upserts feeShareSignature without wiping remits', () => {
+    persistLaunch({ ...coin, feeShareSignature: undefined }, [remit])
+    const updated = persistCoin({ ...coin, feeShareSignature: 'fee_sig_repair' })
+    expect(updated.coins[0].feeShareSignature).toBe('fee_sig_repair')
+    expect(updated.remits[0].id).toBe('r1')
   })
 
   it('round-trips launch draft without File blobs', () => {
