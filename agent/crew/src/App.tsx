@@ -11,6 +11,7 @@ import {
   type LaunchDraft,
 } from "./data";
 import { ReceiptCard } from "./components/ReceiptCard";
+import { BRAND_ASSETS, BRAND_PALETTE, brandUrl } from "./lib/brand";
 import { AGENT_MODELS, CREW_VERSION, HIRE_ROLE_OPTIONS, MODE_DESK_BPS } from "./lib/config";
 import {
   simulateBuybackFire,
@@ -151,6 +152,8 @@ export default function App() {
   });
   const [linkStatus, setLinkStatus] = useState<Record<number, LinkStatus>>({});
   const [hirePlan, setHirePlan] = useState<NarrativeHirePlan | null>(null);
+  const [brandPick, setBrandPick] = useState(BRAND_ASSETS[0]?.id ?? "logo-mark");
+  const [brandCopied, setBrandCopied] = useState(false);
   const autoFilledRef = useRef<Record<number, string>>({});
   const coins = desk.coins;
   const remits = desk.remits;
@@ -858,6 +861,20 @@ export default function App() {
     return { mode: draft.mode, crew: draft.crew, deskBps };
   }, [result, draft.mode, draft.crew, deskBps]);
   const previewModeMeta = DESK_MODES.find((mode) => mode.id === feePreview.mode)!;
+  const selectedBrand =
+    BRAND_ASSETS.find((a) => a.id === brandPick) ?? BRAND_ASSETS[0];
+
+  async function copyBrandPath() {
+    if (!selectedBrand) return;
+    try {
+      const url = new URL(brandUrl(selectedBrand.file), window.location.href).href;
+      await navigator.clipboard.writeText(url);
+      setBrandCopied(true);
+      window.setTimeout(() => setBrandCopied(false), 1600);
+    } catch {
+      setBrandCopied(false);
+    }
+  }
 
   return (
     <div className="site">
@@ -866,12 +883,19 @@ export default function App() {
       <header className="nav-shell">
         <div className="app-shell nav">
           <a className="brand" href="#top">
-            <span className="brand-mark">C</span>
+            <img
+              className="brand-mark-img"
+              src={brandUrl("logo-mark.svg")}
+              width={28}
+              height={28}
+              alt=""
+            />
             CREW
           </a>
           <nav className="nav-links">
             <a href="#edges">Edges</a>
             <a href="#board">Tape</a>
+            <a href="#brand">Brand</a>
             <button
               type="button"
               className={`btn btn-ghost btn-nav wallet-btn${connected ? " is-on" : ""}`}
@@ -2081,6 +2105,89 @@ export default function App() {
                 </motion.div>
               ) : null}
             </div>
+          </div>
+        </section>
+
+        <section className="section" id="brand">
+          <p className="section-label">Brand kit</p>
+          <h2 className="section-title">CREW look.</h2>
+          <p className="section-sub">
+            Acid on forest. Logo, banners, and square posts — pick one, download or
+            copy the link for CT.
+          </p>
+
+          <div className="brand-palette" aria-label="Brand colors">
+            {BRAND_PALETTE.map((swatch) => (
+              <div className="brand-swatch" key={swatch.hex}>
+                <span style={{ background: swatch.hex }} />
+                <div>
+                  <strong>{swatch.name}</strong>
+                  <code>{swatch.hex}</code>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="brand-kit">
+            <div className="brand-select-grid" role="listbox" aria-label="Brand assets">
+              {BRAND_ASSETS.map((asset) => (
+                <button
+                  key={asset.id}
+                  type="button"
+                  role="option"
+                  aria-selected={brandPick === asset.id}
+                  className={`brand-card${brandPick === asset.id ? " is-selected" : ""}`}
+                  onClick={() => setBrandPick(asset.id)}
+                >
+                  <div className={`brand-card-thumb ratio-${asset.ratio.replace(":", "x")}`}>
+                    <img src={brandUrl(asset.file)} alt="" loading="lazy" />
+                  </div>
+                  <div className="brand-card-meta">
+                    <strong>{asset.title}</strong>
+                    <span>{asset.blurb}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {selectedBrand ? (
+              <aside className="brand-preview panel">
+                <div className="panel-head">
+                  <h3>{selectedBrand.title}</h3>
+                  <span>{selectedBrand.kind}</span>
+                </div>
+                <div className={`brand-preview-frame ratio-${selectedBrand.ratio.replace(":", "x")}`}>
+                  <img src={brandUrl(selectedBrand.file)} alt={selectedBrand.title} />
+                </div>
+                <p className="hint">{selectedBrand.blurb}</p>
+                <div className="success-actions">
+                  <a
+                    className="btn btn-primary btn-sm"
+                    href={brandUrl(selectedBrand.file)}
+                    download
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Download
+                  </a>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => void copyBrandPath()}
+                  >
+                    {brandCopied ? "Copied link" : "Copy link"}
+                  </button>
+                  <a
+                    className="btn btn-ghost btn-sm"
+                    href={brandUrl("BRAND.md")}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Spec
+                  </a>
+                </div>
+              </aside>
+            ) : null}
           </div>
         </section>
 
