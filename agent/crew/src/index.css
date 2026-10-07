@@ -451,8 +451,10 @@ a {
   position: relative;
   min-height: min(72svh, 620px);
   display: grid;
-  align-content: end;
-  gap: 0.85rem;
+  grid-template-columns: minmax(0, 1.15fr) minmax(14rem, 18rem);
+  align-items: end;
+  column-gap: clamp(1.25rem, 4vw, 3rem);
+  row-gap: 1.25rem;
   padding: 2rem 0 2.25rem;
   overflow: clip;
 }
@@ -539,6 +541,77 @@ a {
   display: flex;
   flex-wrap: wrap;
   gap: 0.55rem;
+}
+
+.hero-token {
+  position: relative;
+  z-index: 1;
+  align-self: end;
+  display: grid;
+  gap: 0.7rem;
+  padding: 0 0 0.15rem 1rem;
+  border-left: 1px solid rgba(200, 255, 61, 0.35);
+  min-width: 0;
+}
+
+.hero-token-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.hero-token-k {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hero-token-ca {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hero-token-copy {
+  padding: 0.2rem 0.45rem;
+  font-size: 0.65rem;
+}
+
+.hero-token-buy {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--acid);
+  text-decoration: none;
+  letter-spacing: 0.02em;
+}
+
+.hero-token-buy:hover {
+  text-decoration: underline;
+}
+
+.hero-token-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
+.hero-token-metrics > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.hero-token-metrics strong {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--ink);
 }
 
 /* —— Tape —— */
@@ -1763,6 +1836,14 @@ a {
   .hero {
     min-height: auto;
     padding: 1.25rem 0 1.5rem;
+    grid-template-columns: 1fr;
+  }
+
+  .hero-token {
+    padding-left: 0;
+    border-left: none;
+    border-top: 1px solid rgba(200, 255, 61, 0.28);
+    padding-top: 0.85rem;
   }
 
   .hero-brand {

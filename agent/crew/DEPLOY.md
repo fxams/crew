@@ -60,6 +60,10 @@ Set in the Render dashboard (or via API). **Do not commit API keys to git.**
 | `VITE_CREW_API_KEY` | Same as API `CREW_API_KEY` (write sync) |
 | `VITE_RPC_URL` | Helius / Alchemy mainnet URL (recommended) |
 | `VITE_PINATA_JWT` | Optional metadata upload fallback |
+| `VITE_CREW_MINT` | Optional — $CREW contract address for the hero panel |
+| `VITE_CREW_PUMP_URL` | Optional — pump.fun buy link (defaults to `/coin/{mint}`) |
+| `VITE_CREW_PRICE_USD` | Optional — hero price placeholder (e.g. `0.0012`) |
+| `VITE_CREW_MCAP_USD` | Optional — hero market cap placeholder (e.g. `120k`) |
 
 ### API / cron secrets (never `VITE_*`)
 
