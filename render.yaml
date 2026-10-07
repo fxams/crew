@@ -6,7 +6,7 @@ services:
     runtime: static
     rootDir: agent/crew
     branch: main
-    buildCommand: npm ci --legacy-peer-deps && npm test && npm run build
+    buildCommand: export VITE_BASE_PATH=/ VITE_SITE_URL=https://crewpay.dev && npm ci --legacy-peer-deps && npm test && npm run build
     staticPublishPath: dist
     pullRequestPreviewsEnabled: false
     envVars:
