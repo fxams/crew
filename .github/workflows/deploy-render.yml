@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths:
       - "agent/crew/**"
+      - "render-site/**"
       - "render.yaml"
       - ".github/workflows/deploy-render.yml"
   workflow_dispatch:

@@ -2,10 +2,10 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
-/** GitHub Pages uses `/crew/`; Render + app.crewpay.dev uses `/`. */
+/** Production default is Render at `/` (app.crewpay.dev / crewpay.dev). */
 export default defineConfig(() => {
   const siteUrl = (process.env.VITE_SITE_URL || 'https://app.crewpay.dev').replace(/\/$/, '')
-  const base = process.env.VITE_BASE_PATH?.trim() || '/crew/'
+  const base = process.env.VITE_BASE_PATH?.trim() || '/'
 
   return {
   base,

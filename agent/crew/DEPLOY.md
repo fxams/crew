@@ -1,6 +1,8 @@
 # Deploy CREW
 
-## Production (Render) — **https://app.crewpay.dev**
+## Production (Render only) — **https://app.crewpay.dev**
+
+GitHub Pages is **decommissioned**. Do not use `fxams.github.io/crew`.
 
 | Field | Value |
 | --- | --- |
@@ -10,36 +12,39 @@
 | Buyback cron | **`crewpay-buyback`** hourly (`CREW_BUYBACK_*` secrets) |
 | Dashboard (site) | https://dashboard.render.com/static/srv-db32invavr4c739imk00 |
 | On Render subdomain | **Disabled** for the static site |
-| App root | `agent/crew` |
+| Publish directory | **`render-site`** at **repo root** (committed + rebuilt on deploy) |
 | Vite `base` | `/` (`VITE_BASE_PATH`) |
 | Routes | `/` home · `/launch` launch desk (SPA rewrite `/* → /index.html`) |
 | Blueprint | `/render.yaml` at repo root |
 
-Auto-deploy: every push to **`main`** (after GitHub repo is connected in Render).
+### ⚠️ Wrong service check
 
-### If Manual Deploy “does nothing” / site stays old
+`https://crewpay.onrender.com` may show an unrelated older “CrewPay” badminton app. That is **not** this CREW fee-desk service. Always open the static site dashboard link above (or the service whose custom domain is `crewpay.dev`), not a random service named “crewpay”.
 
-Live HTML still showing `last-modified` from hours ago means **no successful new deploy** was published (or Auto-Deploy is off).
+### If Manual Deploy leaves the site on an old bundle (e.g. `index-C3DQKFyN.js` / v2.4.0)
 
-Check these in order on https://dashboard.render.com/static/srv-db32invavr4c739imk00 :
+Blueprint YAML often does **not** overwrite dashboard Build & Deploy fields. Set them **manually**:
 
-1. **Events / Deploys** — open the latest deploy. Is it **Live** or **Build failed**?  
-   - Failed → open **Logs** (often OOM / `npm test` / missing Node).  
-   - Blueprint build command no longer runs tests on Render (tests stay in GitHub Actions).
-2. **Settings → Auto-Deploy** — must be **On Commit** (not **Off**).  
-   - **Deploy a specific commit** in the UI **disables** auto-deploys — turn Auto-Deploy back **On**.  
-   - Avoid **After CI Checks Pass** unless a required check always reports on `main`.
-3. **Settings → Build & Deploy** — Branch = `main`, Root Directory = `agent/crew`.  
-   - **Publish directory must be `dist`** (relative to Root Directory → publishes `agent/crew/dist`).  
-     Do **not** set Publish Directory to `agent/crew/dist` when Root Directory is already `agent/crew` — that looks for a nested path and leaves the previous bundle live.  
-   - Build command should be:  
-     `rm -rf dist && export VITE_BASE_PATH=/ VITE_SITE_URL=https://app.crewpay.dev && npm ci --legacy-peer-deps && npm run build`
-4. **Manual Deploy → Clear build cache & deploy** again after fixing the above.
-5. Confirm deploy: home hero should show **`v2.5.2`**. Hard-refresh (CDN `s-maxage=300`).
+https://dashboard.render.com/static/srv-db32invavr4c739imk00 → **Settings → Build & Deploy**
 
-**Required once (agent cannot do this):** Render → `crewpay` → Settings → Deploy Hook → copy URL → GitHub repo secret `RENDER_DEPLOY_HOOK`. Without it, `.github/workflows/deploy-render.yml` is a no-op.
+| Setting | Must be |
+| --- | --- |
+| Branch | `main` |
+| **Root Directory** | **empty** (clear `agent/crew` if present) |
+| **Build Command** | `true` (publishes the committed `render-site/`) **or** the multi-line build from `render.yaml` |
+| **Publish Directory** | `render-site` |
+| Auto-Deploy | **On Commit** |
 
-**Reference build (already correct):** https://fxams.github.io/crew/ — home has no form; launch is at `/crew/launch`.
+Then **Manual Deploy → Clear build cache & deploy**.
+
+Confirm:
+
+1. https://crewpay.dev/DEPLOYED_AT.txt shows a fresh UTC timestamp  
+2. Home hero shows **`v2.5.3`**  
+3. HTML references `index-D9ACNYC7.js` (or a newer hash), not `index-C3DQKFyN.js`  
+4. Launch form is only on `/launch`
+
+Optional: Deploy Hook URL → GitHub secret `RENDER_DEPLOY_HOOK` for `.github/workflows/deploy-render.yml`.
 
 ### Render environment variables
 
@@ -69,7 +74,7 @@ Set in the Render dashboard (or via API). **Do not commit API keys to git.**
 ### Custom domains
 
 Canonical app URL: **https://app.crewpay.dev**  
-Apex **crewpay.dev** can stay attached to the same static site (or URL-redirect to `app`).
+Apex **crewpay.dev** can stay attached to the same static site.
 
 In Render → **crewpay** static site → **Custom Domains**, add:
 
@@ -86,13 +91,19 @@ Then at your DNS host (Namecheap):
 
 Wait for Render to show **Verified** + TLS on `app.crewpay.dev`.
 
-Notes:
+### Refresh committed `render-site/` (maintainers)
 
-- Custom-domain CNAME to `*.onrender.com` is fine even when the public onrender URL is disabled — users hit `app.crewpay.dev`, not the onrender hostname.
-- After adding `app`, update **crewpay-api** env `CORS_ORIGINS` if the dashboard value is not synced from `render.yaml`.
-- Optional: registrar URL redirect `@` → `https://app.crewpay.dev` so the apex always lands on the app host.
+```bash
+cd agent/crew
+export VITE_BASE_PATH=/ VITE_SITE_URL=https://app.crewpay.dev
+npm ci --legacy-peer-deps
+npm run build
+rm -rf ../../render-site && mkdir -p ../../render-site
+cp -R dist/. ../../render-site/
+date -u +%Y-%m-%dT%H:%M:%SZ > ../../render-site/DEPLOYED_AT.txt
+```
 
-### Local production check (Render-style)
+### Local production check
 
 ```bash
 cd agent/crew
@@ -106,17 +117,8 @@ npm run preview
 
 ---
 
-## Legacy mirror (GitHub Pages)
-
-URL: **https://fxams.github.io/crew/**
-
-Workflow `Deploy CREW to GitHub Pages` on `main` builds with `VITE_BASE_PATH=/crew/` and publishes to the `gh-pages` branch. You can disable this workflow once Render is the only public URL.
-
----
-
 ## Production notes
 
 - App is **mainnet-only** — connect Phantom to launch.
 - Set `VITE_RPC_URL` for reliable RPC; browser calls to `api.mainnet-beta.solana.com` often return **403**.
-- **Metadata upload:** Pump IPFS has no CORS for static hosts. CREW uses Irys (Phantom-signed) by default; optional `VITE_PINATA_JWT` for Pinata.
-- Optional X field format: `https://x.com/username` or `@username`.
+- GitHub Pages workflow removed; disable Pages in GitHub → Settings → Pages if it is still enabled.
