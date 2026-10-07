@@ -1,6 +1,6 @@
 import { assertSafeRpcUrl } from './security'
 
-export const CREW_VERSION = '2.5.8'
+export const CREW_VERSION = '2.5.9'
 
 /** Official CREW / CrewPay HQ account on X. */
 export const CREW_X_URL = 'https://x.com/CrewPayHQ'

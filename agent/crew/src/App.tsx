@@ -14,6 +14,7 @@ import {
   type LaunchDraft,
 } from "./data";
 import { ReceiptCard } from "./components/ReceiptCard";
+import { TopKolsPage } from "./components/TopKolsPage";
 import { BRAND_ASSETS, BRAND_PALETTE, brandUrl } from "./lib/brand";
 import {
   AGENT_MODELS,
@@ -49,7 +50,7 @@ import {
 } from "./lib/edges";
 import type { HireRole } from "./lib/types";
 import { launchCrew } from "./lib/launch";
-import { isLaunchPath } from "./lib/routes";
+import { isKolsPath, isLaunchPath } from "./lib/routes";
 import { distributeCreatorFees, lockHolderKolFeeShares, wireCrewFeeShares } from "./lib/pump/fees";
 import {
   remitsFromSignature,
@@ -66,6 +67,7 @@ import {
 } from "./lib/pump/resolve-wallet";
 import {
   applyNarrativeHire,
+  reorderCrewSeats,
   type NarrativeHirePlan,
 } from "./lib/pump/narrative-hire";
 import {
@@ -135,6 +137,7 @@ export default function App() {
   const navigate = useNavigate();
   const path = location.pathname.replace(/\/+$/, "") || "/";
   const isLaunchPage = isLaunchPath(path);
+  const isKolsPage = isKolsPath(path);
   const [draft, setDraft] = useState<LaunchDraft>(() => initialDraft());
   const [busy, setBusy] = useState(false);
   const [cranking, setCranking] = useState<string | null>(null);
@@ -442,6 +445,26 @@ export default function App() {
     setDraft((prev) => ({ ...prev, crew: withEqualShares(prev.crew) }));
   }
 
+  function moveCrewSeat(index: number, delta: -1 | 1) {
+    const j = index + delta;
+    if (j < 0 || j >= draft.crew.length) return;
+    const { crew, hires } = reorderCrewSeats(draft.crew, index, delta, hirePlan?.hires);
+    setDraft((prev) => ({ ...prev, crew }));
+    if (hirePlan && hires) {
+      setHirePlan({ ...hirePlan, hires, crew: crew.map((m) => ({ ...m })) });
+    }
+    setLinkStatus((status) => {
+      const next = { ...status };
+      const a = next[index];
+      const b = next[j];
+      if (a) next[j] = a;
+      else delete next[j];
+      if (b) next[index] = b;
+      else delete next[index];
+      return next;
+    });
+  }
+
   function removeCrew(index: number) {
     setDraft((prev) => {
       if (prev.crew.length <= 1) return prev;
@@ -450,6 +473,7 @@ export default function App() {
         crew: withEqualShares(prev.crew.filter((_, i) => i !== index)),
       };
     });
+    setHirePlan(null);
   }
 
   function onImage(file: File | null) {
@@ -964,6 +988,12 @@ export default function App() {
           <nav className="nav-links">
             <Link to={{ pathname: "/", hash: "edges" }}>Edges</Link>
             <Link to={{ pathname: "/", hash: "board" }}>Tape</Link>
+            <Link
+              className={isKolsPage ? "is-active-nav-text" : undefined}
+              to="/kols"
+            >
+              KOLs
+            </Link>
             <Link to={{ pathname: "/", hash: "brand" }}>Brand</Link>
             <a href={CREW_X_URL} target="_blank" rel="noreferrer">
               X
@@ -995,7 +1025,9 @@ export default function App() {
         </div>
       </div>
 
-      {!isLaunchPage ? (
+      {isKolsPage ? <TopKolsPage /> : null}
+
+      {!isLaunchPage && !isKolsPage ? (
         <>
       <div className="app-shell">
         <main id="top">
@@ -1937,14 +1969,18 @@ export default function App() {
                 {hirePlan ? (
                   <div className="hire-plan" role="status">
                     <p className="hire-plan-tags">
-                      Narrative: {hirePlan.match.tags.map((t) => `#${t}`).join(" · ")}
+                      Fit: {hirePlan.match.tags.map((t) => `#${t}`).join(" · ")}
+                      {hirePlan.match.tags[0] ? ` · primary #${hirePlan.match.tags[0]}` : ""}
                     </p>
                     <ul className="hire-plan-list">
                       {hirePlan.hires.map((h) => (
                         <li key={h.kol.id}>
-                          <strong>#{h.kol.rank} @{h.kol.x || h.kol.pump}</strong>
+                          <strong>
+                            #{h.hireRank} @{h.kol.x || h.kol.pump}
+                          </strong>
                           {" · "}
-                          {h.share}% · {h.role}
+                          db#{h.kol.rank} · {h.share}% · {h.role}
+                          {h.reasons[0] ? ` · ${h.reasons[0]}` : ""}
                         </li>
                       ))}
                     </ul>
@@ -1954,9 +1990,33 @@ export default function App() {
                   {draft.crew.map((member, index) => (
                     <div className="crew-block has-wallet" key={`crew-${index}`}>
                       <div className="crew-row">
-                        <span className="crew-seat" aria-hidden>
-                          {index + 1}
-                        </span>
+                        <div className="crew-rank-controls">
+                          <span className="crew-seat" aria-label={`Hire rank ${index + 1}`}>
+                            {index + 1}
+                          </span>
+                          <div className="crew-rank-arrows">
+                            <button
+                              type="button"
+                              className="crew-rank-btn"
+                              disabled={index === 0}
+                              onClick={() => moveCrewSeat(index, -1)}
+                              aria-label={`Move ${member.handle || `seat ${index + 1}`} up`}
+                              title="Move up"
+                            >
+                              ▲
+                            </button>
+                            <button
+                              type="button"
+                              className="crew-rank-btn"
+                              disabled={index >= draft.crew.length - 1}
+                              onClick={() => moveCrewSeat(index, 1)}
+                              aria-label={`Move ${member.handle || `seat ${index + 1}`} down`}
+                              title="Move down"
+                            >
+                              ▼
+                            </button>
+                          </div>
+                        </div>
                         <input
                           value={member.handle}
                           onChange={(e) => updateCrew(index, { handle: e.target.value })}
