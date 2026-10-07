@@ -1,5 +1,9 @@
 # CREW production — https://app.crewpay.dev
 # Services: static site + API + Postgres + buyback cron
+#
+# IMPORTANT (static site): do NOT set Root Directory in the Render dashboard.
+# Publish directory must be `render-site` (repo-root). Blueprint sync often lags —
+# if the live site stays on an old bundle, set these manually then Clear cache & deploy.
 
 databases:
   - name: crewpay-db
@@ -14,17 +18,25 @@ services:
   - type: web
     name: crewpay
     runtime: static
-    rootDir: agent/crew
     branch: main
-    # Keep build lean on Render (tests run in GitHub Actions). A failed `npm test`
-    # on the static builder leaves the previous deploy live forever.
-    # With rootDir set, buildCommand + staticPublishPath are relative to that directory
-    # (see Render monorepo docs). Publish `dist` (= agent/crew/dist on disk).
-    buildCommand: rm -rf dist && export VITE_BASE_PATH=/ VITE_SITE_URL=https://app.crewpay.dev && npm ci --legacy-peer-deps && npm run build
-    staticPublishPath: dist
+    # No rootDir — build + publish paths are repo-root relative (unambiguous).
+    # `render-site/` is also committed so a dashboard with a broken build command
+    # can still publish by setting Build Command to `true` and Publish Directory
+    # to `render-site`.
+    buildCommand: |
+      set -e
+      cd agent/crew
+      export VITE_BASE_PATH=/ VITE_SITE_URL=https://app.crewpay.dev
+      npm ci --legacy-peer-deps
+      npm run build
+      cd ../..
+      rm -rf render-site
+      mkdir -p render-site
+      cp -R agent/crew/dist/. render-site/
+      date -u +%Y-%m-%dT%H:%M:%SZ > render-site/DEPLOYED_AT.txt
+    staticPublishPath: render-site
     pullRequestPreviewsEnabled: false
     renderSubdomainPolicy: disabled
-    # Force deploy on every main commit (not checksPass / off).
     autoDeployTrigger: commit
     domains:
       - app.crewpay.dev
