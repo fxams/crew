@@ -38,7 +38,7 @@ Every mode starts with a fixed **25% CREW buyback** of creator fees.
 - No demo mint path — empty desk until real launches
 - Launch templates (incl. Agent hires), scoreboard, desk pulse, CT receipts
 - Crank remits via `distributeCreatorFeesV2`
-- Hosting: https://crewpay.dev (Render static) · GH Pages mirror
+- Hosting: https://app.crewpay.dev (Render static) · GH Pages mirror
 
 ## Explicitly out
 
