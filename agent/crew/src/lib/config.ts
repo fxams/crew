@@ -1,6 +1,6 @@
 import { assertSafeRpcUrl } from './security'
 
-export const CREW_VERSION = '2.5.7'
+export const CREW_VERSION = '2.5.8'
 
 /** Official CREW / CrewPay HQ account on X. */
 export const CREW_X_URL = 'https://x.com/CrewPayHQ'
@@ -117,7 +117,8 @@ export function getPlatformBuybackWallet(): string {
   return w
 }
 
-export const MAX_CREW = 5
+/** Pump fee-share allows up to 10 recipients in the crew pool (plus platform/desk). */
+export const MAX_CREW = 10
 /** Board: launched coins + remit tape */
 export const STORE_KEY = 'crew.platform.v4'
 /** Older board keys — migrated once into STORE_KEY */

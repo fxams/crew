@@ -1,3 +1,5 @@
+import { equalShares } from '../../data'
+import { MAX_CREW } from '../config'
 import type { CrewMember, HireRole, LaunchDraft } from '../types'
 import {
   KOL_DB,
@@ -115,14 +117,10 @@ function roleFor(kol: KolRecord, index: number, used: Set<HireRole>): HireRole {
   return pick
 }
 
-/** Split 100% across n hires — largest share first. */
+/** Equal integer percents that sum to 100 (matches launch desk default). */
 export function splitShares(n: number): number[] {
   if (n <= 0) return []
-  if (n === 1) return [100]
-  if (n === 2) return [60, 40]
-  if (n === 3) return [45, 30, 25]
-  if (n === 4) return [40, 25, 20, 15]
-  return [35, 25, 20, 12, 8]
+  return equalShares(n)
 }
 
 const JUNK_USER = /^user\d+$/i
@@ -135,7 +133,7 @@ export function planNarrativeHires(
   input: { name?: string; ticker?: string; vibe?: string },
   opts?: { limit?: number; minFollowers?: number },
 ): NarrativeHirePlan {
-  const limit = Math.max(1, Math.min(5, opts?.limit ?? 3))
+  const limit = Math.max(1, Math.min(MAX_CREW, opts?.limit ?? 3))
   // Avoid hiring empty "user123…" profiles and ultra-thin accounts by default
   const minFollowers = opts?.minFollowers ?? 5_000
   const match = detectNarratives(input)

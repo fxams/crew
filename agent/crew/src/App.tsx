@@ -7,7 +7,9 @@ import {
   DEFAULT_DRAFT,
   DESK_MODES,
   normalizeTicker,
+  resizeCrew,
   totalShare,
+  withEqualShares,
   type CrewMember,
   type LaunchDraft,
 } from "./data";
@@ -22,6 +24,7 @@ import {
   CREW_VERSION,
   CREW_X_URL,
   HIRE_ROLE_OPTIONS,
+  MAX_CREW,
   MODE_DESK_BPS,
   PLATFORM_BUYBACK_BPS,
 } from "./lib/config";
@@ -87,8 +90,6 @@ type LinkStatus = {
   detail?: string;
   wallet?: string;
 };
-
-const MAX_CREW = 5;
 
 function shortAddr(addr: string) {
   if (!addr || addr.length < 10) return addr || "—";
@@ -424,17 +425,30 @@ export default function App() {
     }));
   }
 
-  function addCrew() {
-    setDraft((prev) => {
-      if (prev.crew.length >= MAX_CREW) return prev;
-      return { ...prev, crew: [...prev.crew, { handle: "@", wallet: "", share: 0 }] };
+  function setCrewCount(count: number) {
+    setDraft((prev) => ({ ...prev, crew: resizeCrew(prev.crew, count) }));
+    setLinkStatus((prev) => {
+      const next: Record<number, LinkStatus> = {};
+      const n = Math.min(MAX_CREW, Math.max(1, Math.floor(count)));
+      for (let i = 0; i < n; i++) {
+        if (prev[i]) next[i] = prev[i]!;
+      }
+      return next;
     });
+    setHirePlan(null);
+  }
+
+  function equalizeCrewShares() {
+    setDraft((prev) => ({ ...prev, crew: withEqualShares(prev.crew) }));
   }
 
   function removeCrew(index: number) {
     setDraft((prev) => {
       if (prev.crew.length <= 1) return prev;
-      return { ...prev, crew: prev.crew.filter((_, i) => i !== index) };
+      return {
+        ...prev,
+        crew: withEqualShares(prev.crew.filter((_, i) => i !== index)),
+      };
     });
   }
 
@@ -443,7 +457,9 @@ export default function App() {
   }
 
   function autoHireFromNarrative() {
-    const { draft: next, plan } = applyNarrativeHire(draft, { limit: 3 });
+    const { draft: next, plan } = applyNarrativeHire(draft, {
+      limit: draft.crew.length,
+    });
     autoFilledRef.current = {};
     next.crew.forEach((m, i) => {
       if (m.wallet) autoFilledRef.current[i] = m.wallet;
@@ -1563,35 +1579,36 @@ export default function App() {
 
       {isLaunchPage ? (
       <div className="app-shell page-launch">
-        <section className="section" id="launch">
+        <section className="section section-launch" id="launch">
           <div className="launch-page-head">
-            <Link className="launch-back" to="/">
-              ← Home
-            </Link>
-            <p className="section-label">Launch desk</p>
+            <div className="launch-page-head-row">
+              <Link className="launch-back" to="/">
+                ← Home
+              </Link>
+              <p className="section-label">Launch desk · v{CREW_VERSION}</p>
+            </div>
             <h1 className="section-title">Ship a crew coin.</h1>
             <p className="section-sub">
-              Same coin fields as pump.fun — name, ticker, image required. Description,
-              X, and website optional. Then lock crew fee-share on mainnet.
+              Name, ticker, image, then hire 1–{MAX_CREW} KOLs with equal fee splits by default.
             </p>
           </div>
 
-          <div className="template-row" aria-label="Launch templates">
+          <div className="template-row template-row-compact" aria-label="Launch templates">
             {LAUNCH_TEMPLATES.map((tpl) => (
               <button
                 key={tpl.id}
                 type="button"
                 className="template-chip"
                 onClick={() => applyTemplate(tpl)}
+                title={tpl.blurb}
               >
                 <strong>{tpl.label}</strong>
-                <span>{tpl.blurb}</span>
               </button>
             ))}
           </div>
 
           <div className="launch">
-            <div className="panel form">
+            <div className="panel form form-compact">
               <div className="field">
                 <label>Wallet</label>
                 <button
@@ -1863,23 +1880,43 @@ export default function App() {
                     checked={Boolean(draft.holderKol)}
                     onChange={(e) => setDraft({ ...draft, holderKol: e.target.checked })}
                   />
-                  <span>
-                    Holder KOL mode — skip manual crew; lock fee-share once from top holders ∩
-                    1500 KOL list (polled every minute on the desk)
-                  </span>
+                  <span>Holder KOL — lock fee-share later from top holders ∩ KOL list</span>
                 </label>
               </div>
 
               <div className="field">
-                <label>Crew split + wallets</label>
+                <label>Hire KOLs + wallets</label>
                 {draft.holderKol ? (
                   <p className="hint">
-                    Manual crew skipped. After launch, open the coin desk → Holder KOLs → Lock
-                    when the set looks right (Pump allows one on-chain lock).
+                    Manual crew skipped. After launch, desk → Holder KOLs → Lock (one shot).
                   </p>
                 ) : null}
                 {!draft.holderKol ? (
                 <>
+                <div className="crew-count">
+                  <div className="crew-count-head">
+                    <span>
+                      Seats <strong>{draft.crew.length}</strong> / {MAX_CREW}
+                    </span>
+                    <span className="crew-count-equal">Equal split default</span>
+                  </div>
+                  <input
+                    id="crew-count"
+                    className="crew-count-range"
+                    type="range"
+                    min={1}
+                    max={MAX_CREW}
+                    step={1}
+                    value={draft.crew.length}
+                    onChange={(e) => setCrewCount(Number(e.target.value))}
+                    aria-label={`Number of KOLs to hire, 1 to ${MAX_CREW}`}
+                  />
+                  <div className="crew-count-scale" aria-hidden>
+                    <span>1</span>
+                    <span>5</span>
+                    <span>10</span>
+                  </div>
+                </div>
                 <div className="hire-actions">
                   <button
                     type="button"
@@ -1887,7 +1924,14 @@ export default function App() {
                     onClick={autoHireFromNarrative}
                     disabled={!draft.name.trim() && !draft.vibe.trim() && !draft.ticker.trim()}
                   >
-                    Auto-hire KOLs from narrative
+                    Auto-hire from narrative
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={equalizeCrewShares}
+                  >
+                    Equalize %
                   </button>
                 </div>
                 {hirePlan ? (
@@ -1901,9 +1945,6 @@ export default function App() {
                           <strong>#{h.kol.rank} @{h.kol.x || h.kol.pump}</strong>
                           {" · "}
                           {h.share}% · {h.role}
-                          {" · "}
-                          {(h.kol.followers / 1000).toFixed(h.kol.followers >= 10_000 ? 0 : 1)}k foll
-                          {h.reasons[0] ? ` · ${h.reasons[0]}` : ""}
                         </li>
                       ))}
                     </ul>
@@ -1913,6 +1954,9 @@ export default function App() {
                   {draft.crew.map((member, index) => (
                     <div className="crew-block has-wallet" key={`crew-${index}`}>
                       <div className="crew-row">
+                        <span className="crew-seat" aria-hidden>
+                          {index + 1}
+                        </span>
                         <input
                           value={member.handle}
                           onChange={(e) => updateCrew(index, { handle: e.target.value })}
@@ -1988,14 +2032,6 @@ export default function App() {
                   ))}
                 </div>
                 <div className="alloc-row">
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    type="button"
-                    onClick={addCrew}
-                    disabled={draft.crew.length >= MAX_CREW}
-                  >
-                    + Handle
-                  </button>
                   <div className="alloc-meter" aria-hidden>
                     <div
                       className={`alloc-fill${allocOk ? " is-ok" : ""}`}
@@ -2003,7 +2039,7 @@ export default function App() {
                     />
                   </div>
                   <p className={`hint${allocOk ? " is-ok" : " is-bad"}`}>
-                    {shareTotal}%
+                    {shareTotal}% / 100%
                   </p>
                 </div>
                 </>
@@ -2044,7 +2080,7 @@ export default function App() {
               </button>
             </div>
 
-            <div className="panel preview">
+            <div className="panel preview preview-compact">
               <div className="preview-token">
                 <div
                   className="token-art"
