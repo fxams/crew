@@ -1,0 +1,26 @@
+# CREW production static site — https://crewpay.dev
+# Dashboard: https://dashboard.render.com/static/srv-db32invavr4c739imk00
+services:
+  - type: web
+    name: crewpay
+    runtime: static
+    rootDir: agent/crew
+    branch: main
+    buildCommand: npm ci --legacy-peer-deps && npm test && npm run build
+    staticPublishPath: dist
+    pullRequestPreviewsEnabled: false
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: VITE_BASE_PATH
+        value: /
+      - key: VITE_SITE_URL
+        value: https://crewpay.dev
+      - key: VITE_RPC_URL
+        sync: false
+      - key: VITE_PINATA_JWT
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

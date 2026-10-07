@@ -27,6 +27,8 @@ jobs:
           cache-dependency-path: agent/crew/package-lock.json
       - name: Install, test & build
         env:
+          VITE_BASE_PATH: /crew/
+          VITE_SITE_URL: https://fxams.github.io/crew
           VITE_PINATA_JWT: ${{ secrets.PINATA_JWT }}
           VITE_RPC_URL: ${{ secrets.VITE_RPC_URL }}
         run: |
