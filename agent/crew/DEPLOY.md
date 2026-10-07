@@ -12,6 +12,7 @@
 | On Render subdomain | **Disabled** for the static site |
 | App root | `agent/crew` |
 | Vite `base` | `/` (`VITE_BASE_PATH`) |
+| Routes | `/` home · `/launch` launch desk (SPA rewrite `/* → /index.html`) |
 | Blueprint | `/render.yaml` at repo root |
 
 Auto-deploy: every push to **`main`** (after GitHub repo is connected in Render).
