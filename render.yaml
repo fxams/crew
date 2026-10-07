@@ -18,9 +18,10 @@ services:
     branch: main
     # Keep build lean on Render (tests run in GitHub Actions). A failed `npm test`
     # on the static builder leaves the previous deploy live forever.
-    # NOTE: build runs with cwd=rootDir, but staticPublishPath is relative to REPO ROOT.
+    # With rootDir set, buildCommand + staticPublishPath are relative to that directory
+    # (see Render monorepo docs). Publish `dist` (= agent/crew/dist on disk).
     buildCommand: rm -rf dist && export VITE_BASE_PATH=/ VITE_SITE_URL=https://app.crewpay.dev && npm ci --legacy-peer-deps && npm run build
-    staticPublishPath: agent/crew/dist
+    staticPublishPath: dist
     pullRequestPreviewsEnabled: false
     renderSubdomainPolicy: disabled
     # Force deploy on every main commit (not checksPass / off).
