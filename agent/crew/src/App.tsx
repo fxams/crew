@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
@@ -123,6 +124,10 @@ function initialDraft(): LaunchDraft {
 export default function App() {
   const wallet = useWallet();
   const { setVisible } = useWalletModal();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const path = location.pathname.replace(/\/+$/, "") || "/";
+  const isLaunchPage = path === "/launch";
   const [draft, setDraft] = useState<LaunchDraft>(() => initialDraft());
   const [busy, setBusy] = useState(false);
   const [cranking, setCranking] = useState<string | null>(null);
@@ -895,13 +900,24 @@ export default function App() {
     }
   }
 
+  useEffect(() => {
+    if (location.hash) {
+      const id = location.hash.replace(/^#/, "");
+      const go = () => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+      requestAnimationFrame(go);
+      window.setTimeout(go, 80);
+      return;
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [path, location.hash]);
+
   return (
-    <div className="site">
+    <div className={`site${isLaunchPage ? " site-launch" : ""}`}>
       <div className="noise" aria-hidden />
 
       <header className="nav-shell">
         <div className="app-shell nav">
-          <a className="brand" href="#top">
+          <Link className="brand" to="/">
             <img
               className="brand-mark-img"
               src={brandUrl("logo-mark.svg")}
@@ -910,11 +926,11 @@ export default function App() {
               alt=""
             />
             CREW
-          </a>
+          </Link>
           <nav className="nav-links">
-            <a href="#edges">Edges</a>
-            <a href="#board">Tape</a>
-            <a href="#brand">Brand</a>
+            <Link to={{ pathname: "/", hash: "edges" }}>Edges</Link>
+            <Link to={{ pathname: "/", hash: "board" }}>Tape</Link>
+            <Link to={{ pathname: "/", hash: "brand" }}>Brand</Link>
             <button
               type="button"
               className={`btn btn-ghost btn-nav wallet-btn${connected ? " is-on" : ""}`}
@@ -922,13 +938,18 @@ export default function App() {
             >
               {connected ? shortAddr(wallet.publicKey!.toBase58()) : "Connect"}
             </button>
-            <a className="btn btn-primary btn-nav" href="#launch">
+            <Link
+              className={`btn btn-primary btn-nav${isLaunchPage ? " is-active-nav" : ""}`}
+              to="/launch"
+            >
               Launch
-            </a>
+            </Link>
           </nav>
         </div>
       </header>
 
+      {!isLaunchPage ? (
+        <>
       <div className="app-shell">
         <main id="top">
           <section className="hero">
@@ -952,9 +973,9 @@ export default function App() {
                 <em>{PLATFORM_BUYBACK_BPS / 100}% CREW buyback</em> on every launch.
               </p>
               <div className="hero-actions">
-                <a className="btn btn-primary" href="#launch">
+                <Link className="btn btn-primary" to="/launch">
                   Launch coin
-                </a>
+                </Link>
                 <a className="btn btn-ghost" href="#edges">
                   Why CREW
                 </a>
@@ -1490,14 +1511,24 @@ export default function App() {
             </div>
           </div>
         </section>
+      </div>
+        </>
+      ) : null}
 
+      {isLaunchPage ? (
+      <div className="app-shell page-launch">
         <section className="section" id="launch">
-          <p className="section-label">Launch desk</p>
-          <h2 className="section-title">Ship a crew coin.</h2>
-          <p className="section-sub">
-            Same coin fields as pump.fun — name, ticker, image required. Description,
-            X, and website optional. Then lock crew fee-share on mainnet.
-          </p>
+          <div className="launch-page-head">
+            <Link className="launch-back" to="/">
+              ← Home
+            </Link>
+            <p className="section-label">Launch desk</p>
+            <h1 className="section-title">Ship a crew coin.</h1>
+            <p className="section-sub">
+              Same coin fields as pump.fun — name, ticker, image required. Description,
+              X, and website optional. Then lock crew fee-share on mainnet.
+            </p>
+          </div>
 
           <div className="template-row" aria-label="Launch templates">
             {LAUNCH_TEMPLATES.map((tpl) => (
@@ -2117,7 +2148,7 @@ export default function App() {
                         const live =
                           coins.find((c) => c.mint === result.mint) ?? result;
                         setSelectedCoin(live);
-                        document.getElementById("board")?.scrollIntoView({ behavior: "smooth" });
+                        navigate({ pathname: "/", hash: "board" });
                       }}
                     >
                       Open desk
@@ -2137,6 +2168,13 @@ export default function App() {
           </div>
         </section>
 
+        <footer className="footer">
+          <div>CREW · humans get paid · v{CREW_VERSION}</div>
+          <div>{PLATFORM_BUYBACK_BPS / 100}% CREW buyback · humans get the rest</div>
+        </footer>
+      </div>
+      ) : (
+      <div className="app-shell">
         <section className="section" id="brand">
           <p className="section-label">Brand kit</p>
           <h2 className="section-title">CREW look.</h2>
@@ -2232,23 +2270,23 @@ export default function App() {
           <div>{PLATFORM_BUYBACK_BPS / 100}% CREW buyback · humans get the rest</div>
         </footer>
       </div>
+      )}
 
       <div className="mobile-cta">
         <button
           className="btn btn-primary btn-wide"
           type="button"
           onClick={() => {
-            const top = document.getElementById("launch")?.getBoundingClientRect().top ?? 999;
-            if (top > 100 || top < -120) {
-              document.getElementById("launch")?.scrollIntoView({ behavior: "smooth" });
+            if (!isLaunchPage) {
+              navigate("/launch");
               return;
             }
             if (!launchReady) return;
             void onLaunch();
           }}
-          disabled={busy || !launchReady}
+          disabled={isLaunchPage ? busy || !launchReady : false}
         >
-          {launchLabel}
+          {isLaunchPage ? launchLabel : "Launch coin"}
         </button>
       </div>
     </div>
