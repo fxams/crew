@@ -30,14 +30,14 @@ Check these in order on https://dashboard.render.com/static/srv-db32invavr4c739i
    - **Deploy a specific commit** in the UI **disables** auto-deploys — turn Auto-Deploy back **On**.  
    - Avoid **After CI Checks Pass** unless a required check always reports on `main`.
 3. **Settings → Build & Deploy** — Branch = `main`, Root Directory = `agent/crew`.  
-   - **Publish directory must be `agent/crew/dist`** (path is relative to the **repo root**, not the root directory).  
-     If this is just `dist`, Render publishes an empty/stale folder and your new Vite build is ignored — site never updates.  
+   - **Publish directory must be `dist`** (relative to Root Directory → publishes `agent/crew/dist`).  
+     Do **not** set Publish Directory to `agent/crew/dist` when Root Directory is already `agent/crew` — that looks for a nested path and leaves the previous bundle live.  
    - Build command should be:  
      `rm -rf dist && export VITE_BASE_PATH=/ VITE_SITE_URL=https://app.crewpay.dev && npm ci --legacy-peer-deps && npm run build`
 4. **Manual Deploy → Clear build cache & deploy** again after fixing the above.
-5. Confirm deploy: home hero should show **`v2.5.0`**. Hard-refresh (CDN `s-maxage=300`).
+5. Confirm deploy: home hero should show **`v2.5.2`**. Hard-refresh (CDN `s-maxage=300`).
 
-Optional: add a **Deploy Hook** URL as GitHub secret `RENDER_DEPLOY_HOOK` so `.github/workflows/deploy-render.yml` triggers deploys on every `main` push.
+**Required once (agent cannot do this):** Render → `crewpay` → Settings → Deploy Hook → copy URL → GitHub repo secret `RENDER_DEPLOY_HOOK`. Without it, `.github/workflows/deploy-render.yml` is a no-op.
 
 **Reference build (already correct):** https://fxams.github.io/crew/ — home has no form; launch is at `/crew/launch`.
 
