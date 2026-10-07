@@ -1697,6 +1697,15 @@ a {
   font-size: 0.7rem;
 }
 
+.footer a {
+  color: var(--acid);
+  text-decoration: none;
+}
+
+.footer a:hover {
+  text-decoration: underline;
+}
+
 .mobile-cta {
   display: none;
 }
