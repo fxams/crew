@@ -35,6 +35,8 @@ jobs:
           npm ci --legacy-peer-deps
           npm test
           npm run build
+          # SPA deep links (/crew/launch) need a 404 fallback on GitHub Pages
+          cp dist/index.html dist/404.html
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:

@@ -1,0 +1,33 @@
+# Triggers a Render static-site deploy when main updates.
+# Setup (once):
+# 1. Render → crewpay → Settings → Deploy Hook → copy URL
+# 2. GitHub → Settings → Secrets → Actions → RENDER_DEPLOY_HOOK = that URL
+name: Deploy CREW to Render
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "agent/crew/**"
+      - "render.yaml"
+      - ".github/workflows/deploy-render.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: render-crewpay
+  cancel-in-progress: true
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render deploy hook
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::warning::RENDER_DEPLOY_HOOK secret is not set. Add it from Render → crewpay → Deploy Hook, or click Manual Deploy in the Render dashboard."
+            exit 0
+          fi
+          curl -fsS -X POST "$HOOK"
+          echo "Render deploy triggered."
