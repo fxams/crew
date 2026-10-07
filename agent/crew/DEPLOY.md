@@ -40,9 +40,9 @@ Then **Manual Deploy → Clear build cache & deploy**.
 Confirm:
 
 1. https://crewpay.dev/DEPLOYED_AT.txt shows a fresh UTC timestamp  
-2. Home hero shows **`v2.5.3`**  
-3. HTML references `index-D9ACNYC7.js` (or a newer hash), not `index-C3DQKFyN.js`  
-4. Launch form is only on `/launch`
+2. Home hero shows **`v2.5.4`**  
+3. HTML references `index-Fb4Ehr7N.js` (or a newer hash), not `index-C3DQKFyN.js`  
+4. Launch form (coin name / ticker) is only on `/launch` — the home page does not mount it
 
 Optional: Deploy Hook URL → GitHub secret `RENDER_DEPLOY_HOOK` for `.github/workflows/deploy-render.yml`.
 

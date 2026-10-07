@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 64" role="img" aria-label="CREW">
+  <rect width="64" height="64" rx="14" fill="#08100C"/>
+  <path d="M10 18V12h6" fill="none" stroke="#FFB84D" stroke-width="2.5" stroke-linecap="square"/>
+  <path d="M54 46v6h-6" fill="none" stroke="#FFB84D" stroke-width="2.5" stroke-linecap="square"/>
+  <path
+    d="M44.5 20.5c-2.2-2.8-5.8-4.6-10.4-4.6-8.8 0-15 6.6-15 16.1s6.2 16.1 15 16.1c4.6 0 8.2-1.8 10.4-4.6l-5.4-3.8c-1.1 1.4-2.8 2.3-5 2.3-4.4 0-7.4-3.4-7.4-10s3-10 7.4-10c2.2 0 3.9.9 5 2.3l5.4-3.8z"
+    fill="#C8FF3D"
+  />
+  <text
+    x="80"
+    y="44"
+    fill="#C8FF3D"
+    font-family="Syne, Arial Black, sans-serif"
+    font-size="36"
+    font-weight="800"
+    letter-spacing="0.12em"
+  >CREW</text>
+</svg>
