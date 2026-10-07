@@ -969,6 +969,16 @@ export default function App() {
         </div>
       </header>
 
+      <div className="tape tape-top" aria-label="Live desk tape">
+        <div className="tape-track">
+          {tape.map((item, index) => (
+            <div className="tape-item" key={`${item.id}-${index}`}>
+              <strong>TAPE</strong> · {item.text}
+            </div>
+          ))}
+        </div>
+      </div>
+
       {!isLaunchPage ? (
         <>
       <div className="app-shell">
@@ -1045,16 +1055,6 @@ export default function App() {
             </motion.aside>
           </section>
         </main>
-      </div>
-
-      <div className="tape" aria-label="Live desk tape">
-        <div className="tape-track">
-          {tape.map((item, index) => (
-            <div className="tape-item" key={`${item.id}-${index}`}>
-              <strong>TAPE</strong> · {item.text}
-            </div>
-          ))}
-        </div>
       </div>
 
       <div className="app-shell">
