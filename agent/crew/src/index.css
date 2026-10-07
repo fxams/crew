@@ -278,12 +278,20 @@ a {
 }
 
 .brand-preview .hint,
-.brand-preview .success-actions {
+.brand-preview .success-actions,
+.brand-preview .brand-format-row {
   padding: 0 1rem;
 }
 
 .brand-preview .success-actions {
   padding-bottom: 1rem;
+}
+
+.brand-format-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.35rem 0 0.55rem;
 }
 
 @media (max-width: 900px) {

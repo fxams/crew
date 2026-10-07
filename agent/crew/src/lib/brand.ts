@@ -1,10 +1,17 @@
+export type BrandFormat = {
+  label: 'PNG' | 'JPG' | 'SVG'
+  file: string
+}
+
 export type BrandAsset = {
   id: string
   title: string
   blurb: string
   kind: 'logo' | 'banner' | 'post'
-  /** Path under `public/brand` (no leading slash). */
+  /** Primary preview file under `public/brand` (prefer raster). */
   file: string
+  /** Downloadable formats — PNG/JPG first, SVG when available. */
+  formats: BrandFormat[]
   ratio: '1:1' | '16:9' | 'lockup'
 }
 
@@ -15,6 +22,22 @@ export function brandUrl(file: string) {
   return `${base}brand/${file.replace(/^\//, '')}`
 }
 
+function logoFormats(stem: string, withSvg = true): BrandFormat[] {
+  const formats: BrandFormat[] = [
+    { label: 'PNG', file: `${stem}.png` },
+    { label: 'JPG', file: `${stem}.jpg` },
+  ]
+  if (withSvg) formats.push({ label: 'SVG', file: `${stem}.svg` })
+  return formats
+}
+
+function rasterFormats(stem: string): BrandFormat[] {
+  return [
+    { label: 'PNG', file: `${stem}.png` },
+    { label: 'JPG', file: `${stem}.jpg` },
+  ]
+}
+
 /** Selectable CREW brand assets served from `/brand`. */
 export const BRAND_ASSETS: BrandAsset[] = [
   {
@@ -22,7 +45,8 @@ export const BRAND_ASSETS: BrandAsset[] = [
     title: 'Logo mark',
     blurb: 'C plate — favicon & app icon',
     kind: 'logo',
-    file: 'logo-mark.svg',
+    file: 'logo-mark.png',
+    formats: logoFormats('logo-mark'),
     ratio: '1:1',
   },
   {
@@ -30,7 +54,8 @@ export const BRAND_ASSETS: BrandAsset[] = [
     title: 'Logo lockup',
     blurb: 'Mark + CREW wordmark',
     kind: 'logo',
-    file: 'logo-lockup.svg',
+    file: 'logo-lockup.png',
+    formats: logoFormats('logo-lockup'),
     ratio: 'lockup',
   },
   {
@@ -38,7 +63,8 @@ export const BRAND_ASSETS: BrandAsset[] = [
     title: 'Wordmark',
     blurb: 'Acid CREW type only',
     kind: 'logo',
-    file: 'logo-wordmark.svg',
+    file: 'logo-wordmark.png',
+    formats: logoFormats('logo-wordmark'),
     ratio: 'lockup',
   },
   {
@@ -47,6 +73,7 @@ export const BRAND_ASSETS: BrandAsset[] = [
     blurb: 'Link previews · 16:9',
     kind: 'banner',
     file: 'banner-og.jpg',
+    formats: rasterFormats('banner-og'),
     ratio: '16:9',
   },
   {
@@ -55,6 +82,7 @@ export const BRAND_ASSETS: BrandAsset[] = [
     blurb: 'Profile banner · 16:9',
     kind: 'banner',
     file: 'banner-x-header.jpg',
+    formats: rasterFormats('banner-x-header'),
     ratio: '16:9',
   },
   {
@@ -63,6 +91,7 @@ export const BRAND_ASSETS: BrandAsset[] = [
     blurb: 'Humans get paid',
     kind: 'post',
     file: 'post-hire.jpg',
+    formats: rasterFormats('post-hire'),
     ratio: '1:1',
   },
   {
@@ -71,14 +100,16 @@ export const BRAND_ASSETS: BrandAsset[] = [
     blurb: 'Money on the tape',
     kind: 'post',
     file: 'post-tape.jpg',
+    formats: rasterFormats('post-tape'),
     ratio: '1:1',
   },
   {
     id: 'post-zero',
-    title: 'Post · 0% cut',
-    blurb: 'Platform takes nothing',
+    title: 'Post · buyback',
+    blurb: '25% CREW buyback',
     kind: 'post',
     file: 'post-zero-cut.jpg',
+    formats: rasterFormats('post-zero-cut'),
     ratio: '1:1',
   },
   {
@@ -87,6 +118,7 @@ export const BRAND_ASSETS: BrandAsset[] = [
     blurb: 'Split · Buyback · Raid · Agent',
     kind: 'post',
     file: 'post-modes.jpg',
+    formats: rasterFormats('post-modes'),
     ratio: '1:1',
   },
 ]
