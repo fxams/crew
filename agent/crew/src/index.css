@@ -1297,11 +1297,46 @@ a {
   color: #ffb4a2;
 }
 
+.hire-source {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
+.hire-source-btn {
+  border: 1px solid var(--line);
+  background: rgba(5, 10, 7, 0.55);
+  color: var(--muted);
+  border-radius: 10px;
+  padding: 0.7rem 0.55rem;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.hire-source-btn.is-on {
+  border-color: var(--acid);
+  color: var(--acid-ink);
+  background: linear-gradient(180deg, rgba(200, 255, 61, 0.95), rgba(200, 255, 61, 0.75));
+}
+
 .hire-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
   margin: 0.35rem 0 0.55rem;
+}
+
+.hire-actions-holder {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.hire-holder-hint {
+  margin: 0;
 }
 
 .hire-plan {
