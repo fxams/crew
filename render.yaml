@@ -9,6 +9,10 @@ services:
     buildCommand: export VITE_BASE_PATH=/ VITE_SITE_URL=https://crewpay.dev && npm ci --legacy-peer-deps && npm test && npm run build
     staticPublishPath: dist
     pullRequestPreviewsEnabled: false
+    # Public URL is crewpay.dev only — onrender.com subdomain disabled
+    renderSubdomainPolicy: disabled
+    domains:
+      - crewpay.dev
     envVars:
       - key: NODE_VERSION
         value: "22"

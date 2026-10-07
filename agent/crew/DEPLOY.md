@@ -6,7 +6,7 @@
 | --- | --- |
 | Host | [Render](https://render.com) static site **`crewpay`** |
 | Dashboard | https://dashboard.render.com/static/srv-db32invavr4c739imk00 |
-| On Render URL | https://crewpay-ew9i.onrender.com |
+| On Render subdomain | **Disabled** — site is only at crewpay.dev |
 | App root | `agent/crew` |
 | Vite `base` | `/` (`VITE_BASE_PATH`) |
 | Publish | `agent/crew/dist` |
@@ -28,16 +28,16 @@ Set in the Render dashboard (or via API). **Do not commit API keys to git.**
 
 ### Custom domain `crewpay.dev`
 
-Domains are registered on the Render service (`crewpay.dev` + `www.crewpay.dev` → apex).
+DNS is configured; **crewpay.dev** is **verified** on Render with TLS. The default `*.onrender.com` subdomain is **disabled** (`renderSubdomainPolicy: disabled`) — requests to `crewpay-*.onrender.com` return 404.
 
-At your DNS host for **crewpay.dev**, add:
+Expected DNS:
 
 | Host | Type | Value |
 | --- | --- | --- |
 | `@` (apex) | **A** | `216.24.57.1` |
-| `www` | **CNAME** | `crewpay-ew9i.onrender.com` |
+| `www` | **URL redirect** (or A `216.24.57.1`) | `https://crewpay.dev` |
 
-Render may also show a verification TXT/CNAME in the dashboard under **Settings → Custom Domains** until status is **Verified**. TLS is issued automatically after DNS propagates.
+Do **not** CNAME `www` to `*.onrender.com` while the Render subdomain is disabled — TLS for www will not issue. Prefer a registrar redirect from `www` → apex.
 
 ### Local production check (Render-style)
 
