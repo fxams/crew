@@ -4,7 +4,12 @@
  */
 
 import type { CrewMember, DeskMode } from '../types'
-import { MODE_DESK_BPS } from '../config'
+import {
+  MODE_DESK_BPS,
+  PLATFORM_BUYBACK_BPS,
+  getPlatformBuybackWallet,
+} from '../config'
+import type { ShareholderRole } from '../validation'
 import type { KolRecord } from './kol-directory'
 import { KOL_DB } from './kol-directory'
 
@@ -41,11 +46,17 @@ export type HolderKolMatch = {
 
 export type HolderKolProposal = {
   matches: HolderKolMatch[]
-  /** Full shareholder list for updateFeeSharesV2 (includes desk if any). */
-  shareholders: { wallet: string; bps: number; handle: string; role: 'crew' | 'desk' }[]
+  /** Full shareholder list for updateFeeSharesV2 (platform + desk + KOLs). */
+  shareholders: {
+    wallet: string
+    bps: number
+    handle: string
+    role: ShareholderRole
+  }[]
   /** Crew rows for board UI (KOL matches only, shares sum to 100). */
   crew: CrewMember[]
   deskBps: number
+  platformBps: number
   matchedBalance: number
   scannedHolders: number
   excludedVaults: number
@@ -77,18 +88,23 @@ export function proposeHolderKolShares(opts: {
   holders: HolderRow[]
   mode: DeskMode
   deskWallet?: string
+  platformWallet?: string
   vaultOwners?: Set<string>
-  /** Max KOL recipients after desk slot. Default fills Pump cap. */
+  /** Max KOL recipients after platform/desk slots. Default fills Pump cap. */
   maxKols?: number
 }): HolderKolProposal {
+  const platformBps = PLATFORM_BUYBACK_BPS
+  const platformWallet = (opts.platformWallet || getPlatformBuybackWallet()).trim()
   const deskBps = MODE_DESK_BPS[opts.mode]
   const deskSlots = deskBps > 0 && opts.deskWallet ? 1 : 0
+  const platformSlots = platformWallet ? 1 : 0
+  const reservedSlots = deskSlots + platformSlots
   const maxKols = Math.min(
-    opts.maxKols ?? PUMP_MAX_SHAREHOLDERS - deskSlots,
-    PUMP_MAX_SHAREHOLDERS - deskSlots,
+    opts.maxKols ?? PUMP_MAX_SHAREHOLDERS - reservedSlots,
+    PUMP_MAX_SHAREHOLDERS - reservedSlots,
   )
   if (maxKols < 1) {
-    throw new Error('No shareholder slots left after desk reserve.')
+    throw new Error('No shareholder slots left after platform/desk reserves.')
   }
 
   const vaults = opts.vaultOwners ?? new Set<string>()
@@ -123,7 +139,10 @@ export function proposeHolderKolShares(opts: {
   matched.sort((a, b) => b.row.uiAmount - a.row.uiAmount)
   const top = matched.slice(0, maxKols)
   const matchedBalance = top.reduce((s, m) => s + m.row.uiAmount, 0)
-  const crewPoolBps = 10_000 - deskBps
+  const crewPoolBps = 10_000 - platformBps - deskBps
+  if (crewPoolBps < 0) {
+    throw new Error('Platform + desk reserves exceed 100% of fees.')
+  }
 
   const raw = top.map((m) => {
     const bps =
@@ -199,6 +218,22 @@ export function proposeHolderKolShares(opts: {
     }
   }
 
+  if (platformBps > 0 && platformWallet) {
+    const existing = shareholders.find((s) => s.wallet === platformWallet)
+    if (existing) {
+      existing.bps += platformBps
+      existing.role = 'platform'
+      existing.handle = '@crew-buyback'
+    } else {
+      shareholders.unshift({
+        wallet: platformWallet,
+        bps: platformBps,
+        handle: '@crew-buyback',
+        role: 'platform',
+      })
+    }
+  }
+
   const total = shareholders.reduce((s, r) => s + r.bps, 0)
   if (shareholders.length && total !== 10_000) {
     throw new Error(`Holder KOL share map must total 10000 bps (got ${total}).`)
@@ -219,6 +254,7 @@ export function proposeHolderKolShares(opts: {
     shareholders,
     crew,
     deskBps,
+    platformBps,
     matchedBalance,
     scannedHolders: byWallet.size,
     excludedVaults,

@@ -1,6 +1,14 @@
 import { PublicKey } from '@solana/web3.js'
-import { MAX_CREW, MODE_DESK_BPS } from './config'
+import {
+  MAX_CREW,
+  MODE_DESK_BPS,
+  PLATFORM_BUYBACK_BPS,
+  getPlatformBuybackWallet,
+  readPlatformBuybackWallet,
+} from './config'
 import type { AgentBrief, CrewMember, DeskMode, HireRole, LaunchDraft } from './types'
+
+export type ShareholderRole = 'crew' | 'desk' | 'platform'
 
 const HANDLE_RE = /^@[a-z0-9_]{1,15}$/i
 const HIRE_ROLES = new Set<HireRole>(['caller', 'chart', 'raid', 'kol', 'dev', 'agent'])
@@ -17,8 +25,13 @@ export type NormalizedLaunch = {
   twitter?: string
   website?: string
   agent?: AgentBrief
-  /** Final on-chain shareholders in bps (includes desk/agent reserve when mode ≠ split). */
-  shareholders: { wallet: string; bps: number; handle: string; role: 'crew' | 'desk' }[]
+  /** Final on-chain shareholders in bps (platform buyback + desk/agent + crew). */
+  shareholders: {
+    wallet: string
+    bps: number
+    handle: string
+    role: ShareholderRole
+  }[]
 }
 
 export function normalizeHandle(raw: string): string {
@@ -125,6 +138,11 @@ export function getLaunchBlockers(draft: LaunchDraft): string[] {
     if (objective.length < 8) blockers.push('Agent objective')
   }
 
+  const buybackWallet = readPlatformBuybackWallet()
+  if (!buybackWallet || buybackWallet.length < 32) {
+    blockers.push('CREW buyback wallet (set VITE_CREW_BUYBACK_WALLET)')
+  }
+
   // Holder KOL launches finalize crew from top holders later — skip crew form checks.
   if (draft.holderKol) {
     return [...new Set(blockers)]
@@ -169,7 +187,7 @@ export function isLaunchReady(draft: LaunchDraft): boolean {
 
 export function validateDraft(
   draft: LaunchDraft,
-  opts?: { deskWallet?: string },
+  opts?: { deskWallet?: string; platformWallet?: string },
 ): NormalizedLaunch {
   const name = draft.name.trim()
   const ticker = draft.ticker.trim().toUpperCase().replace(/^\$/, '')
@@ -251,18 +269,30 @@ export function validateDraft(
     twitter,
     website,
     agent,
-    shareholders: buildCrewShareholders(crew, draft.mode, opts?.deskWallet),
+    shareholders: buildCrewShareholders(crew, draft.mode, {
+      deskWallet: opts?.deskWallet,
+      platformWallet: opts?.platformWallet,
+    }),
   }
 }
 
-/** Map crew % + desk mode reserve into on-chain shareholder bps (must total 10000). */
+/** Map platform buyback + crew % + desk mode reserve into on-chain shareholder bps (must total 10000). */
 export function buildCrewShareholders(
   crew: CrewMember[],
   mode: DeskMode,
-  deskWallet?: string,
+  opts?: { deskWallet?: string; platformWallet?: string } | string,
 ): NormalizedLaunch['shareholders'] {
+  // Back-compat: third arg used to be deskWallet string.
+  const deskWallet = typeof opts === 'string' ? opts : opts?.deskWallet
+  const platformWallet =
+    (typeof opts === 'string' ? undefined : opts?.platformWallet)?.trim() ||
+    getPlatformBuybackWallet()
+  const platformBps = PLATFORM_BUYBACK_BPS
   const deskBps = MODE_DESK_BPS[mode]
-  const crewPoolBps = 10_000 - deskBps
+  const crewPoolBps = 10_000 - platformBps - deskBps
+  if (crewPoolBps < 0) {
+    throw new Error('Platform + desk reserves exceed 100% of fees.')
+  }
   const out: NormalizedLaunch['shareholders'] = []
 
   if (deskBps > 0 && !deskWallet) {
@@ -309,6 +339,21 @@ export function buildCrewShareholders(
         role: 'desk',
       })
     }
+  }
+
+  // Platform CREW buyback — merge if treasury is also a crew/desk wallet (Pump: unique wallets).
+  const platformExisting = out.find((s) => s.wallet === platformWallet)
+  if (platformExisting) {
+    platformExisting.bps += platformBps
+    platformExisting.role = 'platform'
+    platformExisting.handle = '@crew-buyback'
+  } else {
+    out.unshift({
+      wallet: platformWallet,
+      bps: platformBps,
+      handle: '@crew-buyback',
+      role: 'platform',
+    })
   }
 
   const total = out.reduce((s, r) => s + r.bps, 0)

@@ -23,6 +23,7 @@ Set in the Render dashboard (or via API). **Do not commit API keys to git.**
 | `NODE_VERSION` | `22` |
 | `VITE_BASE_PATH` | `/` |
 | `VITE_SITE_URL` | `https://crewpay.dev` |
+| `VITE_CREW_BUYBACK_WALLET` | **Required** — Solana treasury for 25% CREW buyback fee-share |
 | `VITE_RPC_URL` | Helius / Alchemy mainnet URL (recommended) |
 | `VITE_PINATA_JWT` | Optional metadata upload fallback |
 

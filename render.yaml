@@ -20,6 +20,8 @@ services:
         value: /
       - key: VITE_SITE_URL
         value: https://crewpay.dev
+      - key: VITE_CREW_BUYBACK_WALLET
+        sync: false
       - key: VITE_RPC_URL
         sync: false
       - key: VITE_PINATA_JWT
