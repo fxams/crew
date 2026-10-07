@@ -17,6 +17,16 @@
 
 Auto-deploy: every push to **`main`** (after GitHub repo is connected in Render).
 
+If **https://crewpay.dev** still shows the old single-page launch form on the home page, Render did not pick up `main`. Fix:
+
+1. Open https://dashboard.render.com/static/srv-db32invavr4c739imk00  
+2. **Manual Deploy** → **Clear build cache & deploy**  
+3. Hard-refresh the site (Cloudflare may cache HTML ~5 min)
+
+Optional: add a **Deploy Hook** URL as GitHub secret `RENDER_DEPLOY_HOOK` so `.github/workflows/deploy-render.yml` triggers deploys on every `main` push.
+
+**Reference build (already correct):** https://fxams.github.io/crew/ — home has no form; launch is at `/crew/launch`.
+
 ### Render environment variables
 
 Set in the Render dashboard (or via API). **Do not commit API keys to git.**
