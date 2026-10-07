@@ -1,9 +1,24 @@
 import { assertSafeRpcUrl } from './security'
 
-export const CREW_VERSION = '2.5.5'
+export const CREW_VERSION = '2.5.6'
 
 /** Official CREW / CrewPay HQ account on X. */
 export const CREW_X_URL = 'https://x.com/CrewPayHQ'
+
+/**
+ * Platform $CREW token — set after launch via env (or leave blank for hero placeholders).
+ * `VITE_CREW_MINT` → contract address; buy link defaults to pump.fun/coin/{mint}.
+ */
+export const CREW_TOKEN_MINT =
+  (import.meta.env.VITE_CREW_MINT as string | undefined)?.trim() || ''
+export const CREW_TOKEN_PUMP_URL =
+  (import.meta.env.VITE_CREW_PUMP_URL as string | undefined)?.trim() ||
+  (CREW_TOKEN_MINT ? `https://pump.fun/coin/${CREW_TOKEN_MINT}` : 'https://pump.fun')
+/** Optional live quotes — leave unset until an oracle / API is wired. */
+export const CREW_TOKEN_PRICE_USD =
+  (import.meta.env.VITE_CREW_PRICE_USD as string | undefined)?.trim() || ''
+export const CREW_TOKEN_MCAP_USD =
+  (import.meta.env.VITE_CREW_MCAP_USD as string | undefined)?.trim() || ''
 
 /**
  * Public browser-safe mainnet RPCs.
