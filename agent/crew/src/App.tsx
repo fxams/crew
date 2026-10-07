@@ -61,6 +61,7 @@ import {
 import {
   clearDraft,
   clearUiPrefs,
+  hydrateBoardFromApi,
   loadBoard,
   loadDraft,
   loadUiPrefs,
@@ -183,6 +184,18 @@ export default function App() {
       setTapeSyncing(false);
     }
   }, [coins]);
+
+  // Hydrate launches/remits from Render Postgres (cross-browser persistence).
+  useEffect(() => {
+    let cancelled = false;
+    void hydrateBoardFromApi().then((board) => {
+      if (cancelled || !board) return;
+      setDesk({ coins: board.coins, remits: board.remits });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Hydrate tape from mainnet distributeCreatorFees events (not local simulations).
   useEffect(() => {

@@ -1,7 +1,18 @@
+import { apiConfigured, fetchBoard, pushCoin, pushRemits } from './api'
 import { DRAFT_KEY, STORE_KEY, STORE_LEGACY_KEYS, UI_KEY } from './config'
 import { sanitizeBoard, sanitizeDraft, sanitizeUiPrefs } from './security'
 import type { CoinRecord, LaunchDraft, RemitRecord } from './types'
 import { seedCoins, seedRemits } from './seed'
+
+function syncCoinRemote(coin: CoinRecord) {
+  if (!apiConfigured()) return
+  void pushCoin(coin).catch((err) => console.warn('API coin sync failed', err))
+}
+
+function syncRemitsRemote(remits: RemitRecord[]) {
+  if (!apiConfigured() || !remits.length) return
+  void pushRemits(remits).catch((err) => console.warn('API remit sync failed', err))
+}
 
 export type Board = {
   coins: CoinRecord[]
@@ -91,6 +102,8 @@ export function persistLaunch(coin: CoinRecord, remits: RemitRecord[]) {
   board.coins = [coin, ...board.coins.filter((c) => c.mint !== coin.mint)].slice(0, 100)
   board.remits = [...remits, ...board.remits].slice(0, 200)
   saveBoard(board)
+  syncCoinRemote(coin)
+  syncRemitsRemote(remits.filter((r) => r.amountSol > 0 && r.signature))
   return board
 }
 
@@ -99,6 +112,7 @@ export function persistCoin(coin: CoinRecord) {
   const board = loadBoard()
   board.coins = [coin, ...board.coins.filter((c) => c.mint !== coin.mint)].slice(0, 100)
   saveBoard(board)
+  syncCoinRemote(coin)
   return board
 }
 
@@ -118,6 +132,7 @@ export function persistChainRemits(remits: RemitRecord[]) {
   const board = loadBoard()
   board.remits = remits.slice(0, 200)
   saveBoard(board)
+  syncRemitsRemote(remits.filter((r) => r.amountSol > 0 && r.signature))
   return board
 }
 
@@ -133,7 +148,40 @@ export function mergeChainRemits(incoming: RemitRecord[]) {
   }
   board.remits = merged.slice(0, 200)
   saveBoard(board)
+  syncRemitsRemote(incoming.filter((r) => r.amountSol > 0 && r.signature))
   return board
+}
+
+/**
+ * Pull server board (Postgres) and merge into localStorage.
+ * Server coins win on mint collision; remits union by signature+wallet.
+ */
+export async function hydrateBoardFromApi(): Promise<Board | null> {
+  if (!apiConfigured()) return null
+  try {
+    const remote = await fetchBoard()
+    const local = loadBoard()
+    const byMint = new Map<string, CoinRecord>()
+    for (const c of local.coins) byMint.set(c.mint, c)
+    for (const c of remote.coins) byMint.set(c.mint, c)
+    const seen = new Set<string>()
+    const remits: RemitRecord[] = []
+    for (const r of [...remote.remits, ...local.remits]) {
+      const key = `${r.signature}:${r.wallet}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      remits.push(r)
+    }
+    const board = sanitizeBoard({
+      coins: [...byMint.values()].sort((a, b) => b.launchedAt - a.launchedAt).slice(0, 100),
+      remits: remits.slice(0, 200),
+    })
+    saveBoard(board)
+    return board
+  } catch (err) {
+    console.warn('API board hydrate failed', err)
+    return null
+  }
 }
 
 export function resetBoard() {

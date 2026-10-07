@@ -1,5 +1,15 @@
-# CREW production static site — https://crewpay.dev
-# Dashboard: https://dashboard.render.com/static/srv-db32invavr4c739imk00
+# CREW production — https://crewpay.dev
+# Services: static site + API + Postgres + buyback cron
+
+databases:
+  - name: crewpay-db
+    plan: basic_256mb
+    postgresMajorVersion: "16"
+    region: oregon
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: everywhere
+
 services:
   - type: web
     name: crewpay
@@ -9,7 +19,6 @@ services:
     buildCommand: export VITE_BASE_PATH=/ VITE_SITE_URL=https://crewpay.dev && npm ci --legacy-peer-deps && npm test && npm run build
     staticPublishPath: dist
     pullRequestPreviewsEnabled: false
-    # Public URL is crewpay.dev only — onrender.com subdomain disabled
     renderSubdomainPolicy: disabled
     domains:
       - crewpay.dev
@@ -22,6 +31,10 @@ services:
         value: https://crewpay.dev
       - key: VITE_CREW_BUYBACK_WALLET
         sync: false
+      - key: VITE_CREW_API_URL
+        sync: false
+      - key: VITE_CREW_API_KEY
+        sync: false
       - key: VITE_RPC_URL
         sync: false
       - key: VITE_PINATA_JWT
@@ -30,3 +43,53 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+
+  - type: web
+    name: crewpay-api
+    runtime: node
+    rootDir: agent/crew-api
+    branch: main
+    plan: starter
+    region: oregon
+    buildCommand: npm ci && npm run build
+    startCommand: npm run migrate && npm run start
+    healthCheckPath: /api/healthz
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: crewpay-db
+          property: connectionString
+      - key: CREW_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        value: https://crewpay.dev,https://www.crewpay.dev
+
+  - type: cron
+    name: crewpay-buyback
+    runtime: node
+    rootDir: agent/crew-api
+    branch: main
+    schedule: "0 * * * *"
+    buildCommand: npm ci && npm run build
+    startCommand: node dist/src/buyback.js
+    plan: starter
+    region: oregon
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: crewpay-db
+          property: connectionString
+      - key: CREW_BUYBACK_PRIVATE_KEY
+        sync: false
+      - key: CREW_BUYBACK_MINT
+        sync: false
+      - key: CREW_BUYBACK_MAX_SOL
+        value: "0.05"
+      - key: RPC_URL
+        sync: false

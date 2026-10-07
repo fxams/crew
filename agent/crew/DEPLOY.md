@@ -4,12 +4,14 @@
 
 | Field | Value |
 | --- | --- |
-| Host | [Render](https://render.com) static site **`crewpay`** |
-| Dashboard | https://dashboard.render.com/static/srv-db32invavr4c739imk00 |
-| On Render subdomain | **Disabled** — site is only at crewpay.dev |
+| Static site | **`crewpay`** → https://crewpay.dev |
+| API | **`crewpay-api`** → https://crewpay-api.onrender.com |
+| Database | **`crewpay-db`** (Postgres) — coins, remits, 1500 KOLs |
+| Buyback cron | **`crewpay-buyback`** hourly (`CREW_BUYBACK_*` secrets) |
+| Dashboard (site) | https://dashboard.render.com/static/srv-db32invavr4c739imk00 |
+| On Render subdomain | **Disabled** for the static site |
 | App root | `agent/crew` |
 | Vite `base` | `/` (`VITE_BASE_PATH`) |
-| Publish | `agent/crew/dist` |
 | Blueprint | `/render.yaml` at repo root |
 
 Auto-deploy: every push to **`main`** (after GitHub repo is connected in Render).
@@ -24,8 +26,19 @@ Set in the Render dashboard (or via API). **Do not commit API keys to git.**
 | `VITE_BASE_PATH` | `/` |
 | `VITE_SITE_URL` | `https://crewpay.dev` |
 | `VITE_CREW_BUYBACK_WALLET` | **Required** — Solana treasury for 25% CREW buyback fee-share |
+| `VITE_CREW_API_URL` | `https://crewpay-api.onrender.com` |
+| `VITE_CREW_API_KEY` | Same as API `CREW_API_KEY` (write sync) |
 | `VITE_RPC_URL` | Helius / Alchemy mainnet URL (recommended) |
 | `VITE_PINATA_JWT` | Optional metadata upload fallback |
+
+### API / cron secrets (never `VITE_*`)
+
+| Variable | Service |
+| --- | --- |
+| `DATABASE_URL` | crewpay-api, crewpay-buyback (from Postgres) |
+| `CREW_API_KEY` | crewpay-api |
+| `CREW_BUYBACK_PRIVATE_KEY` | crewpay-buyback only |
+| `CREW_BUYBACK_MINT` | crewpay-buyback (after $CREW launches) |
 
 ### Custom domain `crewpay.dev`
 
