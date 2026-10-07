@@ -293,6 +293,25 @@ export default function App() {
         return;
       }
 
+      // Narrative auto-hire already stamped trusted directory wallets — don't
+      // flicker "Looking up Pump…" or overwrite with a flaky live miss.
+      const trusted = autoFilledRef.current[index];
+      if (trusted) {
+        setLinkStatus((prev) => {
+          const cur = prev[index];
+          if (cur?.state === "linked" && cur.wallet === trusted) return prev;
+          return {
+            ...prev,
+            [index]: {
+              state: "linked",
+              detail: `Directory · ${trusted.slice(0, 4)}…${trusted.slice(-4)}`,
+              wallet: trusted,
+            },
+          };
+        });
+        return;
+      }
+
       setLinkStatus((prev) => ({
         ...prev,
         [index]: { state: "loading", detail: "Looking up Pump…" },
@@ -482,14 +501,37 @@ export default function App() {
   }
 
   function autoHireFromNarrative() {
-    const { draft: next, plan } = applyNarrativeHire(draft, {
-      limit: draft.crew.length,
-    });
+    const name = draft.name.trim();
+    const ticker = draft.ticker.trim();
+    const vibe = draft.vibe.trim();
+    if (!name && !ticker && !vibe) {
+      setError("Add a coin name, ticker, or description before auto-hire.");
+      setStatus(null);
+      return;
+    }
+
+    // Holder KOL mode hides the crew desk — switch back so auto-hire can apply.
+    const seats = draft.holderKol
+      ? Math.min(MAX_CREW, Math.max(3, draft.crew.length || 3))
+      : Math.min(MAX_CREW, Math.max(1, draft.crew.length));
+    const base = {
+      ...draft,
+      holderKol: false,
+      crew: resizeCrew(draft.crew, seats),
+    };
+    const { draft: next, plan } = applyNarrativeHire(base, { limit: seats });
+    if (!plan.hires.length) {
+      setError("No KOLs matched that narrative — add clearer name/ticker/description.");
+      setStatus(null);
+      setHirePlan(null);
+      return;
+    }
+
     autoFilledRef.current = {};
     next.crew.forEach((m, i) => {
       if (m.wallet) autoFilledRef.current[i] = m.wallet;
     });
-    setDraft(next);
+    setDraft({ ...next, holderKol: false });
     setHirePlan(plan);
     setLinkStatus(
       Object.fromEntries(
@@ -1911,22 +1953,54 @@ export default function App() {
               ) : null}
 
               <div className="field">
-                <label className="checkbox-row">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(draft.holderKol)}
-                    onChange={(e) => setDraft({ ...draft, holderKol: e.target.checked })}
-                  />
-                  <span>Holder KOL — lock fee-share later from top holders ∩ KOL list</span>
-                </label>
+                <label>Crew source</label>
+                <div className="hire-source" role="radiogroup" aria-label="Crew source">
+                  <button
+                    type="button"
+                    className={`hire-source-btn${!draft.holderKol ? " is-on" : ""}`}
+                    aria-pressed={!draft.holderKol}
+                    onClick={() => {
+                      setDraft((prev) => ({ ...prev, holderKol: false }));
+                      setError(null);
+                    }}
+                  >
+                    Hire KOLs now
+                  </button>
+                  <button
+                    type="button"
+                    className={`hire-source-btn${draft.holderKol ? " is-on" : ""}`}
+                    aria-pressed={Boolean(draft.holderKol)}
+                    onClick={() => {
+                      setDraft((prev) => ({ ...prev, holderKol: true }));
+                      setHirePlan(null);
+                      setError(null);
+                    }}
+                  >
+                    Holder KOL later
+                  </button>
+                </div>
+                <p className="hint">
+                  {draft.holderKol
+                    ? "Skip tagging now. After launch, desk → Holder KOLs → lock top holders ∩ CREW 1500 (one shot)."
+                    : "Set seats, then Auto-hire from your name / ticker / description — or type handles manually."}
+                </p>
               </div>
 
               <div className="field">
                 <label>Hire KOLs + wallets</label>
                 {draft.holderKol ? (
-                  <p className="hint">
-                    Manual crew skipped. After launch, desk → Holder KOLs → Lock (one shot).
-                  </p>
+                  <div className="hire-actions hire-actions-holder">
+                    <p className="hint hire-holder-hint">
+                      Holder mode skips the crew desk. Switch to Hire KOLs now, or Autohire will switch for you.
+                    </p>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={autoHireFromNarrative}
+                    >
+                      Auto-hire from narrative
+                    </button>
+                  </div>
                 ) : null}
                 {!draft.holderKol ? (
                 <>
@@ -1957,9 +2031,8 @@ export default function App() {
                 <div className="hire-actions">
                   <button
                     type="button"
-                    className="btn btn-ghost btn-sm"
+                    className="btn btn-primary btn-sm"
                     onClick={autoHireFromNarrative}
-                    disabled={!draft.name.trim() && !draft.vibe.trim() && !draft.ticker.trim()}
                   >
                     Auto-hire from narrative
                   </button>
