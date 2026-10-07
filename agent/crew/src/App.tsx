@@ -15,6 +15,10 @@ import { ReceiptCard } from "./components/ReceiptCard";
 import { BRAND_ASSETS, BRAND_PALETTE, brandUrl } from "./lib/brand";
 import {
   AGENT_MODELS,
+  CREW_TOKEN_MCAP_USD,
+  CREW_TOKEN_MINT,
+  CREW_TOKEN_PRICE_USD,
+  CREW_TOKEN_PUMP_URL,
   CREW_VERSION,
   CREW_X_URL,
   HIRE_ROLE_OPTIONS,
@@ -168,6 +172,7 @@ export default function App() {
   const [hirePlan, setHirePlan] = useState<NarrativeHirePlan | null>(null);
   const [brandPick, setBrandPick] = useState(BRAND_ASSETS[0]?.id ?? "logo-mark");
   const [brandCopied, setBrandCopied] = useState(false);
+  const [crewCaCopied, setCrewCaCopied] = useState(false);
   const autoFilledRef = useRef<Record<number, string>>({});
   const coins = desk.coins;
   const remits = desk.remits;
@@ -902,6 +907,17 @@ export default function App() {
     }
   }
 
+  async function copyCrewCa() {
+    if (!CREW_TOKEN_MINT) return;
+    try {
+      await navigator.clipboard.writeText(CREW_TOKEN_MINT);
+      setCrewCaCopied(true);
+      window.setTimeout(() => setCrewCaCopied(false), 1600);
+    } catch {
+      setCrewCaCopied(false);
+    }
+  }
+
   useEffect(() => {
     if (location.hash) {
       const id = location.hash.replace(/^#/, "");
@@ -986,6 +1002,47 @@ export default function App() {
                 </a>
               </div>
             </div>
+            <motion.aside
+              className="hero-token"
+              aria-label="$CREW token"
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <p className="section-label">$CREW</p>
+              <div className="hero-token-row">
+                <span className="hero-token-k">CA</span>
+                <code className="hero-token-ca">
+                  {CREW_TOKEN_MINT ? shortAddr(CREW_TOKEN_MINT) : "TBA — set after launch"}
+                </code>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm hero-token-copy"
+                  disabled={!CREW_TOKEN_MINT}
+                  onClick={() => void copyCrewCa()}
+                >
+                  {crewCaCopied ? "Copied" : "Copy"}
+                </button>
+              </div>
+              <a
+                className="hero-token-buy"
+                href={CREW_TOKEN_PUMP_URL}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Buy on pump.fun →
+              </a>
+              <div className="hero-token-metrics">
+                <div>
+                  <span className="hero-token-k">Price</span>
+                  <strong>{CREW_TOKEN_PRICE_USD ? `$${CREW_TOKEN_PRICE_USD}` : "—"}</strong>
+                </div>
+                <div>
+                  <span className="hero-token-k">Mcap</span>
+                  <strong>{CREW_TOKEN_MCAP_USD ? `$${CREW_TOKEN_MCAP_USD}` : "—"}</strong>
+                </div>
+              </div>
+            </motion.aside>
           </section>
         </main>
       </div>
