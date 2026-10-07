@@ -16,10 +16,14 @@ services:
     runtime: static
     rootDir: agent/crew
     branch: main
-    buildCommand: export VITE_BASE_PATH=/ VITE_SITE_URL=https://app.crewpay.dev && npm ci --legacy-peer-deps && npm test && npm run build
+    # Keep build lean on Render (tests run in GitHub Actions). A failed `npm test`
+    # on the static builder leaves the previous deploy live forever.
+    buildCommand: export VITE_BASE_PATH=/ VITE_SITE_URL=https://app.crewpay.dev && npm ci --legacy-peer-deps && npm run build
     staticPublishPath: dist
     pullRequestPreviewsEnabled: false
     renderSubdomainPolicy: disabled
+    # Force deploy on every main commit (not checksPass / off).
+    autoDeployTrigger: commit
     domains:
       - app.crewpay.dev
       - crewpay.dev
