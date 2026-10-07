@@ -1,10 +1,10 @@
 # Deploy CREW
 
-## Production (Render) — **https://crewpay.dev**
+## Production (Render) — **https://app.crewpay.dev**
 
 | Field | Value |
 | --- | --- |
-| Static site | **`crewpay`** → https://crewpay.dev |
+| Static site | **`crewpay`** → https://app.crewpay.dev (also apex `crewpay.dev`) |
 | API | **`crewpay-api`** → https://crewpay-api.onrender.com |
 | Database | **`crewpay-db`** (Postgres) — coins, remits, 1500 KOLs |
 | Buyback cron | **`crewpay-buyback`** hourly (`CREW_BUYBACK_*` secrets) |
@@ -25,7 +25,7 @@ Set in the Render dashboard (or via API). **Do not commit API keys to git.**
 | --- | --- |
 | `NODE_VERSION` | `22` |
 | `VITE_BASE_PATH` | `/` |
-| `VITE_SITE_URL` | `https://crewpay.dev` |
+| `VITE_SITE_URL` | `https://app.crewpay.dev` |
 | `VITE_CREW_BUYBACK_WALLET` | **Required** — Solana treasury for 25% CREW buyback fee-share |
 | `VITE_CREW_API_URL` | `https://crewpay-api.onrender.com` |
 | `VITE_CREW_API_KEY` | Same as API `CREW_API_KEY` (write sync) |
@@ -38,28 +38,42 @@ Set in the Render dashboard (or via API). **Do not commit API keys to git.**
 | --- | --- |
 | `DATABASE_URL` | crewpay-api, crewpay-buyback (from Postgres) |
 | `CREW_API_KEY` | crewpay-api |
+| `CORS_ORIGINS` | `https://app.crewpay.dev,https://crewpay.dev,https://www.crewpay.dev` |
 | `CREW_BUYBACK_PRIVATE_KEY` | crewpay-buyback only |
 | `CREW_BUYBACK_MINT` | crewpay-buyback (after $CREW launches) |
 
-### Custom domain `crewpay.dev`
+### Custom domains
 
-DNS is configured; **crewpay.dev** is **verified** on Render with TLS. The default `*.onrender.com` subdomain is **disabled** (`renderSubdomainPolicy: disabled`) — requests to `crewpay-*.onrender.com` return 404.
+Canonical app URL: **https://app.crewpay.dev**  
+Apex **crewpay.dev** can stay attached to the same static site (or URL-redirect to `app`).
 
-Expected DNS:
+In Render → **crewpay** static site → **Custom Domains**, add:
+
+1. `app.crewpay.dev`
+2. `crewpay.dev` (optional if you keep the apex)
+
+Then at your DNS host (Namecheap):
 
 | Host | Type | Value |
 | --- | --- | --- |
+| `app` | **CNAME** | value Render shows for the `app` domain (usually `*.onrender.com`) |
 | `@` (apex) | **A** | `216.24.57.1` |
-| `www` | **URL redirect** (or A `216.24.57.1`) | `https://crewpay.dev` |
+| `www` | **URL redirect** | `https://app.crewpay.dev` (or A `216.24.57.1`) |
 
-Do **not** CNAME `www` to `*.onrender.com` while the Render subdomain is disabled — TLS for www will not issue. Prefer a registrar redirect from `www` → apex.
+Wait for Render to show **Verified** + TLS on `app.crewpay.dev`.
+
+Notes:
+
+- Custom-domain CNAME to `*.onrender.com` is fine even when the public onrender URL is disabled — users hit `app.crewpay.dev`, not the onrender hostname.
+- After adding `app`, update **crewpay-api** env `CORS_ORIGINS` if the dashboard value is not synced from `render.yaml`.
+- Optional: registrar URL redirect `@` → `https://app.crewpay.dev` so the apex always lands on the app host.
 
 ### Local production check (Render-style)
 
 ```bash
 cd agent/crew
 export VITE_BASE_PATH=/
-export VITE_SITE_URL=https://crewpay.dev
+export VITE_SITE_URL=https://app.crewpay.dev
 npm ci --legacy-peer-deps
 npm test
 npm run build

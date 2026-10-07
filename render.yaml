@@ -1,4 +1,4 @@
-# CREW production — https://crewpay.dev
+# CREW production — https://app.crewpay.dev
 # Services: static site + API + Postgres + buyback cron
 
 databases:
@@ -16,11 +16,12 @@ services:
     runtime: static
     rootDir: agent/crew
     branch: main
-    buildCommand: export VITE_BASE_PATH=/ VITE_SITE_URL=https://crewpay.dev && npm ci --legacy-peer-deps && npm test && npm run build
+    buildCommand: export VITE_BASE_PATH=/ VITE_SITE_URL=https://app.crewpay.dev && npm ci --legacy-peer-deps && npm test && npm run build
     staticPublishPath: dist
     pullRequestPreviewsEnabled: false
     renderSubdomainPolicy: disabled
     domains:
+      - app.crewpay.dev
       - crewpay.dev
     envVars:
       - key: NODE_VERSION
@@ -28,7 +29,7 @@ services:
       - key: VITE_BASE_PATH
         value: /
       - key: VITE_SITE_URL
-        value: https://crewpay.dev
+        value: https://app.crewpay.dev
       - key: VITE_CREW_BUYBACK_WALLET
         sync: false
       - key: VITE_CREW_API_URL
@@ -66,7 +67,7 @@ services:
       - key: CREW_API_KEY
         sync: false
       - key: CORS_ORIGINS
-        value: https://crewpay.dev,https://www.crewpay.dev
+        value: https://app.crewpay.dev,https://crewpay.dev,https://www.crewpay.dev
 
   - type: cron
     name: crewpay-buyback

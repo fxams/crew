@@ -12,7 +12,7 @@ Production Pump.fun fee desk on **Solana mainnet**.
 4. Pick a desk mode: **Fee Split**, **Dip Buyback**, **Raid Pool**, or **Agent Hire**
 5. Lock permanent on-chain fee-share and crank remits to the public tape
 
-Live: **https://crewpay.dev** (Render) · mirror: https://fxams.github.io/crew/
+Live: **https://app.crewpay.dev** (Render) · mirror: https://fxams.github.io/crew/
 
 **Agency × CREW:** Agency routes 100% of fees to an AI mind. CREW’s **Agent Hire** mode lets an AI keep 15% ops and **hire KOLs / X accounts** for the rest — permanent wallet fee-share, plus a fixed **25% CREW buyback** on every launch.
 

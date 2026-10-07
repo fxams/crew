@@ -7,7 +7,7 @@ import { healthRouter } from './routes/health.js'
 import { kolsRouter } from './routes/kols.js'
 
 const port = Number(process.env.PORT || 10000)
-const allowedOrigins = (process.env.CORS_ORIGINS || 'https://crewpay.dev,http://localhost:5173,http://127.0.0.1:4173')
+const allowedOrigins = (process.env.CORS_ORIGINS || 'https://app.crewpay.dev,https://crewpay.dev,http://localhost:5173,http://127.0.0.1:4173')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean)
