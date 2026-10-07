@@ -3,8 +3,10 @@ import {
   MAX_CREW,
   MODE_DESK_BPS,
   PLATFORM_BUYBACK_BPS,
+  USER_DESCRIPTION_MAX,
   getPlatformBuybackWallet,
   readPlatformBuybackWallet,
+  withCrewLaunchDescription,
 } from './config'
 import type { AgentBrief, CrewMember, DeskMode, HireRole, LaunchDraft } from './types'
 
@@ -107,7 +109,7 @@ export function getLaunchBlockers(draft: LaunchDraft): string[] {
 
   if (name.length < 2 || name.length > 32) blockers.push('Name (2–32 chars)')
   if (!/^[A-Z0-9]{2,13}$/.test(ticker)) blockers.push('Ticker (2–13 letters/numbers)')
-  if (vibe.length > 280) blockers.push('Description too long')
+  if (vibe.length > USER_DESCRIPTION_MAX) blockers.push('Description too long')
   try {
     assertImageFile(draft.imageFile)
   } catch {
@@ -199,8 +201,8 @@ export function validateDraft(
   if (!/^[A-Z0-9]{2,13}$/.test(ticker)) {
     throw new Error('Ticker must be 2–13 letters/numbers.')
   }
-  if (vibe.length > 280) {
-    throw new Error('Description max 280 characters.')
+  if (vibe.length > USER_DESCRIPTION_MAX) {
+    throw new Error(`Description max ${USER_DESCRIPTION_MAX} characters.`)
   }
   assertImageFile(draft.imageFile)
   const twitter = normalizeOptionalTwitter(draft.twitter)
@@ -262,7 +264,7 @@ export function validateDraft(
   return {
     name,
     ticker,
-    vibe,
+    vibe: withCrewLaunchDescription(vibe),
     mode: draft.mode,
     crew,
     initialBuySol: draft.initialBuySol,

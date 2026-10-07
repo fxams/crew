@@ -28,6 +28,7 @@ import {
   MAX_CREW,
   MODE_DESK_BPS,
   PLATFORM_BUYBACK_BPS,
+  USER_DESCRIPTION_MAX,
 } from "./lib/config";
 import {
   simulateBuybackFire,
@@ -1688,7 +1689,11 @@ export default function App() {
                   onChange={(e) => setDraft({ ...draft, vibe: e.target.value })}
                   placeholder="description"
                   autoComplete="off"
+                  maxLength={USER_DESCRIPTION_MAX}
                 />
+                <p className="hint">
+                  Auto-appends: Launched from CrewPay.dev platform
+                </p>
               </div>
 
               <div className="field">
