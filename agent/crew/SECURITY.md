@@ -11,7 +11,7 @@ Static GitHub Pages app. No backend, no API keys in the client, no private keys 
 | Launch input | `validateDraft` — wallets via `PublicKey`, X handles, 100% share sum, hire roles in agent mode |
 | CSP | Meta CSP in `index.html` — scripts/styles scoped; connect to HTTPS/WSS for RPC + wallets |
 | Agent brief | Display-only name / model / objective — never stores API keys |
-| Platform cut | Always 0% — desk/agent reserve goes to the **launcher wallet**, not CREW |
+| Platform cut | Fixed **25% CREW buyback** to `VITE_CREW_BUYBACK_WALLET`; desk/agent reserve (mode %) goes to the **launcher wallet** |
 
 ## npm audit
 
