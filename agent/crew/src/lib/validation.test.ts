@@ -93,6 +93,37 @@ describe('validateDraft', () => {
     expect(out.shareholders.reduce((s, r) => s + r.bps, 0)).toBe(10_000)
   })
 
+  it('appends CrewPay attribution to the on-chain description', () => {
+    const out = validateDraft(base, {
+      deskWallet: '11111111111111111111111111111111',
+      platformWallet: PLATFORM,
+    })
+    expect(out.vibe).toContain('tips the tape')
+    expect(out.vibe).toContain('Launched from CrewPay.dev platform')
+  })
+
+  it('uses attribution alone when description is empty', () => {
+    const out = validateDraft(
+      { ...base, vibe: '' },
+      {
+        deskWallet: '11111111111111111111111111111111',
+        platformWallet: PLATFORM,
+      },
+    )
+    expect(out.vibe).toBe('Launched from CrewPay.dev platform')
+  })
+
+  it('does not duplicate attribution', () => {
+    const out = validateDraft(
+      { ...base, vibe: 'hello\n\nLaunched from CrewPay.dev platform' },
+      {
+        deskWallet: '11111111111111111111111111111111',
+        platformWallet: PLATFORM,
+      },
+    )
+    expect(out.vibe.match(/Launched from CrewPay\.dev platform/g)?.length).toBe(1)
+  })
+
   it('rejects non-100% splits', () => {
     const draft: LaunchDraft = {
       ...base,

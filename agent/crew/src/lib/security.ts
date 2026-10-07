@@ -131,7 +131,7 @@ export function sanitizeCoin(raw: unknown): CoinRecord | null {
     mint,
     name: asString(r.name, 64),
     ticker,
-    vibe: asString(r.vibe, 280),
+    vibe: asString(r.vibe, 360),
     mode,
     crew: sanitizeCrew(r.crew),
     signature: asString(r.signature, 128),
@@ -211,7 +211,7 @@ export function sanitizeDraft(raw: unknown): LaunchDraft {
   return {
     name: asString(r.name, 64),
     ticker: asString(r.ticker, 16).toUpperCase(),
-    vibe: asString(r.vibe, 280),
+    vibe: asString(r.vibe, 360),
     mode: safeMode,
     crew: crew.length ? crew : fallback.crew,
     initialBuySol: Math.max(0, Math.min(100, Number(r.initialBuySol) || 0)),
