@@ -17,11 +17,23 @@
 
 Auto-deploy: every push to **`main`** (after GitHub repo is connected in Render).
 
-If **https://crewpay.dev** still shows the old single-page launch form on the home page, Render did not pick up `main`. Fix:
+### If Manual Deploy “does nothing” / site stays old
 
-1. Open https://dashboard.render.com/static/srv-db32invavr4c739imk00  
-2. **Manual Deploy** → **Clear build cache & deploy**  
-3. Hard-refresh the site (Cloudflare may cache HTML ~5 min)
+Live HTML still showing `last-modified` from hours ago means **no successful new deploy** was published (or Auto-Deploy is off).
+
+Check these in order on https://dashboard.render.com/static/srv-db32invavr4c739imk00 :
+
+1. **Events / Deploys** — open the latest deploy. Is it **Live** or **Build failed**?  
+   - Failed → open **Logs** (often OOM / `npm test` / missing Node).  
+   - Blueprint build command no longer runs tests on Render (tests stay in GitHub Actions).
+2. **Settings → Auto-Deploy** — must be **On Commit** (not **Off**).  
+   - **Deploy a specific commit** in the UI **disables** auto-deploys — turn Auto-Deploy back **On**.  
+   - Avoid **After CI Checks Pass** unless a required check always reports on `main`.
+3. **Settings → Build & Deploy** — Branch = `main`, Root Directory = `agent/crew`, Publish = `dist`.  
+   - Build command should be:  
+     `export VITE_BASE_PATH=/ VITE_SITE_URL=https://app.crewpay.dev && npm ci --legacy-peer-deps && npm run build`
+4. **Manual Deploy → Clear build cache & deploy** again after fixing the above.
+5. Confirm deploy: home hero should show **`v2.5.0`**. Hard-refresh (CDN `s-maxage=300`).
 
 Optional: add a **Deploy Hook** URL as GitHub secret `RENDER_DEPLOY_HOOK` so `.github/workflows/deploy-render.yml` triggers deploys on every `main` push.
 
