@@ -36,7 +36,7 @@
 - No demo mint path — empty desk until real launches
 - Launch templates (incl. Agent hires), scoreboard, desk pulse, CT receipts
 - Crank remits via `distributeCreatorFeesV2`
-- Hosting: https://fxams.github.io/crew/
+- Hosting: https://crewpay.dev (Render static) · GH Pages mirror
 
 ## Explicitly out
 

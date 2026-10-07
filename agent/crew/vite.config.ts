@@ -2,10 +2,23 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
-// GitHub Pages project site: https://fxams.github.io/crew/
-export default defineConfig({
-  base: '/crew/',
+/** GitHub Pages uses `/crew/`; Render + crewpay.dev uses `/`. */
+export default defineConfig(() => {
+  const siteUrl = (process.env.VITE_SITE_URL || 'https://crewpay.dev').replace(/\/$/, '')
+  const base = process.env.VITE_BASE_PATH?.trim() || '/crew/'
+
+  return {
+  base,
   plugins: [
+    {
+      name: 'crew-html-meta',
+      transformIndexHtml(html) {
+        const baseNorm = base.endsWith('/') ? base : `${base}/`
+        return html
+          .replaceAll('%VITE_SITE_URL%', siteUrl)
+          .replaceAll('%VITE_BASE_URL%', baseNorm)
+      },
+    },
     nodePolyfills({
       include: ['buffer', 'process', 'crypto', 'stream', 'util', 'events'],
       globals: {
@@ -100,4 +113,5 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.test.ts'],
   },
+}
 })
