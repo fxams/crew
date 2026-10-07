@@ -1,54 +1,45 @@
 # CREW — product review & scope
 
-## What we reviewed
+## Competitive frame (Agency × CREW)
 
-### Agency (`@tryagency` → agencypad.fun)
-- Pump launchpad where **every coin gets an AI mind + treasury**
-- Creator fees permanently route to Agency
-- Mind observes market/holders, researches X/web, buybacks, rewards, contests
-- Powerful, but heavy: models, firewall, policy engine, signer, ledger
+[Agency](https://www.agencypad.fun) launches Pump coins with an autonomous AI mind + treasury.
+**100% of creator fees** route to Agency. CREW competes — and hybrids — on a different axis:
 
-### X-DESK (`@xdeskcash` → xdesk.cash)
-- Launch tokens **paired with SOL / stocks / majors**
-- Assign creator fees to **X accounts**, pay out via **X Money** (USD)
-- **0% platform fee** narrative
-- Desk board shows generated vs paid
+> **AI agents hire crew. KOLs and X accounts get permanent on-chain fee splits. 25% of every launch’s creator fees buy back the CREW platform token. The desk is the remittance machine + public tape.**
 
-## The gap (non-sophisticated use case)
+### CREW edges vs Agency
 
-Pump.fun CT does not need the full Agency brain or X-DESK stock/FX stack to feel the magic.
+| | Agency | CREW |
+|--|--|--|
+| Who gets fees | AI credits + Agency treasury (+ burn) | Named human wallets (0% platform cut) |
+| Agent mode | Mind owns the treasury | Agent keeps **15% ops**; hires KOLs/X for **85%** |
+| Control after launch | Mind decides; launcher cannot command | You set hire map, dip rules, raid quests |
+| Time-to-pay | Sleeps until ~$20 fees | Crank remits anytime |
+| Social proof | Thought logs | Screenshotable remit tape + CT receipts |
+| Network | Mainnet | **Mainnet only (production)** |
 
-They need:
+## Modes
 
-1. Fast launch that feels native to Pump
-2. A reason the coin is not a ghost after block 1
-3. Named people getting paid in public
-4. A tape they can screenshot into CT
-
-## CREW thesis
-
-> **Tag your crew at launch. Their cut of creator fees is permanent. The desk is just the remittance machine + public tape.**
-
-### v1 modes
 | Mode | Job |
 |------|-----|
-| Fee Split | 100% of creator fees to tagged X crew |
-| Dip Buyback | Crew % + desk reserve that buys dips on rules |
-| Raid Pool | Fees fund a public pot for holders who post |
+| Fee Split | 100% of creator fees to tagged crew wallets |
+| Dip Buyback | 20% desk reserve + editable dip rule |
+| Raid Pool | 25% pot + editable quest board |
+| **Agent Hire** | AI agent brief + hire roles (caller / chart / raid / KOL / dev); 15% ops → launcher |
 
-### Explicitly out of v1
-- Multi-model autonomous “mind”
-- Stock quote pairs + Kraken conversion
-- X Money rails (can add later; start with SOL remits / claim links)
-- Contests, vesting, strategy lab, browser research agents
+## Platform (v2.3 production)
 
-## Why the community would use it
-- **KOL alignment without DMs** — shillers get a real cut on-chain/config
-- **Content engine** — every payout is a postable receipt
-- **Lower trust friction** — fee map is visible before first trade
-- **Still degenspeed** — one form, one click, Pump URL back
+- Phantom → Pump IPFS → `createV2` → permanent fee-share
+- Agent Hire: mind label + objective (no API keys) · wallets are the payroll
+- **KOL DB**: top 1500 ranked Pump profiles (followers) + wallets + narrative tags + correlation packs
+- **Auto-hire**: match token name/ticker/vibe → fill crew wallets from correlated KOLs
+- No demo mint path — empty desk until real launches
+- Launch templates (incl. Agent hires), scoreboard, desk pulse, CT receipts
+- Crank remits via `distributeCreatorFeesV2`
+- Hosting: https://crewpay.dev (Render static) · GH Pages mirror
 
-## Build status
-- Landing + desk board + launch UI shipped as demo app in `/crew`
-- Launch button validates crew shares and returns a demo mint
-- Mainnet requires wallet connect + Pump SDK + fee-share config
+## Explicitly out
+
+- Multi-model autonomous “mind” with API keys in the browser
+- Prompt firewall / isolated signer / double-entry ledger
+- Stock quote pairs + X Money rails
