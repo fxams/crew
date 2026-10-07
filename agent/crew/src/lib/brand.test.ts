@@ -11,7 +11,23 @@ describe('brand kit', () => {
   })
 
   it('builds URLs under the Vite base + brand/', () => {
-    expect(brandUrl('logo-mark.svg')).toMatch(/brand\/logo-mark\.svg$/)
+    expect(brandUrl('logo-mark.png')).toMatch(/brand\/logo-mark\.png$/)
+  })
+
+  it('ships PNG and JPG for every asset (not SVG-only)', () => {
+    for (const asset of BRAND_ASSETS) {
+      const labels = asset.formats.map((f) => f.label)
+      expect(labels).toContain('PNG')
+      expect(labels).toContain('JPG')
+      expect(asset.formats.length).toBeGreaterThanOrEqual(2)
+    }
+  })
+
+  it('prefers a raster file for logo previews', () => {
+    const logos = BRAND_ASSETS.filter((a) => a.kind === 'logo')
+    for (const logo of logos) {
+      expect(logo.file).toMatch(/\.(png|jpg)$/)
+    }
   })
 
   it('keeps the acid-on-forest palette', () => {

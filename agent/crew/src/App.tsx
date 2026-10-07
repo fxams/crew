@@ -2141,8 +2141,8 @@ export default function App() {
           <p className="section-label">Brand kit</p>
           <h2 className="section-title">CREW look.</h2>
           <p className="section-sub">
-            Acid on forest. Logo, banners, and square posts — pick one, download or
-            copy the link for CT.
+            Acid on forest. Logos ship as PNG and JPG (plus SVG). Banners and posts
+            too — pick one, download the format CT needs.
           </p>
 
           <div className="brand-palette" aria-label="Brand colors">
@@ -2173,7 +2173,9 @@ export default function App() {
                   </div>
                   <div className="brand-card-meta">
                     <strong>{asset.title}</strong>
-                    <span>{asset.blurb}</span>
+                    <span>
+                      {asset.blurb} · {asset.formats.map((f) => f.label).join(" / ")}
+                    </span>
                   </div>
                 </button>
               ))}
@@ -2189,22 +2191,27 @@ export default function App() {
                   <img src={brandUrl(selectedBrand.file)} alt={selectedBrand.title} />
                 </div>
                 <p className="hint">{selectedBrand.blurb}</p>
+                <div className="brand-format-row" aria-label="Download formats">
+                  {selectedBrand.formats.map((fmt, index) => (
+                    <a
+                      key={fmt.file}
+                      className={`btn btn-sm ${index === 0 ? "btn-primary" : "btn-ghost"}`}
+                      href={brandUrl(fmt.file)}
+                      download
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {fmt.label}
+                    </a>
+                  ))}
+                </div>
                 <div className="success-actions">
-                  <a
-                    className="btn btn-primary btn-sm"
-                    href={brandUrl(selectedBrand.file)}
-                    download
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Download
-                  </a>
                   <button
                     type="button"
                     className="btn btn-ghost btn-sm"
                     onClick={() => void copyBrandPath()}
                   >
-                    {brandCopied ? "Copied link" : "Copy link"}
+                    {brandCopied ? "Copied link" : "Copy PNG/JPG link"}
                   </button>
                   <a
                     className="btn btn-ghost btn-sm"
