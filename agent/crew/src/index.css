@@ -14,7 +14,8 @@
   --font-display: "Syne", sans-serif;
   --font-body: "Work Sans", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
-  --max: 1040px;
+  --max: 1760px;
+  --gutter: 1.25rem;
   --nav-h: 56px;
   --cta-h: 0px;
   color: var(--ink);
@@ -81,7 +82,7 @@ a {
 }
 
 .app-shell {
-  width: min(var(--max), calc(100% - 1.5rem));
+  width: min(var(--max), calc(100% - (var(--gutter) * 2)));
   margin: 0 auto;
 }
 
@@ -1685,10 +1686,7 @@ a {
 @media (max-width: 820px) {
   :root {
     --cta-h: 72px;
-  }
-
-  .app-shell {
-    width: min(var(--max), calc(100% - 1.15rem));
+    --gutter: 0.575rem;
   }
 
   .edge-grid,
@@ -1828,8 +1826,53 @@ a {
 }
 
 @media (min-width: 821px) {
+  :root {
+    --gutter: 2rem;
+  }
+
   .mobile-cta {
     display: none !important;
+  }
+
+  /* Hero atmosphere spans the full viewport; copy stays in the shell. */
+  .hero {
+    overflow: visible;
+    min-height: min(78svh, 720px);
+    padding: 2.5rem 0 2.75rem;
+  }
+
+  .hero-visual {
+    width: 100vw;
+    left: 50%;
+    right: auto;
+    margin-left: -50vw;
+  }
+
+  .hero-brand {
+    font-size: clamp(5.2rem, 9.5vw, 9rem);
+  }
+
+  .steps {
+    gap: 1.25rem;
+  }
+
+  .launch {
+    gap: 1.15rem;
+  }
+
+  .edge-grid,
+  .board-grid {
+    gap: 1rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  :root {
+    --gutter: 2.5rem;
+  }
+
+  .section {
+    padding: 3.25rem 0;
   }
 }
 
