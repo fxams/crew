@@ -6,7 +6,9 @@ import { WalletProvider } from './providers/WalletProvider'
 import App from './App'
 import './index.css'
 
-const routerBasename = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') || '/'
+/** Empty basename at site root — `basename="/"` breaks some path matches. */
+const rawBase = (import.meta.env.BASE_URL || '/').replace(/\/$/, '')
+const routerBasename = rawBase && rawBase !== '/' ? rawBase : undefined
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

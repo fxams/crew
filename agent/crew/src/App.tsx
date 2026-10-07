@@ -127,7 +127,7 @@ export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const path = location.pathname.replace(/\/+$/, "") || "/";
-  const isLaunchPage = path === "/launch";
+  const isLaunchPage = path === "/launch" || path.endsWith("/launch");
   const [draft, setDraft] = useState<LaunchDraft>(() => initialDraft());
   const [busy, setBusy] = useState(false);
   const [cranking, setCranking] = useState<string | null>(null);
@@ -1482,33 +1482,17 @@ export default function App() {
             </div>
           ) : null}
 
-          <div className="panel crank-panel">
+          <div className="panel crank-panel board-launch-cta">
             <div className="panel-head">
-              <h3>Adopt orphan mint</h3>
-              <span>repair</span>
+              <h3>Ready to ship?</h3>
+              <span>launch desk</span>
             </div>
             <p className="hint">
-              If create landed but the desk never saved the coin (like Kibble), paste the mint,
-              keep crew wallets filled above, then lock fee-share.
+              Coin name, ticker, image, and fee splits live on the launch page — not here.
             </p>
-            <div className="crank-row" style={{ gap: "0.75rem", alignItems: "center" }}>
-              <input
-                className="wallet-input"
-                value={adoptMint}
-                onChange={(e) => setAdoptMint(e.target.value)}
-                placeholder="Mint address"
-                spellCheck={false}
-                style={{ flex: 1 }}
-              />
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                disabled={Boolean(wiring) || !adoptMint.trim()}
-                onClick={() => void onAdoptMint()}
-              >
-                {wiring === adoptMint.trim() ? "Wiring…" : "Adopt + wire fees"}
-              </button>
-            </div>
+            <Link className="btn btn-primary" to="/launch">
+              Open launch desk
+            </Link>
           </div>
         </section>
       </div>
@@ -2164,6 +2148,37 @@ export default function App() {
                   </div>
                 </motion.div>
               ) : null}
+            </div>
+          </div>
+        </section>
+
+        <section className="section section-tight" id="adopt">
+          <div className="panel crank-panel">
+            <div className="panel-head">
+              <h3>Adopt orphan mint</h3>
+              <span>repair</span>
+            </div>
+            <p className="hint">
+              If create landed but the desk never saved the coin, paste the mint, keep crew
+              wallets filled above, then lock fee-share.
+            </p>
+            <div className="crank-row" style={{ gap: "0.75rem", alignItems: "center" }}>
+              <input
+                className="wallet-input"
+                value={adoptMint}
+                onChange={(e) => setAdoptMint(e.target.value)}
+                placeholder="Mint address"
+                spellCheck={false}
+                style={{ flex: 1 }}
+              />
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                disabled={Boolean(wiring) || !adoptMint.trim()}
+                onClick={() => void onAdoptMint()}
+              >
+                {wiring === adoptMint.trim() ? "Wiring…" : "Adopt + wire fees"}
+              </button>
             </div>
           </div>
         </section>
