@@ -14,7 +14,7 @@
   --font-display: "Syne", sans-serif;
   --font-body: "Work Sans", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
-  --max: 1760px;
+  --max: none;
   --gutter: 1.25rem;
   --nav-h: 56px;
   --cta-h: 0px;
@@ -82,7 +82,8 @@ a {
 }
 
 .app-shell {
-  width: min(var(--max), calc(100% - (var(--gutter) * 2)));
+  width: calc(100% - (var(--gutter) * 2));
+  max-width: var(--max);
   margin: 0 auto;
 }
 
@@ -1827,7 +1828,7 @@ a {
 
 @media (min-width: 821px) {
   :root {
-    --gutter: 2rem;
+    --gutter: 1.75rem;
   }
 
   .mobile-cta {
@@ -1853,26 +1854,37 @@ a {
   }
 
   .steps {
-    gap: 1.25rem;
+    gap: 1.5rem;
   }
 
   .launch {
-    gap: 1.15rem;
+    gap: 1.25rem;
   }
 
   .edge-grid,
   .board-grid {
-    gap: 1rem;
+    gap: 1.1rem;
+  }
+
+  .nav-shell .app-shell,
+  .site > .app-shell {
+    width: calc(100% - (var(--gutter) * 2));
   }
 }
 
 @media (min-width: 1280px) {
   :root {
-    --gutter: 2.5rem;
+    --gutter: 2rem;
   }
 
   .section {
     padding: 3.25rem 0;
+  }
+}
+
+@media (min-width: 1600px) {
+  :root {
+    --gutter: 2.5rem;
   }
 }
 
