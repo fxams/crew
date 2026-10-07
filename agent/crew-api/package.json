@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && mkdir -p dist/src && cp src/schema.sql dist/src/schema.sql",
     "start": "node dist/index.js",
     "migrate": "tsx src/migrate.ts",
     "seed:kols": "tsx scripts/seed-kols.ts",
