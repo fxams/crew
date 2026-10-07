@@ -11,8 +11,8 @@
 
 | | Agency | CREW |
 |--|--|--|
-| Who gets fees | AI credits + Agency treasury (+ burn) | Named human wallets (0% platform cut) |
-| Agent mode | Mind owns the treasury | Agent keeps **15% ops**; hires KOLs/X for **85%** |
+| Who gets fees | AI credits + Agency treasury (+ burn) | **25% CREW buyback** + named human wallets for the rest |
+| Agent mode | Mind owns the treasury | Agent keeps **15% ops**; hires KOLs/X for **60%** (after 25% buyback) |
 | Control after launch | Mind decides; launcher cannot command | You set hire map, dip rules, raid quests |
 | Time-to-pay | Sleeps until ~$20 fees | Crank remits anytime |
 | Social proof | Thought logs | Screenshotable remit tape + CT receipts |
@@ -20,12 +20,14 @@
 
 ## Modes
 
+Every mode starts with a fixed **25% CREW buyback** of creator fees.
+
 | Mode | Job |
 |------|-----|
-| Fee Split | 100% of creator fees to tagged crew wallets |
-| Dip Buyback | 20% desk reserve + editable dip rule |
-| Raid Pool | 25% pot + editable quest board |
-| **Agent Hire** | AI agent brief + hire roles (caller / chart / raid / KOL / dev); 15% ops → launcher |
+| Fee Split | 75% of creator fees to tagged crew wallets |
+| Dip Buyback | 20% desk reserve + editable dip rule · 55% crew |
+| Raid Pool | 25% pot + editable quest board · 50% crew |
+| **Agent Hire** | AI agent brief + hire roles; 15% ops → launcher · 60% hired KOLs |
 
 ## Platform (v2.3 production)
 

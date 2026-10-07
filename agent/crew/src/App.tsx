@@ -990,7 +990,7 @@ export default function App() {
             <article className="step">
               <div className="step-num">03</div>
               <h3>Get paid</h3>
-              <p>On-chain split → crank.</p>
+              <p>25% CREW buyback · rest on-chain → crank.</p>
             </article>
           </div>
         </section>

@@ -12,25 +12,25 @@ export const DESK_MODES: {
     id: 'split',
     label: 'Fee Split',
     short: 'Split',
-    blurb: '100% of creator fees to tagged crew wallets.',
+    blurb: '25% CREW buyback · 75% to tagged crew wallets.',
   },
   {
     id: 'buyback',
     label: 'Dip Buyback',
     short: 'Buyback',
-    blurb: '20% desk reserve for dips · 80% to crew.',
+    blurb: '25% CREW buyback · 20% desk dips · 55% to crew.',
   },
   {
     id: 'raid',
     label: 'Raid Pool',
     short: 'Raid',
-    blurb: '25% raid pool · 75% to crew wallets.',
+    blurb: '25% CREW buyback · 25% raid pool · 50% to crew.',
   },
   {
     id: 'agent',
     label: 'Agent Hire',
     short: 'Agent',
-    blurb: 'AI agent keeps 15% ops · hires KOLs/X for 85%.',
+    blurb: '25% CREW buyback · 15% agent ops · 60% hired KOLs.',
   },
 ]
 

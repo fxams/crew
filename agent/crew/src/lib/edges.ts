@@ -59,7 +59,8 @@ export type LaunchTemplate = {
 
 export const DEFAULT_AGENT = {
   name: 'Desk Mind',
-  objective: 'Hire KOLs who move the chart. Pay them from creator fees. No platform skim.',
+  objective:
+    'Hire KOLs who move the chart. Pay them from creator fees. 25% CREW buyback on every launch.',
   model: 'Claude Sonnet',
 }
 
@@ -95,7 +96,7 @@ export const LAUNCH_TEMPLATES: LaunchTemplate[] = [
   {
     id: 'kol',
     label: 'KOL pack',
-    blurb: '3-way fee split.',
+    blurb: '3-way split · 25% CREW buyback.',
     draft: {
       name: '',
       ticker: '',
@@ -114,7 +115,7 @@ export const LAUNCH_TEMPLATES: LaunchTemplate[] = [
   {
     id: 'dip',
     label: 'Dip desk',
-    blurb: 'Crew + buyback reserve.',
+    blurb: 'Dip desk · 25% CREW buyback.',
     draft: {
       name: '',
       ticker: '',
@@ -133,7 +134,7 @@ export const LAUNCH_TEMPLATES: LaunchTemplate[] = [
   {
     id: 'raid',
     label: 'Raid squad',
-    blurb: 'Raid pool + quests.',
+    blurb: 'Raid pool · 25% CREW buyback.',
     draft: {
       name: '',
       ticker: '',
@@ -153,7 +154,7 @@ export const LAUNCH_TEMPLATES: LaunchTemplate[] = [
   {
     id: 'agent',
     label: 'Agent hires',
-    blurb: 'AI agent + KOL payroll.',
+    blurb: 'AI hires KOLs · 25% CREW buyback.',
     draft: {
       name: '',
       ticker: '',
