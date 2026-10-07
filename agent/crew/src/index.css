@@ -622,6 +622,12 @@ a {
   background: rgba(5, 10, 7, 0.75);
 }
 
+.tape-top {
+  border-top: none;
+  position: relative;
+  z-index: 30;
+}
+
 .tape:hover .tape-track {
   animation-play-state: paused;
 }
