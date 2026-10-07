@@ -29,9 +29,11 @@ Check these in order on https://dashboard.render.com/static/srv-db32invavr4c739i
 2. **Settings → Auto-Deploy** — must be **On Commit** (not **Off**).  
    - **Deploy a specific commit** in the UI **disables** auto-deploys — turn Auto-Deploy back **On**.  
    - Avoid **After CI Checks Pass** unless a required check always reports on `main`.
-3. **Settings → Build & Deploy** — Branch = `main`, Root Directory = `agent/crew`, Publish = `dist`.  
+3. **Settings → Build & Deploy** — Branch = `main`, Root Directory = `agent/crew`.  
+   - **Publish directory must be `agent/crew/dist`** (path is relative to the **repo root**, not the root directory).  
+     If this is just `dist`, Render publishes an empty/stale folder and your new Vite build is ignored — site never updates.  
    - Build command should be:  
-     `export VITE_BASE_PATH=/ VITE_SITE_URL=https://app.crewpay.dev && npm ci --legacy-peer-deps && npm run build`
+     `rm -rf dist && export VITE_BASE_PATH=/ VITE_SITE_URL=https://app.crewpay.dev && npm ci --legacy-peer-deps && npm run build`
 4. **Manual Deploy → Clear build cache & deploy** again after fixing the above.
 5. Confirm deploy: home hero should show **`v2.5.0`**. Hard-refresh (CDN `s-maxage=300`).
 
