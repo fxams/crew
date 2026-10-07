@@ -30,7 +30,9 @@ describe('simulateFeeAccrual', () => {
     const remits = simulateFeeAccrual(splitCoin, 0.1)
     const total = remits.reduce((s, r) => s + r.amountSol, 0)
     expect(total).toBeCloseTo(0.1, 3)
-    expect(remits.every((r) => r.handle === '@a' || r.handle === '@b')).toBe(true)
+    expect(remits.find((r) => r.handle === '@crew-buyback')?.amountSol).toBeCloseTo(0.025, 3)
+    const crew = remits.filter((r) => r.handle === '@a' || r.handle === '@b')
+    expect(crew.reduce((s, r) => s + r.amountSol, 0)).toBeCloseTo(0.075, 3)
   })
 
   it('reserves desk share for buyback mode', () => {
@@ -40,10 +42,11 @@ describe('simulateFeeAccrual', () => {
       buybackRule: { ...DEFAULT_BUYBACK },
     }
     const remits = simulateFeeAccrual(coin, 0.1)
+    expect(remits.find((r) => r.handle === '@crew-buyback')?.amountSol).toBeCloseTo(0.025, 3)
     const desk = remits.find((r) => r.handle === '@buyback')
     expect(desk?.amountSol).toBeCloseTo(0.02, 3)
-    const crew = remits.filter((r) => r.handle !== '@buyback')
-    expect(crew.reduce((s, r) => s + r.amountSol, 0)).toBeCloseTo(0.08, 3)
+    const crew = remits.filter((r) => r.handle === '@a' || r.handle === '@b')
+    expect(crew.reduce((s, r) => s + r.amountSol, 0)).toBeCloseTo(0.055, 3)
   })
 })
 

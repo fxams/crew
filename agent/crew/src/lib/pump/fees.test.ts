@@ -16,7 +16,8 @@ describe('fee-share audit helpers', () => {
     expect(pda.toBase58()).toBe('AayUUGPpF8bq5TvSgNXCKS2HV8BjyTnfVgpfS9X3m7cY')
   })
 
-  it('buildCrewShareholders totals 10000 bps for split crew', () => {
+  it('buildCrewShareholders totals 10000 bps with 25% CREW buyback', () => {
+    const platform = 'So11111111111111111111111111111111111111112'
     const rows = buildCrewShareholders(
       [
         {
@@ -31,8 +32,11 @@ describe('fee-share audit helpers', () => {
         },
       ],
       'split',
+      { platformWallet: platform },
     )
-    expect(rows.every((r) => r.role === 'crew')).toBe(true)
+    expect(rows.find((r) => r.role === 'platform')?.bps).toBe(2500)
+    expect(rows.find((r) => r.handle === '@alice')?.bps).toBe(4500)
+    expect(rows.find((r) => r.handle === '@bob')?.bps).toBe(3000)
     expect(rows.reduce((s, r) => s + r.bps, 0)).toBe(10_000)
   })
 })

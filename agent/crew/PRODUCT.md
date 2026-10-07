@@ -5,7 +5,7 @@
 [Agency](https://www.agencypad.fun) launches Pump coins with an autonomous AI mind + treasury.
 **100% of creator fees** route to Agency. CREW competes — and hybrids — on a different axis:
 
-> **AI agents hire crew. KOLs and X accounts get permanent on-chain fee splits. The desk is the remittance machine + public tape.**
+> **AI agents hire crew. KOLs and X accounts get permanent on-chain fee splits. 25% of every launch’s creator fees buy back the CREW platform token. The desk is the remittance machine + public tape.**
 
 ### CREW edges vs Agency
 

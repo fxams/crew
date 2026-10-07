@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { proposeHolderKolShares, type HolderRow } from './holder-kol'
 import { KOL_DB } from './kol-directory'
 
+const PLATFORM = 'So11111111111111111111111111111111111111112'
+
 describe('proposeHolderKolShares', () => {
   it('allocates crew pool bps by balance among matched KOLs', () => {
     const a = KOL_DB[0]
@@ -33,15 +35,18 @@ describe('proposeHolderKolShares', () => {
     const out = proposeHolderKolShares({
       holders,
       mode: 'split',
+      platformWallet: PLATFORM,
       vaultOwners: new Set(),
     })
 
     expect(out.matches).toHaveLength(2)
+    expect(out.platformBps).toBe(2500)
     expect(out.shareholders.reduce((s, r) => s + r.bps, 0)).toBe(10_000)
     expect(out.crew.reduce((s, r) => s + r.share, 0)).toBe(100)
     const top = out.matches[0]
     expect(top.wallet).toBe(a.wallet)
-    expect(top.bps).toBe(6000)
+    // 60% of 7500 crew pool after 25% platform
+    expect(top.bps).toBe(4500)
   })
 
   it('reserves desk bps and caps kol slots under Pump max 10', () => {
@@ -57,14 +62,17 @@ describe('proposeHolderKolShares', () => {
       holders,
       mode: 'buyback',
       deskWallet: desk,
+      platformWallet: PLATFORM,
       vaultOwners: new Set(),
     })
 
     expect(out.deskBps).toBe(2000)
-    expect(out.matches.length).toBeLessThanOrEqual(9)
+    expect(out.platformBps).toBe(2500)
+    expect(out.matches.length).toBeLessThanOrEqual(8)
     expect(out.shareholders.length).toBeLessThanOrEqual(10)
     expect(out.shareholders.reduce((s, r) => s + r.bps, 0)).toBe(10_000)
     expect(out.shareholders.some((s) => s.wallet === desk && s.role === 'desk')).toBe(true)
+    expect(out.shareholders.some((s) => s.role === 'platform')).toBe(true)
   })
 
   it('excludes vault owners from matches', () => {
@@ -76,6 +84,7 @@ describe('proposeHolderKolShares', () => {
         { tokenAccount: 'k', owner: a.wallet, amount: '10', uiAmount: 10 },
       ],
       mode: 'split',
+      platformWallet: PLATFORM,
       vaultOwners: new Set([vault]),
     })
     expect(out.excludedVaults).toBe(1)

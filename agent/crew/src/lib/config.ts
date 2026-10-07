@@ -62,6 +62,7 @@ export const SOLSCAN_TX_URL = (sig: string) => `https://solscan.io/tx/${sig}`
 /**
  * Desk reserve cut of total creator fees (bps).
  * Agent mode keeps 15% for agent ops (Agency-inspired) — paid to launcher, not burned.
+ * These apply after the platform CREW buyback cut (see PLATFORM_BUYBACK_BPS).
  */
 export const MODE_DESK_BPS = {
   split: 0,
@@ -69,6 +70,34 @@ export const MODE_DESK_BPS = {
   raid: 2500,
   agent: 1500,
 } as const
+
+/**
+ * Permanent platform cut on every CREW launch — SOL fee-share to the buyback treasury.
+ * That wallet later buys the CREW platform token on the open market (not auto-swapped by Pump).
+ */
+export const PLATFORM_BUYBACK_BPS = 2500
+
+/**
+ * On-chain fee-share recipient for the 25% CREW buyback cut.
+ * Set `VITE_CREW_BUYBACK_WALLET` in Render / .env (must be a valid Solana address).
+ * Read at call-time so tests / runtime env updates apply.
+ */
+export function readPlatformBuybackWallet(): string {
+  return (import.meta.env.VITE_CREW_BUYBACK_WALLET as string | undefined)?.trim() || ''
+}
+
+/** @deprecated Use readPlatformBuybackWallet() — kept for sync config dumps. */
+export const PLATFORM_BUYBACK_WALLET = readPlatformBuybackWallet()
+
+export function getPlatformBuybackWallet(): string {
+  const w = readPlatformBuybackWallet()
+  if (!w || w.length < 32) {
+    throw new Error(
+      'Set VITE_CREW_BUYBACK_WALLET to the Solana treasury that receives 25% CREW buyback fees.',
+    )
+  }
+  return w
+}
 
 export const MAX_CREW = 5
 /** Board: launched coins + remit tape */

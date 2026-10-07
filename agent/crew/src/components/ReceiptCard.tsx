@@ -1,3 +1,4 @@
+import { PLATFORM_BUYBACK_BPS } from '../lib/config'
 import type { CoinRecord } from '../lib/types'
 import { modeLabel } from '../lib/edges'
 
@@ -20,6 +21,10 @@ export function ReceiptCard({ coin, onCopy, copied }: Props) {
       </h4>
       <p className="receipt-vibe">{coin.vibe || 'Fees hit the crew.'}</p>
       <div className="receipt-splits">
+        <div className="receipt-split">
+          <span>@crew-buyback</span>
+          <strong>{PLATFORM_BUYBACK_BPS / 100}%</strong>
+        </div>
         {coin.crew.map((m) => (
           <div className="receipt-split" key={`${coin.mint}-${m.handle}`}>
             <span>{m.handle}</span>
@@ -28,7 +33,7 @@ export function ReceiptCard({ coin, onCopy, copied }: Props) {
         ))}
       </div>
       <div className="receipt-foot">
-        <span>0% platform cut</span>
+        <span>{PLATFORM_BUYBACK_BPS / 100}% CREW buyback</span>
         <span>mainnet</span>
       </div>
       <button className="btn btn-ghost btn-sm receipt-copy" type="button" onClick={onCopy}>

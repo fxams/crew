@@ -65,7 +65,12 @@ export type LockHolderKolOpts = {
   mint: string
   mode: DeskMode
   wallet: WalletContextState
-  shareholders: { wallet: string; bps: number; handle: string; role: 'crew' | 'desk' }[]
+  shareholders: {
+    wallet: string
+    bps: number
+    handle: string
+    role: 'crew' | 'desk' | 'platform'
+  }[]
   crew: CrewMember[]
   coin?: Partial<CoinRecord> & Pick<CoinRecord, 'name' | 'ticker'>
 }

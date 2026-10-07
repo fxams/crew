@@ -12,7 +12,13 @@ import {
 } from "./data";
 import { ReceiptCard } from "./components/ReceiptCard";
 import { BRAND_ASSETS, BRAND_PALETTE, brandUrl } from "./lib/brand";
-import { AGENT_MODELS, CREW_VERSION, HIRE_ROLE_OPTIONS, MODE_DESK_BPS } from "./lib/config";
+import {
+  AGENT_MODELS,
+  CREW_VERSION,
+  HIRE_ROLE_OPTIONS,
+  MODE_DESK_BPS,
+  PLATFORM_BUYBACK_BPS,
+} from "./lib/config";
 import {
   simulateBuybackFire,
   simulateFeeAccrual,
@@ -930,7 +936,7 @@ export default function App() {
               <p className="hero-copy">
                 Agency minds meet CREW payroll. Spin an agent that{" "}
                 <em>hires</em> KOLs and X accounts — permanent on-chain fee splits,{" "}
-                <em>0% platform cut.</em>
+                <em>{PLATFORM_BUYBACK_BPS / 100}% CREW buyback</em> on every launch.
               </p>
               <div className="hero-actions">
                 <a className="btn btn-primary" href="#launch">
@@ -984,7 +990,7 @@ export default function App() {
             </div>
             <div className="stat-strip" aria-label="Desk stats">
               <span>
-                <strong>{stats.platformCut}%</strong> cut
+                <strong>{stats.platformCut}%</strong> CREW buyback
               </span>
               <span>
                 <strong>{stats.paidSol.toFixed(3)}</strong> SOL paid
@@ -1975,6 +1981,18 @@ export default function App() {
               <div>
                 <p className="section-label fee-map-label">Fee map</p>
                 <div className="split-bars">
+                  <div className="split-bar">
+                    <div className="split-meta">
+                      <span>@crew-buyback · platform token</span>
+                      <span>{PLATFORM_BUYBACK_BPS / 100}%</span>
+                    </div>
+                    <div className="split-track">
+                      <div
+                        className="split-fill desk-fill"
+                        style={{ width: `${PLATFORM_BUYBACK_BPS / 100}%` }}
+                      />
+                    </div>
+                  </div>
                   {feePreview.deskBps > 0 ? (
                     <div className="split-bar">
                       <div className="split-meta">
@@ -1996,12 +2014,9 @@ export default function App() {
                     </div>
                   ) : null}
                   {feePreview.crew.map((member, index) => {
+                    const crewPoolBps = 10_000 - PLATFORM_BUYBACK_BPS - feePreview.deskBps;
                     const crewPct =
-                      feePreview.deskBps > 0
-                        ? Math.round(
-                            ((10_000 - feePreview.deskBps) * (member.share || 0)) / 100,
-                          ) / 100
-                        : member.share || 0;
+                      Math.round((crewPoolBps * (member.share || 0)) / 100) / 100;
                     return (
                       <div className="split-bar" key={`split-${index}`}>
                         <div className="split-meta">
@@ -2029,7 +2044,8 @@ export default function App() {
               <p className="hint">
                 <strong style={{ color: "var(--ink)" }}>{previewModeMeta.label}</strong>
                 {result ? ` · $${result.ticker} live` : ""}
-                {" · on-chain fee-share · "}0% platform cut
+                {" · on-chain fee-share · "}
+                {PLATFORM_BUYBACK_BPS / 100}% CREW buyback
               </p>
 
               {result ? (
@@ -2193,7 +2209,7 @@ export default function App() {
 
         <footer className="footer">
           <div>CREW · humans get paid · v{CREW_VERSION}</div>
-          <div>0% cut · no AI skim · no $CREW burn tax</div>
+          <div>{PLATFORM_BUYBACK_BPS / 100}% CREW buyback · humans get the rest</div>
         </footer>
       </div>
 

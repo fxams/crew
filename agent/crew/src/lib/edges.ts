@@ -1,3 +1,4 @@
+import { PLATFORM_BUYBACK_BPS } from './config'
 import type {
   BuybackRule,
   CoinRecord,
@@ -208,7 +209,10 @@ export function buildScoreboard(remits: RemitRecord[], limit = 8): ScoreRow[] {
 }
 
 function isHumanHandle(handle: string) {
-  return Boolean(handle) && !['@desk', '@buyback', '@raid', '@agent'].includes(handle)
+  return (
+    Boolean(handle) &&
+    !['@desk', '@buyback', '@raid', '@agent', '@crew-buyback'].includes(handle)
+  )
 }
 
 export function deskStats(coins: CoinRecord[], remits: RemitRecord[]) {
@@ -219,7 +223,7 @@ export function deskStats(coins: CoinRecord[], remits: RemitRecord[]) {
     remits: remits.length,
     humanRemits: human.length,
     paidSol,
-    platformCut: 0,
+    platformCut: PLATFORM_BUYBACK_BPS / 100,
   }
 }
 
@@ -238,12 +242,12 @@ export function shareReceiptText(coin: CoinRecord): string {
     `$${coin.ticker} crew locked on CREW`,
     agentLine,
     split,
-    `${label} · 0% platform cut`,
+    `${label} · ${PLATFORM_BUYBACK_BPS / 100}% CREW buyback`,
     coin.pumpUrl,
     '',
     coin.mode === 'agent'
-      ? 'AI hires humans — KOLs get fee-share.'
-      : 'Humans get paid — not an AI treasury.',
+      ? 'AI hires humans — KOLs get fee-share · CREW buys itself.'
+      : 'Humans get paid · 25% fees buy back CREW.',
   ]
     .filter(Boolean)
     .join('\n')

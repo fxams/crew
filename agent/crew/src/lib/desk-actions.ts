@@ -1,4 +1,4 @@
-import { MODE_DESK_BPS } from './config'
+import { MODE_DESK_BPS, PLATFORM_BUYBACK_BPS } from './config'
 import { DEFAULT_BUYBACK, DEFAULT_RAID_QUESTS } from './edges'
 import type { CoinRecord, RemitRecord } from './types'
 
@@ -19,11 +19,26 @@ export function simulateFeeAccrual(
   totalFeeSol = jitter(0.045),
 ): RemitRecord[] {
   const fee = Math.max(0.005, Number(totalFeeSol.toFixed(4)))
+  const platformBps = PLATFORM_BUYBACK_BPS
   const deskBps = MODE_DESK_BPS[coin.mode]
+  const platformSol = Number(((fee * platformBps) / 10_000).toFixed(4))
   const deskSol = Number(((fee * deskBps) / 10_000).toFixed(4))
-  const crewPool = fee - deskSol
+  const crewPool = Number((fee - platformSol - deskSol).toFixed(4))
   const now = Number(new Date())
   const out: RemitRecord[] = []
+
+  if (platformSol > 0) {
+    out.push({
+      id: id('remit'),
+      mint: coin.mint,
+      ticker: coin.ticker,
+      handle: '@crew-buyback',
+      wallet: '',
+      amountSol: platformSol,
+      mode: coin.mode,
+      at: now,
+    })
+  }
 
   if (deskSol > 0) {
     out.push({
@@ -34,7 +49,7 @@ export function simulateFeeAccrual(
       wallet: coin.launcher,
       amountSol: deskSol,
       mode: coin.mode,
-      at: now,
+      at: now + 20,
     })
   }
 
