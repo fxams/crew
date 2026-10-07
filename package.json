@@ -1,0 +1,8 @@
+{
+  "name": "crewpay",
+  "private": true,
+  "scripts": {
+    "test": "npm ci --prefix agent/crew --legacy-peer-deps && npm test --prefix agent/crew",
+    "build": "npm ci --prefix agent/crew --legacy-peer-deps && VITE_BASE_PATH=/ VITE_SITE_URL=https://app.crewpay.dev npm run build --prefix agent/crew && node scripts/stage-static.mjs"
+  }
+}

@@ -19,22 +19,11 @@ services:
     name: crewpay
     runtime: static
     branch: main
-    # No rootDir — build + publish paths are repo-root relative (unambiguous).
-    # `render-site/` is also committed so a dashboard with a broken build command
-    # can still publish by setting Build Command to `true` and Publish Directory
-    # to `render-site`.
-    buildCommand: |
-      set -e
-      cd agent/crew
-      export VITE_BASE_PATH=/ VITE_SITE_URL=https://app.crewpay.dev
-      npm ci --legacy-peer-deps
-      npm run build
-      cd ../..
-      rm -rf render-site
-      mkdir -p render-site
-      cp -R agent/crew/dist/. render-site/
-      date -u +%Y-%m-%dT%H:%M:%SZ > render-site/DEPLOYED_AT.txt
-    staticPublishPath: render-site
+    # No rootDir. Build + publish are repo-root relative.
+    # Output is copied to both dist/ and render-site/ so either dashboard
+    # publish directory picks up the same build (home has no launch form).
+    buildCommand: npm ci --legacy-peer-deps && npm test && npm run build
+    staticPublishPath: dist
     pullRequestPreviewsEnabled: false
     renderSubdomainPolicy: disabled
     autoDeployTrigger: commit
