@@ -46,9 +46,11 @@ describe('planNarrativeHires', () => {
 })
 
 describe('splitShares', () => {
-  it('sums to 100', () => {
-    for (const n of [1, 2, 3, 4, 5]) {
-      expect(splitShares(n).reduce((a, b) => a + b, 0)).toBe(100)
+  it('sums to 100 with equal splits', () => {
+    for (const n of [1, 2, 3, 4, 5, 10]) {
+      const shares = splitShares(n)
+      expect(shares.reduce((a, b) => a + b, 0)).toBe(100)
+      expect(Math.max(...shares) - Math.min(...shares)).toBeLessThanOrEqual(1)
     }
   })
 })
