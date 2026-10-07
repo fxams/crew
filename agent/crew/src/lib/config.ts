@@ -1,9 +1,15 @@
 import { assertSafeRpcUrl } from './security'
 
-export const CREW_VERSION = '2.5.9'
+export const CREW_VERSION = '2.5.10'
 
 /** Official CREW / CrewPay HQ account on X. */
 export const CREW_X_URL = 'https://x.com/CrewPayHQ'
+
+/** Appended to every Pump metadata description on launch. */
+export const CREW_LAUNCH_ATTRIBUTION = 'Launched from CrewPay.dev platform'
+
+/** User-typed description max — leaves room for {@link CREW_LAUNCH_ATTRIBUTION}. */
+export const USER_DESCRIPTION_MAX = 240
 
 /**
  * Platform $CREW token — set after launch via env (or leave blank for hero placeholders).
@@ -119,6 +125,17 @@ export function getPlatformBuybackWallet(): string {
 
 /** Pump fee-share allows up to 10 recipients in the crew pool (plus platform/desk). */
 export const MAX_CREW = 10
+
+/** Ensure platform attribution is present on on-chain / IPFS descriptions. */
+export function withCrewLaunchDescription(userDescription: string): string {
+  const base = userDescription.trim()
+  const marker = CREW_LAUNCH_ATTRIBUTION.toLowerCase()
+  if (!base) return CREW_LAUNCH_ATTRIBUTION
+  if (base.toLowerCase().includes(marker) || base.toLowerCase().includes('crewpay.dev')) {
+    return base
+  }
+  return `${base}\n\n${CREW_LAUNCH_ATTRIBUTION}`
+}
 /** Board: launched coins + remit tape */
 export const STORE_KEY = 'crew.platform.v4'
 /** Older board keys — migrated once into STORE_KEY */
