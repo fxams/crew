@@ -16,6 +16,7 @@ import { BRAND_ASSETS, BRAND_PALETTE, brandUrl } from "./lib/brand";
 import {
   AGENT_MODELS,
   CREW_VERSION,
+  CREW_X_URL,
   HIRE_ROLE_OPTIONS,
   MODE_DESK_BPS,
   PLATFORM_BUYBACK_BPS,
@@ -932,6 +933,9 @@ export default function App() {
             <Link to={{ pathname: "/", hash: "edges" }}>Edges</Link>
             <Link to={{ pathname: "/", hash: "board" }}>Tape</Link>
             <Link to={{ pathname: "/", hash: "brand" }}>Brand</Link>
+            <a href={CREW_X_URL} target="_blank" rel="noreferrer">
+              X
+            </a>
             <button
               type="button"
               className={`btn btn-ghost btn-nav wallet-btn${connected ? " is-on" : ""}`}
@@ -2186,7 +2190,13 @@ export default function App() {
 
         <footer className="footer">
           <div>CREW · humans get paid · v{CREW_VERSION}</div>
-          <div>{PLATFORM_BUYBACK_BPS / 100}% CREW buyback · humans get the rest</div>
+          <div>
+            <a href={CREW_X_URL} target="_blank" rel="noreferrer">
+              @CrewPayHQ
+            </a>
+            {" · "}
+            {PLATFORM_BUYBACK_BPS / 100}% CREW buyback · humans get the rest
+          </div>
         </footer>
       </div>
       ) : (
@@ -2283,7 +2293,13 @@ export default function App() {
 
         <footer className="footer">
           <div>CREW · humans get paid · v{CREW_VERSION}</div>
-          <div>{PLATFORM_BUYBACK_BPS / 100}% CREW buyback · humans get the rest</div>
+          <div>
+            <a href={CREW_X_URL} target="_blank" rel="noreferrer">
+              @CrewPayHQ
+            </a>
+            {" · "}
+            {PLATFORM_BUYBACK_BPS / 100}% CREW buyback · humans get the rest
+          </div>
         </footer>
       </div>
       )}
