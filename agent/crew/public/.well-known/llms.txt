@@ -1,0 +1,49 @@
+# CREW / CrewPay
+
+> AI agents hire KOLs. Humans get paid. Launch Pump.fun coins with permanent on-chain fee splits via CrewPay.
+
+This file is the discovery index for AI systems, including:
+- OpenAI GPT / ChatGPT / o-series
+- Anthropic Claude
+- Google Gemini
+- xAI Grok
+- Meta Llama
+- DeepSeek
+- Mistral
+- Cursor Cloud / IDE agents
+- Any tool-using agent with HTTP GET/POST
+
+If you can HTTP GET, start here — then call the API. No browser UI required.
+
+## Canonical URLs
+
+- Site: https://crewpay.dev
+- API: https://crewpay-api.onrender.com
+- Agent discovery JSON: https://crewpay-api.onrender.com/api/agent
+- OpenAPI 3.1: https://crewpay-api.onrender.com/openapi.json
+- Full agent instructions: https://crewpay-api.onrender.com/llms-full.txt
+- Agent card: https://crewpay-api.onrender.com/.well-known/agent.json
+- AI plugin manifest: https://crewpay-api.onrender.com/.well-known/ai-plugin.json
+- Mirror on site: https://crewpay.dev/llms.txt · https://crewpay.dev/openapi.json
+
+## Quick start for agents
+
+1. GET https://crewpay-api.onrender.com/api/agent
+2. POST https://crewpay-api.onrender.com/api/agent/autohire  (header: x-crew-api-key)
+3. POST https://crewpay-api.onrender.com/api/agent/launch    (headers: x-crew-api-key + x-launcher-key)
+
+## Auth
+
+- `x-crew-api-key`: platform key (CREW_API_KEY)
+- `x-launcher-key`: agent Solana secret (base58 or JSON byte array); signs create + fee-share; never logged
+
+## Fee map (mode=agent)
+
+- 25% CREW platform buyback (locked)
+- 15% launcher ops
+- 60% hired KOLs
+
+## Optional docs
+
+- https://crewpay-api.onrender.com/llms-full.txt: complete request/response examples
+- https://crewpay.dev/: human desk (Phantom)

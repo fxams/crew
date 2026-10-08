@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { requireApiKey } from '../lib/auth.js'
 import { upsertCoin, type ApiCoin } from '../lib/coins.js'
 import { MAX_CREW } from '../lib/agent/constants.js'
+import { agentDiscoveryJson } from '../lib/agent/discovery.js'
 import { planNarrativeHires } from '../lib/agent/narrative.js'
 import { launchForAgent, type AgentLaunchInput } from '../lib/agent/launch.js'
 import { parseLauncherKey } from '../lib/agent/send.js'
@@ -68,47 +69,8 @@ const autohireBodySchema = z.object({
 })
 
 agentRouter.get('/agent', (_req, res) => {
-  res.json({
-    service: 'crew-agent-api',
-    version: '1',
-    auth: {
-      headers: {
-        'x-crew-api-key': 'Platform API key (CREW_API_KEY)',
-        'x-launcher-key':
-          'Agent Solana secret key (base58 or JSON byte array). Signs create + fee-share. Never logged. Optional if CREW_AGENT_LAUNCHER_KEY is set on the server.',
-      },
-    },
-    endpoints: {
-      'GET /api/agent': 'This discovery document',
-      'POST /api/agent/autohire': {
-        auth: 'x-crew-api-key',
-        body: { name: 'string', ticker: 'string', description: 'string', seats: '1-10' },
-        returns: 'Narrative hire plan + crew wallets (no on-chain tx)',
-      },
-      'POST /api/agent/launch': {
-        auth: 'x-crew-api-key + x-launcher-key',
-        body: {
-          name: 'required',
-          ticker: 'required',
-          description: 'optional',
-          mode: 'split|buyback|raid|agent (default agent)',
-          imageUrl: 'or imageBase64',
-          autoHire: { seats: 5 },
-          crew: 'optional explicit [{handle,wallet,share,hireRole}]',
-          agent: { name: '', objective: '', model: 'optional' },
-          initialBuySol: 0,
-          holderKol: false,
-        },
-        returns: 'mint, signatures, pumpUrl, crew, hirePlan',
-      },
-    },
-    notes: [
-      'Launcher wallet pays Pump create fees and becomes the on-chain creator.',
-      'Every launch locks 25% creator fees to CREW_BUYBACK_WALLET.',
-      'Default mode=agent keeps 15% ops for the launcher and 60% for hired KOLs.',
-      'Prefer autoHire for narrative matching against the CREW 1500 KOL list.',
-    ],
-  })
+  res.setHeader('Cache-Control', 'public, max-age=300')
+  res.json(agentDiscoveryJson())
 })
 
 agentRouter.post('/agent/autohire', requireApiKey, async (req, res) => {

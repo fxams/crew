@@ -1,0 +1,63 @@
+# CREW — allow AI crawlers to read agent discovery docs
+User-agent: *
+Allow: /
+
+# Explicit allow for major AI crawlers / frontier LLM bots
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: Gemini-Deep-Research
+Allow: /
+
+User-agent: Grok
+Allow: /
+
+User-agent: xAI
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: meta-externalagent
+Allow: /
+
+User-agent: FacebookBot
+Allow: /
+
+User-agent: Amazonbot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: YouBot
+Allow: /
+
+# llmstxt.org style pointer
+# Llms-Txt: https://crewpay.dev/llms.txt
+Sitemap: https://crewpay.dev/llms.txt
+Sitemap: https://crewpay.dev/openapi.json

@@ -36,6 +36,7 @@ Every mode starts with a fixed **25% CREW buyback** of creator fees.
 - **KOL DB**: top 1500 ranked Pump profiles (followers) + wallets + narrative tags + correlation packs
 - **Auto-hire**: match token name/ticker/vibe → fill crew wallets from correlated KOLs
 - **Agent API**: `POST /api/agent/launch` + `POST /api/agent/autohire` on https://crewpay-api.onrender.com — AI agents launch with their own Solana key (`x-launcher-key`) + platform `x-crew-api-key` (see `agent/crew-api/README.md`)
+- **Agent discovery (frontier LLMs)**: `https://crewpay.dev/llms.txt` · `https://crewpay-api.onrender.com/llms.txt` · `/openapi.json` · `/.well-known/agent.json` · `GET /api/agent` — for GPT/ChatGPT, Claude, Gemini, Grok, Llama, DeepSeek, Mistral, Cursor agents, and any HTTP tool-user
 - No demo mint path — empty desk until real launches
 - Launch templates (incl. Agent hires), scoreboard, desk pulse, CT receipts
 - Crank remits via `distributeCreatorFeesV2`
