@@ -4,6 +4,7 @@ import helmet from 'helmet'
 import { migrate } from './lib/db.js'
 import { agentRouter } from './routes/agent.js'
 import { coinsRouter } from './routes/coins.js'
+import { discoveryRouter } from './routes/discovery.js'
 import { healthRouter } from './routes/health.js'
 import { kolsRouter } from './routes/kols.js'
 
@@ -34,6 +35,7 @@ async function main() {
   app.use(express.json({ limit: '6mb' }))
 
   app.use(healthRouter)
+  app.use(discoveryRouter)
   app.use('/api', healthRouter)
   app.use('/api', coinsRouter)
   app.use('/api', kolsRouter)
@@ -44,6 +46,14 @@ async function main() {
       service: 'crew-api',
       docs: '/api/healthz',
       agent: '/api/agent',
+      llms: '/llms.txt',
+      llmsFull: '/llms-full.txt',
+      openapi: '/openapi.json',
+      wellKnown: {
+        llms: '/.well-known/llms.txt',
+        agent: '/.well-known/agent.json',
+        aiPlugin: '/.well-known/ai-plugin.json',
+      },
     })
   })
 

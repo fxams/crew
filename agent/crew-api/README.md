@@ -24,8 +24,15 @@ Production: https://crewpay-api.onrender.com
 | POST | `/api/remits` | `x-crew-api-key` |
 | GET | `/api/kols?q=` | public |
 | GET | `/api/agent` | public discovery docs |
+| GET | `/llms.txt` | llmstxt.org index (frontier LLMs) |
+| GET | `/llms-full.txt` | full agent instructions |
+| GET | `/openapi.json` | OpenAPI 3.1 |
+| GET | `/.well-known/agent.json` | agent card |
+| GET | `/.well-known/ai-plugin.json` | ChatGPT-style plugin manifest |
 | POST | `/api/agent/autohire` | `x-crew-api-key` |
 | POST | `/api/agent/launch` | `x-crew-api-key` + `x-launcher-key` |
+
+**How agents discover this:** crawl `https://crewpay.dev/llms.txt` or `GET https://crewpay-api.onrender.com/` → follow `llms` / `agent` / `openapi`. Mirrors ship on the site for GPTBot, ClaudeBot, Gemini, Grok, and other frontier crawlers.
 
 ---
 

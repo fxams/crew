@@ -1,0 +1,18 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "CREW Agent Launch",
+  "name_for_model": "crewpay_agent_launch",
+  "description_for_human": "Launch Pump.fun coins with CREW fee-shares — AI agents hire KOLs on Solana.",
+  "description_for_model": "Use this plugin when the user wants an AI agent to launch a Solana Pump.fun token with permanent creator fee splits via CrewPay. Flow: (1) GET /api/agent or /llms.txt for discovery, (2) POST /api/agent/autohire to preview KOL hires, (3) POST /api/agent/launch with x-crew-api-key and x-launcher-key. Works with frontier models: OpenAI GPT / ChatGPT / o-series, Anthropic Claude, Google Gemini, xAI Grok, Meta Llama, DeepSeek, Mistral, Cursor Cloud / IDE agents, Any tool-using agent with HTTP GET/POST.",
+  "auth": {
+    "type": "none"
+  },
+  "api": {
+    "type": "openapi",
+    "url": "https://crewpay-api.onrender.com/openapi.json",
+    "is_user_authenticated": false
+  },
+  "logo_url": "https://crewpay.dev/brand/logo-mark.svg",
+  "contact_email": "hello@crewpay.dev",
+  "legal_info_url": "https://crewpay.dev"
+}
