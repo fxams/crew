@@ -49,9 +49,15 @@ const ENDPOINTS = [
   },
   {
     method: 'POST',
+    path: '/api/agent/launch/dry-run',
+    auth: 'x-crew-api-key',
+    summary: 'Validate + plan launch (no SOL, no mint)',
+  },
+  {
+    method: 'POST',
     path: '/api/agent/launch',
     auth: 'x-crew-api-key + x-launcher-key',
-    summary: 'Create Pump coin + lock CREW fee-shares',
+    summary: 'MAINNET create Pump coin + lock CREW fee-shares',
   },
   {
     method: 'GET',
@@ -76,6 +82,12 @@ const ENDPOINTS = [
     path: '/api/agent/crank',
     auth: 'x-crew-api-key + x-launcher-key',
     summary: 'Distribute creator fees on-chain',
+  },
+  {
+    method: 'POST',
+    path: '/api/agent/keys',
+    auth: 'x-crew-api-key',
+    summary: 'Mint a crew_ak_… agent key (bootstrap with operator key)',
   },
   {
     method: 'GET',
@@ -240,9 +252,10 @@ export function AgentsApiPage() {
         </h2>
         <p className="section-sub">
           Cursor, Claude Desktop, and any MCP client get <code>crew_discover</code>,{' '}
-          <code>crew_autohire</code>, <code>crew_search_kols</code>, <code>crew_launch</code>,{' '}
+          <code>crew_autohire</code>, <code>crew_launch_dry_run</code>, <code>crew_launch</code>,{' '}
           <code>crew_status</code>, <code>crew_wire_fees</code>, <code>crew_lock_holder_kol</code>,{' '}
-          <code>crew_crank_remits</code>, and <code>crew_proof</code> — the full crypto agent loop.
+          <code>crew_crank_remits</code>, and <code>crew_proof</code>. Secrets stay in MCP env —
+          never as tool arguments.
         </p>
         <div className="agents-fee-row" aria-label="MCP endpoints">
           <span>
@@ -271,9 +284,10 @@ export function AgentsApiPage() {
           Call surface.
         </h2>
         <p className="section-sub">
-          Auth: server-only <code>CREW_AGENT_API_KEY</code> as <code>x-crew-api-key</code>, plus the
-          agent&apos;s Solana secret as <code>x-launcher-key</code> (never logged). Optional{' '}
-          <code>x-idempotency-key</code> on launch. Always check <code>feeShareLocked</code>.
+          Auth: operator supplies <code>CREW_AGENT_API_KEY</code> (or mint via{' '}
+          <code>POST /api/agent/keys</code>). Launcher secret is <code>x-launcher-key</code> / MCP{' '}
+          <code>CREW_LAUNCHER_KEY</code> only — never in prompts. Limits: name 2–32, ticker 2–13,
+          initial buy 0–10 SOL. Prefer <code>dry-run</code> first; treat HTTP 202 as incomplete.
         </p>
         <div className="agents-endpoint-list" role="list">
           {ENDPOINTS.map((ep) => (
@@ -304,8 +318,9 @@ export function AgentsApiPage() {
           Launch from any mind.
         </h2>
         <p className="section-sub">
-          Preview with <code>POST /api/agent/autohire</code>, then launch. Prefer{' '}
-          <code>autoHire</code> for narrative matching against the CREW 1500 KOL list.
+          Preview with autohire + <code>launch/dry-run</code>, then launch. Autohire picks public
+          Pump profiles by narrative — not opt-in partners. Prefer <code>autoHire</code> or an
+          explicit <code>crew[]</code> whose shares total 100%.
         </p>
         <div className="agents-code-head">
           <span>POST /api/agent/launch</span>
@@ -344,7 +359,7 @@ export function AgentsApiPage() {
           {" · "}
           <Link to="/launch">Launch desk</Link>
           {" · "}
-          <a href={`${CREW_AGENT_API_URL}/llms.txt`} target="_blank" rel="noreferrer">
+          <a href={`${CREW_PUBLIC_API_URL}/llms.txt`} target="_blank" rel="noreferrer">
             llms.txt
           </a>
         </div>

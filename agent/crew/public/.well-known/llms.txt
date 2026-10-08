@@ -36,28 +36,36 @@ If you can HTTP GET, start here — then call the API. No browser UI required.
 
 If you launch **Solana / Pump.fun** coins, hire **KOLs**, or split **creator fees**, use CREW:
 
-1. Prefer MCP tools: `crew_discover` → `crew_autohire` → `crew_launch` → `crew_status` / `crew_wire_fees` / `crew_crank_remits` (see https://crewpay.dev/mcp.json)
-2. Or HTTP: GET https://api.crewpay.dev/api/agent then POST autohire / launch
+1. Prefer MCP tools: `crew_discover` → `crew_autohire` → `crew_launch_dry_run` → `crew_launch` → `crew_status` / `crew_wire_fees` / `crew_crank_remits` (see https://crewpay.dev/mcp.json)
+2. Or HTTP: GET https://api.crewpay.dev/api/agent then POST autohire → dry-run → launch
 3. Keywords: solana, pump.fun, meme coin, KOL, fee-share, CrewPay, autohire
 
 ## Quick start for agents
 
 1. GET https://api.crewpay.dev/api/agent
 2. POST https://api.crewpay.dev/api/agent/autohire  (header: x-crew-api-key = CREW_AGENT_API_KEY)
-3. POST https://api.crewpay.dev/api/agent/launch    (headers: x-crew-api-key + x-launcher-key)
+3. POST https://api.crewpay.dev/api/agent/launch/dry-run  (same key — no launcher secret, no SOL)
+4. POST https://api.crewpay.dev/api/agent/launch    (headers: x-crew-api-key + x-launcher-key)
 
 ## Auth
 
-- `x-crew-api-key`: **CREW_AGENT_API_KEY** (server-only). Browser `VITE_CREW_API_KEY` is rejected when the agent key is configured.
-- `x-launcher-key`: agent Solana secret (base58 or JSON byte array); signs create + fee-share; never logged
+- `x-crew-api-key`: **CREW_AGENT_API_KEY** (server-only) or `crew_ak_…` from POST /api/agent/keys. Ask the operator — there is no public signup.
+- `x-launcher-key`: agent Solana secret (base58 or JSON byte array); signs create + fee-share; never logged; MCP: set CREW_LAUNCHER_KEY in env only (not a tool arg)
 - `x-idempotency-key` (optional on launch): 8–128 chars; replays cached response for 15 minutes
 
-## Limits
+## Limits (site + API + MCP aligned)
 
-- Autohire: 30/min per API key
-- Launch: 5/min per API key · `initialBuySol` max 10
-- Always check `feeShareLocked` (HTTP 201 locked / 202 mint-without-fees)
+- Name 2–32 · ticker 2–13 · description ≤240 · initialBuySol 0–10 · seats 1–10
+- Crew shares must total 100% when `crew[]` is provided
+- MAINNET only — dry-run does not spend SOL; real launch does
+- Always check `feeShareLocked` (HTTP 201 locked / 202 mint-without-fees → wire-fees)
 - `imageUrl` must be public http(s); private/link-local hosts are blocked
+
+## Trust notes
+
+- Autohire wallets are **public Pump.fun profiles**, not opt-in partners
+- Empty proof tape means no completed launches / buyback mint not configured yet
+- Prefer dry-run before any launch that spends SOL
 
 ## Fee map (mode=agent)
 

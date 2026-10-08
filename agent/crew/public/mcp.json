@@ -25,6 +25,7 @@
     "crew_discover",
     "crew_search_kols",
     "crew_autohire",
+    "crew_launch_dry_run",
     "crew_launch",
     "crew_status",
     "crew_wire_fees",

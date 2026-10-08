@@ -115,8 +115,8 @@ export function getLaunchBlockers(draft: LaunchDraft): string[] {
   } catch {
     blockers.push('Coin image')
   }
-  if (draft.initialBuySol < 0 || draft.initialBuySol > 100) {
-    blockers.push('Initial buy (0–100 SOL)')
+  if (draft.initialBuySol < 0 || draft.initialBuySol > 10) {
+    blockers.push('Initial buy (0–10 SOL)')
   }
   if (!draft.holderKol && (draft.crew.length < 1 || draft.crew.length > MAX_CREW)) {
     blockers.push(`Crew (1–${MAX_CREW})`)
@@ -207,8 +207,8 @@ export function validateDraft(
   assertImageFile(draft.imageFile)
   const twitter = normalizeOptionalTwitter(draft.twitter)
   const website = normalizeOptionalWebsite(draft.website)
-  if (draft.initialBuySol < 0 || draft.initialBuySol > 100) {
-    throw new Error('Initial buy must be between 0 and 100 SOL.')
+  if (draft.initialBuySol < 0 || draft.initialBuySol > 10) {
+    throw new Error('Initial buy must be between 0 and 10 SOL.')
   }
 
   let agent: AgentBrief | undefined

@@ -22,11 +22,13 @@ describe('agent discovery docs', () => {
     expect(llmsTxt()).toContain('/api/agent')
   })
 
-  it('exposes openapi paths for autohire + launch', () => {
+  it('exposes openapi paths for autohire + dry-run + launch', () => {
     const spec = openApiSpec()
     expect(spec.openapi).toBe('3.1.0')
     expect(spec.paths['/api/agent/autohire']).toBeTruthy()
+    expect(spec.paths['/api/agent/launch/dry-run']).toBeTruthy()
     expect(spec.paths['/api/agent/launch']).toBeTruthy()
+    expect(spec.paths['/api/agent/keys']).toBeTruthy()
   })
 
   it('ships agent card + ai-plugin + robots allows', () => {
@@ -37,6 +39,7 @@ describe('agent discovery docs', () => {
     expect(llmsFullTxt()).toContain('x-launcher-key')
     expect(agentDiscoveryJson().discovery.llms_txt).toContain('/llms.txt')
     expect(agentDiscoveryJson().mcp.tools).toContain('crew_discover')
+    expect(agentDiscoveryJson().mcp.tools).toContain('crew_launch_dry_run')
     expect(agentDiscoveryJson().mcp.tools).toContain('crew_wire_fees')
     expect(agentDiscoveryJson().mcp.tools).toContain('crew_lock_holder_kol')
     expect(agentDiscoveryJson().mcp.tools).toContain('crew_proof')
@@ -44,5 +47,8 @@ describe('agent discovery docs', () => {
     expect(agentDiscoveryJson().api).toBe('https://api.crewpay.dev')
     expect(agentDiscoveryJson().aliases.api).toContain('https://crewpay-api.onrender.com')
     expect(agentDiscoveryJson().proof.site).toContain('/proof')
+    expect(agentDiscoveryJson().limits.initialBuySol).toBe('0–10')
+    expect(llmsTxt()).toContain('dry-run')
+    expect(llmsFullTxt()).toContain('Never put Solana secrets')
   })
 })
