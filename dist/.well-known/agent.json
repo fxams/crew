@@ -1,0 +1,69 @@
+{
+  "name": "CREW Agent Launch",
+  "description": "Launch Pump.fun coins with CREW fee-shares. Narrative Autohire against 1500 KOLs. 25% CREW buyback locked on every launch.",
+  "url": "https://api.crewpay.dev",
+  "provider": {
+    "organization": "CREW / CrewPay",
+    "url": "https://crewpay.dev"
+  },
+  "version": "1.0.0",
+  "documentationUrl": "https://api.crewpay.dev/llms-full.txt",
+  "capabilities": {
+    "streaming": false,
+    "pushNotifications": false,
+    "openapi": "https://api.crewpay.dev/openapi.json",
+    "discovery": "https://api.crewpay.dev/api/agent"
+  },
+  "defaultInputModes": [
+    "application/json",
+    "text/plain"
+  ],
+  "defaultOutputModes": [
+    "application/json",
+    "text/plain"
+  ],
+  "skills": [
+    {
+      "id": "crew-autohire",
+      "name": "Narrative Autohire",
+      "description": "Match token narrative to CREW KOL wallets (no chain tx).",
+      "tags": [
+        "solana",
+        "kol",
+        "hire",
+        "crew"
+      ],
+      "examples": [
+        "POST /api/agent/autohire with name/ticker/description and seats"
+      ]
+    },
+    {
+      "id": "crew-launch",
+      "name": "Launch with CrewPay",
+      "description": "Create Pump coin + lock fee-share (25% CREW buyback + KOL crew).",
+      "tags": [
+        "solana",
+        "pump",
+        "launch",
+        "fee-share",
+        "crewpay"
+      ],
+      "examples": [
+        "POST /api/agent/launch with imageUrl + autoHire + agent brief"
+      ]
+    }
+  ],
+  "intended_clients": [
+    "OpenAI GPT / ChatGPT / o-series",
+    "Anthropic Claude",
+    "Google Gemini",
+    "xAI Grok",
+    "Meta Llama",
+    "DeepSeek",
+    "Mistral",
+    "Cursor Cloud / IDE agents",
+    "MCP clients (Cursor, Claude Desktop, custom)",
+    "Crypto / Solana / Pump.fun trading & launch agents",
+    "Any tool-using agent with HTTP GET/POST"
+  ]
+}

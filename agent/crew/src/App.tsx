@@ -2436,6 +2436,7 @@ export default function App() {
                   id="buy"
                   type="number"
                   min={0}
+                  max={10}
                   step={0.01}
                   value={draft.initialBuySol}
                   onChange={(e) =>

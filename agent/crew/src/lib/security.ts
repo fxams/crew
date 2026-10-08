@@ -214,7 +214,7 @@ export function sanitizeDraft(raw: unknown): LaunchDraft {
     vibe: asString(r.vibe, 360),
     mode: safeMode,
     crew: crew.length ? crew : fallback.crew,
-    initialBuySol: Math.max(0, Math.min(100, Number(r.initialBuySol) || 0)),
+    initialBuySol: Math.max(0, Math.min(10, Number(r.initialBuySol) || 0)),
     imageFile: null,
     twitter: asString(r.twitter, 120),
     website: asString(r.website, 200),

@@ -11,7 +11,12 @@ import {
   setIdempotent,
 } from '../lib/agent/idempotency.js'
 import { planNarrativeHires } from '../lib/agent/narrative.js'
-import { launchForAgent, type AgentLaunchInput } from '../lib/agent/launch.js'
+import {
+  dryRunLaunchForAgent,
+  launchForAgent,
+  launchNextSteps,
+  type AgentLaunchInput,
+} from '../lib/agent/launch.js'
 import { takeRateLimit } from '../lib/agent/rate-limit.js'
 import {
   crankRemitsForAgent,
@@ -22,16 +27,79 @@ import {
 } from '../lib/agent/repair.js'
 import { assertSafeHttpUrl } from '../lib/agent/safe-url.js'
 import { parseLauncherKey } from '../lib/agent/send.js'
+import { solanaAddress } from '../lib/agent/solana-address.js'
 import { emitWebhookEvent } from '../lib/webhooks.js'
 
 export const agentRouter = Router()
 
+const AUTOHIRE_DISCLAIMER =
+  'Autohire matches public Pump.fun profiles by narrative. Wallets are not opt-in partners, endorsed affiliates, or employees of CREW. Operators choose who receives fee-shares.'
+
 const crewMemberSchema = z.object({
   handle: z.string().min(1).max(32),
-  wallet: z.string().min(32).max(64),
+  wallet: solanaAddress,
   share: z.number().int().min(1).max(100),
   hireRole: z.enum(['caller', 'chart', 'raid', 'kol', 'dev']).optional(),
 })
+
+function refineLaunchBody(
+  val: {
+    imageUrl?: string
+    imageBase64?: string
+    website?: string
+    holderKol?: boolean
+    crew?: { share: number }[]
+    autoHire?: unknown
+  },
+  ctx: z.RefinementCtx,
+) {
+  if (!val.imageUrl && !val.imageBase64) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Provide imageUrl or imageBase64',
+      path: ['imageUrl'],
+    })
+  }
+  if (!val.holderKol && !val.crew?.length && !val.autoHire) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Provide crew[] or autoHire (or holderKol: true)',
+      path: ['autoHire'],
+    })
+  }
+  if (val.crew?.length) {
+    const shareSum = val.crew.reduce((s, m) => s + Math.round(Number(m.share) || 0), 0)
+    if (shareSum !== 100) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `Crew shares must total 100% (now ${shareSum}%). Shares are relative to the hired-KOL pool, not including the 25% platform buyback.`,
+        path: ['crew'],
+      })
+    }
+  }
+  if (val.imageUrl) {
+    try {
+      assertSafeHttpUrl(val.imageUrl, 'imageUrl')
+    } catch (err) {
+      ctx.addIssue({
+        code: 'custom',
+        message: err instanceof Error ? err.message : 'Invalid imageUrl',
+        path: ['imageUrl'],
+      })
+    }
+  }
+  if (val.website) {
+    try {
+      assertSafeHttpUrl(val.website, 'website')
+    } catch (err) {
+      ctx.addIssue({
+        code: 'custom',
+        message: err instanceof Error ? err.message : 'Invalid website',
+        path: ['website'],
+      })
+    }
+  }
+}
 
 const launchBodySchema = z
   .object({
@@ -63,45 +131,10 @@ const launchBodySchema = z
       })
       .optional(),
     holderKol: z.boolean().optional().default(false),
+    /** Optional public launcher address for dry-run balance checks only. */
+    launcherPubkey: solanaAddress.optional(),
   })
-  .superRefine((val, ctx) => {
-    if (!val.imageUrl && !val.imageBase64) {
-      ctx.addIssue({
-        code: 'custom',
-        message: 'Provide imageUrl or imageBase64',
-        path: ['imageUrl'],
-      })
-    }
-    if (!val.holderKol && !val.crew?.length && !val.autoHire) {
-      ctx.addIssue({
-        code: 'custom',
-        message: 'Provide crew[] or autoHire (or holderKol: true)',
-        path: ['autoHire'],
-      })
-    }
-    if (val.imageUrl) {
-      try {
-        assertSafeHttpUrl(val.imageUrl, 'imageUrl')
-      } catch (err) {
-        ctx.addIssue({
-          code: 'custom',
-          message: err instanceof Error ? err.message : 'Invalid imageUrl',
-          path: ['imageUrl'],
-        })
-      }
-    }
-    if (val.website) {
-      try {
-        assertSafeHttpUrl(val.website, 'website')
-      } catch (err) {
-        ctx.addIssue({
-          code: 'custom',
-          message: err instanceof Error ? err.message : 'Invalid website',
-          path: ['website'],
-        })
-      }
-    }
-  })
+  .superRefine(refineLaunchBody)
 
 const autohireBodySchema = z.object({
   name: z.string().max(32).optional().default(''),
@@ -173,22 +206,74 @@ agentRouter.post('/agent/autohire', requireAgentApiKey, async (req, res) => {
         score: h.score,
       })),
       crew: plan.crew,
-      tip: 'Inspect hires/reasons, optionally remix via crew[] on launch, or keep autoHire.',
+      disclaimer: AUTOHIRE_DISCLAIMER,
+      tip: 'Inspect hires/reasons, optionally remix via crew[] on launch, or keep autoHire. Listing ≠ consent.',
     })
   } catch (err) {
     res.status(400).json({ error: err instanceof Error ? err.message : 'autohire failed' })
   }
 })
 
+/**
+ * Prefer per-request x-launcher-key. Server env fallback is opt-in only
+ * (CREW_ALLOW_SERVER_LAUNCHER=1) so anonymous agents cannot spend a shared wallet.
+ */
 function resolveLauncherKey(req: { header(name: string): string | undefined }): string {
   const fromHeader = (req.header('x-launcher-key') || '').trim()
   if (fromHeader) return fromHeader
+  const allowServer =
+    process.env.CREW_ALLOW_SERVER_LAUNCHER === '1' ||
+    process.env.CREW_ALLOW_SERVER_LAUNCHER === 'true'
   const fromEnv = process.env.CREW_AGENT_LAUNCHER_KEY?.trim()
-  if (fromEnv) return fromEnv
+  if (allowServer && fromEnv) return fromEnv
   throw new Error(
-    'Provide x-launcher-key (agent Solana secret) or set CREW_AGENT_LAUNCHER_KEY on the server.',
+    'Provide x-launcher-key (agent Solana secret). Server CREW_AGENT_LAUNCHER_KEY is only used when CREW_ALLOW_SERVER_LAUNCHER=1.',
   )
 }
+
+function bodyToLaunchInput(body: z.infer<typeof launchBodySchema>): AgentLaunchInput {
+  const image = body.imageUrl
+    ? ({ kind: 'url', url: body.imageUrl } as const)
+    : ({
+        kind: 'base64',
+        data: body.imageBase64!,
+        contentType: body.imageContentType,
+      } as const)
+
+  return {
+    name: body.name,
+    ticker: body.ticker,
+    description: body.description,
+    mode: body.mode,
+    twitter: body.twitter,
+    website: body.website,
+    initialBuySol: body.initialBuySol,
+    image,
+    crew: body.crew,
+    autoHire: body.holderKol ? undefined : body.autoHire || (body.crew ? undefined : { seats: 5 }),
+    agent: body.agent,
+    holderKol: body.holderKol,
+  }
+}
+
+agentRouter.post('/agent/launch/dry-run', requireAgentApiKey, async (req, res) => {
+  try {
+    const fp = apiKeyFingerprint(req)
+    const ip = clientIp(req)
+    if (!applyRateLimit(res, `dryrun:key:${fp}`, 60, 60_000)) return
+    if (!applyRateLimit(res, `dryrun:ip:${ip}`, 120, 60_000)) return
+
+    const body = launchBodySchema.parse(req.body)
+    const result = await dryRunLaunchForAgent(bodyToLaunchInput(body), {
+      launcherPubkey: body.launcherPubkey,
+    })
+    res.json(result)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'dry-run failed'
+    const status = /unauthorized|api key/i.test(msg) ? 401 : 400
+    res.status(status).json({ ok: false, error: msg })
+  }
+})
 
 agentRouter.post('/agent/launch', requireAgentApiKey, async (req, res) => {
   try {
@@ -216,31 +301,7 @@ agentRouter.post('/agent/launch', requireAgentApiKey, async (req, res) => {
 
     const body = launchBodySchema.parse(req.body)
     const launcher = parseLauncherKey(resolveLauncherKey(req))
-
-    const image = body.imageUrl
-      ? ({ kind: 'url', url: body.imageUrl } as const)
-      : ({
-          kind: 'base64',
-          data: body.imageBase64!,
-          contentType: body.imageContentType,
-        } as const)
-
-    const input: AgentLaunchInput = {
-      name: body.name,
-      ticker: body.ticker,
-      description: body.description,
-      mode: body.mode,
-      twitter: body.twitter,
-      website: body.website,
-      initialBuySol: body.initialBuySol,
-      image,
-      crew: body.crew,
-      autoHire: body.holderKol ? undefined : body.autoHire || (body.crew ? undefined : { seats: 5 }),
-      agent: body.agent,
-      holderKol: body.holderKol,
-    }
-
-    const result = await launchForAgent(input, launcher)
+    const result = await launchForAgent(bodyToLaunchInput(body), launcher)
     if (!result.ok) {
       res.status(400).json(result)
       return
@@ -271,10 +332,16 @@ agentRouter.post('/agent/launch', requireAgentApiKey, async (req, res) => {
       })
     }
 
+    const payload = {
+      ...result,
+      nextSteps: launchNextSteps(result),
+      disclaimer: AUTOHIRE_DISCLAIMER,
+    }
+
     // 201 = fully locked; 202 = mint live but fee-share incomplete (agents must check feeShareLocked).
     const status = result.feeShareLocked ? 201 : 202
-    if (idem) setIdempotent(`launch:${fp}:${idem}`, status, result)
-    res.status(status).json(result)
+    if (idem) setIdempotent(`launch:${fp}:${idem}`, status, payload)
+    res.status(status).json(payload)
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'launch failed'
     // Never include header material; Zod issues are safe.
@@ -287,7 +354,7 @@ agentRouter.get('/agent/status/:mint', requireAgentApiKey, async (req, res) => {
   try {
     const fp = apiKeyFingerprint(req)
     if (!applyRateLimit(res, `status:key:${fp}`, 60, 60_000)) return
-    const mintParam = String(req.params.mint || '')
+    const mintParam = solanaAddress.parse(String(req.params.mint || ''))
     const status = await getAgentMintStatus(mintParam)
     res.json(status)
   } catch (err) {
@@ -295,13 +362,24 @@ agentRouter.get('/agent/status/:mint', requireAgentApiKey, async (req, res) => {
   }
 })
 
-const wireBodySchema = z.object({
-  mint: z.string().min(32).max(64),
-  mode: z.enum(['split', 'buyback', 'raid', 'agent']).optional().default('agent'),
-  name: z.string().max(64).optional(),
-  ticker: z.string().max(16).optional(),
-  crew: z.array(crewMemberSchema).min(1).max(MAX_CREW),
-})
+const wireBodySchema = z
+  .object({
+    mint: solanaAddress,
+    mode: z.enum(['split', 'buyback', 'raid', 'agent']).optional().default('agent'),
+    name: z.string().max(32).optional(),
+    ticker: z.string().max(13).optional(),
+    crew: z.array(crewMemberSchema).min(1).max(MAX_CREW),
+  })
+  .superRefine((val, ctx) => {
+    const shareSum = val.crew.reduce((s, m) => s + Math.round(Number(m.share) || 0), 0)
+    if (shareSum !== 100) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `Crew shares must total 100% (now ${shareSum}%).`,
+        path: ['crew'],
+      })
+    }
+  })
 
 agentRouter.post('/agent/wire-fees', requireAgentApiKey, async (req, res) => {
   try {
@@ -328,10 +406,10 @@ agentRouter.post('/agent/wire-fees', requireAgentApiKey, async (req, res) => {
 })
 
 const lockHolderSchema = z.object({
-  mint: z.string().min(32).max(64),
+  mint: solanaAddress,
   mode: z.enum(['split', 'buyback', 'raid', 'agent']).optional().default('agent'),
-  name: z.string().max(64).optional(),
-  ticker: z.string().max(16).optional(),
+  name: z.string().max(32).optional(),
+  ticker: z.string().max(13).optional(),
 })
 
 agentRouter.post('/agent/lock-holder-kol', requireAgentApiKey, async (req, res) => {
@@ -368,7 +446,7 @@ agentRouter.post('/agent/crank', requireAgentApiKey, async (req, res) => {
   try {
     const fp = apiKeyFingerprint(req)
     if (!applyRateLimit(res, `crank:key:${fp}`, 20, 60_000)) return
-    const mint = z.object({ mint: z.string().min(32).max(64) }).parse(req.body).mint
+    const mint = z.object({ mint: solanaAddress }).parse(req.body).mint
     const launcher = parseLauncherKey(resolveLauncherKey(req))
     const result = await crankRemitsForAgent({ mint, launcher })
     void emitWebhookEvent('remit.cranked', {

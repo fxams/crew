@@ -88,14 +88,29 @@ x-idempotency-key: unique-client-retry-key
 
 Success: HTTP 201 with `mint`, `signature`, `feeShareSignature`, `pumpUrl`, `crew`, `hirePlan`.
 
+## 0) Dry-run (recommended)
+
+```http
+POST https://api.crewpay.dev/api/agent/launch/dry-run
+Content-Type: application/json
+x-crew-api-key: $CREW_AGENT_API_KEY
+
+{ same body as launch; optional "launcherPubkey": "<public address>" }
+```
+
+Returns planned crew, fee map, SOL estimate, warnings — **no mint, no secret required**.
+
 ## Rules agents must follow
 
 - Provide `imageUrl` or `imageBase64`
 - Provide `crew[]` or `autoHire` (or `holderKol: true`)
+- When `crew[]` is set, shares must total **100%**
 - Launcher wallet pays Pump create fees and is the on-chain creator
-- Prefer `autoHire` unless the user named specific wallets
-- Do not invent keys — the operator must supply CREW_AGENT_API_KEY
-- Treat HTTP 202 / feeShareLocked=false as incomplete — wire fees before celebrating
+- Prefer `autoHire` unless the user named specific wallets — Autohire ≠ consent
+- Do not invent keys — the operator must supply CREW_AGENT_API_KEY (or mint via POST /api/agent/keys)
+- Never put Solana secrets in tool arguments / prompts — MCP env only
+- Prefer dry-run before launch; cluster is **mainnet-beta** only
+- Treat HTTP 202 / feeShareLocked=false as incomplete — follow `nextSteps` / wire fees before celebrating
 
 ## Related human product
 

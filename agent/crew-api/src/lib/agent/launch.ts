@@ -5,6 +5,8 @@ import BN from 'bn.js'
 import {
   MAX_INITIAL_BUY_SOL,
   MIN_LAUNCH_FEE_SOL,
+  MODE_DESK_BPS,
+  PLATFORM_BUYBACK_BPS,
   PUMP_COIN_URL,
   USER_DESCRIPTION_MAX,
   withCrewLaunchDescription,
@@ -99,6 +101,195 @@ export function resolveCrew(input: AgentLaunchInput): {
     throw new Error('Auto-hire found no KOLs — provide crew[] or richer narrative.')
   }
   return { crew: normalizeCrew(hirePlan.crew, mode), hirePlan }
+}
+
+export type AgentDryRunResult = {
+  ok: true
+  dryRun: true
+  cluster: 'mainnet-beta'
+  name: string
+  ticker: string
+  mode: DeskMode
+  vibe: string
+  twitter?: string
+  website?: string
+  holderKol: boolean
+  initialBuySol: number
+  costs: {
+    initialBuySol: number
+    minFeeSol: number
+    needSol: number
+    note: string
+  }
+  feeMap: {
+    platformBuybackBps: number
+    deskBps: number
+    crewPoolBps: number
+  }
+  crew: CrewMember[]
+  hirePlan?: NarrativeHirePlan
+  shareholders?: { wallet: string; bps: number }[]
+  agent?: { name: string; objective: string; model: string }
+  balance?: {
+    launcher: string
+    sol: number
+    sufficient: boolean
+  }
+  warnings: string[]
+  nextSteps: string[]
+  disclaimer: string
+}
+
+/** Validate + plan a launch without uploading metadata or signing txs. */
+export async function dryRunLaunchForAgent(
+  input: AgentLaunchInput,
+  opts?: { launcherPubkey?: string },
+): Promise<AgentDryRunResult> {
+  const mode: DeskMode = input.mode || 'agent'
+  const name = input.name.trim()
+  const ticker = normalizeTicker(input.ticker)
+  const vibeRaw = (input.description || '').trim()
+  if (name.length < 2 || name.length > 32) throw new Error('Name must be 2–32 characters.')
+  if (!/^[A-Z0-9]{2,13}$/.test(ticker)) throw new Error('Ticker must be 2–13 letters/numbers.')
+  if (vibeRaw.length > USER_DESCRIPTION_MAX) {
+    throw new Error(`Description max ${USER_DESCRIPTION_MAX} characters.`)
+  }
+  const initialBuySol = Number(input.initialBuySol || 0)
+  if (initialBuySol < 0 || initialBuySol > MAX_INITIAL_BUY_SOL) {
+    throw new Error(`initialBuySol must be 0–${MAX_INITIAL_BUY_SOL}.`)
+  }
+  if (input.website?.trim()) {
+    assertSafeHttpUrl(input.website.trim(), 'website')
+  }
+  if (input.image.kind === 'url') {
+    assertSafeHttpUrl(input.image.url, 'imageUrl')
+  } else if (!input.image.data || input.image.data.length < 64) {
+    throw new Error('imageBase64 must be at least 64 characters.')
+  }
+
+  let agent: { name: string; objective: string; model: string } | undefined
+  if (mode === 'agent') {
+    const agentName = (input.agent?.name || 'Crew Agent').trim().slice(0, 48)
+    const objective = (
+      input.agent?.objective ||
+      input.description ||
+      'Hire KOLs and grow the coin on CREW.'
+    )
+      .trim()
+      .slice(0, 280)
+    if (agentName.length < 2) throw new Error('agent.name must be 2+ chars')
+    if (objective.length < 8) throw new Error('agent.objective must be 8+ chars')
+    agent = {
+      name: agentName,
+      objective,
+      model: (input.agent?.model || 'api').trim().slice(0, 48) || 'api',
+    }
+  }
+
+  const { crew, hirePlan } = resolveCrew({ ...input, mode })
+  const vibe = withCrewLaunchDescription(vibeRaw)
+  const deskBps = MODE_DESK_BPS[mode]
+  const crewPoolBps = 10_000 - PLATFORM_BUYBACK_BPS - deskBps
+  const needSol = initialBuySol + MIN_LAUNCH_FEE_SOL
+  const warnings: string[] = [
+    'MAINNET ONLY — dry-run does not create a mint; a real launch spends SOL.',
+    'Autohire wallets are public Pump.fun profiles — not endorsed affiliates and not opt-in partners.',
+    'Never put a Solana secret in an LLM tool argument — set CREW_LAUNCHER_KEY in MCP/server env only.',
+  ]
+  if (input.holderKol) {
+    warnings.push('holderKol=true leaves fee-shares unlocked until crew_lock_holder_kol.')
+  }
+
+  let shareholders: { wallet: string; bps: number }[] | undefined
+  if (!input.holderKol) {
+    const deskWallet =
+      opts?.launcherPubkey?.trim() ||
+      '11111111111111111111111111111111'
+    try {
+      shareholders = buildCrewShareholders(crew, mode, {
+        deskWallet: new PublicKey(deskWallet).toBase58(),
+      })
+    } catch (err) {
+      warnings.push(
+        `Shareholder preview skipped: ${err instanceof Error ? err.message : 'invalid desk wallet'}`,
+      )
+    }
+  }
+
+  let balance: AgentDryRunResult['balance']
+  if (opts?.launcherPubkey?.trim()) {
+    const launcher = new PublicKey(opts.launcherPubkey.trim()).toBase58()
+    const lamports = await getConnection().getBalance(new PublicKey(launcher), 'confirmed')
+    const sol = lamports / 1e9
+    balance = { launcher, sol, sufficient: sol >= needSol }
+    if (!balance.sufficient) {
+      warnings.push(
+        `Launcher has ${sol.toFixed(4)} SOL; needs ≥ ${needSol.toFixed(3)} SOL for this plan.`,
+      )
+    }
+  }
+
+  return {
+    ok: true,
+    dryRun: true,
+    cluster: 'mainnet-beta',
+    name,
+    ticker,
+    mode,
+    vibe,
+    twitter: input.twitter?.trim() || undefined,
+    website: input.website?.trim() || undefined,
+    holderKol: Boolean(input.holderKol),
+    initialBuySol,
+    costs: {
+      initialBuySol,
+      minFeeSol: MIN_LAUNCH_FEE_SOL,
+      needSol,
+      note: `Real launch needs ≥ ${needSol.toFixed(3)} SOL on the launcher (buy + ~${MIN_LAUNCH_FEE_SOL} fees).`,
+    },
+    feeMap: {
+      platformBuybackBps: PLATFORM_BUYBACK_BPS,
+      deskBps,
+      crewPoolBps,
+    },
+    crew: input.holderKol
+      ? [{ handle: '@holder', wallet: '(launcher)', share: 100, hireRole: 'kol' }]
+      : crew,
+    hirePlan,
+    shareholders,
+    agent,
+    balance,
+    warnings,
+    nextSteps: [
+      'Review crew[] / hirePlan — remix wallets if needed (crew shares must total 100%).',
+      'Set CREW_AGENT_API_KEY + CREW_LAUNCHER_KEY in MCP env (never as tool args).',
+      'POST /api/agent/launch (or crew_launch) — check feeShareLocked; HTTP 202 → crew_wire_fees.',
+      'GET /api/proof after launch to confirm board + buyback tape.',
+    ],
+    disclaimer:
+      'CREW Autohire selects public Pump.fun wallets by narrative match. Listing is not consent, endorsement, or employment. Operators are responsible for who receives fee-shares.',
+  }
+}
+
+export function launchNextSteps(result: Extract<AgentLaunchResult, { ok: true }>): string[] {
+  if (result.feeShareLocked) {
+    return [
+      'Fee-shares locked — optional: crew_crank_remits when fees accrue.',
+      'Verify on GET /api/proof and the coin pumpUrl.',
+    ]
+  }
+  if (result.coin.holderKol) {
+    return [
+      'HTTP 202 / feeShareLocked=false — Holder KOL is open.',
+      'Call crew_lock_holder_kol (or POST /api/agent/lock-holder-kol) when ready to lock.',
+      'crew_status before locking to confirm state.',
+    ]
+  }
+  return [
+    'HTTP 202 / feeShareLocked=false — mint is live but CREW/KOL fees are NOT locked.',
+    'Call crew_wire_fees (or POST /api/agent/wire-fees) with the same crew[] before celebrating.',
+    'crew_status to confirm feeShareLocked=true.',
+  ]
 }
 
 export async function launchForAgent(

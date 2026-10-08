@@ -21,7 +21,6 @@ export async function crewFetch(
   init?: RequestInit & {
     auth?: boolean
     launcher?: boolean
-    launcherKeyOverride?: string
     idempotencyKey?: string
   },
 ): Promise<unknown> {
@@ -33,16 +32,16 @@ export async function crewFetch(
   if (init?.auth) {
     if (!cfg.apiKey) {
       throw new Error(
-        'Missing CREW_AGENT_API_KEY — set it in the MCP server env (Render / Cursor MCP config).',
+        'Missing CREW_AGENT_API_KEY — set it in the MCP server env (Render / Cursor MCP config). Ask the operator; keys are minted via POST /api/agent/keys.',
       )
     }
     headers.set('x-crew-api-key', cfg.apiKey)
   }
   if (init?.launcher) {
-    const launcher = (init.launcherKeyOverride || cfg.launcherKey || '').trim()
+    const launcher = (cfg.launcherKey || '').trim()
     if (!launcher) {
       throw new Error(
-        'Missing launcher key — pass launcherKey to crew_launch or set CREW_LAUNCHER_KEY in MCP env.',
+        'Missing CREW_LAUNCHER_KEY — set the agent Solana secret in MCP env only (never as a tool argument).',
       )
     }
     headers.set('x-launcher-key', launcher)

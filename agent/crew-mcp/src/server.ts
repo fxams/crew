@@ -2,12 +2,25 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import * as z from 'zod/v4'
 import { asText, crewFetch, loadConfig, DEFAULT_API_URL, DEFAULT_SITE_URL } from './client.js'
 
+const mintSchema = z
+  .string()
+  .min(32)
+  .max(64)
+  .regex(/^[1-9A-HJ-NP-Za-km-z]{32,64}$/, 'Invalid Solana mint address')
+
+const crewMemberSchema = z.object({
+  handle: z.string(),
+  wallet: z.string().min(32).max(64),
+  share: z.number().int().min(1).max(100),
+  hireRole: z.enum(['caller', 'chart', 'raid', 'kol', 'dev']).optional(),
+})
+
 /** Build the CREW MCP server — tools for crypto agents launching on Solana / Pump.fun. */
 export function createCrewMcpServer() {
   const cfg = loadConfig()
   const server = new McpServer({
     name: 'crewpay',
-    version: '1.0.0',
+    version: '1.1.0',
     websiteUrl: DEFAULT_SITE_URL,
   })
 
@@ -17,7 +30,6 @@ export function createCrewMcpServer() {
     {
       description:
         'CREW / CrewPay agent discovery JSON — Solana Pump.fun launches with KOL fee-shares for crypto AI agents.',
-      mimeType: 'application/json',
     },
     async () => {
       const data = await crewFetch(cfg, '/api/agent')
@@ -72,7 +84,14 @@ export function createCrewMcpServer() {
         docs: `${DEFAULT_SITE_URL}/agents`,
         llms: `${cfg.apiUrl}/llms.txt`,
         discovery: data,
-        tip: 'Next: crew_autohire to preview KOL pack, then crew_launch with imageUrl + autoHire.',
+        tip: 'Safe flow: crew_discover → crew_autohire → crew_launch_dry_run → crew_launch. Secrets stay in MCP env only.',
+        auth: {
+          reads: 'crew_discover / crew_search_kols / crew_proof need no API key',
+          writes:
+            'Set CREW_AGENT_API_KEY in MCP env. Mint more keys via POST /api/agent/keys (bootstrap with the operator key).',
+          launcher:
+            'Set CREW_LAUNCHER_KEY in MCP env — never pass Solana secrets as tool arguments.',
+        },
       })
     },
   )
@@ -82,7 +101,7 @@ export function createCrewMcpServer() {
     {
       title: 'Search CREW KOL directory',
       description:
-        'Search the CREW KOL / Pump profile directory by handle or wallet. Use when a crypto agent wants to evaluate specific KOLs beyond Autohire.',
+        'Search the CREW KOL / Pump profile directory by handle or wallet. Public Pump.fun profiles — not opt-in partners.',
       inputSchema: {
         q: z.string().min(1).max(64).describe('Handle, pump username, or wallet substring'),
         limit: z.number().int().min(1).max(50).optional().describe('Max results (default 20)'),
@@ -101,10 +120,10 @@ export function createCrewMcpServer() {
     {
       title: 'Narrative Autohire KOLs',
       description:
-        'Preview CREW narrative Autohire: match a Solana / Pump.fun token name, ticker, and vibe to the top KOL pack (wallets, roles, shares, reasons). No on-chain tx. Requires CREW_AGENT_API_KEY.',
+        'Preview CREW narrative Autohire: match a Solana / Pump.fun token name, ticker, and vibe to the top KOL pack (wallets, roles, shares, reasons). No on-chain tx. Public Pump wallets — not endorsed affiliates. Requires CREW_AGENT_API_KEY.',
       inputSchema: {
-        name: z.string().max(32).optional().describe('Token name'),
-        ticker: z.string().max(13).optional().describe('Token ticker'),
+        name: z.string().max(32).optional().describe('Token name (2–32 on launch)'),
+        ticker: z.string().max(13).optional().describe('Token ticker (2–13 on launch)'),
         description: z
           .string()
           .max(240)
@@ -130,13 +149,86 @@ export function createCrewMcpServer() {
   )
 
   server.registerTool(
+    'crew_launch_dry_run',
+    {
+      title: 'Dry-run a CREW launch (no chain tx)',
+      description:
+        'Validate name/ticker/image/crew or autoHire, preview fee map + KOL pack, estimate SOL needed. MAINNET only — does not create a mint. Prefer this before crew_launch. Requires CREW_AGENT_API_KEY. No launcher secret needed.',
+      inputSchema: {
+        name: z.string().min(2).max(32),
+        ticker: z.string().min(2).max(13),
+        description: z.string().max(240).optional(),
+        imageUrl: z.string().url().optional().describe('Public image URL (or use imageBase64)'),
+        imageBase64: z.string().min(64).optional(),
+        seats: z.number().int().min(1).max(10).optional(),
+        mode: z.enum(['agent', 'split', 'buyback', 'raid']).optional(),
+        initialBuySol: z.number().min(0).max(10).optional(),
+        twitter: z.string().max(128).optional(),
+        website: z.string().url().optional(),
+        holderKol: z.boolean().optional(),
+        launcherPubkey: z
+          .string()
+          .min(32)
+          .max(64)
+          .optional()
+          .describe('Optional public launcher address for balance check (never a secret)'),
+        agentName: z.string().min(2).max(48).optional(),
+        agentObjective: z.string().min(8).max(280).optional(),
+        agentModel: z.string().max(48).optional(),
+        crew: z.array(crewMemberSchema).min(1).max(10).optional(),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async (input) => {
+      if (!input.imageUrl && !input.imageBase64) {
+        throw new Error('Provide imageUrl or imageBase64')
+      }
+      const body: Record<string, unknown> = {
+        name: input.name,
+        ticker: input.ticker,
+        description: input.description || '',
+        mode: input.mode || 'agent',
+        initialBuySol: input.initialBuySol ?? 0,
+        holderKol: input.holderKol ?? false,
+        agent: {
+          name: input.agentName || 'Crew MCP Agent',
+          objective:
+            input.agentObjective ||
+            input.description ||
+            'Hire KOLs and grow the coin on CREW.',
+          model: input.agentModel || 'mcp',
+        },
+      }
+      if (input.imageUrl) body.imageUrl = input.imageUrl
+      if (input.imageBase64) body.imageBase64 = input.imageBase64
+      if (input.twitter) body.twitter = input.twitter
+      if (input.website) body.website = input.website
+      if (input.launcherPubkey) body.launcherPubkey = input.launcherPubkey
+      if (input.holderKol) {
+        /* holder path — no crew required */
+      } else if (input.crew?.length) {
+        body.crew = input.crew
+      } else {
+        body.autoHire = { seats: input.seats ?? 5 }
+      }
+
+      const data = await crewFetch(cfg, '/api/agent/launch/dry-run', {
+        method: 'POST',
+        auth: true,
+        body: JSON.stringify(body),
+      })
+      return asText(data)
+    },
+  )
+
+  server.registerTool(
     'crew_status',
     {
       title: 'Mint / fee-share status',
       description:
         'Check whether a CREW mint has fee-shares locked, Holder KOL open, and board presence. Use after launch (HTTP 202) or before wire/lock/crank.',
       inputSchema: {
-        mint: z.string().min(32).max(64).describe('Pump mint address'),
+        mint: mintSchema.describe('Pump mint address'),
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
@@ -153,24 +245,13 @@ export function createCrewMcpServer() {
     {
       title: 'Wire / repair CREW fee-shares',
       description:
-        'Create + lock fee-sharing for an existing mint (orphan mint or failed fee-share). Requires launcher key matching the creator. Prefer after crew_status shows feeShareLocked=false and holderKol=false.',
+        'Create + lock fee-sharing for an existing mint (orphan mint or failed fee-share). Requires CREW_LAUNCHER_KEY in MCP env matching the creator. Prefer after crew_status shows feeShareLocked=false and holderKol=false. Crew shares must total 100%.',
       inputSchema: {
-        mint: z.string().min(32).max(64),
+        mint: mintSchema,
         mode: z.enum(['agent', 'split', 'buyback', 'raid']).optional(),
-        name: z.string().max(64).optional(),
-        ticker: z.string().max(16).optional(),
-        launcherKey: z.string().min(32).optional(),
-        crew: z
-          .array(
-            z.object({
-              handle: z.string(),
-              wallet: z.string(),
-              share: z.number().int().min(1).max(100),
-              hireRole: z.enum(['caller', 'chart', 'raid', 'kol', 'dev']).optional(),
-            }),
-          )
-          .min(1)
-          .max(10),
+        name: z.string().max(32).optional(),
+        ticker: z.string().max(13).optional(),
+        crew: z.array(crewMemberSchema).min(1).max(10),
       },
       annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: true },
     },
@@ -179,7 +260,6 @@ export function createCrewMcpServer() {
         method: 'POST',
         auth: true,
         launcher: true,
-        launcherKeyOverride: input.launcherKey,
         body: JSON.stringify({
           mint: input.mint,
           mode: input.mode || 'agent',
@@ -197,13 +277,12 @@ export function createCrewMcpServer() {
     {
       title: 'Lock Holder-KOL fee-shares',
       description:
-        'Scan top holders ∩ CREW KOL directory and permanently lock fee-shares (one-shot). Use when launch used holderKol=true. Requires launcher key.',
+        'Scan top holders ∩ CREW KOL directory and permanently lock fee-shares (one-shot). Use when launch used holderKol=true. Requires CREW_LAUNCHER_KEY in MCP env.',
       inputSchema: {
-        mint: z.string().min(32).max(64),
+        mint: mintSchema,
         mode: z.enum(['agent', 'split', 'buyback', 'raid']).optional(),
-        name: z.string().max(64).optional(),
-        ticker: z.string().max(16).optional(),
-        launcherKey: z.string().min(32).optional(),
+        name: z.string().max(32).optional(),
+        ticker: z.string().max(13).optional(),
       },
       annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: true },
     },
@@ -212,7 +291,6 @@ export function createCrewMcpServer() {
         method: 'POST',
         auth: true,
         launcher: true,
-        launcherKeyOverride: input.launcherKey,
         body: JSON.stringify({
           mint: input.mint,
           mode: input.mode || 'agent',
@@ -229,10 +307,9 @@ export function createCrewMcpServer() {
     {
       title: 'Crank creator fee remits',
       description:
-        'Call distributeCreatorFeesV2 for a mint so CREW buyback + KOL wallets receive accrued fees. Requires launcher key.',
+        'Call distributeCreatorFeesV2 for a mint so CREW buyback + KOL wallets receive accrued fees. Requires CREW_LAUNCHER_KEY in MCP env.',
       inputSchema: {
-        mint: z.string().min(32).max(64),
-        launcherKey: z.string().min(32).optional(),
+        mint: mintSchema,
       },
       annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: true },
     },
@@ -241,7 +318,6 @@ export function createCrewMcpServer() {
         method: 'POST',
         auth: true,
         launcher: true,
-        launcherKeyOverride: input.launcherKey,
         body: JSON.stringify({ mint: input.mint }),
       })
       return asText(data)
@@ -253,7 +329,7 @@ export function createCrewMcpServer() {
     {
       title: 'Public CREW proof tape',
       description:
-        'Load public buyback runs, remit totals, and recent CREW launches — for crypto agents that need proof of fee payroll + platform buybacks.',
+        'Load public buyback runs, remit totals, and recent CREW launches — for crypto agents that need proof of fee payroll + platform buybacks. Empty tape means no completed launches yet or buyback mint not configured.',
       inputSchema: {
         limit: z.number().int().min(1).max(100).optional(),
       },
@@ -269,18 +345,28 @@ export function createCrewMcpServer() {
   server.registerTool(
     'crew_launch',
     {
-      title: 'Launch Pump coin via CrewPay',
+      title: 'Launch Pump coin via CrewPay (MAINNET)',
       description:
-        'Launch a Solana Pump.fun coin with CREW fee-shares (25% CREW buyback + hired KOLs). Prefer autoHire for narrative matching, or pass crew[] to override. Requires CREW_AGENT_API_KEY + CREW_LAUNCHER_KEY. Always check feeShareLocked on the result.',
+        'MAINNET launch: create a Solana Pump.fun coin with CREW fee-shares (25% CREW buyback + hired KOLs). Prefer crew_launch_dry_run first. Requires CREW_AGENT_API_KEY + CREW_LAUNCHER_KEY in MCP env (never pass secrets as args). Always check feeShareLocked — HTTP 202 needs crew_wire_fees.',
       inputSchema: {
         name: z.string().min(2).max(32),
-        ticker: z.string().min(2).max(13),
+        ticker: z
+          .string()
+          .min(2)
+          .max(13)
+          .regex(/^\$?[A-Za-z0-9]{2,13}$/, 'Ticker must be 2–13 letters/numbers'),
         description: z.string().max(240).optional(),
         imageUrl: z.string().url().optional().describe('Public image URL (or use imageBase64)'),
         imageBase64: z.string().min(64).optional(),
         seats: z.number().int().min(1).max(10).optional().describe('Autohire seats when crew omitted'),
         mode: z.enum(['agent', 'split', 'buyback', 'raid']).optional(),
-        initialBuySol: z.number().min(0).max(10).optional(),
+        initialBuySol: z.number().min(0).max(10).optional().describe('Dev buy 0–10 SOL (site+API aligned)'),
+        twitter: z.string().max(128).optional().describe('X / Twitter handle or URL'),
+        website: z.string().url().optional(),
+        holderKol: z
+          .boolean()
+          .optional()
+          .describe('Open Holder-KOL (fees unlocked until crew_lock_holder_kol)'),
         agentName: z.string().min(2).max(48).optional(),
         agentObjective: z.string().min(8).max(280).optional(),
         agentModel: z.string().max(48).optional().describe('e.g. claude, gpt, gemini, grok'),
@@ -290,26 +376,12 @@ export function createCrewMcpServer() {
           .max(128)
           .optional()
           .describe('Retry-safe key; replays cached launch for 15m'),
-        launcherKey: z
-          .string()
-          .min(32)
-          .optional()
-          .describe(
-            'Agent Solana secret for this launch (base58 or JSON bytes). Overrides CREW_LAUNCHER_KEY env. Never log it.',
-          ),
         crew: z
-          .array(
-            z.object({
-              handle: z.string(),
-              wallet: z.string(),
-              share: z.number().int().min(1).max(100),
-              hireRole: z.enum(['caller', 'chart', 'raid', 'kol', 'dev']).optional(),
-            }),
-          )
+          .array(crewMemberSchema)
           .min(1)
           .max(10)
           .optional()
-          .describe('Explicit crew overrides Autohire when provided'),
+          .describe('Explicit crew (shares must total 100%) overrides Autohire when provided'),
       },
       annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: true },
     },
@@ -323,6 +395,7 @@ export function createCrewMcpServer() {
         description: input.description || '',
         mode: input.mode || 'agent',
         initialBuySol: input.initialBuySol ?? 0,
+        holderKol: input.holderKol ?? false,
         agent: {
           name: input.agentName || 'Crew MCP Agent',
           objective:
@@ -334,14 +407,20 @@ export function createCrewMcpServer() {
       }
       if (input.imageUrl) body.imageUrl = input.imageUrl
       if (input.imageBase64) body.imageBase64 = input.imageBase64
-      if (input.crew?.length) body.crew = input.crew
-      else body.autoHire = { seats: input.seats ?? 5 }
+      if (input.twitter) body.twitter = input.twitter
+      if (input.website) body.website = input.website
+      if (input.holderKol) {
+        /* fees deferred */
+      } else if (input.crew?.length) {
+        body.crew = input.crew
+      } else {
+        body.autoHire = { seats: input.seats ?? 5 }
+      }
 
       const data = await crewFetch(cfg, '/api/agent/launch', {
         method: 'POST',
         auth: true,
         launcher: true,
-        launcherKeyOverride: input.launcherKey,
         idempotencyKey: input.idempotencyKey,
         body: JSON.stringify(body),
       })
@@ -366,9 +445,11 @@ export function createCrewMcpServer() {
           content: {
             type: 'text',
             text: [
-              'You are a crypto launch agent using CREW / CrewPay MCP tools.',
-              'Flow: crew_discover → crew_autohire → crew_launch → crew_status → (crew_wire_fees | crew_lock_holder_kol) → crew_crank_remits.',
-              'Prefer autoHire unless the user named specific wallets. Always check feeShareLocked.',
+              'You are a crypto launch agent using CREW / CrewPay MCP tools on Solana MAINNET.',
+              'Flow: crew_discover → crew_autohire → crew_launch_dry_run → crew_launch → crew_status → (crew_wire_fees | crew_lock_holder_kol) → crew_crank_remits.',
+              'Never pass Solana secrets as tool args — they must live in MCP env (CREW_LAUNCHER_KEY).',
+              'Autohire wallets are public Pump profiles, not consenting partners — confirm with the operator before launch.',
+              'Prefer autoHire unless the user named specific wallets. Crew shares must total 100%. Always check feeShareLocked.',
               `Idea: ${idea}`,
               ticker ? `Ticker hint: ${ticker}` : '',
               `Docs: ${DEFAULT_SITE_URL}/agents · ${DEFAULT_SITE_URL}/proof · ${DEFAULT_API_URL}/llms.txt`,
