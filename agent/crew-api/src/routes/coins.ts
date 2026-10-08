@@ -10,6 +10,8 @@ import {
   type ApiCoin,
   type ApiRemit,
 } from '../lib/coins.js'
+import { enrichRemitHandle } from '../lib/proof.js'
+import { readPlatformBuybackWallet } from '../lib/agent/constants.js'
 import { requireApiKeyOrWallet } from '../lib/wallet-auth.js'
 
 const writeAuth = requireApiKeyOrWallet(requireApiKey)
@@ -96,8 +98,27 @@ coinsRouter.put('/coins', writeAuth, async (req, res) => {
 
 coinsRouter.get('/remits', async (req, res) => {
   try {
-    const remits = await listRemits(Number(req.query.limit || 200))
-    res.json({ remits })
+    const mint =
+      typeof req.query.mint === 'string' && req.query.mint.trim().length >= 32
+        ? req.query.mint.trim()
+        : undefined
+    const remits = await listRemits(Number(req.query.limit || 200), { mint })
+    const buybackWallet = readPlatformBuybackWallet() || null
+    // Enrich handles the same way /api/proof does (crew / buyback / launcher labels).
+    const coinsNeeded = [...new Set(remits.map((r) => r.mint))]
+    const coinMap = new Map<string, ApiCoin>()
+    await Promise.all(
+      coinsNeeded.map(async (m) => {
+        const c = await getCoin(m)
+        if (c) coinMap.set(m, c)
+      }),
+    )
+    res.json({
+      remits: remits.map((r) => ({
+        ...r,
+        handle: enrichRemitHandle(r, coinMap.get(r.mint), buybackWallet),
+      })),
+    })
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : 'list failed' })
   }

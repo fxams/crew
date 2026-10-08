@@ -25,26 +25,25 @@ export async function distributeCreatorFees(mintStr: string, wallet: WalletConte
   }
 
   const mint = new PublicKey(mintStr)
-  const sdk = getPumpSdk()
   const connection = getConnection()
   const sharingConfigAddress = feeSharingConfigPda(mint)
   const accountInfo = await connection.getAccountInfo(sharingConfigAddress)
   if (!accountInfo) {
     throw new Error('No fee-sharing config on this mint yet. Wire crew fees first.')
   }
-  const sharingConfig = sdk.decodeSharingConfig(accountInfo)
-
-  const ix = await sdk.distributeCreatorFeesV2({
-    mint,
-    sharingConfig,
-    sharingConfigAddress,
+  // Prefer OnlinePumpSdk builder — includes AMM/curve sweep before distribute
+  // (avoids CreatorFeesNotSwept 6095 when bonding_curve.creator_fee > 0).
+  const { OnlinePumpSdk } = await import('@pump-fun/pump-sdk')
+  const online = new OnlinePumpSdk(connection)
+  const built = await online.buildDistributeCreatorFeesInstructions(mint, {
     quoteMint: NATIVE_MINT,
-    payer: wallet.publicKey,
-    shouldInitializeAta: true,
     quoteTokenProgram: TOKEN_PROGRAM_ID,
+    payer: wallet.publicKey,
   })
-
-  return sendInstructions({ wallet, ixs: [ix], attempts: 2 })
+  if (!built.instructions.length) {
+    throw new Error('No distribute instructions for this mint.')
+  }
+  return sendInstructions({ wallet, ixs: built.instructions, attempts: 2 })
 }
 
 export type WireFeesOpts = {

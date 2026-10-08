@@ -188,9 +188,9 @@ export function agentDiscoveryJson() {
         returns: 'Locks top holders ∩ KOL DB once (Pump admin revoked after)',
       },
       'POST /api/agent/crank': {
-        auth: 'x-crew-api-key + x-launcher-key',
+        auth: 'x-crew-api-key (+ optional x-launcher-key; else CREW_OPS_KEY)',
         body: { mint: 'required' },
-        returns: 'distributeCreatorFeesV2 signature',
+        returns: 'sweep+distributeCreatorFeesV2 signature (permissionless payer)',
       },
       'POST /api/agent/keys/claim': {
         auth: 'none (rate-limited)',
@@ -219,7 +219,8 @@ export function agentDiscoveryJson() {
       'Self-serve auth: POST /api/agent/keys/claim → crew_ak_… then pass x-crew-api-key (no operator signup).',
       'Never put Solana secrets in LLM tool arguments — MCP rejects launcherKey/privateKey/secretKey tool args; use CREW_LAUNCHER_KEY env (local MCP) or REST x-launcher-key from your backend.',
       'Public hosted MCP (mcp.crewpay.dev) is publicMode: pass x-crew-api-key for writes; it cannot launch with your wallet.',
-      'Launch prefers atomic create+fee-share in one transaction; if that fails it falls back to two txs then one automatic wire retry — call crew_wire_fees({ mint }) when feeShareLocked=false (HTTP 202; crew optional if board has crew).',
+      'Launch prefers atomic v0+ALT single-tx, then Jito bundle [create,lock]; sequential fallback is racy (see lockPath/createSlot/lockSlot). Set CREW_LOOKUP_TABLE and/or CREW_ATOMIC_REQUIRED=1. HTTP 202 → crew_wire_fees({ mint }).',
+      'Crank uses OnlinePumpSdk.buildDistributeCreatorFeesInstructions (sweep before distribute) — fixes CreatorFeesNotSwept 6095. Payer may be CREW_OPS_KEY (no launcher secret).',
       'Every launch description appends “Launched from CrewPay.dev platform” when missing (shown in dry-run.vibe / attribution).',
       'Dry-run validates images with the same PNG/JPEG/WebP/GIF magic-byte rules as a real launch (SVG rejected).',
       'Launcher wallet pays Pump create fees and becomes the on-chain creator.',
@@ -878,7 +879,7 @@ x-idempotency-key: unique-client-retry-key
 
 \`agent.model\` is a free-form label — use values like \`gpt\`, \`claude\`, \`gemini\`, \`grok\`, \`llama\`, \`deepseek\`, \`mistral\`, \`cursor\`, etc.
 
-Success: HTTP 201 with \`mint\`, \`signature\`, \`feeShareSignature\`, \`pumpUrl\`, \`crew\`, \`hirePlan\`.
+Success: HTTP 201 with \`mint\`, \`signature\`, \`feeShareSignature\`, \`pumpUrl\`, \`crew\` (with \`effectiveBps\`), \`shareholders\`, \`hirePlan\` (null when explicit crew[]), \`lockPath\`, \`createSlot\`/\`lockSlot\`.
 
 ## 0) Dry-run (recommended)
 

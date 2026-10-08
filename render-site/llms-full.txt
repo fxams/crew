@@ -105,7 +105,7 @@ x-idempotency-key: unique-client-retry-key
 
 `agent.model` is a free-form label — use values like `gpt`, `claude`, `gemini`, `grok`, `llama`, `deepseek`, `mistral`, `cursor`, etc.
 
-Success: HTTP 201 with `mint`, `signature`, `feeShareSignature`, `pumpUrl`, `crew`, `hirePlan`.
+Success: HTTP 201 with `mint`, `signature`, `feeShareSignature`, `pumpUrl`, `crew` (with `effectiveBps`), `shareholders`, `hirePlan` (null when explicit crew[]), `lockPath`, `createSlot`/`lockSlot`.
 
 ## 0) Dry-run (recommended)
 

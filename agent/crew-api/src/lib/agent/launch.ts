@@ -16,7 +16,12 @@ import {
 } from './constants.js'
 import { uploadPumpMetadata, validateAgentImage, type AgentImageInput } from './ipfs.js'
 import { planNarrativeHires, type CrewMember, type NarrativeHirePlan } from './narrative.js'
-import { getConnection, sendInstructions } from './send.js'
+import {
+  getConnection,
+  getSignatureSlot,
+  sendInstructions,
+  sendJitoBundle,
+} from './send.js'
 import { buildCrewShareholders, normalizeCrew } from './shareholders.js'
 import { assertSafeHttpUrl } from './safe-url.js'
 
@@ -47,10 +52,17 @@ export type AgentLaunchResult =
       feeShareLocked: boolean
       pumpUrl: string
       launcher: string
-      crew: CrewMember[]
+      crew: Array<CrewMember & { effectiveBps?: number }>
+      /** Full on-chain shareholder table (buyback + launcher + KOLs). */
+      shareholders?: { wallet: string; bps: number; role?: string }[]
       mode: DeskMode
-      hirePlan?: NarrativeHirePlan
+      /** null when launch used explicit crew[] (not Autohire). */
+      hirePlan: NarrativeHirePlan | null
       warning?: string
+      /** How fee-shares were locked: single-tx, jito bundle, or sequential (racy). */
+      lockPath?: 'atomic-v0' | 'jito-bundle' | 'sequential' | 'holder-kol-open'
+      createSlot?: number | null
+      lockSlot?: number | null
       coin: {
         id: string
         mint: string
@@ -116,6 +128,8 @@ export type AgentDryRunResult = {
   website?: string
   holderKol: boolean
   initialBuySol: number
+  /** Mirrors balance.sufficient when launcherPubkey provided; else null. */
+  sufficient: boolean | null
   costs: {
     initialBuySol: number
     minFeeSol: number
@@ -127,9 +141,10 @@ export type AgentDryRunResult = {
     deskBps: number
     crewPoolBps: number
   }
-  crew: CrewMember[]
-  hirePlan?: NarrativeHirePlan
-  shareholders?: { wallet: string; bps: number }[]
+  /** share = % of KOL pool (60% in agent mode); effectiveBps = on-chain bps of all fees. */
+  crew: Array<CrewMember & { effectiveBps?: number }>
+  hirePlan: NarrativeHirePlan | null
+  shareholders?: { wallet: string; bps: number; role?: string }[]
   agent?: { name: string; objective: string; model: string }
   balance?: {
     launcher: string
@@ -230,6 +245,27 @@ export async function dryRunLaunchForAgent(
     }
   }
 
+  const deskWalletPreview =
+    opts?.launcherPubkey?.trim() || '11111111111111111111111111111111'
+  const crewOut = input.holderKol
+    ? [{ handle: '@holder', wallet: '(launcher)', share: 100, hireRole: 'kol' as HireRole }]
+    : crew.map((m) => {
+        const hit = shareholders?.find((s) => s.wallet === m.wallet)
+        return hit ? { ...m, effectiveBps: hit.bps } : { ...m }
+      })
+  const shareholderTable = shareholders?.map((s) => {
+    const role =
+      s.wallet === deskWalletPreview
+        ? 'launcher-ops'
+        : crew.some((c) => c.wallet === s.wallet)
+          ? 'kol'
+          : 'buyback'
+    return { ...s, role }
+  })
+  warnings.push(
+    'crew[].share is % of the hired-KOL pool (60% in agent mode), not of all fees — see effectiveBps / shareholders for on-chain bps.',
+  )
+
   return {
     ok: true,
     dryRun: true,
@@ -242,6 +278,7 @@ export async function dryRunLaunchForAgent(
     website: input.website?.trim() || undefined,
     holderKol: Boolean(input.holderKol),
     initialBuySol,
+    sufficient: balance ? balance.sufficient : null,
     costs: {
       initialBuySol,
       minFeeSol: MIN_LAUNCH_FEE_SOL,
@@ -253,19 +290,17 @@ export async function dryRunLaunchForAgent(
       deskBps,
       crewPoolBps,
     },
-    crew: input.holderKol
-      ? [{ handle: '@holder', wallet: '(launcher)', share: 100, hireRole: 'kol' }]
-      : crew,
-    hirePlan,
-    shareholders,
+    crew: crewOut,
+    hirePlan: hirePlan ?? null,
+    shareholders: shareholderTable,
     agent,
     balance,
     warnings,
     nextSteps: [
-      'Review crew[] / hirePlan — remix wallets if needed (crew shares must total 100%).',
+      'Review crew[] / hirePlan — remix wallets if needed (crew shares must total 100% of the KOL pool).',
       'Own wallet: run crewpay-mcp locally with CREW_LAUNCHER_KEY in env, or call REST with x-launcher-key from your secure backend — never paste secrets into chat/tool args.',
       'Hosted public MCP cannot launch with your wallet (no way to inject your secret safely).',
-      'POST /api/agent/launch (or local crew_launch) — check feeShareLocked; HTTP 202 → crew_wire_fees.',
+      'POST /api/agent/launch (or local crew_launch) — prefers atomic v0 or Jito bundle; check feeShareLocked + lockPath.',
       'GET /api/proof after launch to confirm board + buyback tape.',
     ],
     disclaimer:
@@ -350,6 +385,25 @@ export async function launchForAgent(
       ? null
       : buildCrewShareholders(effectiveCrew, mode, { deskWallet })
 
+    const crewWithBps = effectiveCrew.map((m) => {
+      const hit = shareholders?.find((s) => s.wallet === m.wallet)
+      return hit ? { ...m, effectiveBps: hit.bps } : { ...m }
+    })
+    const shareholderTable = shareholders?.map((s) => {
+      const role =
+        s.wallet === deskWallet
+          ? 'launcher-ops'
+          : effectiveCrew.some((c) => c.wallet === s.wallet)
+            ? 'kol'
+            : 'buyback'
+      return { ...s, role }
+    })
+    /** Always present — null when explicit crew[] (not Autohire). */
+    const hirePlanOut: NarrativeHirePlan | null = hirePlan ?? null
+    const atomicRequired =
+      process.env.CREW_ATOMIC_REQUIRED === '1' ||
+      process.env.CREW_ATOMIC_REQUIRED === 'true'
+
     const connection = getConnection()
     const lamports = await connection.getBalance(launcher.publicKey, 'confirmed')
     const needSol = initialBuySol + MIN_LAUNCH_FEE_SOL
@@ -426,9 +480,8 @@ export async function launchForAgent(
       pool: null,
     })
 
-    // Prefer one atomic tx: create(+buy) + fee-share config/update so snipers
-    // cannot skim creator fees in the gap before shares lock. Fall back to
-    // sequential txs if the combined transaction is too large / fails sim.
+    // Prefer atomic create(+buy)+fee-lock so snipers cannot skim undivided fees.
+    // Path: (1) single v0+ALT tx  (2) Jito bundle [create, lock]  (3) sequential (racy).
     if (!input.holderKol && shareholders) {
       const newShareholders = shareholders.map((s) => ({
         address: new PublicKey(s.wallet),
@@ -443,7 +496,21 @@ export async function launchForAgent(
         quoteTokenProgram: TOKEN_PROGRAM_ID,
       })
       const feeIxs = [createShareIx, updateShareIx]
+      const coinBaseFields = {
+        id: id('coin'),
+        mint: mintStr,
+        name,
+        ticker,
+        vibe,
+        mode,
+        crew: effectiveCrew,
+        launcher: deskWallet,
+        pumpUrl,
+        holderKol: false as const,
+        agent,
+      }
 
+      // (1) Single v0 transaction (fits when CREW_LOOKUP_TABLE compresses static accounts).
       try {
         const signature = await sendInstructions({
           payer: launcher,
@@ -451,22 +518,7 @@ export async function launchForAgent(
           signers: [mintKp],
           attempts: 1,
         })
-        const coinBase = {
-          id: id('coin'),
-          mint: mintStr,
-          name,
-          ticker,
-          vibe,
-          mode,
-          crew: effectiveCrew,
-          signature,
-          feeShareSignature: signature,
-          launchedAt,
-          launcher: deskWallet,
-          pumpUrl,
-          holderKol: false,
-          agent,
-        }
+        const slot = await getSignatureSlot(signature)
         return {
           ok: true,
           mint: mintStr,
@@ -475,18 +527,75 @@ export async function launchForAgent(
           feeShareLocked: true,
           pumpUrl,
           launcher: deskWallet,
-          crew: effectiveCrew,
+          crew: crewWithBps,
+          shareholders: shareholderTable,
           mode,
-          hirePlan,
-          coin: coinBase,
+          hirePlan: hirePlanOut,
+          lockPath: 'atomic-v0',
+          createSlot: slot,
+          lockSlot: slot,
+          coin: {
+            ...coinBaseFields,
+            signature,
+            feeShareSignature: signature,
+            launchedAt,
+          },
         }
       } catch (atomicErr) {
         const atomicMsg =
           atomicErr instanceof Error ? atomicErr.message : 'atomic create+fee-share failed'
-        console.warn('Agent launch atomic create+fee-share failed; falling back', atomicMsg)
+        console.warn('Agent launch single-tx atomic failed; trying Jito bundle', atomicMsg)
       }
 
-      // Sequential fallback: mint first, then lock ASAP (race window remains).
+      // (2) Jito bundle — create then lock land in order with no public mempool gap.
+      try {
+        const { signatures } = await sendJitoBundle({
+          payer: launcher,
+          steps: [
+            { ixs: createIxs, signers: [mintKp] },
+            { ixs: feeIxs },
+          ],
+        })
+        const signature = signatures[0]!
+        const feeShareSignature = signatures[1]!
+        const [createSlot, lockSlot] = await Promise.all([
+          getSignatureSlot(signature),
+          getSignatureSlot(feeShareSignature),
+        ])
+        return {
+          ok: true,
+          mint: mintStr,
+          signature,
+          feeShareSignature,
+          feeShareLocked: true,
+          pumpUrl,
+          launcher: deskWallet,
+          crew: crewWithBps,
+          shareholders: shareholderTable,
+          mode,
+          hirePlan: hirePlanOut,
+          lockPath: 'jito-bundle',
+          createSlot,
+          lockSlot,
+          coin: {
+            ...coinBaseFields,
+            signature,
+            feeShareSignature,
+            launchedAt,
+          },
+        }
+      } catch (jitoErr) {
+        const jitoMsg = jitoErr instanceof Error ? jitoErr.message : 'jito bundle failed'
+        console.warn('Agent launch Jito bundle failed', jitoMsg)
+        if (atomicRequired) {
+          return {
+            ok: false,
+            error: `Atomic fee-lock required (CREW_ATOMIC_REQUIRED=1) but both single-tx and Jito bundle failed: ${jitoMsg}. Set CREW_LOOKUP_TABLE or retry.`,
+          }
+        }
+      }
+
+      // (3) Sequential fallback — race window remains; surface slots so agents can audit.
       try {
         const signature = await sendInstructions({
           payer: launcher,
@@ -494,26 +603,18 @@ export async function launchForAgent(
           signers: [mintKp],
           attempts: 1,
         })
+        const createSlot = await getSignatureSlot(signature)
         const coinBase = {
-          id: id('coin'),
-          mint: mintStr,
-          name,
-          ticker,
-          vibe,
-          mode,
-          crew: effectiveCrew,
+          ...coinBaseFields,
           signature,
           launchedAt: Date.now(),
-          launcher: deskWallet,
-          pumpUrl,
-          holderKol: false,
-          agent,
         }
         try {
           const feeShareSignature = await sendInstructions({
             payer: launcher,
             ixs: feeIxs,
           })
+          const lockSlot = await getSignatureSlot(feeShareSignature)
           return {
             ok: true,
             mint: mintStr,
@@ -522,11 +623,15 @@ export async function launchForAgent(
             feeShareLocked: true,
             pumpUrl,
             launcher: deskWallet,
-            crew: effectiveCrew,
+            crew: crewWithBps,
+            shareholders: shareholderTable,
             mode,
-            hirePlan,
+            hirePlan: hirePlanOut,
+            lockPath: 'sequential',
+            createSlot,
+            lockSlot,
             warning:
-              'Fee-shares locked in a follow-up tx (atomic create+lock failed). Early-block trades before lock may pay the creator undivided — prefer atomic path.',
+              'Fee-shares locked in a follow-up tx (atomic single-tx + Jito bundle both failed). Snipers between createSlot and lockSlot pay undivided creator fees to the launcher vault — set CREW_LOOKUP_TABLE or ensure Jito reachability.',
             coin: { ...coinBase, feeShareSignature },
           }
         } catch (feeErr) {
@@ -539,9 +644,12 @@ export async function launchForAgent(
             feeShareLocked: false,
             pumpUrl,
             launcher: deskWallet,
-            crew: effectiveCrew,
+            crew: crewWithBps,
+            shareholders: shareholderTable,
             mode,
-            hirePlan,
+            hirePlan: hirePlanOut,
+            lockPath: 'sequential',
+            createSlot,
             warning: `Mint live but fee-share not locked — call crew_wire_fees immediately. ${feeMsg}`,
             coin: coinBase,
           }
@@ -587,10 +695,13 @@ export async function launchForAgent(
         feeShareLocked: false,
         pumpUrl,
         launcher: deskWallet,
-        crew: effectiveCrew,
+        crew: crewWithBps,
+        shareholders: shareholderTable,
         mode,
-        hirePlan,
-        warning: `Mint live · fee config ${openSig.slice(0, 8)}… · Holder KOL open — lock from desk later.`,
+        hirePlan: hirePlanOut,
+        lockPath: 'holder-kol-open',
+        createSlot: await getSignatureSlot(signature),
+        warning: `Mint live · fee config ${openSig.slice(0, 8)}… · Holder KOL open — fees unlocked until crew_lock_holder_kol (same sniper exposure as sequential lock).`,
         coin: coinBase,
       }
     } catch (err) {

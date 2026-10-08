@@ -184,11 +184,18 @@ export async function upsertCoin(coin: ApiCoin): Promise<ApiCoin> {
   return saved
 }
 
-export async function listRemits(limit = 200): Promise<ApiRemit[]> {
-  const { rows } = await query(
-    `SELECT * FROM remits ORDER BY at DESC LIMIT $1`,
-    [Math.min(500, Math.max(1, limit))],
-  )
+export async function listRemits(
+  limit = 200,
+  opts?: { mint?: string },
+): Promise<ApiRemit[]> {
+  const safeLimit = Math.min(500, Math.max(1, limit))
+  const mint = opts?.mint?.trim()
+  const { rows } = mint
+    ? await query(
+        `SELECT * FROM remits WHERE mint = $1 ORDER BY at DESC LIMIT $2`,
+        [mint, safeLimit],
+      )
+    : await query(`SELECT * FROM remits ORDER BY at DESC LIMIT $1`, [safeLimit])
   return rows.map((r) => ({
     id: String(r.id),
     mint: String(r.mint),

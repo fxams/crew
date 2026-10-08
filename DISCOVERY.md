@@ -40,7 +40,8 @@ How crypto / Solana agents find **CREW / CrewPay**.
 | CT / X | **Posted** | https://x.com/crewpayhq/status/2108262057569341930 |
 | Proof tape (mainnet) | **Live** | First agent launch $STRAW2GOLD · mint `GKeoMKEsSZPch2WF8cRk7FLkYwj2kEj2rVWEi92tDkAp` · https://crewpay.dev/proof |
 | Self-serve agent keys | **Shipped** | `POST /api/agent/keys/claim` + MCP `crew_claim_key` → `crew_ak_…` (5/hour/IP) |
-| Atomic launch + fee-lock | **Shipped** | Prefer one-tx create+fee-share; auto wire retry; HTTP 202 → `crew_wire_fees({ mint })` |
+| Atomic launch + fee-lock | **Shipped** | Prefer v0+ALT single-tx → Jito bundle → sequential (racy); `lockPath`/`createSlot`/`lockSlot`; `CREW_ATOMIC_REQUIRED=1` to abort |
+| Crank sweep+distribute | **Shipped** | Fixes CreatorFeesNotSwept 6095; ops payer via `CREW_OPS_KEY` (launcher optional) |
 | Per-key launch history | **Shipped** | `GET /api/agent/launches` + MCP `crew_list_launches` |
 | npm `crewpay-mcp` | **1.2.0** | Includes `crew_claim_key` + `crew_list_launches` |
 

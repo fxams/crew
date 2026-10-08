@@ -242,6 +242,10 @@ export function splitShares(n: number): number[] {
 }
 
 const JUNK_USER = /^user\d+$/i
+/** Known Pump x_username values that are empty / protected / not real CT reach. */
+const BAD_X = new Set(
+  ['oxrxbt', 'oxr'].map((s) => s.toLowerCase()),
+)
 
 function tagWeight(match: NarrativeMatch, tag: NarrativeTag): number {
   const idx = match.tags.indexOf(tag)
@@ -293,7 +297,9 @@ function scoreKolForLaunch(
   }
 
   // Reach matters, but narrative fit should win.
+  // `followers` is Pump follower count — not verified X reach.
   score += Math.log10(kol.followers + 10) * 4
+  reasons.push(`pumpFollowers ${kol.followers}`)
   if (kol.rank <= 20) {
     score += 9
     reasons.push(`top ${kol.rank}`)
@@ -302,6 +308,12 @@ function scoreKolForLaunch(
     reasons.push(`top ${kol.rank}`)
   } else if (kol.rank <= 300) {
     score += 2
+  }
+
+  const x = (kol.x || '').trim().replace(/^@+/, '').toLowerCase()
+  if (!x || BAD_X.has(x) || x === (kol.pump || '').toLowerCase()) {
+    score -= 24
+    reasons.push(x ? `unverified/weak X @${x}` : 'no X handle')
   }
 
   return { score, reasons, narrativeHits }
