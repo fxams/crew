@@ -9,8 +9,9 @@ GitHub Pages is **decommissioned**. Do not use `fxams.github.io/crew`.
 
 | Field | Value |
 | --- | --- |
-| Static site | **`crewpay`** → https://app.crewpay.dev (also apex `crewpay.dev`) |
-| API | **`crewpay-api`** → https://api.crewpay.dev |
+| Static site | **`crewpay`** → https://crewpay.dev (also `app.crewpay.dev` if configured) |
+| API | **`crewpay-api`** → https://api.crewpay.dev (alias: `crewpay-api.onrender.com`) |
+| MCP | **`crewpay-mcp`** → https://mcp.crewpay.dev (alias: `crewpay-mcp.onrender.com`) |
 | Database | **`crewpay-db`** (Postgres) — coins, remits, 1500 KOLs |
 | Buyback cron | **`crewpay-buyback`** hourly (`CREW_BUYBACK_*` secrets) |
 | Dashboard (site) | https://dashboard.render.com/static/srv-db32invavr4c739imk00 |
