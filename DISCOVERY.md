@@ -26,17 +26,17 @@ How crypto / Solana agents find **CREW / CrewPay**.
 
 | Channel | Status | Notes |
 |---------|--------|-------|
-| WellKnown `crewpay` | **Live + claiming** | https://wellknown.network/agents/crewpay — repo + site proofs in tree |
-| WellKnown `crew-agent-launch` | **Live + claiming** | https://wellknown.network/agents/crew-agent-launch — API well-known proof |
+| WellKnown `crewpay` | **Verified owner** | https://wellknown.network/agents/crewpay |
+| WellKnown `crew-agent-launch` | **Verified owner** | https://wellknown.network/agents/crew-agent-launch |
 | directory.llmstxt.cloud | **Waitlist** | Submitted free tier (Finance) — review 1–3 months |
-| PulseMCP | **Paused** | Site paused; will auto-ingest Official MCP Registry + GitHub `mcp-server` topic |
-| Smithery | **Needs login** | Operator: https://smithery.ai/new → `https://mcp.crewpay.dev/mcp` |
-| Glama | **Needs login** | `glama.json` in repo; claim after GitHub index |
+| PulseMCP | **Paused** | Auto-ingest Official MCP Registry + GitHub `mcp-server` topic when open |
+| Smithery | **Needs your login** | https://smithery.ai/new → `https://mcp.crewpay.dev/mcp` |
+| Glama | **Needs your login** | `glama.json` ready; add server after login |
 | mcp.so | **Paid $39** | Optional; free path = Official Registry |
-| Official MCP Registry | **Blocked on npm** | Needs `NPM_TOKEN` + `mcp-publisher login github` → `agent/crew-mcp/server.json` |
-| GitHub topics | **Needs operator** | Cloud token 403 on `gh repo edit` — see commands below |
-| Solana / Metaplex Agent Registry | **Needs wallet** | See `docs/register-solana-agent.md` |
-| CT / X | **Draft ready** | `docs/ct-announce.md` (no post write API in this agent) |
+| Official MCP Registry | **Needs NPM_TOKEN** | Publish `crewpay-mcp` then `mcp-publisher publish` |
+| GitHub topics | **Needs admin PAT** | Set secret `CREW_GH_ADMIN_TOKEN` or run `gh repo edit` below |
+| Solana / Metaplex Agent Registry | **Needs funded wallet** | `docs/register-solana-agent.md` |
+| CT / X | **Draft ready** | `docs/ct-announce.md` — post from operator account |
 
 ## Operator commands (do once)
 
