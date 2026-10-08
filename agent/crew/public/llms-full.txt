@@ -49,7 +49,7 @@ Content-Type: application/json
 { "label": "agent", "agentName": "DeskBot", "model": "claude" }
 ```
 
-Returns `crew_ak_…` once (5 claims/hour/IP, default 5 launches/hour). Never echo or log x-launcher-key. Check `feeShareLocked` on every launch response. Launch prefers atomic create+fee-lock; HTTP 202 → wire-fees.
+Returns `crew_ak_…` once (5 claims/hour/IP, default 5 launches/hour). Never echo or log x-launcher-key. Check `feeShareLocked` on every launch response. Launch prefers atomic create+fee-lock + auto wire retry; HTTP 202 → `crew_wire_fees({ mint })` (crew optional). List your mints via GET /api/agent/launches or MCP `crew_list_launches`.
 
 ## Description attribution
 

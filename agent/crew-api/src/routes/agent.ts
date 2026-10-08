@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { apiKeyFingerprint, clientIp, requireAgentApiKey } from '../lib/auth.js'
 import { createAgentKey, listAgentKeys, revokeAgentKey } from '../lib/agent-keys.js'
-import { upsertCoin, type ApiCoin } from '../lib/coins.js'
+import { listCoinsByAgentKey, listCoins, upsertCoin, type ApiCoin } from '../lib/coins.js'
 import { MAX_CREW, MAX_INITIAL_BUY_SOL, USER_DESCRIPTION_MAX } from '../lib/agent/constants.js'
 import { agentDiscoveryJson } from '../lib/agent/discovery.js'
 import {
@@ -301,21 +301,61 @@ agentRouter.post('/agent/launch', requireAgentApiKey, async (req, res) => {
 
     const body = launchBodySchema.parse(req.body)
     const launcher = parseLauncherKey(resolveLauncherKey(req))
-    const result = await launchForAgent(bodyToLaunchInput(body), launcher)
+    let result = await launchForAgent(bodyToLaunchInput(body), launcher)
     if (!result.ok) {
       res.status(400).json(result)
       return
     }
 
-    // Persist to CREW board (best-effort).
+    const agentKeyId = req.crewAgentAuth?.keyId
+    // Persist to CREW board (best-effort) — stamp agent_key_id for launch history.
     try {
       await upsertCoin({
         ...result.coin,
         feeShareSignature: result.feeShareSignature,
+        agentKeyId,
       } as ApiCoin)
     } catch (persistErr) {
       const msg = persistErr instanceof Error ? persistErr.message : 'persist failed'
       console.warn('agent launch persist failed', msg)
+    }
+
+    // Immediate one-shot wire retry when atomic/sequential lock failed (non-holderKol).
+    if (!result.feeShareLocked && !result.coin.holderKol && result.coin.crew?.length) {
+      try {
+        const wired = await wireFeesForAgent({
+          mint: result.mint,
+          mode: deskModeOrDefault(result.mode),
+          crew: result.coin.crew,
+          launcher,
+          name: result.coin.name,
+          ticker: result.coin.ticker,
+        })
+        result = {
+          ...result,
+          feeShareLocked: true,
+          feeShareSignature: wired.feeShareSignature,
+          coin: { ...result.coin, feeShareSignature: wired.feeShareSignature, holderKol: false },
+          warning: [
+            result.warning,
+            'Fee-shares locked on immediate post-launch wire retry.',
+          ]
+            .filter(Boolean)
+            .join(' '),
+        }
+      } catch (wireErr) {
+        const wireMsg = wireErr instanceof Error ? wireErr.message : 'wire retry failed'
+        console.warn('agent launch wire retry failed', wireMsg)
+        result = {
+          ...result,
+          warning: [
+            result.warning,
+            `Post-launch wire retry failed: ${wireMsg}. Call crew_wire_fees with { mint } (crew optional if board has crew).`,
+          ]
+            .filter(Boolean)
+            .join(' '),
+        }
+      }
     }
 
     void emitWebhookEvent('launch.created', {
@@ -368,9 +408,11 @@ const wireBodySchema = z
     mode: z.enum(['split', 'buyback', 'raid', 'agent']).optional().default('agent'),
     name: z.string().max(32).optional(),
     ticker: z.string().max(13).optional(),
-    crew: z.array(crewMemberSchema).min(1).max(MAX_CREW),
+    /** Optional — when omitted, wire uses crew stored on the board from launch. */
+    crew: z.array(crewMemberSchema).min(1).max(MAX_CREW).optional(),
   })
   .superRefine((val, ctx) => {
+    if (!val.crew?.length) return
     const shareSum = val.crew.reduce((s, m) => s + Math.round(Number(m.share) || 0), 0)
     if (shareSum !== 100) {
       ctx.addIssue({
@@ -459,10 +501,46 @@ agentRouter.post('/agent/crank', requireAgentApiKey, async (req, res) => {
   }
 })
 
-agentRouter.get('/agent/keys', requireAgentApiKey, async (_req, res) => {
+agentRouter.get('/agent/launches', requireAgentApiKey, async (req, res) => {
   try {
-    const keys = await listAgentKeys()
-    res.json({ ok: true, keys })
+    const fp = apiKeyFingerprint(req)
+    if (!applyRateLimit(res, `launches:key:${fp}`, 60, 60_000)) return
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50))
+    const keyId = req.crewAgentAuth?.keyId
+    // DB keys see only their launches; operator env key sees recent board launches.
+    const coins = keyId
+      ? await listCoinsByAgentKey(keyId, limit)
+      : await listCoins(limit)
+    res.json({
+      ok: true,
+      scoped: Boolean(keyId),
+      launches: coins.map((c) => ({
+        mint: c.mint,
+        name: c.name,
+        ticker: c.ticker,
+        mode: c.mode,
+        feeShareLocked: Boolean(c.feeShareSignature),
+        holderKol: Boolean(c.holderKol),
+        signature: c.signature,
+        feeShareSignature: c.feeShareSignature,
+        pumpUrl: c.pumpUrl,
+        launcher: c.launcher,
+        launchedAt: c.launchedAt,
+        agent: c.agent,
+        agentKeyId: c.agentKeyId,
+        crew: c.crew,
+      })),
+    })
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err instanceof Error ? err.message : 'list launches failed' })
+  }
+})
+
+agentRouter.get('/agent/keys', requireAgentApiKey, async (req, res) => {
+  try {
+    const keyId = req.crewAgentAuth?.source === 'db' ? req.crewAgentAuth.keyId : undefined
+    const keys = await listAgentKeys(keyId ? { keyId } : undefined)
+    res.json({ ok: true, scoped: Boolean(keyId), keys })
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : 'list keys failed' })
   }
@@ -479,7 +557,11 @@ agentRouter.post('/agent/keys/claim', async (req, res) => {
       limit: 5,
       windowMs: 60 * 60_000,
     })
+    res.setHeader('X-RateLimit-Limit', '5')
+    res.setHeader('X-RateLimit-Remaining', String(claimLimit.remaining))
+    res.setHeader('X-RateLimit-Reset', String(Math.ceil(claimLimit.resetAt / 1000)))
     if (!claimLimit.ok) {
+      res.setHeader('Retry-After', String(claimLimit.retryAfterSec))
       res.status(429).json({
         ok: false,
         error: 'Too many key claims from this IP (max 5/hour). Retry later or ask the operator.',
@@ -540,7 +622,11 @@ agentRouter.post('/agent/keys', requireAgentApiKey, async (req, res) => {
 
 agentRouter.delete('/agent/keys/:id', requireAgentApiKey, async (req, res) => {
   try {
-    const ok = await revokeAgentKey(String(req.params.id || ''))
+    const scope =
+      req.crewAgentAuth?.source === 'db' && req.crewAgentAuth.keyId
+        ? { keyId: req.crewAgentAuth.keyId }
+        : undefined
+    const ok = await revokeAgentKey(String(req.params.id || ''), scope)
     if (!ok) {
       res.status(404).json({ error: 'Not found' })
       return

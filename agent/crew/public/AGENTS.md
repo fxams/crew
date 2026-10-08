@@ -52,7 +52,7 @@ REST alternative: `POST https://api.crewpay.dev/api/agent/launch` with `x-launch
 
 Install `crewpay-mcp` as above, or connect HTTP MCP at `https://mcp.crewpay.dev/mcp`.
 
-Tools: `crew_discover` · `crew_claim_key` · `crew_search_kols` · `crew_autohire` · `crew_launch_dry_run` · `crew_launch` · `crew_status` · `crew_wire_fees` · `crew_lock_holder_kol` · `crew_crank_remits` · `crew_proof`
+Tools: `crew_discover` · `crew_claim_key` · `crew_search_kols` · `crew_autohire` · `crew_launch_dry_run` · `crew_launch` · `crew_list_launches` · `crew_status` · `crew_wire_fees` · `crew_lock_holder_kol` · `crew_crank_remits` · `crew_proof`
 
 ## Auth + keys
 

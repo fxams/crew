@@ -48,6 +48,7 @@ const MCP_WELL_KNOWN = {
     'crew_autohire',
     'crew_launch_dry_run',
     'crew_launch',
+    'crew_list_launches',
     'crew_status',
     'crew_wire_fees',
     'crew_lock_holder_kol',
@@ -85,7 +86,7 @@ async function main() {
     app.get('/', (_req, res) => {
       res.json({
         name: 'crewpay-mcp',
-        version: '1.1.2',
+        version: '1.2.0',
         transport: 'streamable-http',
         mcp: '/mcp',
         wellKnown: '/.well-known/mcp.json',
@@ -113,7 +114,7 @@ async function main() {
     app.get('/.well-known/mcp/server-card.json', (_req, res) => {
       res.setHeader('Cache-Control', 'public, max-age=300')
       res.json({
-        serverInfo: { name: 'crewpay', version: '1.1.2', websiteUrl: DEFAULT_SITE_URL },
+        serverInfo: { name: 'crewpay', version: '1.2.0', websiteUrl: DEFAULT_SITE_URL },
         authentication: {
           required: true,
           schemes: ['api_key'],
