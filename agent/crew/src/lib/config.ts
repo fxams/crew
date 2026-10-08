@@ -38,8 +38,12 @@ export const AGENT_API_CLIENTS = [
 /** Appended to every Pump metadata description on launch. */
 export const CREW_LAUNCH_ATTRIBUTION = 'Launched from CrewPay.dev platform'
 
-/** User-typed description max — leaves room for {@link CREW_LAUNCH_ATTRIBUTION}. */
-export const USER_DESCRIPTION_MAX = 240
+/** Final on-chain / IPFS description hard cap (Pump metadata). */
+export const DESCRIPTION_HARD_MAX = 240
+
+/** User-typed description max — leaves room for separator + attribution. */
+export const USER_DESCRIPTION_MAX =
+  DESCRIPTION_HARD_MAX - CREW_LAUNCH_ATTRIBUTION.length - 2
 
 /**
  * Platform $CREW token — set after launch via env (or leave blank for hero placeholders).
@@ -162,9 +166,10 @@ export function withCrewLaunchDescription(userDescription: string): string {
   const marker = CREW_LAUNCH_ATTRIBUTION.toLowerCase()
   if (!base) return CREW_LAUNCH_ATTRIBUTION
   if (base.toLowerCase().includes(marker) || base.toLowerCase().includes('crewpay.dev')) {
-    return base
+    return base.slice(0, DESCRIPTION_HARD_MAX)
   }
-  return `${base}\n\n${CREW_LAUNCH_ATTRIBUTION}`
+  const sep = base.endsWith('.') ? ' ' : '. '
+  return `${base}${sep}${CREW_LAUNCH_ATTRIBUTION}`.slice(0, DESCRIPTION_HARD_MAX)
 }
 /** Board: launched coins + remit tape */
 export const STORE_KEY = 'crew.platform.v4'

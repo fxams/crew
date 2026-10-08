@@ -1,0 +1,42 @@
+# Publish agent/crew-mcp to npm when package.json version changes on main.
+# Requires repository secret NPM_TOKEN (npmjs automation token with publish access).
+name: publish-crewpay-mcp
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'agent/crew-mcp/package.json'
+      - 'agent/crew-mcp/src/**'
+      - '.github/workflows/publish-crewpay-mcp.yml'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agent/crew-mcp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+      - run: npm ci --include=dev
+      - run: npm test
+      - run: npm run build
+      - name: Publish if version is new
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "NPM_TOKEN secret not set — skip publish (git install still works: npx -y github:fxams/crew#path:agent/crew-mcp)"
+            exit 0
+          fi
+          VERSION=$(node -p "require('./package.json').version")
+          if npm view "crewpay-mcp@$VERSION" version 2>/dev/null; then
+            echo "crewpay-mcp@$VERSION already on npm — skip"
+            exit 0
+          fi
+          npm publish --access public

@@ -14,6 +14,8 @@ You are looking at the agent entrypoint for **CrewPay**: launch Solana **Pump.fu
 - API: [https://api.crewpay.dev/api/agent](https://api.crewpay.dev/api/agent)
 - Proof API: [https://api.crewpay.dev/api/proof](https://api.crewpay.dev/api/proof)
 
+Canonical site: **https://crewpay.dev** (`app.crewpay.dev` has no DNS — do not use it).
+
 Legacy aliases (still valid): `https://crewpay-api.onrender.com` · `https://crewpay-mcp.onrender.com/mcp`
 
 ## Safe agent flow
@@ -25,21 +27,41 @@ Legacy aliases (still valid): `https://crewpay-api.onrender.com` · `https://cre
 5. If `feeShareLocked=false` (HTTP 202) → `crew_wire_fees` or `crew_lock_holder_kol`
 6. `crew_proof` to verify the tape
 
+## Description attribution
+
+Every launch appends **Launched from CrewPay.dev platform** when missing. Keep user `description` ≤**204** characters so the final on-chain vibe is ≤240. Dry-run returns `vibe` (final) and `attribution`. Images: PNG/JPEG/WebP/GIF only (SVG rejected).
+
+## Own wallet / local MCP
+
+Hosted MCP `https://mcp.crewpay.dev/mcp` is **publicMode**: pass `x-crew-api-key` for writes; it cannot hold your launcher secret.
+
+```bash
+npx -y github:fxams/crew#path:agent/crew-mcp
+```
+
+Or clone the repo → `cd agent/crew-mcp && npm ci && npm run build`, then point your MCP client at `dist/index.js` with env:
+
+- `CREW_AGENT_API_KEY`
+- `CREW_LAUNCHER_KEY` (Solana secret — **never** a tool argument)
+- `CREW_API_URL=https://api.crewpay.dev`
+
+REST alternative: `POST https://api.crewpay.dev/api/agent/launch` with `x-launcher-key` from your backend.
+
 ## MCP tools
 
-Install `crewpay-mcp` (`agent/crew-mcp` in this repo) or connect HTTP MCP at `https://mcp.crewpay.dev/mcp`.
+Install `crewpay-mcp` as above, or connect HTTP MCP at `https://mcp.crewpay.dev/mcp`.
 
 Tools: `crew_discover` · `crew_search_kols` · `crew_autohire` · `crew_launch_dry_run` · `crew_launch` · `crew_status` · `crew_wire_fees` · `crew_lock_holder_kol` · `crew_crank_remits` · `crew_proof`
 
 ## Auth + keys
 
 - Ask the operator for `CREW_AGENT_API_KEY`, or mint `crew_ak_…` via `POST /api/agent/keys` (requires an existing key).
-- Put the Solana secret in `CREW_LAUNCHER_KEY` MCP env — **never** as a tool argument.
-- MCP read tools work without a key; writes require the agent key.
+- Put the Solana secret in `CREW_LAUNCHER_KEY` MCP env — **never** as a tool argument (`launcherKey` / `privateKey` / `secretKey` are rejected).
+- Hosted MCP writes require `x-crew-api-key`; local stdio uses env keys.
 
 ## Limits (aligned)
 
-Name 2–32 · ticker 2–13 · description ≤240 · initial buy 0–10 SOL · seats 1–10 · crew shares must total 100%.
+Name 2–32 · ticker 2–13 · description ≤204 user / ≤240 final · initial buy 0–10 SOL · seats 1–10 · crew shares must total 100%.
 
 ## Keywords
 

@@ -12,7 +12,16 @@ export const MODE_DESK_BPS = {
 } as const
 
 export const CREW_LAUNCH_ATTRIBUTION = 'Launched from CrewPay.dev platform'
-export const USER_DESCRIPTION_MAX = 240
+/** Final on-chain / IPFS description hard cap (Pump metadata). */
+export const DESCRIPTION_HARD_MAX = 240
+/** Max separator before attribution (". " or "\\n\\n"). */
+export const ATTRIBUTION_SEP_MAX = 2
+/**
+ * User-typed description max — leaves room for separator + {@link CREW_LAUNCH_ATTRIBUTION}
+ * so the final vibe never exceeds {@link DESCRIPTION_HARD_MAX}.
+ */
+export const USER_DESCRIPTION_MAX =
+  DESCRIPTION_HARD_MAX - CREW_LAUNCH_ATTRIBUTION.length - ATTRIBUTION_SEP_MAX
 export const PUMP_IPFS_URL = 'https://pump.fun/api/ipfs'
 export const PUMP_COIN_URL = (mint: string) => `https://pump.fun/coin/${mint}`
 
@@ -47,9 +56,12 @@ export function getPlatformBuybackWallet(): string {
 export function withCrewLaunchDescription(userVibe: string): string {
   const trimmed = userVibe.trim()
   if (!trimmed) return CREW_LAUNCH_ATTRIBUTION
-  if (trimmed.includes(CREW_LAUNCH_ATTRIBUTION)) return trimmed.slice(0, 280)
+  if (trimmed.includes(CREW_LAUNCH_ATTRIBUTION) || trimmed.toLowerCase().includes('crewpay.dev')) {
+    return trimmed.slice(0, DESCRIPTION_HARD_MAX)
+  }
   const sep = trimmed.endsWith('.') ? ' ' : '. '
-  return `${trimmed}${sep}${CREW_LAUNCH_ATTRIBUTION}`.slice(0, 280)
+  const combined = `${trimmed}${sep}${CREW_LAUNCH_ATTRIBUTION}`
+  return combined.slice(0, DESCRIPTION_HARD_MAX)
 }
 
 export function rpcUrl(): string {

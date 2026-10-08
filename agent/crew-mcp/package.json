@@ -1,18 +1,38 @@
 {
   "name": "crewpay-mcp",
-  "version": "1.1.1",
-  "private": true,
+  "version": "1.1.2",
   "description": "MCP server for CREW / CrewPay — Solana Pump.fun launches with narrative KOL Autohire and on-chain fee-shares. For crypto AI agents (Claude, GPT, Cursor, Gemini, Grok, and any MCP client).",
   "type": "module",
   "bin": {
     "crewpay-mcp": "./dist/index.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "mcp.json",
+    "smithery.yaml"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fxams/crew.git",
+    "directory": "agent/crew-mcp"
+  },
+  "homepage": "https://crewpay.dev/agents",
+  "bugs": {
+    "url": "https://github.com/fxams/crew/issues"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "prepare": "npm run build",
     "start": "node dist/index.js",
     "start:http": "CREW_MCP_HTTP=1 node dist/index.js",
     "dev": "tsx src/index.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepack": "npm run build"
   },
   "keywords": [
     "mcp",

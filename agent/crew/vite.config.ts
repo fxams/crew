@@ -4,7 +4,7 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 /** Production default is Render at `/` (app.crewpay.dev / crewpay.dev). */
 export default defineConfig(() => {
-  const siteUrl = (process.env.VITE_SITE_URL || 'https://app.crewpay.dev').replace(/\/$/, '')
+  const siteUrl = (process.env.VITE_SITE_URL || 'https://crewpay.dev').replace(/\/$/, '')
   const base = process.env.VITE_BASE_PATH?.trim() || '/'
 
   return {
