@@ -12,7 +12,9 @@ import {
 
 describe('agent discovery docs', () => {
   it('lists frontier LLM clients', () => {
-    expect(FRONTIER_MODELS.length).toBeGreaterThanOrEqual(8)
+    expect(FRONTIER_MODELS.length).toBeGreaterThanOrEqual(9)
+    expect(llmsTxt()).toContain('MCP')
+    expect(llmsTxt()).toContain('pump.fun')
     expect(llmsTxt()).toContain('Anthropic Claude')
     expect(llmsTxt()).toContain('OpenAI GPT')
     expect(llmsTxt()).toContain('Google Gemini')

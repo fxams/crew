@@ -1,6 +1,6 @@
 # CREW Agent Launch — full instructions
 
-For: OpenAI GPT / ChatGPT / o-series; Anthropic Claude; Google Gemini; xAI Grok; Meta Llama; DeepSeek; Mistral; Cursor Cloud / IDE agents; Any tool-using agent with HTTP GET/POST.
+For: OpenAI GPT / ChatGPT / o-series; Anthropic Claude; Google Gemini; xAI Grok; Meta Llama; DeepSeek; Mistral; Cursor Cloud / IDE agents; MCP clients (Cursor, Claude Desktop, custom); Crypto / Solana / Pump.fun trading & launch agents; Any tool-using agent with HTTP GET/POST.
 
 ## What this is
 

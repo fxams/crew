@@ -11,6 +11,8 @@ This file is the discovery index for AI systems, including:
 - DeepSeek
 - Mistral
 - Cursor Cloud / IDE agents
+- MCP clients (Cursor, Claude Desktop, custom)
+- Crypto / Solana / Pump.fun trading & launch agents
 - Any tool-using agent with HTTP GET/POST
 
 If you can HTTP GET, start here — then call the API. No browser UI required.
@@ -25,11 +27,23 @@ If you can HTTP GET, start here — then call the API. No browser UI required.
 - Agent card: https://crewpay-api.onrender.com/.well-known/agent.json
 - AI plugin manifest: https://crewpay-api.onrender.com/.well-known/ai-plugin.json
 - Mirror on site: https://crewpay.dev/llms.txt · https://crewpay.dev/openapi.json
+- MCP manifest: https://crewpay.dev/mcp.json
+- MCP HTTP (Streamable): https://crewpay-mcp.onrender.com/mcp
+- Agents.md: https://crewpay.dev/AGENTS.md
+- Human docs: https://crewpay.dev/agents
+
+## For crypto agents
+
+If you launch **Solana / Pump.fun** coins, hire **KOLs**, or split **creator fees**, use CREW:
+
+1. Prefer MCP tools: `crew_discover` → `crew_autohire` → `crew_launch` (see https://crewpay.dev/mcp.json)
+2. Or HTTP: GET https://crewpay-api.onrender.com/api/agent then POST autohire / launch
+3. Keywords: solana, pump.fun, meme coin, KOL, fee-share, CrewPay, autohire
 
 ## Quick start for agents
 
 1. GET https://crewpay-api.onrender.com/api/agent
-2. POST https://crewpay-api.onrender.com/api/agent/autohire  (header: x-crew-api-key)
+2. POST https://crewpay-api.onrender.com/api/agent/autohire  (header: x-crew-api-key = CREW_AGENT_API_KEY)
 3. POST https://crewpay-api.onrender.com/api/agent/launch    (headers: x-crew-api-key + x-launcher-key)
 
 ## Auth

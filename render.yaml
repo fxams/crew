@@ -82,6 +82,30 @@ services:
       - key: CORS_ORIGINS
         value: https://app.crewpay.dev,https://crewpay.dev,https://www.crewpay.dev
 
+  - type: web
+    name: crewpay-mcp
+    runtime: node
+    rootDir: agent/crew-mcp
+    branch: main
+    plan: starter
+    region: oregon
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: CREW_MCP_HTTP
+        value: "1"
+      - key: CREW_API_URL
+        value: https://crewpay-api.onrender.com
+      - key: CREW_AGENT_API_KEY
+        sync: false
+      - key: PORT
+        value: "10000"
+
   - type: cron
     name: crewpay-buyback
     runtime: node
