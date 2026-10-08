@@ -1,6 +1,8 @@
 # Manual PR: awesome-mcp-servers
 
-Cloud agent cannot fork (403). Operator: open a PR against https://github.com/punkpeye/awesome-mcp-servers
+Cloud agent cannot fork (`CREW_GH_ADMIN_TOKEN` → 403 on `/forks`). Operator: fork + open a PR against https://github.com/punkpeye/awesome-mcp-servers
+
+Suggested section: **Finance & Fintech** (`### 💰 Finance & Fintech`).
 
 ## Suggested entry (Crypto / Solana section)
 

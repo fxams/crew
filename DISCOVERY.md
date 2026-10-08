@@ -29,14 +29,15 @@ How crypto / Solana agents find **CREW / CrewPay**.
 | WellKnown `crewpay` | **Verified owner** | https://wellknown.network/agents/crewpay |
 | WellKnown `crew-agent-launch` | **Verified owner** | https://wellknown.network/agents/crew-agent-launch |
 | directory.llmstxt.cloud | **Waitlist** | Submitted free tier (Finance) — review 1–3 months |
-| PulseMCP | **Paused** | Auto-ingest Official MCP Registry + GitHub `mcp-server` topic when open |
+| PulseMCP | **Paused** | Prerequisites done (Official Registry + `mcp-server` topic); auto-ingest when they reopen |
 | Smithery | **Live** | https://smithery.ai/servers/fxams/crewpay — `https://mcp.crewpay.dev/mcp` |
-| Glama | **Needs your login** | `glama.json` ready; add server after login |
-| mcp.so | **Paid $39** | Optional; free path = Official Registry |
-| Official MCP Registry | **Published** | `io.github.fxams/crewpay-mcp` @1.1.2 · npm `crewpay-mcp@1.1.2` |
+| Glama | **Needs operator GitHub OAuth** | `glama.json` on main; Add MCP Server at https://glama.ai (no API key in Cursor secrets) |
+| mcp.so | **Skipped (paid)** | Optional $39; free path = Official Registry (done) |
+| Official MCP Registry | **Published** | `io.github.fxams/crewpay-mcp` @1.1.2 · npm `crewpay-mcp@1.1.2` (`latest` tag) |
 | GitHub topics | **Done** | description + homepage + `mcp-server` and related topics set |
-| Solana / Metaplex Agent Registry | **Needs funded wallet** | `docs/register-solana-agent.md` |
-| CT / X | **Draft ready** | `docs/ct-announce.md` — post from operator account |
+| awesome-mcp-servers | **Needs operator PR** | Fork blocked for `CREW_GH_ADMIN_TOKEN` (no `public_repo` fork scope) — `docs/awesome-mcp-pr.md` |
+| Solana / Metaplex Agent Registry | **Needs funded wallet** | Mainnet later — `docs/register-solana-agent.md` |
+| CT / X | **Needs operator post** | Draft: `docs/ct-announce.md` — X MCP cannot create posts; Cursor X session is not the CrewPay account |
 
 ## Operator commands (do once)
 

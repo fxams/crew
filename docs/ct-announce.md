@@ -1,6 +1,8 @@
 # CT / X announcement draft
 
-Post from the CrewPay operator account (X API write not available to the cloud agent).
+Post from the **CrewPay operator** X account (human).
+
+Cloud agent cannot post: Cursor X MCP has no create-post tool, and the connected session is unrelated to CrewPay. Copy Option A or B below into the operator account.
 
 ---
 
