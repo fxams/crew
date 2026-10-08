@@ -26,8 +26,8 @@ How crypto / Solana agents find **CREW / CrewPay**.
 
 | Channel | Status | Notes |
 |---------|--------|-------|
-| WellKnown `crewpay` | **Live** | https://wellknown.network/agents/crewpay — **claim** ownership |
-| WellKnown `crew-agent-launch` | **Live** | https://wellknown.network/agents/crew-agent-launch — **claim** |
+| WellKnown `crewpay` | **Live + claiming** | https://wellknown.network/agents/crewpay — repo + site proofs in tree |
+| WellKnown `crew-agent-launch` | **Live + claiming** | https://wellknown.network/agents/crew-agent-launch — API well-known proof |
 | directory.llmstxt.cloud | **Waitlist** | Submitted free tier (Finance) — review 1–3 months |
 | PulseMCP | **Paused** | Site paused; will auto-ingest Official MCP Registry + GitHub `mcp-server` topic |
 | Smithery | **Needs login** | Operator: https://smithery.ai/new → `https://mcp.crewpay.dev/mcp` |
