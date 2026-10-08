@@ -346,12 +346,46 @@
         }
       }
     },
+    "/api/agent/launches": {
+      "get": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "List launches for this agent API key",
+        "operationId": "getAgentLaunches",
+        "security": [
+          {
+            "CrewApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Launches attributed to this key (or recent board for operator env key)"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
     "/api/agent/wire-fees": {
       "post": {
         "tags": [
           "agent"
         ],
-        "summary": "Wire / repair CREW fee-shares on an existing mint",
+        "summary": "Wire / repair CREW fee-shares on an existing mint (crew optional if board has crew)",
         "operationId": "postAgentWireFees",
         "security": [
           {
@@ -360,7 +394,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "201": {
             "description": "feeShareSignature"
           },
           "400": {

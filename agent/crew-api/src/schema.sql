@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS coins (
   raid_quests JSONB,
   agent JSONB,
   holder_kol BOOLEAN NOT NULL DEFAULT false,
+  agent_key_id TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -49,6 +50,7 @@ CREATE TABLE IF NOT EXISTS coins (
 CREATE INDEX IF NOT EXISTS coins_launcher_idx ON coins (launcher);
 CREATE INDEX IF NOT EXISTS coins_launched_at_idx ON coins (launched_at DESC);
 CREATE INDEX IF NOT EXISTS coins_ticker_idx ON coins (ticker);
+CREATE INDEX IF NOT EXISTS coins_agent_key_id_idx ON coins (agent_key_id) WHERE agent_key_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS coin_crew (
   mint TEXT NOT NULL REFERENCES coins (mint) ON DELETE CASCADE,

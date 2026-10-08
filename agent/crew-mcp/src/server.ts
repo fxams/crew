@@ -38,7 +38,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
   const cfg = loadConfig(overrides)
   const server = new McpServer({
     name: 'crewpay',
-    version: '1.1.2',
+    version: '1.2.0',
     websiteUrl: DEFAULT_SITE_URL,
   })
 
@@ -303,31 +303,55 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Wire / repair CREW fee-shares',
       description:
-        'Create + lock fee-sharing for an existing mint (orphan mint or failed fee-share). Requires CREW_LAUNCHER_KEY in MCP env matching the creator. Prefer after crew_status shows feeShareLocked=false and holderKol=false. Crew shares must total 100%.',
+        'Create + lock fee-sharing for an existing mint (orphan mint or failed fee-share). Requires CREW_LAUNCHER_KEY in MCP env matching the creator. Prefer after crew_status shows feeShareLocked=false and holderKol=false. Crew optional when the board already has crew from launch (shares must total 100% when provided).',
       inputSchema: {
         mint: mintSchema,
         mode: z.enum(['agent', 'split', 'buyback', 'raid']).optional(),
         name: z.string().max(32).optional(),
         ticker: z.string().max(13).optional(),
-        crew: z.array(crewMemberSchema).min(1).max(10),
+        crew: z
+          .array(crewMemberSchema)
+          .min(1)
+          .max(10)
+          .optional()
+          .describe('Optional — omit to reuse board crew from launch'),
         ...forbiddenSecretFields,
       },
       annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: true },
     },
     async (input) => {
       assertNoSecretToolArgs(input as Record<string, unknown>)
+      const body: Record<string, unknown> = {
+        mint: input.mint,
+        mode: input.mode || 'agent',
+      }
+      if (input.name) body.name = input.name
+      if (input.ticker) body.ticker = input.ticker
+      if (input.crew?.length) body.crew = input.crew
       const data = await crewFetch(cfg, '/api/agent/wire-fees', {
         method: 'POST',
         auth: true,
         launcher: true,
-        body: JSON.stringify({
-          mint: input.mint,
-          mode: input.mode || 'agent',
-          name: input.name,
-          ticker: input.ticker,
-          crew: input.crew,
-        }),
+        body: JSON.stringify(body),
       })
+      return asText(data)
+    },
+  )
+
+  server.registerTool(
+    'crew_list_launches',
+    {
+      title: 'List launches for this agent key',
+      description:
+        'Return launches attributed to your crew_ak_… key (mint, ticker, feeShareLocked, pumpUrl). Operator env keys see recent board launches. Use after crew_launch or to recover mint state across retries.',
+      inputSchema: {
+        limit: z.number().int().min(1).max(100).optional(),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ limit }) => {
+      const qs = limit ? `?limit=${limit}` : ''
+      const data = await crewFetch(cfg, `/api/agent/launches${qs}`, { auth: true })
       return asText(data)
     },
   )
@@ -487,13 +511,46 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         body.autoHire = { seats: input.seats ?? 5 }
       }
 
-      const data = await crewFetch(cfg, '/api/agent/launch', {
+      let data = await crewFetch(cfg, '/api/agent/launch', {
         method: 'POST',
         auth: true,
         launcher: true,
         idempotencyKey: input.idempotencyKey,
         body: JSON.stringify(body),
       })
+      // API already retries wire once; if still unlocked (non-holder), try mint-only wire.
+      const launchOut =
+        data && typeof data === 'object' ? (data as Record<string, unknown>) : null
+      const launchMint = typeof launchOut?.mint === 'string' ? launchOut.mint : null
+      if (
+        launchOut &&
+        launchMint &&
+        launchOut.feeShareLocked === false &&
+        !(launchOut.coin as { holderKol?: boolean } | undefined)?.holderKol
+      ) {
+        try {
+          const wired = await crewFetch(cfg, '/api/agent/wire-fees', {
+            method: 'POST',
+            auth: true,
+            launcher: true,
+            body: JSON.stringify({ mint: launchMint }),
+          })
+          data = {
+            ...launchOut,
+            feeShareLocked: true,
+            feeShareSignature:
+              typeof wired === 'object' && wired && 'feeShareSignature' in wired
+                ? (wired as { feeShareSignature: string }).feeShareSignature
+                : undefined,
+            wireRetry: wired,
+          }
+        } catch (wireErr) {
+          data = {
+            ...launchOut,
+            wireRetryError: wireErr instanceof Error ? wireErr.message : 'wire retry failed',
+          }
+        }
+      }
       return asText(data)
     },
   )

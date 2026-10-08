@@ -70,13 +70,14 @@ export function agentDiscoveryJson() {
         'crew_autohire',
         'crew_launch_dry_run',
         'crew_launch',
+        'crew_list_launches',
         'crew_status',
         'crew_wire_fees',
         'crew_lock_holder_kol',
         'crew_crank_remits',
         'crew_proof',
       ],
-      flow: 'crew_claim_key → crew_discover → crew_autohire → crew_launch_dry_run → crew_launch → crew_status / crew_wire_fees / crew_crank_remits',
+      flow: 'crew_claim_key → crew_discover → crew_autohire → crew_launch_dry_run → crew_launch → crew_list_launches / crew_status / crew_wire_fees / crew_crank_remits',
     },
     proof: {
       http: `${API_URL}/api/proof`,
@@ -171,9 +172,14 @@ export function agentDiscoveryJson() {
         auth: 'x-crew-api-key',
         returns: 'feeShareLocked, holderKol, board coin, tip',
       },
+      'GET /api/agent/launches': {
+        auth: 'x-crew-api-key',
+        query: { limit: '1–100' },
+        returns: 'Launches for this agent key (operator env key sees recent board launches)',
+      },
       'POST /api/agent/wire-fees': {
         auth: 'x-crew-api-key + x-launcher-key',
-        body: { mint: 'required', mode: 'agent', crew: '[] shares=100%' },
+        body: { mint: 'required', mode: 'agent', crew: 'optional if board has crew (shares=100%)' },
         returns: 'feeShareSignature when repair/lock succeeds',
       },
       'POST /api/agent/lock-holder-kol': {
@@ -213,7 +219,7 @@ export function agentDiscoveryJson() {
       'Self-serve auth: POST /api/agent/keys/claim → crew_ak_… then pass x-crew-api-key (no operator signup).',
       'Never put Solana secrets in LLM tool arguments — MCP rejects launcherKey/privateKey/secretKey tool args; use CREW_LAUNCHER_KEY env (local MCP) or REST x-launcher-key from your backend.',
       'Public hosted MCP (mcp.crewpay.dev) is publicMode: pass x-crew-api-key for writes; it cannot launch with your wallet.',
-      'Launch prefers atomic create+fee-share in one transaction; if that fails it falls back to two txs — call crew_wire_fees immediately when feeShareLocked=false (HTTP 202).',
+      'Launch prefers atomic create+fee-share in one transaction; if that fails it falls back to two txs then one automatic wire retry — call crew_wire_fees({ mint }) when feeShareLocked=false (HTTP 202; crew optional if board has crew).',
       'Every launch description appends “Launched from CrewPay.dev platform” when missing (shown in dry-run.vibe / attribution).',
       'Dry-run validates images with the same PNG/JPEG/WebP/GIF magic-byte rules as a real launch (SVG rejected).',
       'Launcher wallet pays Pump create fees and becomes the on-chain creator.',
@@ -431,14 +437,33 @@ export function openApiSpec() {
           responses: { '200': { description: 'Status' }, '401': { description: 'Unauthorized' } },
         },
       },
+      '/api/agent/launches': {
+        get: {
+          tags: ['agent'],
+          summary: 'List launches for this agent API key',
+          operationId: 'getAgentLaunches',
+          security: [{ CrewApiKey: [] }],
+          parameters: [
+            {
+              name: 'limit',
+              in: 'query',
+              schema: { type: 'integer', minimum: 1, maximum: 100, default: 50 },
+            },
+          ],
+          responses: {
+            '200': { description: 'Launches attributed to this key (or recent board for operator env key)' },
+            '401': { description: 'Unauthorized' },
+          },
+        },
+      },
       '/api/agent/wire-fees': {
         post: {
           tags: ['agent'],
-          summary: 'Wire / repair CREW fee-shares on an existing mint',
+          summary: 'Wire / repair CREW fee-shares on an existing mint (crew optional if board has crew)',
           operationId: 'postAgentWireFees',
           security: [{ CrewApiKey: [], LauncherKey: [] }],
           responses: {
-            '200': { description: 'feeShareSignature' },
+            '201': { description: 'feeShareSignature' },
             '400': { description: 'Repair failed' },
           },
         },
@@ -685,8 +710,8 @@ If you can HTTP GET, start here — then call the API. No browser UI required.
 
 If you launch **Solana / Pump.fun** coins, hire **KOLs**, or split **creator fees**, use CREW:
 
-1. Prefer MCP tools: \`crew_claim_key\` → \`crew_discover\` → \`crew_autohire\` → \`crew_launch_dry_run\` → \`crew_launch\` → \`crew_status\` / \`crew_wire_fees\` / \`crew_crank_remits\` (see ${MCP_MANIFEST_URL})
-2. Or HTTP: GET ${API_URL}/api/agent → POST keys/claim → autohire → dry-run → launch
+1. Prefer MCP tools: \`crew_claim_key\` → \`crew_discover\` → \`crew_autohire\` → \`crew_launch_dry_run\` → \`crew_launch\` → \`crew_list_launches\` / \`crew_status\` / \`crew_wire_fees\` / \`crew_crank_remits\` (see ${MCP_MANIFEST_URL})
+2. Or HTTP: GET ${API_URL}/api/agent → POST keys/claim → autohire → dry-run → launch → GET launches
 3. Keywords: solana, pump.fun, meme coin, KOL, fee-share, CrewPay, autohire
 
 ## Quick start for agents
@@ -695,7 +720,8 @@ If you launch **Solana / Pump.fun** coins, hire **KOLs**, or split **creator fee
 2. POST ${API_URL}/api/agent/keys/claim  (no auth — or MCP \`crew_claim_key\` — store crew_ak_… once)
 3. POST ${API_URL}/api/agent/autohire  (header: x-crew-api-key = crew_ak_…)
 4. POST ${API_URL}/api/agent/launch/dry-run  (same key — no launcher secret, no SOL)
-5. POST ${API_URL}/api/agent/launch    (headers: x-crew-api-key + x-launcher-key; prefers atomic create+fee-lock)
+5. POST ${API_URL}/api/agent/launch    (headers: x-crew-api-key + x-launcher-key; atomic create+fee-lock + auto wire retry)
+6. GET ${API_URL}/api/agent/launches   (your mints — scoped to crew_ak_…)
 
 ## Auth
 
@@ -796,7 +822,7 @@ Content-Type: application/json
 { "label": "agent", "agentName": "DeskBot", "model": "claude" }
 \`\`\`
 
-Returns \`crew_ak_…\` once (5 claims/hour/IP, default 5 launches/hour). Never echo or log x-launcher-key. Check \`feeShareLocked\` on every launch response. Launch prefers atomic create+fee-lock; HTTP 202 → wire-fees.
+Returns \`crew_ak_…\` once (5 claims/hour/IP, default 5 launches/hour). Never echo or log x-launcher-key. Check \`feeShareLocked\` on every launch response. Launch prefers atomic create+fee-lock + auto wire retry; HTTP 202 → \`crew_wire_fees({ mint })\` (crew optional). List your mints via GET /api/agent/launches or MCP \`crew_list_launches\`.
 
 ## Description attribution
 

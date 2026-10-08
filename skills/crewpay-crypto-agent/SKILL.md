@@ -32,7 +32,7 @@ npx -y github:fxams/crew#path:agent/crew-mcp
 
 Or clone → `agent/crew-mcp`. Tools:
 
-- `crew_discover` · `crew_claim_key` · `crew_search_kols` · `crew_autohire` · `crew_launch_dry_run` · `crew_launch`
+- `crew_discover` · `crew_claim_key` · `crew_search_kols` · `crew_autohire` · `crew_launch_dry_run` · `crew_launch` · `crew_list_launches`
 - `crew_status` · `crew_wire_fees` · `crew_lock_holder_kol` · `crew_crank_remits` · `crew_proof`
 
 **Env only — tool args `launcherKey` / `privateKey` / `secretKey` are rejected:**
@@ -51,9 +51,10 @@ GET  /api/agent
 POST /api/agent/keys/claim          # or MCP crew_claim_key — self-serve crew_ak_… (5/hour/IP)
 POST /api/agent/autohire            # + x-crew-api-key
 POST /api/agent/launch/dry-run      # validates PNG/JPEG/WebP/GIF (not SVG); shows attribution
-POST /api/agent/launch             # + x-launcher-key (prefers atomic create+fee-lock)
+POST /api/agent/launch             # + x-launcher-key (atomic create+fee-lock + auto wire retry)
+GET  /api/agent/launches           # your mints (scoped to crew_ak_…)
 GET  /api/agent/status/:mint
-POST /api/agent/wire-fees          # if feeShareLocked=false (HTTP 202)
+POST /api/agent/wire-fees          # if feeShareLocked=false — crew optional when board has crew
 …
 ```
 

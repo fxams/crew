@@ -33,14 +33,16 @@ How crypto / Solana agents find **CREW / CrewPay**.
 | Smithery | **Live** | https://smithery.ai/servers/fxams/crewpay — `https://mcp.crewpay.dev/mcp` |
 | Glama | **Needs operator GitHub OAuth** | `glama.json` on main; Add MCP Server at https://glama.ai (no API key in Cursor secrets) |
 | mcp.so | **Skipped (paid)** | Optional $39; free path = Official Registry (done) |
-| Official MCP Registry | **Published** | `io.github.fxams/crewpay-mcp` @1.1.2 · npm `crewpay-mcp@1.1.2` (`latest` tag) |
+| Official MCP Registry | **npm 1.2.0 live; registry JWT expired** | npm `crewpay-mcp@1.2.0` (`latest`). Re-run `mcp-publisher login github && mcp-publisher publish ./server.json` for registry card @1.2.0 |
 | GitHub topics | **Done** | description + homepage + `mcp-server` and related topics set |
 | awesome-mcp-servers | **PR open** | https://github.com/punkpeye/awesome-mcp-servers/pull/16008 (+1 Finance & Fintech) |
 | Solana / Metaplex Agent Registry | **Needs funded wallet** | `docs/register-solana-agent.md` |
 | CT / X | **Posted** | https://x.com/crewpayhq/status/2108262057569341930 |
 | Proof tape (mainnet) | **Live** | First agent launch $STRAW2GOLD · mint `GKeoMKEsSZPch2WF8cRk7FLkYwj2kEj2rVWEi92tDkAp` · https://crewpay.dev/proof |
 | Self-serve agent keys | **Shipped** | `POST /api/agent/keys/claim` + MCP `crew_claim_key` → `crew_ak_…` (5/hour/IP) |
-| Atomic launch + fee-lock | **Shipped** | Prefer one-tx create+fee-share; HTTP 202 → `crew_wire_fees` fallback |
+| Atomic launch + fee-lock | **Shipped** | Prefer one-tx create+fee-share; auto wire retry; HTTP 202 → `crew_wire_fees({ mint })` |
+| Per-key launch history | **Shipped** | `GET /api/agent/launches` + MCP `crew_list_launches` |
+| npm `crewpay-mcp` | **1.2.0** | Includes `crew_claim_key` + `crew_list_launches` |
 
 ## Operator commands (do once)
 

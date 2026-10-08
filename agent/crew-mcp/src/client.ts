@@ -92,7 +92,21 @@ export async function crewFetch(
       typeof json === 'object' && json && 'error' in json
         ? String((json as { error: unknown }).error)
         : text.slice(0, 300)
-    throw new Error(`CREW API ${res.status}: ${err}`)
+    const retryHeader = res.headers.get('retry-after')
+    const retryBody =
+      typeof json === 'object' && json && 'retryAfterSec' in json
+        ? Number((json as { retryAfterSec: unknown }).retryAfterSec)
+        : NaN
+    const retryAfterSec = Number.isFinite(retryBody)
+      ? retryBody
+      : retryHeader
+        ? Number(retryHeader)
+        : undefined
+    const retrySuffix =
+      res.status === 429 && retryAfterSec && Number.isFinite(retryAfterSec)
+        ? ` (retryAfterSec=${retryAfterSec})`
+        : ''
+    throw new Error(`CREW API ${res.status}: ${err}${retrySuffix}`)
   }
   return json
 }

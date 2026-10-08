@@ -25,6 +25,8 @@ export type ApiCoin = {
   raidQuests?: unknown
   agent?: unknown
   holderKol?: boolean
+  /** agent_keys.id that performed the launch (self-serve attribution). */
+  agentKeyId?: string
 }
 
 export type ApiRemit = {
@@ -60,6 +62,7 @@ function rowToCoin(row: Record<string, unknown>, crew: ApiCrewMember[]): ApiCoin
     raidQuests: row.raid_quests ?? undefined,
     agent: row.agent ?? undefined,
     holderKol: Boolean(row.holder_kol),
+    agentKeyId: row.agent_key_id ? String(row.agent_key_id) : undefined,
   }
 }
 
@@ -96,6 +99,23 @@ export async function listCoins(limit = 100): Promise<ApiCoin[]> {
   return out
 }
 
+/** Launches attributed to a self-serve / operator agent key. */
+export async function listCoinsByAgentKey(
+  agentKeyId: string,
+  limit = 50,
+): Promise<ApiCoin[]> {
+  const { rows } = await query(
+    `SELECT * FROM coins WHERE agent_key_id = $1 ORDER BY launched_at DESC LIMIT $2`,
+    [agentKeyId, Math.min(100, Math.max(1, limit))],
+  )
+  const out: ApiCoin[] = []
+  for (const row of rows) {
+    const crew = await loadCrew(String(row.mint))
+    out.push(rowToCoin(row as Record<string, unknown>, crew))
+  }
+  return out
+}
+
 export async function getCoin(mint: string): Promise<ApiCoin | null> {
   const { rows } = await query(`SELECT * FROM coins WHERE mint = $1`, [mint])
   if (!rows[0]) return null
@@ -108,9 +128,10 @@ export async function upsertCoin(coin: ApiCoin): Promise<ApiCoin> {
     await client.query(
       `INSERT INTO coins (
          mint, id, name, ticker, vibe, mode, signature, fee_share_signature,
-         launched_at, launcher, pump_url, buyback_rule, raid_quests, agent, holder_kol, updated_at
+         launched_at, launcher, pump_url, buyback_rule, raid_quests, agent, holder_kol,
+         agent_key_id, updated_at
        ) VALUES (
-         $1,$2,$3,$4,$5,$6,$7,$8, to_timestamp($9/1000.0), $10,$11,$12::jsonb,$13::jsonb,$14::jsonb,$15, now()
+         $1,$2,$3,$4,$5,$6,$7,$8, to_timestamp($9/1000.0), $10,$11,$12::jsonb,$13::jsonb,$14::jsonb,$15,$16, now()
        )
        ON CONFLICT (mint) DO UPDATE SET
          id = EXCLUDED.id,
@@ -127,6 +148,7 @@ export async function upsertCoin(coin: ApiCoin): Promise<ApiCoin> {
          raid_quests = EXCLUDED.raid_quests,
          agent = EXCLUDED.agent,
          holder_kol = EXCLUDED.holder_kol,
+         agent_key_id = COALESCE(EXCLUDED.agent_key_id, coins.agent_key_id),
          updated_at = now()`,
       [
         coin.mint,
@@ -144,6 +166,7 @@ export async function upsertCoin(coin: ApiCoin): Promise<ApiCoin> {
         coin.raidQuests ? JSON.stringify(coin.raidQuests) : null,
         coin.agent ? JSON.stringify(coin.agent) : null,
         Boolean(coin.holderKol),
+        coin.agentKeyId || null,
       ],
     )
 

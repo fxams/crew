@@ -47,11 +47,20 @@ export async function createAgentKey(opts: {
   }
 }
 
-export async function listAgentKeys(): Promise<AgentKeyRow[]> {
-  const { rows } = await query(
-    `SELECT id, label, fingerprint, launches_per_hour, active, created_at, last_used_at
-     FROM agent_keys ORDER BY created_at DESC LIMIT 100`,
-  )
+export async function listAgentKeys(opts?: {
+  /** When set, only return that key (self-serve scoped list). */
+  keyId?: string
+}): Promise<AgentKeyRow[]> {
+  const { rows } = opts?.keyId
+    ? await query(
+        `SELECT id, label, fingerprint, launches_per_hour, active, created_at, last_used_at
+         FROM agent_keys WHERE id = $1 LIMIT 1`,
+        [opts.keyId],
+      )
+    : await query(
+        `SELECT id, label, fingerprint, launches_per_hour, active, created_at, last_used_at
+         FROM agent_keys ORDER BY created_at DESC LIMIT 100`,
+      )
   return rows.map((r) => ({
     id: String(r.id),
     label: String(r.label),
@@ -63,11 +72,17 @@ export async function listAgentKeys(): Promise<AgentKeyRow[]> {
   }))
 }
 
-export async function revokeAgentKey(id: string): Promise<boolean> {
-  const { rowCount } = await query(
-    `UPDATE agent_keys SET active = false, updated_at = now() WHERE id = $1`,
-    [id],
-  )
+export async function revokeAgentKey(id: string, opts?: { keyId?: string }): Promise<boolean> {
+  // Self-serve keys may only revoke themselves; operator (no keyId filter) can revoke any.
+  const { rowCount } = opts?.keyId
+    ? await query(
+        `UPDATE agent_keys SET active = false, updated_at = now() WHERE id = $1 AND id = $2`,
+        [id, opts.keyId],
+      )
+    : await query(
+        `UPDATE agent_keys SET active = false, updated_at = now() WHERE id = $1`,
+        [id],
+      )
   return (rowCount || 0) > 0
 }
 

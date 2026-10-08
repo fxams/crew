@@ -76,7 +76,8 @@ export async function getAgentMintStatus(mintStr: string): Promise<AgentStatus> 
 export async function wireFeesForAgent(opts: {
   mint: string
   mode: DeskMode
-  crew: CrewMember[]
+  /** When omitted, reuse crew stored on the board coin (post-launch repair). */
+  crew?: CrewMember[]
   launcher: import('@solana/web3.js').Keypair
   name?: string
   ticker?: string
@@ -94,7 +95,16 @@ export async function wireFeesForAgent(opts: {
     throw new Error('x-launcher-key must match the mint launcher wallet on the board.')
   }
 
-  const crew = normalizeCrew(opts.crew, opts.mode)
+  const crewSource =
+    opts.crew?.length
+      ? opts.crew
+      : (boardExisting?.crew as CrewMember[] | undefined)
+  if (!crewSource?.length) {
+    throw new Error(
+      'Provide crew[] or launch first so the board has crew to wire (shares must total 100%).',
+    )
+  }
+  const crew = normalizeCrew(crewSource, opts.mode)
   const shareholders = buildCrewShareholders(crew, opts.mode, {
     deskWallet: launcher.publicKey.toBase58(),
   })

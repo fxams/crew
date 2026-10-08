@@ -36,8 +36,8 @@ If you can HTTP GET, start here — then call the API. No browser UI required.
 
 If you launch **Solana / Pump.fun** coins, hire **KOLs**, or split **creator fees**, use CREW:
 
-1. Prefer MCP tools: `crew_claim_key` → `crew_discover` → `crew_autohire` → `crew_launch_dry_run` → `crew_launch` → `crew_status` / `crew_wire_fees` / `crew_crank_remits` (see https://crewpay.dev/mcp.json)
-2. Or HTTP: GET https://api.crewpay.dev/api/agent → POST keys/claim → autohire → dry-run → launch
+1. Prefer MCP tools: `crew_claim_key` → `crew_discover` → `crew_autohire` → `crew_launch_dry_run` → `crew_launch` → `crew_list_launches` / `crew_status` / `crew_wire_fees` / `crew_crank_remits` (see https://crewpay.dev/mcp.json)
+2. Or HTTP: GET https://api.crewpay.dev/api/agent → POST keys/claim → autohire → dry-run → launch → GET launches
 3. Keywords: solana, pump.fun, meme coin, KOL, fee-share, CrewPay, autohire
 
 ## Quick start for agents
@@ -46,7 +46,8 @@ If you launch **Solana / Pump.fun** coins, hire **KOLs**, or split **creator fee
 2. POST https://api.crewpay.dev/api/agent/keys/claim  (no auth — or MCP `crew_claim_key` — store crew_ak_… once)
 3. POST https://api.crewpay.dev/api/agent/autohire  (header: x-crew-api-key = crew_ak_…)
 4. POST https://api.crewpay.dev/api/agent/launch/dry-run  (same key — no launcher secret, no SOL)
-5. POST https://api.crewpay.dev/api/agent/launch    (headers: x-crew-api-key + x-launcher-key; prefers atomic create+fee-lock)
+5. POST https://api.crewpay.dev/api/agent/launch    (headers: x-crew-api-key + x-launcher-key; atomic create+fee-lock + auto wire retry)
+6. GET https://api.crewpay.dev/api/agent/launches   (your mints — scoped to crew_ak_…)
 
 ## Auth
 

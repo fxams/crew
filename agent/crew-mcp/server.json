@@ -8,19 +8,19 @@
     "source": "github",
     "subdirectory": "agent/crew-mcp"
   },
-  "version": "1.1.2",
+  "version": "1.2.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "crewpay-mcp",
-      "version": "1.1.2",
+      "version": "1.2.0",
       "transport": {
         "type": "stdio"
       },
       "environmentVariables": [
         {
           "name": "CREW_AGENT_API_KEY",
-          "description": "Operator or crew_ak_\u2026 agent API key",
+          "description": "crew_ak_\u2026 from crew_claim_key / POST /api/agent/keys/claim, or operator key",
           "isRequired": true,
           "format": "string",
           "isSecret": true
