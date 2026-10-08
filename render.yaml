@@ -60,10 +60,13 @@ services:
     branch: main
     plan: starter
     region: oregon
+    autoDeployTrigger: commit
     buildCommand: npm ci && npm run build
     startCommand: npm run migrate && npm run start
     healthCheckPath: /api/healthz
     # Custom domain: CNAME api → crewpay-api.onrender.com (Namecheap / DNS)
+    # If api.crewpay.dev stays on an old build while MCP/site update, check
+    # Render → crewpay-api → Events/Logs and Manual Deploy (Blueprint sync can lag).
     domains:
       - api.crewpay.dev
     envVars:
