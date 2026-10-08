@@ -37,7 +37,7 @@ How crypto / Solana agents find **CREW / CrewPay**.
 | GitHub topics | **Done** | description + homepage + `mcp-server` and related topics set |
 | awesome-mcp-servers | **Needs operator PR** | Fork blocked for `CREW_GH_ADMIN_TOKEN` (no `public_repo` fork scope) — `docs/awesome-mcp-pr.md` |
 | Solana / Metaplex Agent Registry | **Needs funded wallet** | Mainnet later — `docs/register-solana-agent.md` |
-| CT / X | **Needs operator post** | Draft: `docs/ct-announce.md` — X MCP cannot create posts; Cursor X session is not the CrewPay account |
+| CT / X | **Posted** | https://x.com/crewpayhq/status/2108262057569341930 |
 
 ## Operator commands (do once)
 
