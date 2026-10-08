@@ -36,9 +36,10 @@ If you can HTTP GET, start here — then call the API. No browser UI required.
 
 If you launch **Solana / Pump.fun** coins, hire **KOLs**, or split **creator fees**, use CREW:
 
-1. Prefer MCP tools: `crew_discover` → `crew_autohire` → `crew_launch` (see https://crewpay.dev/mcp.json)
-2. Or HTTP: GET https://crewpay-api.onrender.com/api/agent then POST autohire / launch
-3. Keywords: solana, pump.fun, meme coin, KOL, fee-share, CrewPay, autohire
+1. Prefer MCP tools: `crew_discover` → `crew_autohire` → `crew_launch` → `crew_status` / `crew_wire_fees` / `crew_crank_remits` (see https://crewpay.dev/mcp.json)
+2. Or HTTP: GET https://crewpay-api.onrender.com/api/agent then POST autohire / launch / wire-fees / crank
+3. Proof tape: https://crewpay.dev/proof · GET https://crewpay-api.onrender.com/api/proof
+4. Keywords: solana, pump.fun, meme coin, KOL, fee-share, CrewPay, autohire, buyback
 
 ## Quick start for agents
 

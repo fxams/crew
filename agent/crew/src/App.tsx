@@ -15,7 +15,10 @@ import {
 } from "./data";
 import { ReceiptCard } from "./components/ReceiptCard";
 import { AgentsApiPage } from "./components/AgentsApiPage";
+import { ProofPage } from "./components/ProofPage";
 import { TopKolsPage } from "./components/TopKolsPage";
+import { apiConfigured, pushModeAction, pushRemits } from "./lib/api";
+import { executeBuybackFire, executeRaidClaim } from "./lib/mode-execute";
 import { BRAND_ASSETS, BRAND_PALETTE, brandUrl } from "./lib/brand";
 import {
   AGENT_MODELS,
@@ -52,7 +55,7 @@ import {
 } from "./lib/edges";
 import type { HireRole } from "./lib/types";
 import { launchCrew } from "./lib/launch";
-import { isAgentsPath, isKolsPath, isLaunchPath } from "./lib/routes";
+import { isAgentsPath, isKolsPath, isLaunchPath, isProofPath } from "./lib/routes";
 import { distributeCreatorFees, lockHolderKolFeeShares, wireCrewFeeShares } from "./lib/pump/fees";
 import {
   remitsFromSignature,
@@ -141,6 +144,7 @@ export default function App() {
   const isLaunchPage = isLaunchPath(path);
   const isKolsPage = isKolsPath(path);
   const isAgentsPage = isAgentsPath(path);
+  const isProofPage = isProofPath(path);
   const [draft, setDraft] = useState<LaunchDraft>(() => initialDraft());
   const [busy, setBusy] = useState(false);
   const [cranking, setCranking] = useState<string | null>(null);
@@ -914,7 +918,7 @@ export default function App() {
     }
   }
 
-  function onFireBuyback() {
+  function onFireBuybackPreview() {
     if (!selectedCoin) return;
     setActing(true);
     setDeskMessage(null);
@@ -922,7 +926,7 @@ export default function App() {
       const row = simulateBuybackFire(selectedCoin);
       setDeskMessage({
         kind: "info",
-        text: `Preview only · buyback ${row.amountSol.toFixed(4)} SOL — not written to tape.`,
+        text: `Preview only · buyback ${row.amountSol.toFixed(4)} SOL — use Execute to swap on-chain.`,
       });
     } catch (err) {
       setDeskMessage({
@@ -934,7 +938,62 @@ export default function App() {
     }
   }
 
-  function onRaidClaim(questId?: string) {
+  async function onFireBuyback() {
+    if (!selectedCoin) return;
+    if (!wallet.publicKey) {
+      setVisible(true);
+      return;
+    }
+    setActing(true);
+    setDeskMessage(null);
+    try {
+      const row = await executeBuybackFire({ coin: selectedCoin, wallet });
+      const remit: RemitRecord = {
+        id: row.id,
+        mint: selectedCoin.mint,
+        ticker: selectedCoin.ticker,
+        handle: row.handle,
+        wallet: row.wallet,
+        amountSol: row.amountSol,
+        mode: selectedCoin.mode,
+        at: Date.now(),
+        signature: row.signature,
+        source: "dip_fire",
+      };
+      setRemits([remit, ...remits]);
+      if (apiConfigured()) {
+        try {
+          await pushRemits([remit]);
+          await pushModeAction({
+            id: row.id,
+            mint: selectedCoin.mint,
+            mode: selectedCoin.mode,
+            kind: "dip_fire",
+            amountSol: row.amountSol,
+            wallet: row.wallet,
+            handle: row.handle,
+            signature: row.signature,
+            detail: row.outAmount ? `outAmount ${row.outAmount}` : undefined,
+          });
+        } catch {
+          /* local tape still updated */
+        }
+      }
+      setDeskMessage({
+        kind: "info",
+        text: `Dip fire on-chain · ${row.amountSol.toFixed(4)} SOL → $${selectedCoin.ticker} · ${shortAddr(row.signature)}`,
+      });
+    } catch (err) {
+      setDeskMessage({
+        kind: "error",
+        text: err instanceof Error ? err.message : "Dip fire failed.",
+      });
+    } finally {
+      setActing(false);
+    }
+  }
+
+  function onRaidClaimPreview(questId?: string) {
     if (!selectedCoin) return;
     setActing(true);
     setDeskMessage(null);
@@ -942,12 +1001,71 @@ export default function App() {
       const row = simulateRaidClaim(selectedCoin, questId);
       setDeskMessage({
         kind: "info",
-        text: `Preview only · ${row.handle} ${row.amountSol.toFixed(4)} SOL — not on-chain.`,
+        text: `Preview only · ${row.handle} ${row.amountSol.toFixed(4)} SOL — use Claim to pay on-chain.`,
       });
     } catch (err) {
       setDeskMessage({
         kind: "error",
         text: err instanceof Error ? err.message : "Preview failed.",
+      });
+    } finally {
+      setActing(false);
+    }
+  }
+
+  async function onRaidClaim(questId?: string) {
+    if (!selectedCoin) return;
+    if (!wallet.publicKey) {
+      setVisible(true);
+      return;
+    }
+    setActing(true);
+    setDeskMessage(null);
+    try {
+      const row = await executeRaidClaim({
+        coin: selectedCoin,
+        wallet,
+        questId,
+      });
+      const remit: RemitRecord = {
+        id: row.id,
+        mint: selectedCoin.mint,
+        ticker: selectedCoin.ticker,
+        handle: row.handle,
+        wallet: row.wallet,
+        amountSol: row.amountSol,
+        mode: selectedCoin.mode,
+        at: Date.now(),
+        signature: row.signature,
+        source: "raid_claim",
+      };
+      setRemits([remit, ...remits]);
+      if (apiConfigured()) {
+        try {
+          await pushRemits([remit]);
+          await pushModeAction({
+            id: row.id,
+            mint: selectedCoin.mint,
+            mode: selectedCoin.mode,
+            kind: "raid_claim",
+            amountSol: row.amountSol,
+            wallet: row.wallet,
+            handle: row.handle,
+            signature: row.signature,
+            detail: questId ? `quest:${questId}` : undefined,
+          });
+        } catch {
+          /* local tape still updated */
+        }
+      }
+      setDeskMessage({
+        kind: "info",
+        text: `Raid claim on-chain · ${row.handle} ${row.amountSol.toFixed(4)} SOL · ${shortAddr(row.signature)}`,
+      });
+    } catch (err) {
+      setDeskMessage({
+        kind: "error",
+        text: err instanceof Error ? err.message : "Raid claim failed.",
       });
     } finally {
       setActing(false);
@@ -1062,6 +1180,12 @@ export default function App() {
             >
               Agents
             </Link>
+            <Link
+              className={isProofPage ? "is-active-nav-text" : undefined}
+              to="/proof"
+            >
+              Proof
+            </Link>
             <Link to={{ pathname: "/", hash: "brand" }}>Brand</Link>
             <a href={CREW_X_URL} target="_blank" rel="noreferrer">
               X
@@ -1095,8 +1219,9 @@ export default function App() {
 
       {isKolsPage ? <TopKolsPage /> : null}
       {isAgentsPage ? <AgentsApiPage /> : null}
+      {isProofPage ? <ProofPage /> : null}
 
-      {!isLaunchPage && !isKolsPage && !isAgentsPage ? (
+      {!isLaunchPage && !isKolsPage && !isAgentsPage && !isProofPage ? (
         <>
       <div className="app-shell">
         <main id="top">
@@ -1169,6 +1294,9 @@ export default function App() {
                   <strong>{CREW_TOKEN_MCAP_USD ? `$${CREW_TOKEN_MCAP_USD}` : "—"}</strong>
                 </div>
               </div>
+              <Link className="hero-token-buy" to="/proof">
+                Buyback proof tape →
+              </Link>
             </motion.aside>
           </section>
         </main>
@@ -1199,13 +1327,16 @@ export default function App() {
           <p className="section-label">Agent API</p>
           <h2 className="section-title">Agents launch themselves.</h2>
           <p className="section-sub">
-            GPT, Claude, Gemini, Grok, and any HTTP tool-user can discover CREW via{" "}
-            <code>llms.txt</code>, Autohire KOLs, and ship Pump coins with fee-shares —
-            no Phantom required on their side.
+            GPT, Claude, Gemini, Grok, and any HTTP / MCP tool-user can discover CREW via{" "}
+            <code>llms.txt</code>, Autohire KOLs, launch, repair fees, crank remits, and read
+            the public proof tape — no Phantom required on their side.
           </p>
           <div className="agents-teaser-actions">
             <Link className="btn btn-primary" to="/agents">
               Agent API docs
+            </Link>
+            <Link className="btn btn-ghost" to="/proof">
+              Proof tape
             </Link>
             <a
               className="btn btn-ghost"
@@ -1454,14 +1585,24 @@ export default function App() {
                               <strong>{(q.bountyBps / 100).toFixed(0)}%</strong> {q.title}
                               <span className="quest-proof"> · {q.proof}</span>
                             </div>
-                            <button
-                              type="button"
-                              className="btn btn-ghost btn-sm"
-                              disabled={acting}
-                              onClick={() => onRaidClaim(q.id)}
-                            >
-                              Claim
-                            </button>
+                            <div className="quest-actions">
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm"
+                                disabled={acting}
+                                onClick={() => onRaidClaimPreview(q.id)}
+                              >
+                                Preview
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-primary btn-sm"
+                                disabled={acting}
+                                onClick={() => void onRaidClaim(q.id)}
+                              >
+                                Claim
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -1561,14 +1702,24 @@ export default function App() {
                         {acting ? "Preview…" : "Preview fee split"}
                       </button>
                       {selectedCoin.mode === "buyback" ? (
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          type="button"
-                          disabled={acting}
-                          onClick={onFireBuyback}
-                        >
-                          Fire buyback
-                        </button>
+                        <>
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            type="button"
+                            disabled={acting}
+                            onClick={onFireBuybackPreview}
+                          >
+                            Preview dip
+                          </button>
+                          <button
+                            className="btn btn-primary btn-sm"
+                            type="button"
+                            disabled={acting}
+                            onClick={() => void onFireBuyback()}
+                          >
+                            Execute dip buy
+                          </button>
+                        </>
                       ) : null}
                       <a
                         className="btn btn-ghost btn-sm"
@@ -2525,7 +2676,7 @@ export default function App() {
           </div>
         </footer>
       </div>
-      ) : isAgentsPage || isKolsPage ? null : (
+      ) : isAgentsPage || isKolsPage || isProofPage ? null : (
       <div className="app-shell">
         <section className="section" id="brand">
           <p className="section-label">Brand kit</p>

@@ -24,3 +24,9 @@ export function isAgentsPath(pathname: string): boolean {
     path.endsWith("/api")
   );
 }
+
+/** Public buyback + remit proof page. */
+export function isProofPath(pathname: string): boolean {
+  const path = normalizePath(pathname);
+  return path === "/proof" || path.endsWith("/proof");
+}
