@@ -5,7 +5,7 @@
   "description": "MCP server for CREW / CrewPay — Solana Pump.fun launches with narrative KOL Autohire and on-chain fee-shares. For crypto AI agents (Claude, GPT, Cursor, Gemini, Grok, and any MCP client).",
   "type": "module",
   "bin": {
-    "crewpay-mcp": "./dist/index.js"
+    "crewpay-mcp": "dist/index.js"
   },
   "files": [
     "dist",
