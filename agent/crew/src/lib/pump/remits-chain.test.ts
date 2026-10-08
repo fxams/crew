@@ -26,6 +26,18 @@ describe('remits-chain helpers', () => {
     expect(walletToHandle(coin, coin.launcher)).toBe('@desk')
   })
 
+  it('uses agent name for launcher and expands unknown wallets', () => {
+    const agentCoin: CoinRecord = {
+      ...coin,
+      mode: 'agent',
+      agent: { name: 'DeskBot', objective: 'test objective here', model: 'api' },
+    }
+    expect(walletToHandle(agentCoin, agentCoin.launcher)).toBe('@DeskBot')
+    expect(walletToHandle(agentCoin, 'DKqEbHvb7KHSdChzF54KTdj6io4dVZvbieFEMcS1C5cw')).toBe(
+      '@DKqE…C5cw',
+    )
+  })
+
   it('accepts only paid txs with real signatures', () => {
     expect(
       isChainRemit({

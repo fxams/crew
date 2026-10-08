@@ -22,13 +22,16 @@ describe('agent discovery docs', () => {
     expect(llmsTxt()).toContain('/api/agent')
   })
 
-  it('exposes openapi paths for autohire + dry-run + launch', () => {
+  it('exposes openapi paths for autohire + dry-run + launch + keys/claim', () => {
     const spec = openApiSpec()
     expect(spec.openapi).toBe('3.1.0')
     expect(spec.paths['/api/agent/autohire']).toBeTruthy()
     expect(spec.paths['/api/agent/launch/dry-run']).toBeTruthy()
     expect(spec.paths['/api/agent/launch']).toBeTruthy()
     expect(spec.paths['/api/agent/keys']).toBeTruthy()
+    expect(spec.paths['/api/agent/keys/claim']).toBeTruthy()
+    expect(spec.paths['/api/agent/wire-fees']).toBeTruthy()
+    expect(spec.paths['/api/proof']).toBeTruthy()
   })
 
   it('ships agent card + ai-plugin + robots allows', () => {
@@ -40,8 +43,12 @@ describe('agent discovery docs', () => {
     expect(robotsTxt()).toContain('GPTBot')
     expect(robotsTxt()).toContain('ClaudeBot')
     expect(llmsFullTxt()).toContain('x-launcher-key')
+    expect(llmsFullTxt()).toContain('/api/agent/keys/claim')
+    expect(agentDiscoveryJson().auth.keys.claim).toMatch(/keys\/claim/)
+    expect(agentDiscoveryJson().endpoints['POST /api/agent/keys/claim']).toBeTruthy()
     expect(agentDiscoveryJson().discovery.llms_txt).toContain('/llms.txt')
     expect(agentDiscoveryJson().mcp.tools).toContain('crew_discover')
+    expect(agentDiscoveryJson().mcp.tools).toContain('crew_claim_key')
     expect(agentDiscoveryJson().mcp.tools).toContain('crew_launch_dry_run')
     expect(agentDiscoveryJson().mcp.tools).toContain('crew_wire_fees')
     expect(agentDiscoveryJson().mcp.tools).toContain('crew_lock_holder_kol')

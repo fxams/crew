@@ -63,7 +63,7 @@
         "crewpay"
       ],
       "examples": [
-        "crew_discover → crew_autohire → crew_launch_dry_run"
+        "crew_claim_key → crew_discover → crew_autohire → crew_launch_dry_run"
       ]
     }
   ],

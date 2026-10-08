@@ -102,17 +102,46 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         docs: `${DEFAULT_SITE_URL}/agents`,
         llms: `${cfg.apiUrl}/llms.txt`,
         discovery: data,
-        tip: 'Safe flow: crew_discover → crew_autohire → crew_launch_dry_run → crew_launch. Secrets stay in MCP env only.',
+        tip: 'Safe flow: crew_claim_key (if needed) → crew_discover → crew_autohire → crew_launch_dry_run → crew_launch. Secrets stay in MCP env only.',
         auth: {
-          reads: 'crew_discover / crew_search_kols / crew_proof need no API key',
+          reads: 'crew_discover / crew_search_kols / crew_proof / crew_claim_key need no API key',
           writes: cfg.publicMode
-            ? 'Pass x-crew-api-key on the MCP HTTP request (or run locally with CREW_AGENT_API_KEY). Mint keys via POST /api/agent/keys.'
-            : 'Set CREW_AGENT_API_KEY in MCP env. Mint more keys via POST /api/agent/keys.',
+            ? 'Pass x-crew-api-key on the MCP HTTP request (or run locally with CREW_AGENT_API_KEY). Mint via crew_claim_key or POST /api/agent/keys/claim.'
+            : 'Set CREW_AGENT_API_KEY in MCP env (mint via crew_claim_key). Operator mint: POST /api/agent/keys.',
           launcher: cfg.publicMode
             ? 'Public hosted MCP cannot launch with your wallet — run crewpay-mcp locally with CREW_LAUNCHER_KEY, or use REST x-launcher-key from your backend.'
             : 'Set CREW_LAUNCHER_KEY in MCP env — never pass Solana secrets as tool arguments.',
         },
         publicMode: Boolean(cfg.publicMode),
+      })
+    },
+  )
+
+  server.registerTool(
+    'crew_claim_key',
+    {
+      title: 'Claim a self-serve CREW API key',
+      description:
+        'Mint a crew_ak_… agent API key with no operator signup (POST /api/agent/keys/claim). Returns the secret once — store it as CREW_AGENT_API_KEY or pass as x-crew-api-key. Rate-limited 5/hour/IP. Default 5 launches/hour. Use before autohire/launch when you have no key.',
+      inputSchema: {
+        label: z.string().min(2).max(64).optional().describe('Key label (default agent)'),
+        agentName: z.string().min(2).max(48).optional().describe('Your agent name for the label'),
+        model: z.string().min(1).max(48).optional().describe('Model id e.g. claude, gpt, grok'),
+      },
+      annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: false },
+    },
+    async (input) => {
+      const body: Record<string, unknown> = {}
+      if (input.label) body.label = input.label
+      if (input.agentName) body.agentName = input.agentName
+      if (input.model) body.model = input.model
+      const data = await crewFetch(cfg, '/api/agent/keys/claim', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      })
+      return asText({
+        ...(typeof data === 'object' && data ? data : { raw: data }),
+        tip: 'Store crew_ak_… once — it is not shown again. Set CREW_AGENT_API_KEY (local MCP) or pass x-crew-api-key (hosted). Then: crew_autohire → crew_launch_dry_run → crew_launch.',
       })
     },
   )
@@ -382,7 +411,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Launch Pump coin via CrewPay (MAINNET)',
       description:
-        'MAINNET launch: create a Solana Pump.fun coin with CREW fee-shares (25% CREW buyback + hired KOLs). Prefer crew_launch_dry_run first. Requires CREW_AGENT_API_KEY + CREW_LAUNCHER_KEY in MCP env (never pass secrets as args). Always check feeShareLocked — HTTP 202 needs crew_wire_fees.',
+        'MAINNET launch: create a Solana Pump.fun coin with CREW fee-shares (25% CREW buyback + hired KOLs). Prefers atomic create+fee-lock in one tx. Prefer crew_launch_dry_run first. Requires CREW_AGENT_API_KEY + CREW_LAUNCHER_KEY in MCP env (never pass secrets as args). Always check feeShareLocked — HTTP 202 needs crew_wire_fees.',
       inputSchema: {
         name: z.string().min(2).max(32),
         ticker: z
@@ -487,10 +516,10 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
             type: 'text',
             text: [
               'You are a crypto launch agent using CREW / CrewPay MCP tools on Solana MAINNET.',
-              'Flow: crew_discover → crew_autohire → crew_launch_dry_run → crew_launch → crew_status → (crew_wire_fees | crew_lock_holder_kol) → crew_crank_remits.',
+              'Flow: crew_claim_key (if no key) → crew_discover → crew_autohire → crew_launch_dry_run → crew_launch → crew_status → (crew_wire_fees | crew_lock_holder_kol) → crew_crank_remits.',
               'Never pass Solana secrets as tool args — they must live in MCP env (CREW_LAUNCHER_KEY).',
               'Autohire wallets are public Pump profiles, not consenting partners — confirm with the operator before launch.',
-              'Prefer autoHire unless the user named specific wallets. Crew shares must total 100%. Always check feeShareLocked.',
+              'Prefer autoHire unless the user named specific wallets. Crew shares must total 100%. Always check feeShareLocked (atomic lock preferred).',
               `Idea: ${idea}`,
               ticker ? `Ticker hint: ${ticker}` : '',
               `Docs: ${DEFAULT_SITE_URL}/agents · ${DEFAULT_SITE_URL}/proof · ${DEFAULT_API_URL}/llms.txt`,

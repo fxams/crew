@@ -43,6 +43,7 @@ const MCP_WELL_KNOWN = {
   },
   tools: [
     'crew_discover',
+    'crew_claim_key',
     'crew_search_kols',
     'crew_autohire',
     'crew_launch_dry_run',
@@ -196,7 +197,7 @@ async function main() {
   const transport = new StdioServerTransport()
   await server.connect(transport)
   console.error(
-    'crewpay-mcp stdio ready — crypto agents can call crew_discover / crew_autohire / crew_launch_dry_run / crew_launch',
+    'crewpay-mcp stdio ready — crypto agents can call crew_claim_key / crew_discover / crew_autohire / crew_launch_dry_run / crew_launch',
   )
 }
 
