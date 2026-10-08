@@ -42,6 +42,15 @@ export function agentDiscoveryJson() {
       mcp_http: MCP_HTTP_URL,
       agents_md: `${SITE_URL}/AGENTS.md`,
       human_docs: `${SITE_URL}/agents`,
+      skill: `${SITE_URL}/AGENTS.md`,
+    },
+    mcp: {
+      preferred_for: 'crypto / Solana / Pump.fun / KOL agents',
+      http: MCP_HTTP_URL,
+      manifest: MCP_MANIFEST_URL,
+      package: 'agent/crew-mcp',
+      tools: ['crew_discover', 'crew_search_kols', 'crew_autohire', 'crew_launch'],
+      flow: 'crew_discover → crew_autohire → crew_launch',
     },
     topics: [
       'solana',
@@ -101,6 +110,7 @@ export function agentDiscoveryJson() {
       'Always check feeShareLocked — HTTP 202 means mint live but fees not locked.',
       'imageUrl is SSRF-guarded (public http(s) only; magic-byte image check).',
       'Start at GET /llms.txt or GET /api/agent — no browser required.',
+      'Crypto agents: prefer MCP at https://crewpay-mcp.onrender.com/mcp (tools crew_discover / crew_search_kols / crew_autohire / crew_launch).',
     ],
   }
 }
