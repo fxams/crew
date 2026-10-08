@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isKolsPath, isLaunchPath } from "./routes";
+import { isAgentsPath, isKolsPath, isLaunchPath } from "./routes";
 
 describe("isLaunchPath", () => {
   it("keeps the launch desk off the home page", () => {
@@ -8,6 +8,7 @@ describe("isLaunchPath", () => {
     expect(isLaunchPath("/crew")).toBe(false);
     expect(isLaunchPath("/crew/")).toBe(false);
     expect(isLaunchPath("/kols")).toBe(false);
+    expect(isLaunchPath("/agents")).toBe(false);
   });
 
   it("matches the launch route only", () => {
@@ -24,5 +25,17 @@ describe("isKolsPath", () => {
     expect(isKolsPath("/crew/kols")).toBe(true);
     expect(isKolsPath("/")).toBe(false);
     expect(isKolsPath("/launch")).toBe(false);
+  });
+});
+
+describe("isAgentsPath", () => {
+  it("matches the agent API docs page", () => {
+    expect(isAgentsPath("/agents")).toBe(true);
+    expect(isAgentsPath("/agents/")).toBe(true);
+    expect(isAgentsPath("/api")).toBe(true);
+    expect(isAgentsPath("/crew/agents")).toBe(true);
+    expect(isAgentsPath("/")).toBe(false);
+    expect(isAgentsPath("/launch")).toBe(false);
+    expect(isAgentsPath("/kols")).toBe(false);
   });
 });
