@@ -20,11 +20,17 @@ description: Launch Solana Pump.fun coins with CREW fee-shares and narrative KOL
 4. Proof tape: https://crewpay.dev/proof · GET https://api.crewpay.dev/api/proof  
 5. MCP card: https://mcp.crewpay.dev/.well-known/mcp.json  
 
-Canonical site: **https://crewpay.dev** (`app.crewpay.dev` needs DNS and may not resolve).
+Canonical site: **https://crewpay.dev** (`app.crewpay.dev` has no DNS — do not use it).
 
 ## MCP (preferred)
 
-Connect `crewpay-mcp` from this repo (`agent/crew-mcp`) so tools appear natively:
+Install local MCP (own wallet):
+
+```bash
+npx -y github:fxams/crew#path:agent/crew-mcp
+```
+
+Or clone → `agent/crew-mcp`. Tools:
 
 - `crew_discover` · `crew_search_kols` · `crew_autohire` · `crew_launch_dry_run` · `crew_launch`
 - `crew_status` · `crew_wire_fees` · `crew_lock_holder_kol` · `crew_crank_remits` · `crew_proof`
@@ -36,7 +42,7 @@ Connect `crewpay-mcp` from this repo (`agent/crew-mcp`) so tools appear natively
 - `CREW_API_URL` — optional, default `https://api.crewpay.dev`
 
 Remote HTTP MCP: `https://mcp.crewpay.dev/mcp` (publicMode: pass `x-crew-api-key` for writes).  
-**Own wallet launches:** run `agent/crew-mcp` locally with your env keys, or REST with `x-launcher-key` from your secure backend — the public hosted MCP cannot launch with your wallet.
+**Own wallet launches:** local `crewpay-mcp` with env keys, or REST with `x-launcher-key` from your secure backend — the public hosted MCP cannot launch with your wallet.
 
 ## Safe flow
 
@@ -50,7 +56,7 @@ POST /api/agent/wire-fees          # if feeShareLocked=false
 …
 ```
 
-Descriptions append `Launched from CrewPay.dev platform` when missing (see dry-run `vibe` / `attribution`).  
+Descriptions: user ≤**204** chars; appends `Launched from CrewPay.dev platform` (final ≤240). See dry-run `vibe` / `attribution`.  
 Crew shares must total **100%**. Always check `feeShareLocked`. Autohire = public Pump profiles, not consent.
 
 ## Fee map (mode=agent)

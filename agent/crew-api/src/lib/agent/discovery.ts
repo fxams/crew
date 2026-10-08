@@ -37,7 +37,7 @@ export function agentDiscoveryJson() {
     aliases: {
       api: [API_URL_LEGACY],
       mcp_http: [MCP_HTTP_URL_LEGACY],
-      site: ['https://app.crewpay.dev'],
+      // app.crewpay.dev is optional and currently has no DNS — do not use as primary.
     },
     intended_clients: [...FRONTIER_MODELS],
     discovery: {
@@ -60,7 +60,9 @@ export function agentDiscoveryJson() {
       http: MCP_HTTP_URL,
       http_legacy: MCP_HTTP_URL_LEGACY,
       manifest: MCP_MANIFEST_URL,
-      package: 'agent/crew-mcp',
+      package: 'crewpay-mcp',
+      package_install:
+        'npx -y github:fxams/crew#path:agent/crew-mcp  (or clone repo → agent/crew-mcp)',
       tools: [
         'crew_discover',
         'crew_search_kols',
@@ -124,7 +126,8 @@ export function agentDiscoveryJson() {
     limits: {
       name: '2–32 chars',
       ticker: '2–13 letters/numbers',
-      description: '≤240 chars',
+      description:
+        '≤204 user chars (final on-chain ≤240 after “Launched from CrewPay.dev platform”)',
       initialBuySol: '0–10',
       crewSeats: '1–10',
       crewShares: 'must total 100% when crew[] is provided',
@@ -147,7 +150,7 @@ export function agentDiscoveryJson() {
         body: {
           name: 'required 2–32',
           ticker: 'required 2–13',
-          description: 'optional ≤240',
+          description: 'optional ≤204 user chars (attribution appended → ≤240 final)',
           mode: 'split|buyback|raid|agent (default agent)',
           imageUrl: 'or imageBase64',
           twitter: 'optional',
@@ -369,7 +372,12 @@ export function openApiSpec() {
           properties: {
             name: { type: 'string', maxLength: 32 },
             ticker: { type: 'string', maxLength: 13 },
-            description: { type: 'string', maxLength: 240 },
+            description: {
+              type: 'string',
+              maxLength: 204,
+              description:
+                'User vibe ≤204. Final IPFS description appends “Launched from CrewPay.dev platform” (≤240).',
+            },
             seats: { type: 'integer', minimum: 1, maximum: 10, default: 5 },
           },
         },
@@ -392,7 +400,12 @@ export function openApiSpec() {
           properties: {
             name: { type: 'string', minLength: 2, maxLength: 32 },
             ticker: { type: 'string', minLength: 2, maxLength: 13 },
-            description: { type: 'string', maxLength: 240 },
+            description: {
+              type: 'string',
+              maxLength: 204,
+              description:
+                'User vibe ≤204. Final IPFS description appends “Launched from CrewPay.dev platform” (≤240). Shown in dry-run.vibe / attribution.',
+            },
             mode: {
               type: 'string',
               enum: ['split', 'buyback', 'raid', 'agent'],
@@ -551,11 +564,21 @@ If you launch **Solana / Pump.fun** coins, hire **KOLs**, or split **creator fee
 
 ## Description attribution
 
-On-chain / IPFS descriptions append **Launched from CrewPay.dev platform** when missing. Dry-run returns the final \`vibe\` and \`attribution\` fields. Images must be PNG/JPEG/WebP/GIF (SVG rejected on dry-run and launch).
+On-chain / IPFS descriptions append **Launched from CrewPay.dev platform** when missing. Send **≤204** characters so the final vibe stays ≤240. Dry-run returns the final \`vibe\` and \`attribution\` fields. Images must be PNG/JPEG/WebP/GIF (SVG rejected on dry-run and launch).
+
+## Own wallet (local MCP)
+
+Hosted MCP (\`mcp.crewpay.dev\`) is publicMode: pass \`x-crew-api-key\` for writes; it **cannot** hold your launcher secret. To launch with your own wallet:
+
+1. \`npx -y github:fxams/crew#path:agent/crew-mcp\` (or clone → \`agent/crew-mcp && npm ci && npm run build\`)
+2. Set \`CREW_AGENT_API_KEY\` + \`CREW_LAUNCHER_KEY\` in MCP env (never tool args)
+3. Or call REST \`POST /api/agent/launch\` from your backend with \`x-launcher-key\`
+
+Canonical site is **https://crewpay.dev** (\`app.crewpay.dev\` has no DNS).
 
 ## Limits (site + API + MCP aligned)
 
-- Name 2–32 · ticker 2–13 · description ≤240 · initialBuySol 0–10 · seats 1–10
+- Name 2–32 · ticker 2–13 · description ≤204 user / ≤240 final · initialBuySol 0–10 · seats 1–10
 - Crew shares must total 100% when \`crew[]\` is provided
 - MAINNET only — dry-run does not spend SOL; real launch does
 - Always check \`feeShareLocked\` (HTTP 201 locked / 202 mint-without-fees → wire-fees)
@@ -625,6 +648,16 @@ GET ${SITE_URL}/robots.txt
 
 Never echo or log x-launcher-key. Check \`feeShareLocked\` on every launch response.
 
+## Description attribution
+
+Every launch appends **Launched from CrewPay.dev platform** when missing. Keep the user \`description\` ≤**204** characters so the final on-chain vibe is ≤240. Dry-run returns \`vibe\` (final) and \`attribution\`.
+
+## Own wallet / local MCP
+
+- Hosted MCP \`https://mcp.crewpay.dev/mcp\` is **publicMode**: pass \`x-crew-api-key\`; it cannot use your launcher secret.
+- Local package: \`npx -y github:fxams/crew#path:agent/crew-mcp\` with env \`CREW_AGENT_API_KEY\` + \`CREW_LAUNCHER_KEY\` (never tool args).
+- Or REST from your backend with \`x-launcher-key\`. Site: **https://crewpay.dev** only (\`app.crewpay.dev\` has no DNS).
+
 ## 1) Preview Autohire
 
 \`\`\`http
@@ -685,13 +718,14 @@ Returns planned crew, fee map, SOL estimate, warnings — **no mint, no secret r
 
 ## Rules agents must follow
 
-- Provide \`imageUrl\` or \`imageBase64\`
+- Provide \`imageUrl\` or \`imageBase64\` (PNG/JPEG/WebP/GIF magic bytes; SVG rejected)
 - Provide \`crew[]\` or \`autoHire\` (or \`holderKol: true\`)
 - When \`crew[]\` is set, shares must total **100%**
+- Keep \`description\` ≤204 chars (attribution makes final ≤240)
 - Launcher wallet pays Pump create fees and is the on-chain creator
 - Prefer \`autoHire\` unless the user named specific wallets — Autohire ≠ consent
 - Do not invent keys — the operator must supply CREW_AGENT_API_KEY (or mint via POST /api/agent/keys)
-- Never put Solana secrets in tool arguments / prompts — MCP env only
+- Never put Solana secrets in tool arguments / prompts — MCP env only (\`launcherKey\`/\`privateKey\`/\`secretKey\` args are rejected)
 - Prefer dry-run before launch; cluster is **mainnet-beta** only
 - Treat HTTP 202 / feeShareLocked=false as incomplete — follow \`nextSteps\` / wire fees before celebrating
 

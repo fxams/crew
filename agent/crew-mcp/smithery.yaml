@@ -25,7 +25,7 @@ startCommand:
         description: CREW_AGENT_API_KEY from Render crewpay-api
       crewLauncherKey:
         type: string
-        description: Optional default Solana launcher secret (or pass per tool call)
+        description: Solana launcher secret in MCP env only (never as a tool argument)
       crewApiUrl:
         type: string
         default: https://api.crewpay.dev

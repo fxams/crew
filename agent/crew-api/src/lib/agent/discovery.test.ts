@@ -46,9 +46,18 @@ describe('agent discovery docs', () => {
     expect(agentDiscoveryJson().mcp.http).toBe('https://mcp.crewpay.dev/mcp')
     expect(agentDiscoveryJson().api).toBe('https://api.crewpay.dev')
     expect(agentDiscoveryJson().aliases.api).toContain('https://crewpay-api.onrender.com')
+    expect(agentDiscoveryJson().aliases.site).toBeUndefined()
+    expect(agentDiscoveryJson().homepage).toBe('https://crewpay.dev')
     expect(agentDiscoveryJson().proof.site).toContain('/proof')
     expect(agentDiscoveryJson().limits.initialBuySol).toBe('0–10')
+    expect(agentDiscoveryJson().limits.description).toMatch(/204/)
     expect(llmsTxt()).toContain('dry-run')
+    expect(llmsTxt()).toContain('≤204')
     expect(llmsFullTxt()).toContain('Never put Solana secrets')
+    expect(llmsFullTxt()).toContain('Launched from CrewPay.dev platform')
+    expect(llmsFullTxt()).toContain('github:fxams/crew#path:agent/crew-mcp')
+    expect(openApiSpec().components.schemas.LaunchRequest.properties.description.maxLength).toBe(
+      204,
+    )
   })
 })

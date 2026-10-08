@@ -12,12 +12,18 @@ export type CrewApiConfig = {
   publicMode?: boolean
 }
 
+export function resolvePublicMode(explicit?: boolean): boolean {
+  if (typeof explicit === 'boolean') return explicit
+  const flag = (process.env.CREW_MCP_PUBLIC || '').trim().toLowerCase()
+  if (flag === '0' || flag === 'false') return false
+  if (flag === '1' || flag === 'true') return true
+  if (process.env.CREW_MCP_REQUIRE_CLIENT_KEY === '1') return true
+  // Stdio stays private (uses env keys). HTTP callers pass explicit publicMode.
+  return false
+}
+
 export function loadConfig(overrides?: Partial<CrewApiConfig>): CrewApiConfig {
-  const publicMode =
-    overrides?.publicMode ??
-    (process.env.CREW_MCP_PUBLIC === '1' ||
-      process.env.CREW_MCP_PUBLIC === 'true' ||
-      process.env.CREW_MCP_REQUIRE_CLIENT_KEY === '1')
+  const publicMode = resolvePublicMode(overrides?.publicMode)
 
   const envKey =
     process.env.CREW_AGENT_API_KEY?.trim() || process.env.CREW_API_KEY?.trim() || ''
