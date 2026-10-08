@@ -105,9 +105,8 @@ services:
         value: production
       - key: CREW_MCP_HTTP
         value: "1"
-      # Flip to https://api.crewpay.dev after DNS for api.crewpay.dev verifies.
       - key: CREW_API_URL
-        value: https://crewpay-api.onrender.com
+        value: https://api.crewpay.dev
       - key: CREW_AGENT_API_KEY
         sync: false
 
