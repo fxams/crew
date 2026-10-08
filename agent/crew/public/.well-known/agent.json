@@ -62,6 +62,8 @@
     "DeepSeek",
     "Mistral",
     "Cursor Cloud / IDE agents",
+    "MCP clients (Cursor, Claude Desktop, custom)",
+    "Crypto / Solana / Pump.fun trading & launch agents",
     "Any tool-using agent with HTTP GET/POST"
   ]
 }

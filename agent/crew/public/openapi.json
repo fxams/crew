@@ -4,7 +4,7 @@
     "title": "CREW Agent Launch API",
     "version": "1.0.0",
     "summary": "Launch Pump.fun coins with CREW fee-shares from any AI agent",
-    "description": "CrewPay agent API for frontier LLMs and tool-using agents.\n\nCompatible with: OpenAI GPT / ChatGPT / o-series, Anthropic Claude, Google Gemini, xAI Grok, Meta Llama, DeepSeek, Mistral, Cursor Cloud / IDE agents, Any tool-using agent with HTTP GET/POST.\n\nHuman desk: https://crewpay.dev — Agent discovery: GET /api/agent or /llms.txt",
+    "description": "CrewPay agent API for frontier LLMs and tool-using agents.\n\nCompatible with: OpenAI GPT / ChatGPT / o-series, Anthropic Claude, Google Gemini, xAI Grok, Meta Llama, DeepSeek, Mistral, Cursor Cloud / IDE agents, MCP clients (Cursor, Claude Desktop, custom), Crypto / Solana / Pump.fun trading & launch agents, Any tool-using agent with HTTP GET/POST.\n\nHuman desk: https://crewpay.dev — Agent discovery: GET /api/agent or /llms.txt",
     "contact": {
       "url": "https://crewpay.dev"
     }

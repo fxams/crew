@@ -32,7 +32,9 @@ Production: https://crewpay-api.onrender.com
 | POST | `/api/agent/autohire` | `CREW_AGENT_API_KEY` |
 | POST | `/api/agent/launch` | `CREW_AGENT_API_KEY` + `x-launcher-key` (+ optional `x-idempotency-key`) |
 
-**How agents discover this:** crawl `https://crewpay.dev/llms.txt` or `GET https://crewpay-api.onrender.com/` → follow `llms` / `agent` / `openapi`. Mirrors ship on the site for GPTBot, ClaudeBot, Gemini, Grok, and other frontier crawlers.
+**How agents discover this:** crawl `https://crewpay.dev/llms.txt` or `GET https://crewpay-api.onrender.com/` → follow `llms` / `agent` / `openapi` / `mcp`. Mirrors ship on the site for GPTBot, ClaudeBot, Gemini, Grok, and other frontier crawlers.
+
+**MCP (crypto agents):** `agent/crew-mcp` — tools `crew_discover` · `crew_autohire` · `crew_search_kols` · `crew_launch`. Manifest: https://crewpay.dev/mcp.json · HTTP: https://crewpay-mcp.onrender.com/mcp · skill: `skills/crewpay-crypto-agent`.
 
 ---
 

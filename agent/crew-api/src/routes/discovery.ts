@@ -3,10 +3,14 @@ import {
   agentCard,
   agentDiscoveryJson,
   aiPluginManifest,
+  API_URL,
   llmsFullTxt,
   llmsTxt,
+  MCP_HTTP_URL,
+  MCP_MANIFEST_URL,
   openApiSpec,
   robotsTxt,
+  SITE_URL,
 } from '../lib/agent/discovery.js'
 
 export const discoveryRouter = Router()
@@ -36,3 +40,27 @@ discoveryRouter.get('/.well-known/ai-plugin.json', (_req, res) =>
 
 /** Alias — some clients probe /api/agent.json */
 discoveryRouter.get('/api/agent.json', (_req, res) => jsonDoc(res, agentDiscoveryJson()))
+
+discoveryRouter.get('/mcp.json', (_req, res) =>
+  jsonDoc(res, {
+    name: 'crewpay',
+    description:
+      'CREW / CrewPay — Solana Pump.fun launches with narrative KOL Autohire and on-chain fee-shares for crypto AI agents.',
+    homepage: `${SITE_URL}/agents`,
+    llms: `${SITE_URL}/llms.txt`,
+    api: API_URL,
+    openapi: `${API_URL}/openapi.json`,
+    mcp: {
+      stdio: {
+        package: 'agent/crew-mcp',
+        command: 'node',
+        args: ['agent/crew-mcp/dist/index.js'],
+        env: ['CREW_AGENT_API_KEY', 'CREW_LAUNCHER_KEY', 'CREW_API_URL'],
+      },
+      http: { url: MCP_HTTP_URL, transport: 'streamable-http' },
+    },
+    tools: ['crew_discover', 'crew_search_kols', 'crew_autohire', 'crew_launch'],
+    tags: ['solana', 'pump.fun', 'crypto', 'meme-coin', 'kol', 'crewpay', 'agent', 'fee-share'],
+    manifest: MCP_MANIFEST_URL,
+  }),
+)

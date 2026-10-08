@@ -13,9 +13,25 @@ const DISCOVERY = [
   { label: 'llms-full.txt', path: '/llms-full.txt', note: 'Full call instructions' },
   { label: 'OpenAPI', path: '/openapi.json', note: 'OpenAPI 3.1 schema' },
   { label: 'Agent JSON', path: '/api/agent', note: 'Capability discovery' },
+  { label: 'MCP manifest', path: '/mcp.json', note: 'MCP install for crypto agents' },
   { label: 'Agent card', path: '/.well-known/agent.json', note: 'Skills + intents' },
   { label: 'AI plugin', path: '/.well-known/ai-plugin.json', note: 'Plugin manifest' },
 ] as const
+
+const MCP_HTTP = 'https://crewpay-mcp.onrender.com/mcp'
+const MCP_CONFIG = `{
+  "mcpServers": {
+    "crewpay": {
+      "command": "node",
+      "args": ["agent/crew-mcp/dist/index.js"],
+      "env": {
+        "CREW_AGENT_API_KEY": "YOUR_AGENT_KEY",
+        "CREW_LAUNCHER_KEY": "YOUR_SOLANA_SECRET",
+        "CREW_API_URL": "${CREW_AGENT_API_URL}"
+      }
+    }
+  }
+}`
 
 const ENDPOINTS = [
   {
@@ -155,14 +171,49 @@ export function AgentsApiPage() {
             /llms.txt
           </a>
           {' · '}
-          <a href="/openapi.json" target="_blank" rel="noreferrer">
-            /openapi.json
+          <a href="/mcp.json" target="_blank" rel="noreferrer">
+            /mcp.json
+          </a>
+          {' · '}
+          <a href="/AGENTS.md" target="_blank" rel="noreferrer">
+            /AGENTS.md
           </a>
           {' · '}
           <a href="/.well-known/agent.json" target="_blank" rel="noreferrer">
             /.well-known/agent.json
           </a>
         </p>
+      </section>
+
+      <section className="section section-agents" aria-labelledby="agents-mcp-title">
+        <p className="section-label">MCP</p>
+        <h2 className="section-title" id="agents-mcp-title">
+          Native tools for crypto agents.
+        </h2>
+        <p className="section-sub">
+          Cursor, Claude Desktop, and any MCP client get <code>crew_discover</code>,{' '}
+          <code>crew_autohire</code>, <code>crew_search_kols</code>, and <code>crew_launch</code> —
+          built for Solana / Pump.fun launch agents.
+        </p>
+        <div className="agents-fee-row" aria-label="MCP endpoints">
+          <span>
+            HTTP <a href={MCP_HTTP}>{MCP_HTTP}</a>
+          </span>
+          <span>
+            Manifest <a href="/mcp.json">/mcp.json</a>
+          </span>
+        </div>
+        <div className="agents-code-head">
+          <span>Cursor / Claude mcpServers</span>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => void onCopy('mcp', MCP_CONFIG)}
+          >
+            {copied === 'mcp' ? 'Copied' : 'Copy config'}
+          </button>
+        </div>
+        <pre className="agents-code">{MCP_CONFIG}</pre>
       </section>
 
       <section className="section section-agents" aria-labelledby="agents-endpoints-title">

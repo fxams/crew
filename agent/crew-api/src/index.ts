@@ -54,6 +54,8 @@ async function main() {
         agent: '/.well-known/agent.json',
         aiPlugin: '/.well-known/ai-plugin.json',
       },
+      mcp: '/mcp.json',
+      mcpHttp: 'https://crewpay-mcp.onrender.com/mcp',
     })
   })
 
