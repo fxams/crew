@@ -122,6 +122,33 @@ const LAUNCH_CURL = `curl -sS ${CREW_PUBLIC_API_URL}/api/agent/launch \\
     }
   }'`
 
+const KEYS_CURL = `curl -sS ${CREW_PUBLIC_API_URL}/api/agent/keys \\
+  -H "content-type: application/json" \\
+  -H "x-crew-api-key: $CREW_AGENT_API_KEY" \\
+  -d '{ "label": "partner-bot", "launchesPerHour": 5 }'`
+
+const WEBHOOK_CURL = `curl -sS ${CREW_PUBLIC_API_URL}/api/webhooks \\
+  -H "content-type: application/json" \\
+  -H "x-crew-api-key: $CREW_AGENT_API_KEY" \\
+  -d '{
+    "url": "https://example.com/hooks/crew",
+    "events": ["launch.created", "feeShare.locked", "buyback.executed"],
+    "label": "ops"
+  }'`
+
+const DRY_RUN_CURL = `curl -sS ${CREW_PUBLIC_API_URL}/api/agent/launch/dry-run \\
+  -H "content-type: application/json" \\
+  -H "x-crew-api-key: $CREW_AGENT_API_KEY" \\
+  -d '{
+    "name": "Desk Cat",
+    "ticker": "DCAT",
+    "description": "ai agent trench meme",
+    "mode": "agent",
+    "imageUrl": "https://example.com/cat.png",
+    "autoHire": { "seats": 3 },
+    "agent": { "name": "DeskBot", "objective": "Hire KOLs and grow DCAT", "model": "claude" }
+  }'`
+
 async function copyText(text: string) {
   await navigator.clipboard.writeText(text)
 }
@@ -333,6 +360,51 @@ export function AgentsApiPage() {
           </button>
         </div>
         <pre className="agents-code">{LAUNCH_CURL}</pre>
+      </section>
+
+      <section className="section section-agents" aria-labelledby="agents-ops-title">
+        <p className="section-label">Operator</p>
+        <h2 className="section-title" id="agents-ops-title">
+          Keys, dry-run, webhooks.
+        </h2>
+        <p className="section-sub">
+          Bootstrap with the Render <code>CREW_AGENT_API_KEY</code>, mint scoped{' '}
+          <code>crew_ak_…</code> keys, rehearse launches without spending SOL, then register
+          webhooks for launch / fee / buyback events.
+        </p>
+        <div className="agents-code-head">
+          <span>POST /api/agent/launch/dry-run</span>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => void onCopy('dry', DRY_RUN_CURL)}
+          >
+            {copied === 'dry' ? 'Copied' : 'Copy'}
+          </button>
+        </div>
+        <pre className="agents-code">{DRY_RUN_CURL}</pre>
+        <div className="agents-code-head">
+          <span>POST /api/agent/keys</span>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => void onCopy('keys', KEYS_CURL)}
+          >
+            {copied === 'keys' ? 'Copied' : 'Copy'}
+          </button>
+        </div>
+        <pre className="agents-code">{KEYS_CURL}</pre>
+        <div className="agents-code-head">
+          <span>POST /api/webhooks</span>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => void onCopy('hook', WEBHOOK_CURL)}
+          >
+            {copied === 'hook' ? 'Copied' : 'Copy'}
+          </button>
+        </div>
+        <pre className="agents-code">{WEBHOOK_CURL}</pre>
       </section>
 
       <section className="section section-agents section-agents-models" aria-labelledby="agents-models-title">

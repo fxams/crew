@@ -1,12 +1,21 @@
-import { apiConfigured, fetchBoard, pushCoin, pushRemits } from './api'
+import { apiConfigured, fetchBoard, pushCoin, pushRemits, type BoardWallet } from './api'
 import { DRAFT_KEY, STORE_KEY, STORE_LEGACY_KEYS, UI_KEY } from './config'
 import { sanitizeBoard, sanitizeDraft, sanitizeUiPrefs } from './security'
 import type { CoinRecord, LaunchDraft, RemitRecord } from './types'
 import { seedCoins, seedRemits } from './seed'
 
+/** Optional Phantom wallet for signed board writes (API key OR wallet sig). */
+let boardWallet: BoardWallet | null = null
+
+export function setBoardWallet(wallet: BoardWallet | null) {
+  boardWallet = wallet
+}
+
 function syncCoinRemote(coin: CoinRecord) {
   if (!apiConfigured()) return
-  void pushCoin(coin).catch((err) => console.warn('API coin sync failed', err))
+  void pushCoin(coin, { wallet: boardWallet }).catch((err) =>
+    console.warn('API coin sync failed', err),
+  )
 }
 
 function syncRemitsRemote(remits: RemitRecord[]) {
