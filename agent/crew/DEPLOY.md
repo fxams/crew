@@ -1,9 +1,8 @@
-# Deploy
+# Deploy CREW
 
 Custom domains: see [DOMAINS.md](./DOMAINS.md) (`api.crewpay.dev` / `mcp.crewpay.dev`).
- CREW
 
-## Production (Render only) — **https://app.crewpay.dev**
+## Production (Render only) — **https://crewpay.dev**
 
 GitHub Pages is **decommissioned**. Do not use `fxams.github.io/crew`.
 

@@ -5,10 +5,19 @@ export const CREW_VERSION = '2.6.0'
 /** Official CREW / CrewPay HQ account on X. */
 export const CREW_X_URL = 'https://x.com/CrewPayHQ'
 
-/** Public Agent Launch API (no trailing slash). Canonical: api.crewpay.dev */
+/**
+ * Canonical public API host for docs / Agents page / agent-facing copy.
+ * Always the custom domain — do not derive from VITE_CREW_API_URL (build env may lag).
+ */
+export const CREW_PUBLIC_API_URL = 'https://api.crewpay.dev'
+
+/**
+ * Runtime Agent API base (no trailing slash).
+ * Prefers VITE_CREW_API_URL so deploys can keep the Render alias until TLS is ready.
+ */
 export const CREW_AGENT_API_URL = (
   (import.meta.env.VITE_CREW_API_URL as string | undefined)?.replace(/\/$/, '') ||
-  'https://api.crewpay.dev'
+  CREW_PUBLIC_API_URL
 )
 
 /** Streamable MCP HTTP endpoint (canonical custom domain). */

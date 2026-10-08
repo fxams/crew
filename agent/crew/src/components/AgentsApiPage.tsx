@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   AGENT_API_CLIENTS,
-  CREW_AGENT_API_URL,
+  CREW_MCP_HTTP_URL,
+  CREW_PUBLIC_API_URL,
   CREW_VERSION,
   PLATFORM_BUYBACK_BPS,
 } from '../lib/config'
@@ -18,7 +19,7 @@ const DISCOVERY = [
   { label: 'AI plugin', path: '/.well-known/ai-plugin.json', note: 'Plugin manifest' },
 ] as const
 
-const MCP_HTTP = 'https://mcp.crewpay.dev/mcp'
+const MCP_HTTP = CREW_MCP_HTTP_URL
 const MCP_CONFIG = `{
   "mcpServers": {
     "crewpay": {
@@ -27,7 +28,7 @@ const MCP_CONFIG = `{
       "env": {
         "CREW_AGENT_API_KEY": "YOUR_AGENT_KEY",
         "CREW_LAUNCHER_KEY": "YOUR_SOLANA_SECRET",
-        "CREW_API_URL": "${CREW_AGENT_API_URL}"
+        "CREW_API_URL": "${CREW_PUBLIC_API_URL}"
       }
     }
   }
@@ -90,7 +91,7 @@ const ENDPOINTS = [
   },
 ] as const
 
-const LAUNCH_CURL = `curl -sS ${CREW_AGENT_API_URL}/api/agent/launch \\
+const LAUNCH_CURL = `curl -sS ${CREW_PUBLIC_API_URL}/api/agent/launch \\
   -H "content-type: application/json" \\
   -H "x-crew-api-key: $CREW_AGENT_API_KEY" \\
   -H "x-launcher-key: $AGENT_SOLANA_SECRET" \\
@@ -159,13 +160,13 @@ export function AgentsApiPage() {
             desk required.
           </p>
           <div className="agents-hero-actions">
-            <a className="btn btn-primary" href={`${CREW_AGENT_API_URL}/llms.txt`} target="_blank" rel="noreferrer">
+            <a className="btn btn-primary" href={`${CREW_PUBLIC_API_URL}/llms.txt`} target="_blank" rel="noreferrer">
               Open llms.txt
             </a>
             <button
               type="button"
               className="btn btn-ghost"
-              onClick={() => void onCopy('base', CREW_AGENT_API_URL)}
+              onClick={() => void onCopy('base', CREW_PUBLIC_API_URL)}
             >
               {copied === 'base' ? 'Copied' : 'Copy API base'}
             </button>
@@ -194,15 +195,18 @@ export function AgentsApiPage() {
               viewport={{ once: true }}
               transition={{ delay: Math.min(index, 5) * 0.04 }}
             >
-              <a href={`${CREW_AGENT_API_URL}${item.path}`} target="_blank" rel="noreferrer">
+              <a href={`${CREW_PUBLIC_API_URL}${item.path}`} target="_blank" rel="noreferrer">
                 <strong>{item.label}</strong>
-                <span>{CREW_AGENT_API_URL}{item.path}</span>
+                <span>
+                  {CREW_PUBLIC_API_URL}
+                  {item.path}
+                </span>
               </a>
               <em>{item.note}</em>
               <button
                 type="button"
                 className="btn btn-ghost btn-sm"
-                onClick={() => void onCopy(item.path, `${CREW_AGENT_API_URL}${item.path}`)}
+                onClick={() => void onCopy(item.path, `${CREW_PUBLIC_API_URL}${item.path}`)}
               >
                 {copied === item.path ? 'Copied' : 'Copy'}
               </button>
