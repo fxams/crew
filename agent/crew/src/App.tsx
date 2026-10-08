@@ -18,6 +18,7 @@ import { AgentsApiPage } from "./components/AgentsApiPage";
 import { ProofPage } from "./components/ProofPage";
 import { TopKolsPage } from "./components/TopKolsPage";
 import { apiConfigured, pushModeAction, pushRemits } from "./lib/api";
+import { evaluateDipGate } from "./lib/desk-rules";
 import { executeBuybackFire, executeRaidClaim } from "./lib/mode-execute";
 import { BRAND_ASSETS, BRAND_PALETTE, brandUrl } from "./lib/brand";
 import {
@@ -78,6 +79,7 @@ import {
 import {
   clearDraft,
   clearUiPrefs,
+  setBoardWallet,
   hydrateBoardFromApi,
   loadBoard,
   loadDraft,
@@ -168,6 +170,8 @@ export default function App() {
   const [copied, setCopied] = useState<"mint" | "share" | null>(null);
   const [acting, setActing] = useState(false);
   const [adoptMint, setAdoptMint] = useState("");
+  const [raidProof, setRaidProof] = useState("");
+  const [dipGateHint, setDipGateHint] = useState<string | null>(null);
   const [boardTick] = useState(() => Date.now());
   const [desk, setDesk] = useState(() => {
     const board = initialBoard();
@@ -226,6 +230,41 @@ export default function App() {
       cancelled = true;
     };
   }, []);
+
+  // Prefer Phantom-signed board writes when connected (API key still works as fallback).
+  useEffect(() => {
+    if (wallet.publicKey && wallet.signMessage) {
+      setBoardWallet({
+        publicKey: wallet.publicKey,
+        signMessage: (msg) => wallet.signMessage!(msg),
+      });
+    } else {
+      setBoardWallet(null);
+    }
+    return () => setBoardWallet(null);
+  }, [wallet.publicKey, wallet.signMessage]);
+
+  // Live dip-rule status for the selected Dip Buyback coin.
+  useEffect(() => {
+    if (!selectedCoin || selectedCoin.mode !== "buyback") {
+      setDipGateHint(null);
+      return;
+    }
+    let cancelled = false;
+    void evaluateDipGate(selectedCoin, { remits }).then((gate) => {
+      if (cancelled) return;
+      if (gate.ok) {
+        setDipGateHint(
+          `Dip ready · −${gate.dropPct}% vs high (need −${gate.rule.dipPct}%) · $${gate.priceUsd.toPrecision(4)}`,
+        );
+      } else {
+        setDipGateHint(gate.error);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCoin, remits]);
 
   // Hydrate tape from mainnet distributeCreatorFees events (not local simulations).
   useEffect(() => {
@@ -938,7 +977,7 @@ export default function App() {
     }
   }
 
-  async function onFireBuyback() {
+  async function onFireBuyback(force = false) {
     if (!selectedCoin) return;
     if (!wallet.publicKey) {
       setVisible(true);
@@ -947,7 +986,12 @@ export default function App() {
     setActing(true);
     setDeskMessage(null);
     try {
-      const row = await executeBuybackFire({ coin: selectedCoin, wallet });
+      const row = await executeBuybackFire({
+        coin: selectedCoin,
+        wallet,
+        remits,
+        force,
+      });
       const remit: RemitRecord = {
         id: row.id,
         mint: selectedCoin.mint,
@@ -973,7 +1017,13 @@ export default function App() {
             wallet: row.wallet,
             handle: row.handle,
             signature: row.signature,
-            detail: row.outAmount ? `outAmount ${row.outAmount}` : undefined,
+            detail: [
+              row.outAmount ? `outAmount ${row.outAmount}` : null,
+              row.dropPct != null ? `drop ${row.dropPct}%` : null,
+              force ? "forced" : null,
+            ]
+              .filter(Boolean)
+              .join(" · "),
           });
         } catch {
           /* local tape still updated */
@@ -981,7 +1031,9 @@ export default function App() {
       }
       setDeskMessage({
         kind: "info",
-        text: `Dip fire on-chain · ${row.amountSol.toFixed(4)} SOL → $${selectedCoin.ticker} · ${shortAddr(row.signature)}`,
+        text: `Dip fire on-chain · ${row.amountSol.toFixed(4)} SOL → $${selectedCoin.ticker}${
+          row.dropPct != null ? ` · −${row.dropPct}%` : ""
+        } · ${shortAddr(row.signature)}`,
       });
     } catch (err) {
       setDeskMessage({
@@ -1026,6 +1078,7 @@ export default function App() {
         coin: selectedCoin,
         wallet,
         questId,
+        proofUrl: raidProof,
       });
       const remit: RemitRecord = {
         id: row.id,
@@ -1052,7 +1105,12 @@ export default function App() {
             wallet: row.wallet,
             handle: row.handle,
             signature: row.signature,
-            detail: questId ? `quest:${questId}` : undefined,
+            detail: [
+              row.questId ? `quest:${row.questId}` : null,
+              row.proofUrl ? `proof:${row.proofUrl}` : null,
+            ]
+              .filter(Boolean)
+              .join(" · "),
           });
         } catch {
           /* local tape still updated */
@@ -1575,10 +1633,29 @@ export default function App() {
                         Dip rule: −{selectedCoin.buybackRule.dipPct}% → ≤
                         {selectedCoin.buybackRule.maxSolPerFire} SOL ·{" "}
                         {selectedCoin.buybackRule.cooldownHours}h cooldown
+                        {dipGateHint ? (
+                          <>
+                            <br />
+                            <span className={dipGateHint.startsWith("Dip ready") ? "" : "is-bad"}>
+                              {dipGateHint}
+                            </span>
+                          </>
+                        ) : null}
                       </p>
                     ) : null}
                     {selectedCoin.mode === "raid" && selectedCoin.raidQuests?.length ? (
                       <div className="quest-mini">
+                        <label className="field" htmlFor="raid-proof">
+                          <span className="hint">Quest proof (required to claim)</span>
+                          <input
+                            id="raid-proof"
+                            type="url"
+                            placeholder="https://x.com/… or proof reference"
+                            value={raidProof}
+                            onChange={(e) => setRaidProof(e.target.value)}
+                            autoComplete="off"
+                          />
+                        </label>
                         {selectedCoin.raidQuests.map((q) => (
                           <div className="quest-chip quest-chip-row" key={q.id}>
                             <div>
@@ -1714,11 +1791,22 @@ export default function App() {
                           <button
                             className="btn btn-primary btn-sm"
                             type="button"
-                            disabled={acting}
-                            onClick={() => void onFireBuyback()}
+                            disabled={acting || Boolean(dipGateHint && !dipGateHint.startsWith("Dip ready"))}
+                            onClick={() => void onFireBuyback(false)}
                           >
                             Execute dip buy
                           </button>
+                          {dipGateHint && !dipGateHint.startsWith("Dip ready") ? (
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              type="button"
+                              disabled={acting}
+                              title="Skip dip% / cooldown checks"
+                              onClick={() => void onFireBuyback(true)}
+                            >
+                              Force
+                            </button>
+                          ) : null}
                         </>
                       ) : null}
                       <a
