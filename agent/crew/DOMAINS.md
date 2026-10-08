@@ -4,11 +4,14 @@ Canonical production hostnames (prefer these everywhere):
 
 | Surface | Canonical | Legacy alias (still works) |
 |---------|-----------|----------------------------|
-| Site / desk | `https://crewpay.dev` | `https://app.crewpay.dev` (optional) |
+| Site / desk | `https://crewpay.dev` | `https://app.crewpay.dev` (optional; needs DNS) |
 | Agent API | `https://api.crewpay.dev` | `https://crewpay-api.onrender.com` |
 | MCP HTTP | `https://mcp.crewpay.dev/mcp` | `https://crewpay-mcp.onrender.com/mcp` |
+| MCP discovery | `https://mcp.crewpay.dev/.well-known/mcp.json` | — |
 
 Do **not** point the apex `crewpay.dev` at the API — it serves the static SPA.
+
+**Canonical site URL is `https://crewpay.dev`.** `app.crewpay.dev` is optional and currently requires a registrar CNAME (until DNS exists, TLS will fail / host will not resolve).
 
 ## DNS (Namecheap / registrar-servers.com)
 

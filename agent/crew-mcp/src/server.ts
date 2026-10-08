@@ -1,6 +1,14 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import * as z from 'zod/v4'
-import { asText, crewFetch, loadConfig, DEFAULT_API_URL, DEFAULT_SITE_URL } from './client.js'
+import {
+  asText,
+  crewFetch,
+  loadConfig,
+  DEFAULT_API_URL,
+  DEFAULT_SITE_URL,
+  type CrewApiConfig,
+} from './client.js'
+import { assertNoSecretToolArgs } from './secrets.js'
 
 const mintSchema = z
   .string()
@@ -15,12 +23,22 @@ const crewMemberSchema = z.object({
   hireRole: z.enum(['caller', 'chart', 'raid', 'kol', 'dev']).optional(),
 })
 
+/** Declared so Zod does not strip them — handlers hard-reject if present. */
+const forbiddenSecretFields = {
+  launcherKey: z
+    .string()
+    .optional()
+    .describe('FORBIDDEN — rejected if set. Use CREW_LAUNCHER_KEY in MCP env only.'),
+  privateKey: z.string().optional().describe('FORBIDDEN — rejected if set.'),
+  secretKey: z.string().optional().describe('FORBIDDEN — rejected if set.'),
+}
+
 /** Build the CREW MCP server — tools for crypto agents launching on Solana / Pump.fun. */
-export function createCrewMcpServer() {
-  const cfg = loadConfig()
+export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
+  const cfg = loadConfig(overrides)
   const server = new McpServer({
     name: 'crewpay',
-    version: '1.1.0',
+    version: '1.1.1',
     websiteUrl: DEFAULT_SITE_URL,
   })
 
@@ -87,11 +105,14 @@ export function createCrewMcpServer() {
         tip: 'Safe flow: crew_discover → crew_autohire → crew_launch_dry_run → crew_launch. Secrets stay in MCP env only.',
         auth: {
           reads: 'crew_discover / crew_search_kols / crew_proof need no API key',
-          writes:
-            'Set CREW_AGENT_API_KEY in MCP env. Mint more keys via POST /api/agent/keys (bootstrap with the operator key).',
-          launcher:
-            'Set CREW_LAUNCHER_KEY in MCP env — never pass Solana secrets as tool arguments.',
+          writes: cfg.publicMode
+            ? 'Pass x-crew-api-key on the MCP HTTP request (or run locally with CREW_AGENT_API_KEY). Mint keys via POST /api/agent/keys.'
+            : 'Set CREW_AGENT_API_KEY in MCP env. Mint more keys via POST /api/agent/keys.',
+          launcher: cfg.publicMode
+            ? 'Public hosted MCP cannot launch with your wallet — run crewpay-mcp locally with CREW_LAUNCHER_KEY, or use REST x-launcher-key from your backend.'
+            : 'Set CREW_LAUNCHER_KEY in MCP env — never pass Solana secrets as tool arguments.',
         },
+        publicMode: Boolean(cfg.publicMode),
       })
     },
   )
@@ -176,10 +197,12 @@ export function createCrewMcpServer() {
         agentObjective: z.string().min(8).max(280).optional(),
         agentModel: z.string().max(48).optional(),
         crew: z.array(crewMemberSchema).min(1).max(10).optional(),
+        ...forbiddenSecretFields,
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
     async (input) => {
+      assertNoSecretToolArgs(input as Record<string, unknown>)
       if (!input.imageUrl && !input.imageBase64) {
         throw new Error('Provide imageUrl or imageBase64')
       }
@@ -252,10 +275,12 @@ export function createCrewMcpServer() {
         name: z.string().max(32).optional(),
         ticker: z.string().max(13).optional(),
         crew: z.array(crewMemberSchema).min(1).max(10),
+        ...forbiddenSecretFields,
       },
       annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: true },
     },
     async (input) => {
+      assertNoSecretToolArgs(input as Record<string, unknown>)
       const data = await crewFetch(cfg, '/api/agent/wire-fees', {
         method: 'POST',
         auth: true,
@@ -283,10 +308,12 @@ export function createCrewMcpServer() {
         mode: z.enum(['agent', 'split', 'buyback', 'raid']).optional(),
         name: z.string().max(32).optional(),
         ticker: z.string().max(13).optional(),
+        ...forbiddenSecretFields,
       },
       annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: true },
     },
     async (input) => {
+      assertNoSecretToolArgs(input as Record<string, unknown>)
       const data = await crewFetch(cfg, '/api/agent/lock-holder-kol', {
         method: 'POST',
         auth: true,
@@ -310,10 +337,12 @@ export function createCrewMcpServer() {
         'Call distributeCreatorFeesV2 for a mint so CREW buyback + KOL wallets receive accrued fees. Requires CREW_LAUNCHER_KEY in MCP env.',
       inputSchema: {
         mint: mintSchema,
+        ...forbiddenSecretFields,
       },
       annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: true },
     },
     async (input) => {
+      assertNoSecretToolArgs(input as Record<string, unknown>)
       const data = await crewFetch(cfg, '/api/agent/crank', {
         method: 'POST',
         auth: true,
@@ -382,10 +411,12 @@ export function createCrewMcpServer() {
           .max(10)
           .optional()
           .describe('Explicit crew (shares must total 100%) overrides Autohire when provided'),
+        ...forbiddenSecretFields,
       },
       annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: true },
     },
     async (input) => {
+      assertNoSecretToolArgs(input as Record<string, unknown>)
       if (!input.imageUrl && !input.imageBase64) {
         throw new Error('Provide imageUrl or imageBase64')
       }

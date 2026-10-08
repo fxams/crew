@@ -5,13 +5,32 @@ export type CrewApiConfig = {
   apiUrl: string
   apiKey?: string
   launcherKey?: string
+  /**
+   * Public hosted MCP: do not use a shared env CREW_AGENT_API_KEY for writes.
+   * Clients must supply x-crew-api-key on the HTTP MCP request (session override).
+   */
+  publicMode?: boolean
 }
 
-export function loadConfig(): CrewApiConfig {
+export function loadConfig(overrides?: Partial<CrewApiConfig>): CrewApiConfig {
+  const publicMode =
+    overrides?.publicMode ??
+    (process.env.CREW_MCP_PUBLIC === '1' ||
+      process.env.CREW_MCP_PUBLIC === 'true' ||
+      process.env.CREW_MCP_REQUIRE_CLIENT_KEY === '1')
+
+  const envKey =
+    process.env.CREW_AGENT_API_KEY?.trim() || process.env.CREW_API_KEY?.trim() || ''
+  const envLauncher =
+    process.env.CREW_LAUNCHER_KEY?.trim() || process.env.CREW_AGENT_LAUNCHER_KEY?.trim() || ''
+
   return {
-    apiUrl: (process.env.CREW_API_URL || DEFAULT_API_URL).replace(/\/$/, ''),
-    apiKey: process.env.CREW_AGENT_API_KEY?.trim() || process.env.CREW_API_KEY?.trim() || '',
-    launcherKey: process.env.CREW_LAUNCHER_KEY?.trim() || process.env.CREW_AGENT_LAUNCHER_KEY?.trim() || '',
+    apiUrl: (overrides?.apiUrl || process.env.CREW_API_URL || DEFAULT_API_URL).replace(/\/$/, ''),
+    // In public mode, ignore shared env API key unless the HTTP session provided one.
+    apiKey: overrides?.apiKey ?? (publicMode ? '' : envKey),
+    // Never use a shared launcher secret on public hosted MCP.
+    launcherKey: overrides?.launcherKey ?? (publicMode ? '' : envLauncher),
+    publicMode,
   }
 }
 
@@ -32,7 +51,9 @@ export async function crewFetch(
   if (init?.auth) {
     if (!cfg.apiKey) {
       throw new Error(
-        'Missing CREW_AGENT_API_KEY — set it in the MCP server env (Render / Cursor MCP config). Ask the operator; keys are minted via POST /api/agent/keys.',
+        cfg.publicMode
+          ? 'Missing API key — pass header x-crew-api-key on the MCP HTTP request (or run crewpay-mcp locally with CREW_AGENT_API_KEY). Ask the operator; keys are minted via POST /api/agent/keys.'
+          : 'Missing CREW_AGENT_API_KEY — set it in the MCP server env. Ask the operator; keys are minted via POST /api/agent/keys.',
       )
     }
     headers.set('x-crew-api-key', cfg.apiKey)
@@ -41,7 +62,9 @@ export async function crewFetch(
     const launcher = (cfg.launcherKey || '').trim()
     if (!launcher) {
       throw new Error(
-        'Missing CREW_LAUNCHER_KEY — set the agent Solana secret in MCP env only (never as a tool argument).',
+        cfg.publicMode
+          ? 'Hosted public MCP cannot launch with your wallet. Run crewpay-mcp locally with CREW_LAUNCHER_KEY in env, or call REST https://api.crewpay.dev with x-launcher-key from your secure backend. Never pass secrets as tool arguments.'
+          : 'Missing CREW_LAUNCHER_KEY — set the agent Solana secret in MCP env only (never as a tool argument).',
       )
     }
     headers.set('x-launcher-key', launcher)

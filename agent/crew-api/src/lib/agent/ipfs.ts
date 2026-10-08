@@ -19,6 +19,14 @@ function sniffImageType(buf: Buffer): string | null {
   return null
 }
 
+/** Fetch/decode and magic-byte check — same rules as a real launch (PNG/JPEG/WebP/GIF only). */
+export async function validateAgentImage(
+  image: AgentImageInput,
+): Promise<{ contentType: string; bytes: number; filename: string }> {
+  const { blob, filename } = await toBlob(image)
+  return { contentType: blob.type, bytes: blob.size, filename }
+}
+
 async function toBlob(image: AgentImageInput): Promise<{ blob: Blob; filename: string }> {
   if (image.kind === 'url') {
     const res = await fetchPublicUrl(image.url, { label: 'imageUrl', maxRedirects: 3, timeoutMs: 12_000 })

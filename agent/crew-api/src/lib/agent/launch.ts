@@ -3,6 +3,7 @@ import { NATIVE_MINT, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { OnlinePumpSdk, PumpSdk, getBuyTokenAmountFromSolAmount } from './pump.js'
 import BN from 'bn.js'
 import {
+  CREW_LAUNCH_ATTRIBUTION,
   MAX_INITIAL_BUY_SOL,
   MIN_LAUNCH_FEE_SOL,
   MODE_DESK_BPS,
@@ -13,7 +14,7 @@ import {
   type DeskMode,
   type HireRole,
 } from './constants.js'
-import { uploadPumpMetadata, type AgentImageInput } from './ipfs.js'
+import { uploadPumpMetadata, validateAgentImage, type AgentImageInput } from './ipfs.js'
 import { planNarrativeHires, type CrewMember, type NarrativeHirePlan } from './narrative.js'
 import { getConnection, sendInstructions } from './send.js'
 import { buildCrewShareholders, normalizeCrew } from './shareholders.js'
@@ -138,6 +139,8 @@ export type AgentDryRunResult = {
   warnings: string[]
   nextSteps: string[]
   disclaimer: string
+  attribution: string
+  image?: { contentType: string; bytes: number }
 }
 
 /** Validate + plan a launch without uploading metadata or signing txs. */
@@ -161,11 +164,8 @@ export async function dryRunLaunchForAgent(
   if (input.website?.trim()) {
     assertSafeHttpUrl(input.website.trim(), 'website')
   }
-  if (input.image.kind === 'url') {
-    assertSafeHttpUrl(input.image.url, 'imageUrl')
-  } else if (!input.image.data || input.image.data.length < 64) {
-    throw new Error('imageBase64 must be at least 64 characters.')
-  }
+  // Same image rules as a real launch (rejects SVG / non-image bodies).
+  const imageMeta = await validateAgentImage(input.image)
 
   let agent: { name: string; objective: string; model: string } | undefined
   if (mode === 'agent') {
@@ -195,6 +195,7 @@ export async function dryRunLaunchForAgent(
     'MAINNET ONLY — dry-run does not create a mint; a real launch spends SOL.',
     'Autohire wallets are public Pump.fun profiles — not endorsed affiliates and not opt-in partners.',
     'Never put a Solana secret in an LLM tool argument — set CREW_LAUNCHER_KEY in MCP/server env only.',
+    `Description will include attribution: "${CREW_LAUNCH_ATTRIBUTION}" (appended if missing).`,
   ]
   if (input.holderKol) {
     warnings.push('holderKol=true leaves fee-shares unlocked until crew_lock_holder_kol.')
@@ -262,12 +263,15 @@ export async function dryRunLaunchForAgent(
     warnings,
     nextSteps: [
       'Review crew[] / hirePlan — remix wallets if needed (crew shares must total 100%).',
-      'Set CREW_AGENT_API_KEY + CREW_LAUNCHER_KEY in MCP env (never as tool args).',
-      'POST /api/agent/launch (or crew_launch) — check feeShareLocked; HTTP 202 → crew_wire_fees.',
+      'Own wallet: run crewpay-mcp locally with CREW_LAUNCHER_KEY in env, or call REST with x-launcher-key from your secure backend — never paste secrets into chat/tool args.',
+      'Hosted public MCP cannot launch with your wallet (no way to inject your secret safely).',
+      'POST /api/agent/launch (or local crew_launch) — check feeShareLocked; HTTP 202 → crew_wire_fees.',
       'GET /api/proof after launch to confirm board + buyback tape.',
     ],
     disclaimer:
       'CREW Autohire selects public Pump.fun wallets by narrative match. Listing is not consent, endorsement, or employment. Operators are responsible for who receives fee-shares.',
+    attribution: CREW_LAUNCH_ATTRIBUTION,
+    image: { contentType: imageMeta.contentType, bytes: imageMeta.bytes },
   }
 }
 
