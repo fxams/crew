@@ -1,6 +1,9 @@
 import type { CoinRecord, RemitRecord } from './types'
 
-const base = (import.meta.env.VITE_CREW_API_URL as string | undefined)?.replace(/\/$/, '') || ''
+const base = (
+  (import.meta.env.VITE_CREW_API_URL as string | undefined)?.replace(/\/$/, '') ||
+  'https://crewpay-api.onrender.com'
+)
 const apiKey = (import.meta.env.VITE_CREW_API_KEY as string | undefined)?.trim() || ''
 
 export function apiConfigured(): boolean {
@@ -8,7 +11,7 @@ export function apiConfigured(): boolean {
 }
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  if (!base) throw new Error('VITE_CREW_API_URL is not set')
+  if (!base) throw new Error('CREW API URL is not set')
   const headers = new Headers(init?.headers)
   if (!headers.has('Content-Type') && init?.body) {
     headers.set('Content-Type', 'application/json')
