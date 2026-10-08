@@ -13,3 +13,14 @@ export function isKolsPath(pathname: string): boolean {
   const path = normalizePath(pathname);
   return path === "/kols" || path.endsWith("/kols");
 }
+
+/** Agent API / discovery docs page. */
+export function isAgentsPath(pathname: string): boolean {
+  const path = normalizePath(pathname);
+  return (
+    path === "/agents" ||
+    path.endsWith("/agents") ||
+    path === "/api" ||
+    path.endsWith("/api")
+  );
+}

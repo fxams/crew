@@ -14,6 +14,7 @@ import {
   type LaunchDraft,
 } from "./data";
 import { ReceiptCard } from "./components/ReceiptCard";
+import { AgentsApiPage } from "./components/AgentsApiPage";
 import { TopKolsPage } from "./components/TopKolsPage";
 import { BRAND_ASSETS, BRAND_PALETTE, brandUrl } from "./lib/brand";
 import {
@@ -51,7 +52,7 @@ import {
 } from "./lib/edges";
 import type { HireRole } from "./lib/types";
 import { launchCrew } from "./lib/launch";
-import { isKolsPath, isLaunchPath } from "./lib/routes";
+import { isAgentsPath, isKolsPath, isLaunchPath } from "./lib/routes";
 import { distributeCreatorFees, lockHolderKolFeeShares, wireCrewFeeShares } from "./lib/pump/fees";
 import {
   remitsFromSignature,
@@ -139,6 +140,7 @@ export default function App() {
   const path = location.pathname.replace(/\/+$/, "") || "/";
   const isLaunchPage = isLaunchPath(path);
   const isKolsPage = isKolsPath(path);
+  const isAgentsPage = isAgentsPath(path);
   const [draft, setDraft] = useState<LaunchDraft>(() => initialDraft());
   const [busy, setBusy] = useState(false);
   const [cranking, setCranking] = useState<string | null>(null);
@@ -1054,6 +1056,12 @@ export default function App() {
             >
               KOLs
             </Link>
+            <Link
+              className={isAgentsPage ? "is-active-nav-text" : undefined}
+              to="/agents"
+            >
+              Agents
+            </Link>
             <Link to={{ pathname: "/", hash: "brand" }}>Brand</Link>
             <a href={CREW_X_URL} target="_blank" rel="noreferrer">
               X
@@ -1086,8 +1094,9 @@ export default function App() {
       </div>
 
       {isKolsPage ? <TopKolsPage /> : null}
+      {isAgentsPage ? <AgentsApiPage /> : null}
 
-      {!isLaunchPage && !isKolsPage ? (
+      {!isLaunchPage && !isKolsPage && !isAgentsPage ? (
         <>
       <div className="app-shell">
         <main id="top">
@@ -1183,6 +1192,29 @@ export default function App() {
               <h3>Get paid</h3>
               <p>25% CREW buyback · rest on-chain → crank.</p>
             </article>
+          </div>
+        </section>
+
+        <section className="section section-agents-teaser" id="agents">
+          <p className="section-label">Agent API</p>
+          <h2 className="section-title">Agents launch themselves.</h2>
+          <p className="section-sub">
+            GPT, Claude, Gemini, Grok, and any HTTP tool-user can discover CREW via{" "}
+            <code>llms.txt</code>, Autohire KOLs, and ship Pump coins with fee-shares —
+            no Phantom required on their side.
+          </p>
+          <div className="agents-teaser-actions">
+            <Link className="btn btn-primary" to="/agents">
+              Agent API docs
+            </Link>
+            <a
+              className="btn btn-ghost"
+              href="/llms.txt"
+              target="_blank"
+              rel="noreferrer"
+            >
+              llms.txt
+            </a>
           </div>
         </section>
 
@@ -2493,7 +2525,7 @@ export default function App() {
           </div>
         </footer>
       </div>
-      ) : (
+      ) : isAgentsPage || isKolsPage ? null : (
       <div className="app-shell">
         <section className="section" id="brand">
           <p className="section-label">Brand kit</p>

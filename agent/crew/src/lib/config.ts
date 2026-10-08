@@ -1,9 +1,27 @@
 import { assertSafeRpcUrl } from './security'
 
-export const CREW_VERSION = '2.5.13'
+export const CREW_VERSION = '2.5.14'
 
 /** Official CREW / CrewPay HQ account on X. */
 export const CREW_X_URL = 'https://x.com/CrewPayHQ'
+
+/** Public Agent Launch API (no trailing slash). */
+export const CREW_AGENT_API_URL = (
+  (import.meta.env.VITE_CREW_API_URL as string | undefined)?.replace(/\/$/, '') ||
+  'https://crewpay-api.onrender.com'
+)
+
+/** Frontier / tool-using clients the Agent API is documented for. */
+export const AGENT_API_CLIENTS = [
+  'OpenAI GPT / ChatGPT / o-series',
+  'Anthropic Claude',
+  'Google Gemini',
+  'xAI Grok',
+  'Meta Llama',
+  'DeepSeek',
+  'Mistral',
+  'Cursor Cloud / IDE agents',
+] as const
 
 /** Appended to every Pump metadata description on launch. */
 export const CREW_LAUNCH_ATTRIBUTION = 'Launched from CrewPay.dev platform'

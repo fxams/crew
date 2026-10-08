@@ -84,6 +84,17 @@ export function TopKolsPage() {
           })}
         </div>
       </section>
+
+      <footer className="footer">
+        <div>CREW · Top KOLs · v{CREW_VERSION}</div>
+        <div>
+          <Link to="/">Home</Link>
+          {" · "}
+          <Link to="/agents">Agent API</Link>
+          {" · "}
+          <Link to="/launch">Launch desk</Link>
+        </div>
+      </footer>
     </div>
   )
 }
