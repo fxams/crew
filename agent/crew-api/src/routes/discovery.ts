@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { Router } from 'express'
 import {
   agentCard,
@@ -14,6 +17,23 @@ import {
 } from '../lib/agent/discovery.js'
 
 export const discoveryRouter = Router()
+
+/** Prefer cwd (Render rootDir / local) then dist-adjacent fallbacks. */
+function readWellknownVerify(): string | null {
+  const candidates = [
+    resolve(process.cwd(), 'data/wellknown-verify.txt'),
+    resolve(dirname(fileURLToPath(import.meta.url)), '../../data/wellknown-verify.txt'),
+    resolve(dirname(fileURLToPath(import.meta.url)), '../../../data/wellknown-verify.txt'),
+  ]
+  for (const path of candidates) {
+    try {
+      return readFileSync(path, 'utf8')
+    } catch {
+      /* try next */
+    }
+  }
+  return null
+}
 
 function textPlain(res: import('express').Response, body: string) {
   res.setHeader('Content-Type', 'text/plain; charset=utf-8')
@@ -39,6 +59,15 @@ discoveryRouter.get('/.well-known/agent.json', (_req, res) =>
 discoveryRouter.get('/.well-known/ai-plugin.json', (_req, res) =>
   jsonDoc(res, aiPluginManifest()),
 )
+/** WellKnown ownership proof — https://wellknown.network/docs/claim */
+discoveryRouter.get('/.well-known/wellknown-verify.txt', (_req, res) => {
+  const body = readWellknownVerify()
+  if (!body) {
+    res.status(404).type('text').send('not found\n')
+    return
+  }
+  textPlain(res, body.endsWith('\n') ? body : `${body}\n`)
+})
 
 /** Alias — some clients probe /api/agent.json */
 discoveryRouter.get('/api/agent.json', (_req, res) => jsonDoc(res, agentDiscoveryJson()))
