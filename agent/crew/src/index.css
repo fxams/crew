@@ -1339,6 +1339,31 @@ a {
   margin: 0;
 }
 
+.hire-actions-top {
+  margin-top: 0.65rem;
+  align-items: center;
+}
+
+.hire-top-hint {
+  margin: 0;
+  flex: 1 1 10rem;
+}
+
+.hire-feedback {
+  margin: 0.15rem 0 0.55rem;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.hire-feedback.is-ok {
+  color: var(--ok);
+}
+
+.hire-feedback.is-bad {
+  color: var(--danger);
+}
+
 .hire-plan {
   margin: 0 0 0.65rem;
   padding: 0.65rem 0.75rem;

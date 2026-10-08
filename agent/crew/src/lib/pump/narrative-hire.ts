@@ -262,14 +262,19 @@ function scoreKolForLaunch(
   let narrativeHits = 0
   const reasons: string[] = []
 
+  const tagHits: { tag: NarrativeTag; weight: number }[] = []
   for (const t of kol.narratives) {
     const w = tagWeight(match, t)
     if (w > 0) {
       score += w
       narrativeHits += 1
-      reasons.push(`fits ${t}`)
+      tagHits.push({ tag: t, weight: w })
     }
   }
+  // Surface primary-tag fit first so Autohire reasons match the narrative.
+  tagHits
+    .sort((a, b) => b.weight - a.weight)
+    .forEach((h) => reasons.push(`fits ${h.tag}`))
 
   const handles = [kol.pump, kol.x, ...(kol.aliases || [])]
     .filter(Boolean)
