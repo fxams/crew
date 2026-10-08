@@ -96,6 +96,7 @@ services:
     branch: main
     plan: starter
     region: oregon
+    autoDeployTrigger: commit
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /healthz
