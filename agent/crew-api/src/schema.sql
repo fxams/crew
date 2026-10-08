@@ -90,3 +90,58 @@ CREATE TABLE IF NOT EXISTS buyback_runs (
   detail TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE INDEX IF NOT EXISTS buyback_runs_created_idx ON buyback_runs (created_at DESC);
+
+-- Public proof / agent platform extensions
+CREATE TABLE IF NOT EXISTS webhooks (
+  id TEXT PRIMARY KEY,
+  url TEXT NOT NULL,
+  secret TEXT NOT NULL,
+  events TEXT[] NOT NULL DEFAULT '{}',
+  label TEXT,
+  active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS webhook_deliveries (
+  id BIGSERIAL PRIMARY KEY,
+  webhook_id TEXT NOT NULL REFERENCES webhooks (id) ON DELETE CASCADE,
+  event TEXT NOT NULL,
+  ok BOOLEAN NOT NULL DEFAULT false,
+  status_code INT,
+  detail TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS webhook_deliveries_wh_idx ON webhook_deliveries (webhook_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS agent_keys (
+  id TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  key_hash TEXT NOT NULL UNIQUE,
+  fingerprint TEXT NOT NULL,
+  launches_per_hour INT NOT NULL DEFAULT 5,
+  active BOOLEAN NOT NULL DEFAULT true,
+  last_used_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS agent_keys_active_idx ON agent_keys (active);
+
+CREATE TABLE IF NOT EXISTS mode_actions (
+  id TEXT PRIMARY KEY,
+  mint TEXT NOT NULL,
+  mode TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  amount_sol NUMERIC(20, 9) NOT NULL,
+  wallet TEXT NOT NULL DEFAULT '',
+  handle TEXT NOT NULL DEFAULT '',
+  signature TEXT NOT NULL,
+  detail TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS mode_actions_mint_idx ON mode_actions (mint, created_at DESC);

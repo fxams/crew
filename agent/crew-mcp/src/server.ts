@@ -130,6 +130,143 @@ export function createCrewMcpServer() {
   )
 
   server.registerTool(
+    'crew_status',
+    {
+      title: 'Mint / fee-share status',
+      description:
+        'Check whether a CREW mint has fee-shares locked, Holder KOL open, and board presence. Use after launch (HTTP 202) or before wire/lock/crank.',
+      inputSchema: {
+        mint: z.string().min(32).max(64).describe('Pump mint address'),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ mint }) => {
+      const data = await crewFetch(cfg, `/api/agent/status/${encodeURIComponent(mint)}`, {
+        auth: true,
+      })
+      return asText(data)
+    },
+  )
+
+  server.registerTool(
+    'crew_wire_fees',
+    {
+      title: 'Wire / repair CREW fee-shares',
+      description:
+        'Create + lock fee-sharing for an existing mint (orphan mint or failed fee-share). Requires launcher key matching the creator. Prefer after crew_status shows feeShareLocked=false and holderKol=false.',
+      inputSchema: {
+        mint: z.string().min(32).max(64),
+        mode: z.enum(['agent', 'split', 'buyback', 'raid']).optional(),
+        name: z.string().max(64).optional(),
+        ticker: z.string().max(16).optional(),
+        launcherKey: z.string().min(32).optional(),
+        crew: z
+          .array(
+            z.object({
+              handle: z.string(),
+              wallet: z.string(),
+              share: z.number().int().min(1).max(100),
+              hireRole: z.enum(['caller', 'chart', 'raid', 'kol', 'dev']).optional(),
+            }),
+          )
+          .min(1)
+          .max(10),
+      },
+      annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: true },
+    },
+    async (input) => {
+      const data = await crewFetch(cfg, '/api/agent/wire-fees', {
+        method: 'POST',
+        auth: true,
+        launcher: true,
+        launcherKeyOverride: input.launcherKey,
+        body: JSON.stringify({
+          mint: input.mint,
+          mode: input.mode || 'agent',
+          name: input.name,
+          ticker: input.ticker,
+          crew: input.crew,
+        }),
+      })
+      return asText(data)
+    },
+  )
+
+  server.registerTool(
+    'crew_lock_holder_kol',
+    {
+      title: 'Lock Holder-KOL fee-shares',
+      description:
+        'Scan top holders ∩ CREW KOL directory and permanently lock fee-shares (one-shot). Use when launch used holderKol=true. Requires launcher key.',
+      inputSchema: {
+        mint: z.string().min(32).max(64),
+        mode: z.enum(['agent', 'split', 'buyback', 'raid']).optional(),
+        name: z.string().max(64).optional(),
+        ticker: z.string().max(16).optional(),
+        launcherKey: z.string().min(32).optional(),
+      },
+      annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: true },
+    },
+    async (input) => {
+      const data = await crewFetch(cfg, '/api/agent/lock-holder-kol', {
+        method: 'POST',
+        auth: true,
+        launcher: true,
+        launcherKeyOverride: input.launcherKey,
+        body: JSON.stringify({
+          mint: input.mint,
+          mode: input.mode || 'agent',
+          name: input.name,
+          ticker: input.ticker,
+        }),
+      })
+      return asText(data)
+    },
+  )
+
+  server.registerTool(
+    'crew_crank_remits',
+    {
+      title: 'Crank creator fee remits',
+      description:
+        'Call distributeCreatorFeesV2 for a mint so CREW buyback + KOL wallets receive accrued fees. Requires launcher key.',
+      inputSchema: {
+        mint: z.string().min(32).max(64),
+        launcherKey: z.string().min(32).optional(),
+      },
+      annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: true },
+    },
+    async (input) => {
+      const data = await crewFetch(cfg, '/api/agent/crank', {
+        method: 'POST',
+        auth: true,
+        launcher: true,
+        launcherKeyOverride: input.launcherKey,
+        body: JSON.stringify({ mint: input.mint }),
+      })
+      return asText(data)
+    },
+  )
+
+  server.registerTool(
+    'crew_proof',
+    {
+      title: 'Public CREW proof tape',
+      description:
+        'Load public buyback runs, remit totals, and recent CREW launches — for crypto agents that need proof of fee payroll + platform buybacks.',
+      inputSchema: {
+        limit: z.number().int().min(1).max(100).optional(),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ limit }) => {
+      const qs = limit ? `?limit=${limit}` : ''
+      const data = await crewFetch(cfg, `/api/proof${qs}`)
+      return asText(data)
+    },
+  )
+
+  server.registerTool(
     'crew_launch',
     {
       title: 'Launch Pump coin via CrewPay',
@@ -230,11 +367,11 @@ export function createCrewMcpServer() {
             type: 'text',
             text: [
               'You are a crypto launch agent using CREW / CrewPay MCP tools.',
-              'Flow: crew_discover → crew_autohire → (optional crew_search_kols / remix) → crew_launch.',
+              'Flow: crew_discover → crew_autohire → crew_launch → crew_status → (crew_wire_fees | crew_lock_holder_kol) → crew_crank_remits.',
               'Prefer autoHire unless the user named specific wallets. Always check feeShareLocked.',
               `Idea: ${idea}`,
               ticker ? `Ticker hint: ${ticker}` : '',
-              `Docs: ${DEFAULT_SITE_URL}/agents · ${DEFAULT_API_URL}/llms.txt`,
+              `Docs: ${DEFAULT_SITE_URL}/agents · ${DEFAULT_SITE_URL}/proof · ${DEFAULT_API_URL}/llms.txt`,
             ]
               .filter(Boolean)
               .join('\n'),
