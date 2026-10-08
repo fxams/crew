@@ -36,5 +36,12 @@ describe('agent discovery docs', () => {
     expect(robotsTxt()).toContain('ClaudeBot')
     expect(llmsFullTxt()).toContain('x-launcher-key')
     expect(agentDiscoveryJson().discovery.llms_txt).toContain('/llms.txt')
+    expect(agentDiscoveryJson().mcp.tools).toEqual([
+      'crew_discover',
+      'crew_search_kols',
+      'crew_autohire',
+      'crew_launch',
+    ])
+    expect(agentDiscoveryJson().mcp.http).toContain('crewpay-mcp')
   })
 })
