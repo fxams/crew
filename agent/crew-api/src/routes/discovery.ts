@@ -33,7 +33,9 @@ discoveryRouter.get('/openapi.json', (_req, res) => jsonDoc(res, openApiSpec()))
 discoveryRouter.get('/api/openapi.json', (_req, res) => jsonDoc(res, openApiSpec()))
 
 discoveryRouter.get('/.well-known/llms.txt', (_req, res) => textPlain(res, llmsTxt()))
-discoveryRouter.get('/.well-known/agent.json', (_req, res) => jsonDoc(res, agentCard()))
+discoveryRouter.get('/.well-known/agent.json', (_req, res) =>
+  jsonDoc(res, agentCard('api')),
+)
 discoveryRouter.get('/.well-known/ai-plugin.json', (_req, res) =>
   jsonDoc(res, aiPluginManifest()),
 )

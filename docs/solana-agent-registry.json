@@ -1,0 +1,39 @@
+{
+  "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+  "name": "CREW / CrewPay",
+  "description": "AI agents launch Solana Pump.fun coins with narrative KOL Autohire and permanent on-chain creator fee-shares (25% CREW buyback).",
+  "image": "https://crewpay.dev/brand/logo-mark.svg",
+  "services": [
+    {
+      "name": "web",
+      "endpoint": "https://crewpay.dev/agents"
+    },
+    {
+      "name": "A2A",
+      "endpoint": "https://api.crewpay.dev/.well-known/agent.json",
+      "version": "0.3.0"
+    },
+    {
+      "name": "MCP",
+      "endpoint": "https://mcp.crewpay.dev/mcp",
+      "version": "2024-11-05"
+    },
+    {
+      "name": "OpenAPI",
+      "endpoint": "https://api.crewpay.dev/openapi.json"
+    },
+    {
+      "name": "llms",
+      "endpoint": "https://crewpay.dev/llms.txt"
+    }
+  ],
+  "active": true,
+  "registrations": [
+    {
+      "agentId": "REPLACE_AFTER_MINT",
+      "agentRegistry": "solana:101:metaplex"
+    }
+  ],
+  "supportedTrust": ["reputation"],
+  "keywords": ["solana", "pump.fun", "mcp", "kol", "crewpay", "fee-share", "meme-coin"]
+}

@@ -108,6 +108,29 @@ async function main() {
       res.json(MCP_WELL_KNOWN)
     })
 
+    /** Static server card for Smithery / registry scanners (SEP-1649). */
+    app.get('/.well-known/mcp/server-card.json', (_req, res) => {
+      res.setHeader('Cache-Control', 'public, max-age=300')
+      res.json({
+        serverInfo: { name: 'crewpay', version: '1.1.2', websiteUrl: DEFAULT_SITE_URL },
+        authentication: {
+          required: true,
+          schemes: ['api_key'],
+          header: 'x-crew-api-key',
+          note: 'Public hosted MCP: pass x-crew-api-key for writes. Reads (discover/proof/search) work without a key.',
+        },
+        tools: MCP_WELL_KNOWN.tools.map((name) => ({
+          name,
+          description: `CREW / CrewPay tool: ${name}`,
+        })),
+        resources: [{ name: 'crew-discovery' }, { name: 'crew-llms' }],
+        prompts: [],
+        homepage: `${DEFAULT_SITE_URL}/agents`,
+        llms: `${DEFAULT_API_URL}/llms.txt`,
+        repository: 'https://github.com/fxams/crew',
+      })
+    })
+
     app.post('/mcp', async (req, res) => {
       const sessionId = req.headers['mcp-session-id'] as string | undefined
       const clientKey = (req.header('x-crew-api-key') || '').trim()
