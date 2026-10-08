@@ -68,8 +68,9 @@ const JUNK_USER = /^user\d+$/i
 function loadKolDb(): KolRecord[] {
   const here = dirname(fileURLToPath(import.meta.url))
   const candidates = [
-    join(here, '../../../data/kol-db.json'), // src/lib/agent or dist/lib/agent → repo data/
     join(process.cwd(), 'data/kol-db.json'),
+    join(here, '../../../data/kol-db.json'), // src/lib/agent → data/
+    join(here, '../../../../data/kol-db.json'), // dist/src/lib/agent → data/
   ]
   for (const path of candidates) {
     try {
