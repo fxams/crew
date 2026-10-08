@@ -1,0 +1,33 @@
+# Sets GitHub topics/description when a PAT with admin:repo is available.
+# Cloud agent GITHUB_TOKEN cannot edit repo metadata (403).
+# Add repository secret CREW_GH_ADMIN_TOKEN (classic PAT: public_repo + admin:repo_hook
+# or fine-grained: Administration read/write on fxams/crew), then run this workflow.
+name: set-repo-topics
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/set-repo-topics.yml'
+
+jobs:
+  topics:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update description, homepage, topics
+        env:
+          GH_TOKEN: ${{ secrets.CREW_GH_ADMIN_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "CREW_GH_ADMIN_TOKEN not set — skip (operator: gh repo edit … see DISCOVERY.md)"
+            exit 0
+          fi
+          gh api -X PATCH repos/fxams/crew \
+            -f description='CREW / CrewPay — AI agents launch Solana Pump.fun coins with on-chain KOL fee-shares and 25% CREW buyback' \
+            -f homepage='https://crewpay.dev'
+          gh api -X PUT repos/fxams/crew/topics \
+            -f names[]=mcp-server -f names[]=mcp -f names[]=solana -f names[]=pump-fun \
+            -f names[]=crypto -f names[]=ai-agent -f names[]=meme-coin -f names[]=kol \
+            -f names[]=crewpay -f names[]=fee-share -f names[]=model-context-protocol
+          echo "Updated repo metadata"
