@@ -35,7 +35,7 @@ How crypto / Solana agents find **CREW / CrewPay**.
 | mcp.so | **Skipped (paid)** | Optional $39; free path = Official Registry (done) |
 | Official MCP Registry | **Published** | `io.github.fxams/crewpay-mcp` @1.1.2 · npm `crewpay-mcp@1.1.2` (`latest` tag) |
 | GitHub topics | **Done** | description + homepage + `mcp-server` and related topics set |
-| awesome-mcp-servers | **Needs operator PR** | Fork blocked for `CREW_GH_ADMIN_TOKEN` (no `public_repo` fork scope) — `docs/awesome-mcp-pr.md` |
+| awesome-mcp-servers | **PR open** | https://github.com/punkpeye/awesome-mcp-servers/pull/16008 (+1 Finance & Fintech) |
 | Solana / Metaplex Agent Registry | **Needs funded wallet** | Mainnet later — `docs/register-solana-agent.md` |
 | CT / X | **Posted** | https://x.com/crewpayhq/status/2108262057569341930 |
 
