@@ -175,10 +175,17 @@ export default function App() {
   });
   const [linkStatus, setLinkStatus] = useState<Record<number, LinkStatus>>({});
   const [hirePlan, setHirePlan] = useState<NarrativeHirePlan | null>(null);
+  const [hireFeedback, setHireFeedback] = useState<{
+    kind: "ok" | "err";
+    text: string;
+  } | null>(null);
   const [brandPick, setBrandPick] = useState(BRAND_ASSETS[0]?.id ?? "logo-mark");
   const [brandCopied, setBrandCopied] = useState(false);
   const [crewCaCopied, setCrewCaCopied] = useState(false);
   const autoFilledRef = useRef<Record<number, string>>({});
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const hirePlanRef = useRef<HTMLDivElement | null>(null);
   const coins = desk.coins;
   const remits = desk.remits;
   const setCoins = (next: CoinRecord[]) => setDesk((d) => ({ ...d, coins: next }));
@@ -501,27 +508,34 @@ export default function App() {
   }
 
   function autoHireFromNarrative() {
-    const name = draft.name.trim();
-    const ticker = draft.ticker.trim();
-    const vibe = draft.vibe.trim();
+    // Always read the latest draft — avoids stale closures from rapid form edits.
+    const current = draftRef.current;
+    const name = current.name.trim();
+    const ticker = current.ticker.trim();
+    const vibe = current.vibe.trim();
     if (!name && !ticker && !vibe) {
-      setError("Add a coin name, ticker, or description before auto-hire.");
+      const msg = "Add a coin name, ticker, or description, then Auto-hire.";
+      setHireFeedback({ kind: "err", text: msg });
+      setError(msg);
       setStatus(null);
       return;
     }
 
-    // Holder KOL mode hides the crew desk — switch back so auto-hire can apply.
-    const seats = draft.holderKol
-      ? Math.min(MAX_CREW, Math.max(3, draft.crew.length || 3))
-      : Math.min(MAX_CREW, Math.max(1, draft.crew.length));
+    // Default desk starts at 1 seat — bump to a 5-pack so Autohire clearly fills the desk.
+    const seats = Math.min(
+      MAX_CREW,
+      current.crew.length >= 3 ? current.crew.length : 5,
+    );
     const base = {
-      ...draft,
+      ...current,
       holderKol: false,
-      crew: resizeCrew(draft.crew, seats),
+      crew: resizeCrew(current.crew, seats),
     };
     const { draft: next, plan } = applyNarrativeHire(base, { limit: seats });
     if (!plan.hires.length) {
-      setError("No KOLs matched that narrative — add clearer name/ticker/description.");
+      const msg = "No KOLs matched — try a clearer name/ticker/description.";
+      setHireFeedback({ kind: "err", text: msg });
+      setError(msg);
       setStatus(null);
       setHirePlan(null);
       return;
@@ -545,10 +559,13 @@ export default function App() {
         ]),
       ),
     );
-    setStatus(
-      `Auto-hired ${plan.hires.length} KOLs for [${plan.match.tags.join(", ")}]`,
-    );
+    const ok = `Auto-hired ${plan.hires.length} KOLs · #${plan.match.tags.join(" #")}`;
+    setHireFeedback({ kind: "ok", text: ok });
+    setStatus(ok);
     setError(null);
+    window.requestAnimationFrame(() => {
+      hirePlanRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
   }
 
   function applyTemplate(tpl: LaunchTemplate) {
@@ -1703,7 +1720,11 @@ export default function App() {
                   <input
                     id="name"
                     value={draft.name}
-                    onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setDraft((prev) => ({ ...prev, name: value }));
+                      setHireFeedback(null);
+                    }}
                     placeholder="name"
                     autoComplete="off"
                   />
@@ -1713,9 +1734,11 @@ export default function App() {
                   <input
                     id="ticker"
                     value={draft.ticker}
-                    onChange={(e) =>
-                      setDraft({ ...draft, ticker: normalizeTicker(e.target.value) })
-                    }
+                    onChange={(e) => {
+                      const value = normalizeTicker(e.target.value);
+                      setDraft((prev) => ({ ...prev, ticker: value }));
+                      setHireFeedback(null);
+                    }}
                     placeholder="ticker"
                     autoComplete="off"
                     inputMode="text"
@@ -1728,7 +1751,11 @@ export default function App() {
                 <input
                   id="vibe"
                   value={draft.vibe}
-                  onChange={(e) => setDraft({ ...draft, vibe: e.target.value })}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setDraft((prev) => ({ ...prev, vibe: value }));
+                    setHireFeedback(null);
+                  }}
                   placeholder="description"
                   autoComplete="off"
                   maxLength={USER_DESCRIPTION_MAX}
@@ -1736,6 +1763,26 @@ export default function App() {
                 <p className="hint">
                   Auto-appends: Launched from CrewPay.dev platform
                 </p>
+                <div className="hire-actions hire-actions-top">
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={autoHireFromNarrative}
+                  >
+                    Auto-hire from narrative
+                  </button>
+                  <span className="hint hire-top-hint">
+                    Matches your name / ticker / description to the CREW 1500 list
+                  </span>
+                </div>
+                {hireFeedback ? (
+                  <p
+                    className={`hire-feedback${hireFeedback.kind === "err" ? " is-bad" : " is-ok"}`}
+                    role="status"
+                  >
+                    {hireFeedback.text}
+                  </p>
+                ) : null}
               </div>
 
               <div className="field">
@@ -2000,6 +2047,14 @@ export default function App() {
                     >
                       Auto-hire from narrative
                     </button>
+                    {hireFeedback ? (
+                      <p
+                        className={`hire-feedback${hireFeedback.kind === "err" ? " is-bad" : " is-ok"}`}
+                        role="status"
+                      >
+                        {hireFeedback.text}
+                      </p>
+                    ) : null}
                   </div>
                 ) : null}
                 {!draft.holderKol ? (
@@ -2044,8 +2099,16 @@ export default function App() {
                     Equalize %
                   </button>
                 </div>
+                {hireFeedback ? (
+                  <p
+                    className={`hire-feedback${hireFeedback.kind === "err" ? " is-bad" : " is-ok"}`}
+                    role="status"
+                  >
+                    {hireFeedback.text}
+                  </p>
+                ) : null}
                 {hirePlan ? (
-                  <div className="hire-plan" role="status">
+                  <div className="hire-plan" role="status" ref={hirePlanRef}>
                     <p className="hire-plan-tags">
                       Fit: {hirePlan.match.tags.map((t) => `#${t}`).join(" · ")}
                       {hirePlan.match.tags[0] ? ` · primary #${hirePlan.match.tags[0]}` : ""}
