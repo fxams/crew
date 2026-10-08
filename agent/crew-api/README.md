@@ -111,7 +111,7 @@ curl -sS https://api.crewpay.dev/api/agent/launch \
 |-------|----------|-------|
 | `name` | yes | 2–32 chars |
 | `ticker` | yes | 2–13 A–Z / 0–9 |
-| `description` | no | max 240; CREW attribution appended |
+| `description` | no | max 204 user chars; appends “Launched from CrewPay.dev platform” (final ≤240) |
 | `mode` | no | `split` \| `buyback` \| `raid` \| `agent` (default **agent**) |
 | `imageUrl` **or** `imageBase64` | yes | PNG/JPEG/WebP ≤ 5MB |
 | `autoHire.seats` | * | 1–10; used when `crew` omitted |

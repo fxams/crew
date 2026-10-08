@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { apiKeyFingerprint, clientIp, requireAgentApiKey } from '../lib/auth.js'
 import { createAgentKey, listAgentKeys, revokeAgentKey } from '../lib/agent-keys.js'
 import { upsertCoin, type ApiCoin } from '../lib/coins.js'
-import { MAX_CREW, MAX_INITIAL_BUY_SOL } from '../lib/agent/constants.js'
+import { MAX_CREW, MAX_INITIAL_BUY_SOL, USER_DESCRIPTION_MAX } from '../lib/agent/constants.js'
 import { agentDiscoveryJson } from '../lib/agent/discovery.js'
 import {
   getIdempotent,
@@ -109,7 +109,7 @@ const launchBodySchema = z
       .min(2)
       .max(13)
       .regex(/^\$?[A-Za-z0-9]{2,13}$/, 'Ticker must be 2–13 letters/numbers'),
-    description: z.string().max(240).optional().default(''),
+    description: z.string().max(USER_DESCRIPTION_MAX).optional().default(''),
     mode: z.enum(['split', 'buyback', 'raid', 'agent']).optional().default('agent'),
     twitter: z.string().max(128).optional(),
     website: z.string().max(256).optional(),
@@ -139,7 +139,7 @@ const launchBodySchema = z
 const autohireBodySchema = z.object({
   name: z.string().max(32).optional().default(''),
   ticker: z.string().max(13).optional().default(''),
-  description: z.string().max(240).optional().default(''),
+  description: z.string().max(USER_DESCRIPTION_MAX).optional().default(''),
   seats: z.number().int().min(1).max(MAX_CREW).optional().default(5),
 })
 

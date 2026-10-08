@@ -69,10 +69,11 @@ async function main() {
     const { isInitializeRequest } = await import('@modelcontextprotocol/sdk/types.js')
     const { randomUUID } = await import('node:crypto')
 
-    const publicMode =
-      process.env.CREW_MCP_PUBLIC === '1' ||
-      process.env.CREW_MCP_PUBLIC === 'true' ||
-      process.env.CREW_MCP_REQUIRE_CLIENT_KEY === '1'
+    // HTTP transport defaults to publicMode so a missing Render env cannot leave
+    // the shared CREW_AGENT_API_KEY usable by anonymous MCP clients.
+    // Opt out with CREW_MCP_PUBLIC=0 for private HTTP installs that use env keys.
+    const publicFlag = (process.env.CREW_MCP_PUBLIC || '').trim().toLowerCase()
+    const publicMode = !(publicFlag === '0' || publicFlag === 'false')
 
     const app = express()
     app.use(express.json({ limit: '2mb' }))
@@ -83,7 +84,7 @@ async function main() {
     app.get('/', (_req, res) => {
       res.json({
         name: 'crewpay-mcp',
-        version: '1.1.1',
+        version: '1.1.2',
         transport: 'streamable-http',
         mcp: '/mcp',
         wellKnown: '/.well-known/mcp.json',

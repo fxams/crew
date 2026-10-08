@@ -249,7 +249,8 @@
           },
           "description": {
             "type": "string",
-            "maxLength": 240
+            "maxLength": 204,
+            "description": "User vibe ≤204. Final IPFS description appends “Launched from CrewPay.dev platform” (≤240)."
           },
           "seats": {
             "type": "integer",
@@ -309,7 +310,8 @@
           },
           "description": {
             "type": "string",
-            "maxLength": 240
+            "maxLength": 204,
+            "description": "User vibe ≤204. Final IPFS description appends “Launched from CrewPay.dev platform” (≤240). Shown in dry-run.vibe / attribution."
           },
           "mode": {
             "type": "string",
