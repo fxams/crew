@@ -73,6 +73,10 @@ services:
           property: connectionString
       - key: CREW_API_KEY
         sync: false
+      - key: CREW_BUYBACK_WALLET
+        sync: false
+      - key: RPC_URL
+        sync: false
       - key: CORS_ORIGINS
         value: https://app.crewpay.dev,https://crewpay.dev,https://www.crewpay.dev
 
