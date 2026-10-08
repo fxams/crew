@@ -13,10 +13,14 @@ export function walletToHandle(coin: CoinRecord, wallet: string): string {
   const member = coin.crew.find((m) => m.wallet === wallet)
   if (member) return member.handle
   if (wallet === coin.launcher) {
-    if (coin.mode === 'agent') return '@agent'
+    if (coin.mode === 'agent') {
+      const name = (coin.agent?.name || '').trim().replace(/[^a-zA-Z0-9_-]+/g, '').slice(0, 24)
+      return name.length >= 2 ? `@${name}` : '@launcher'
+    }
     if (coin.mode === 'raid') return '@raid'
     if (coin.mode === 'buyback') return '@buyback'
     return '@desk'
   }
+  if (wallet.length >= 8) return `@${wallet.slice(0, 4)}…${wallet.slice(-4)}`
   return `@${wallet.slice(0, 4)}`
 }

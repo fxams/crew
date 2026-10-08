@@ -32,12 +32,12 @@ npx -y github:fxams/crew#path:agent/crew-mcp
 
 Or clone → `agent/crew-mcp`. Tools:
 
-- `crew_discover` · `crew_search_kols` · `crew_autohire` · `crew_launch_dry_run` · `crew_launch`
+- `crew_discover` · `crew_claim_key` · `crew_search_kols` · `crew_autohire` · `crew_launch_dry_run` · `crew_launch`
 - `crew_status` · `crew_wire_fees` · `crew_lock_holder_kol` · `crew_crank_remits` · `crew_proof`
 
 **Env only — tool args `launcherKey` / `privateKey` / `secretKey` are rejected:**
 
-- `CREW_AGENT_API_KEY` — operator key (or mint `crew_ak_…` via `POST /api/agent/keys`)
+- `CREW_AGENT_API_KEY` — `crew_ak_…` from `crew_claim_key` / `POST /api/agent/keys/claim` (self-serve) or operator key
 - `CREW_LAUNCHER_KEY` — agent Solana secret
 - `CREW_API_URL` — optional, default `https://api.crewpay.dev`
 
@@ -48,11 +48,12 @@ Remote HTTP MCP: `https://mcp.crewpay.dev/mcp` (publicMode: pass `x-crew-api-key
 
 ```
 GET  /api/agent
-POST /api/agent/autohire
+POST /api/agent/keys/claim          # or MCP crew_claim_key — self-serve crew_ak_… (5/hour/IP)
+POST /api/agent/autohire            # + x-crew-api-key
 POST /api/agent/launch/dry-run      # validates PNG/JPEG/WebP/GIF (not SVG); shows attribution
-POST /api/agent/launch             # + x-launcher-key
+POST /api/agent/launch             # + x-launcher-key (prefers atomic create+fee-lock)
 GET  /api/agent/status/:mint
-POST /api/agent/wire-fees          # if feeShareLocked=false
+POST /api/agent/wire-fees          # if feeShareLocked=false (HTTP 202)
 …
 ```
 

@@ -468,6 +468,56 @@ agentRouter.get('/agent/keys', requireAgentApiKey, async (_req, res) => {
   }
 })
 
+/**
+ * Self-serve key mint for agents (no operator bootstrap).
+ * Rate-limited per IP. Returns crew_ak_… once; default launchesPerHour=5.
+ */
+agentRouter.post('/agent/keys/claim', async (req, res) => {
+  try {
+    const ip = clientIp(req)
+    const claimLimit = takeRateLimit(`keys:claim:ip:${ip}`, {
+      limit: 5,
+      windowMs: 60 * 60_000,
+    })
+    if (!claimLimit.ok) {
+      res.status(429).json({
+        ok: false,
+        error: 'Too many key claims from this IP (max 5/hour). Retry later or ask the operator.',
+        retryAfterSec: claimLimit.retryAfterSec,
+      })
+      return
+    }
+    const body = z
+      .object({
+        label: z.string().min(2).max(64).default('agent'),
+        agentName: z.string().min(2).max(48).optional(),
+        model: z.string().min(1).max(48).optional(),
+      })
+      .parse(req.body ?? {})
+    const parts = [body.label]
+    if (body.agentName) parts.push(body.agentName)
+    if (body.model) parts.push(body.model)
+    const label = parts.join(':').slice(0, 64)
+    const created = await createAgentKey({
+      label,
+      launchesPerHour: 5,
+    })
+    res.status(201).json({
+      ok: true,
+      key: created.key,
+      row: created.row,
+      tip: 'Store crew_ak_… once — it is not shown again. Pass as x-crew-api-key for writes. Launcher SOL stays in your wallet via x-launcher-key / CREW_LAUNCHER_KEY.',
+      next: [
+        'POST /api/agent/autohire with x-crew-api-key',
+        'POST /api/agent/launch/dry-run',
+        'POST /api/agent/launch with x-crew-api-key + x-launcher-key (own burner)',
+      ],
+    })
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err instanceof Error ? err.message : 'claim key failed' })
+  }
+})
+
 agentRouter.post('/agent/keys', requireAgentApiKey, async (req, res) => {
   try {
     const body = z

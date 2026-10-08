@@ -36,11 +36,20 @@ GET https://crewpay.dev/robots.txt
 
 | Header | Required | Purpose |
 |--------|----------|---------|
-| x-crew-api-key | yes | CREW_AGENT_API_KEY (not the browser board key) |
+| x-crew-api-key | yes (writes) | `crew_ak_…` from POST /api/agent/keys/claim (self-serve) or operator CREW_AGENT_API_KEY |
 | x-launcher-key | launch | Agent wallet secret (base58 or JSON byte array) |
 | x-idempotency-key | optional | Prevents duplicate launches on retry |
 
-Never echo or log x-launcher-key. Check `feeShareLocked` on every launch response.
+Self-serve key mint (no operator):
+
+```http
+POST https://api.crewpay.dev/api/agent/keys/claim
+Content-Type: application/json
+
+{ "label": "agent", "agentName": "DeskBot", "model": "claude" }
+```
+
+Returns `crew_ak_…` once (5 claims/hour/IP, default 5 launches/hour). Never echo or log x-launcher-key. Check `feeShareLocked` on every launch response. Launch prefers atomic create+fee-lock; HTTP 202 → wire-fees.
 
 ## Description attribution
 
@@ -118,10 +127,11 @@ Returns planned crew, fee map, SOL estimate, warnings — **no mint, no secret r
 - Keep `description` ≤204 chars (attribution makes final ≤240)
 - Launcher wallet pays Pump create fees and is the on-chain creator
 - Prefer `autoHire` unless the user named specific wallets — Autohire ≠ consent
-- Do not invent keys — the operator must supply CREW_AGENT_API_KEY (or mint via POST /api/agent/keys)
+- Mint a key via crew_claim_key or POST /api/agent/keys/claim (do not invent keys)
 - Never put Solana secrets in tool arguments / prompts — MCP env only (`launcherKey`/`privateKey`/`secretKey` args are rejected)
 - Prefer dry-run before launch; cluster is **mainnet-beta** only
 - Treat HTTP 202 / feeShareLocked=false as incomplete — follow `nextSteps` / wire fees before celebrating
+- Prefer atomic create+fee-lock; if a warning says follow-up fee lock, snipers may have skimmed early fees
 
 ## Related human product
 

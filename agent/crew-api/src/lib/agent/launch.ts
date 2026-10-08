@@ -416,59 +416,21 @@ export async function launchForAgent(
       createIxs.push(createIx)
     }
 
-    const signature = await sendInstructions({
-      payer: launcher,
-      ixs: createIxs,
-      signers: [mintKp],
-      attempts: 1,
-    })
-
     const mintStr = mintKp.publicKey.toBase58()
     const launchedAt = Date.now()
-    const coinBase = {
-      id: id('coin'),
-      mint: mintStr,
-      name,
-      ticker,
-      vibe,
-      mode,
-      crew: effectiveCrew,
-      signature,
-      launchedAt,
-      launcher: deskWallet,
-      pumpUrl: PUMP_COIN_URL(mintStr),
-      holderKol: Boolean(input.holderKol),
-      agent,
-    }
+    const pumpUrl = PUMP_COIN_URL(mintStr)
 
-    try {
-      const createShareIx = await sdk.createFeeSharingConfig({
-        creator: launcher.publicKey,
-        mint: mintKp.publicKey,
-        pool: null,
-      })
+    const createShareIx = await sdk.createFeeSharingConfig({
+      creator: launcher.publicKey,
+      mint: mintKp.publicKey,
+      pool: null,
+    })
 
-      if (input.holderKol) {
-        const openSig = await sendInstructions({
-          payer: launcher,
-          ixs: [createShareIx],
-        })
-        return {
-          ok: true,
-          mint: mintStr,
-          signature,
-          feeShareLocked: false,
-          pumpUrl: coinBase.pumpUrl,
-          launcher: deskWallet,
-          crew: effectiveCrew,
-          mode,
-          hirePlan,
-          warning: `Mint live · fee config ${openSig.slice(0, 8)}… · Holder KOL open — lock from desk later.`,
-          coin: coinBase,
-        }
-      }
-
-      const newShareholders = shareholders!.map((s) => ({
+    // Prefer one atomic tx: create(+buy) + fee-share config/update so snipers
+    // cannot skim creator fees in the gap before shares lock. Fall back to
+    // sequential txs if the combined transaction is too large / fails sim.
+    if (!input.holderKol && shareholders) {
+      const newShareholders = shareholders.map((s) => ({
         address: new PublicKey(s.wallet),
         shareBps: s.bps,
       }))
@@ -480,40 +442,161 @@ export async function launchForAgent(
         quoteMint: NATIVE_MINT,
         quoteTokenProgram: TOKEN_PROGRAM_ID,
       })
-      const feeShareSignature = await sendInstructions({
-        payer: launcher,
-        ixs: [createShareIx, updateShareIx],
-      })
+      const feeIxs = [createShareIx, updateShareIx]
 
-      return {
-        ok: true,
-        mint: mintStr,
-        signature,
-        feeShareSignature,
-        feeShareLocked: true,
-        pumpUrl: coinBase.pumpUrl,
-        launcher: deskWallet,
-        crew: effectiveCrew,
-        mode,
-        hirePlan,
-        coin: { ...coinBase, feeShareSignature },
+      try {
+        const signature = await sendInstructions({
+          payer: launcher,
+          ixs: [...createIxs, ...feeIxs],
+          signers: [mintKp],
+          attempts: 1,
+        })
+        const coinBase = {
+          id: id('coin'),
+          mint: mintStr,
+          name,
+          ticker,
+          vibe,
+          mode,
+          crew: effectiveCrew,
+          signature,
+          feeShareSignature: signature,
+          launchedAt,
+          launcher: deskWallet,
+          pumpUrl,
+          holderKol: false,
+          agent,
+        }
+        return {
+          ok: true,
+          mint: mintStr,
+          signature,
+          feeShareSignature: signature,
+          feeShareLocked: true,
+          pumpUrl,
+          launcher: deskWallet,
+          crew: effectiveCrew,
+          mode,
+          hirePlan,
+          coin: coinBase,
+        }
+      } catch (atomicErr) {
+        const atomicMsg =
+          atomicErr instanceof Error ? atomicErr.message : 'atomic create+fee-share failed'
+        console.warn('Agent launch atomic create+fee-share failed; falling back', atomicMsg)
       }
-    } catch (feeErr) {
-      const feeMsg = feeErr instanceof Error ? feeErr.message : 'fee-share failed'
-      console.error('Agent launch fee-share failed after create', feeMsg)
+
+      // Sequential fallback: mint first, then lock ASAP (race window remains).
+      try {
+        const signature = await sendInstructions({
+          payer: launcher,
+          ixs: createIxs,
+          signers: [mintKp],
+          attempts: 1,
+        })
+        const coinBase = {
+          id: id('coin'),
+          mint: mintStr,
+          name,
+          ticker,
+          vibe,
+          mode,
+          crew: effectiveCrew,
+          signature,
+          launchedAt: Date.now(),
+          launcher: deskWallet,
+          pumpUrl,
+          holderKol: false,
+          agent,
+        }
+        try {
+          const feeShareSignature = await sendInstructions({
+            payer: launcher,
+            ixs: feeIxs,
+          })
+          return {
+            ok: true,
+            mint: mintStr,
+            signature,
+            feeShareSignature,
+            feeShareLocked: true,
+            pumpUrl,
+            launcher: deskWallet,
+            crew: effectiveCrew,
+            mode,
+            hirePlan,
+            warning:
+              'Fee-shares locked in a follow-up tx (atomic create+lock failed). Early-block trades before lock may pay the creator undivided — prefer atomic path.',
+            coin: { ...coinBase, feeShareSignature },
+          }
+        } catch (feeErr) {
+          const feeMsg = feeErr instanceof Error ? feeErr.message : 'fee-share failed'
+          console.error('Agent launch fee-share failed after create', feeMsg)
+          return {
+            ok: true,
+            mint: mintStr,
+            signature,
+            feeShareLocked: false,
+            pumpUrl,
+            launcher: deskWallet,
+            crew: effectiveCrew,
+            mode,
+            hirePlan,
+            warning: `Mint live but fee-share not locked — call crew_wire_fees immediately. ${feeMsg}`,
+            coin: coinBase,
+          }
+        }
+      } catch (createErr) {
+        const msg = createErr instanceof Error ? createErr.message : 'Launch failed.'
+        console.error('Agent launch create failed', msg)
+        return { ok: false, error: msg }
+      }
+    }
+
+    // holderKol: create mint, open fee config, leave unlocked for later lock.
+    try {
+      const signature = await sendInstructions({
+        payer: launcher,
+        ixs: createIxs,
+        signers: [mintKp],
+        attempts: 1,
+      })
+      const coinBase = {
+        id: id('coin'),
+        mint: mintStr,
+        name,
+        ticker,
+        vibe,
+        mode,
+        crew: effectiveCrew,
+        signature,
+        launchedAt: Date.now(),
+        launcher: deskWallet,
+        pumpUrl,
+        holderKol: true,
+        agent,
+      }
+      const openSig = await sendInstructions({
+        payer: launcher,
+        ixs: [createShareIx],
+      })
       return {
         ok: true,
         mint: mintStr,
         signature,
         feeShareLocked: false,
-        pumpUrl: coinBase.pumpUrl,
+        pumpUrl,
         launcher: deskWallet,
         crew: effectiveCrew,
         mode,
         hirePlan,
-        warning: `Mint live but fee-share not locked — wire fees on the desk. ${feeMsg}`,
+        warning: `Mint live · fee config ${openSig.slice(0, 8)}… · Holder KOL open — lock from desk later.`,
         coin: coinBase,
       }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Launch failed.'
+      console.error('Agent launch holderKol path failed', msg)
+      return { ok: false, error: msg }
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Launch failed.'

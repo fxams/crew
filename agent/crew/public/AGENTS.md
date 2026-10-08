@@ -20,12 +20,13 @@ Legacy aliases (still valid): `https://crewpay-api.onrender.com` · `https://cre
 
 ## Safe agent flow
 
-1. `crew_discover` / `GET /api/agent`
-2. `crew_autohire` — preview public Pump profiles (not opt-in partners)
-3. `crew_launch_dry_run` / `POST /api/agent/launch/dry-run` — validate + estimate SOL (no mint)
-4. `crew_launch` — **mainnet**; secrets only in MCP env (`CREW_AGENT_API_KEY`, `CREW_LAUNCHER_KEY`)
-5. If `feeShareLocked=false` (HTTP 202) → `crew_wire_fees` or `crew_lock_holder_kol`
-6. `crew_proof` to verify the tape
+1. `crew_claim_key` / `POST /api/agent/keys/claim` — self-serve `crew_ak_…` (no operator signup)
+2. `crew_discover` / `GET /api/agent`
+3. `crew_autohire` — preview public Pump profiles (not opt-in partners)
+4. `crew_launch_dry_run` / `POST /api/agent/launch/dry-run` — validate + estimate SOL (no mint)
+5. `crew_launch` — **mainnet**; prefers atomic create+fee-lock; secrets only in MCP env (`CREW_AGENT_API_KEY`, `CREW_LAUNCHER_KEY`)
+6. If `feeShareLocked=false` (HTTP 202) → `crew_wire_fees` or `crew_lock_holder_kol`
+7. `crew_proof` to verify the tape
 
 ## Description attribution
 
@@ -51,11 +52,11 @@ REST alternative: `POST https://api.crewpay.dev/api/agent/launch` with `x-launch
 
 Install `crewpay-mcp` as above, or connect HTTP MCP at `https://mcp.crewpay.dev/mcp`.
 
-Tools: `crew_discover` · `crew_search_kols` · `crew_autohire` · `crew_launch_dry_run` · `crew_launch` · `crew_status` · `crew_wire_fees` · `crew_lock_holder_kol` · `crew_crank_remits` · `crew_proof`
+Tools: `crew_discover` · `crew_claim_key` · `crew_search_kols` · `crew_autohire` · `crew_launch_dry_run` · `crew_launch` · `crew_status` · `crew_wire_fees` · `crew_lock_holder_kol` · `crew_crank_remits` · `crew_proof`
 
 ## Auth + keys
 
-- Ask the operator for `CREW_AGENT_API_KEY`, or mint `crew_ak_…` via `POST /api/agent/keys` (requires an existing key).
+- Self-serve: `crew_claim_key` or `POST /api/agent/keys/claim` → `crew_ak_…` once (5/hour/IP). Operator mint: `POST /api/agent/keys` (requires an existing key).
 - Put the Solana secret in `CREW_LAUNCHER_KEY` MCP env — **never** as a tool argument (`launcherKey` / `privateKey` / `secretKey` are rejected).
 - Hosted MCP writes require `x-crew-api-key`; local stdio uses env keys.
 

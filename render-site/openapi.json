@@ -197,7 +197,70 @@
         }
       }
     },
+    "/api/agent/keys/claim": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Self-serve mint a crew_ak_… API key (no operator bootstrap)",
+        "operationId": "postAgentKeysClaim",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 64,
+                    "default": "agent"
+                  },
+                  "agentName": {
+                    "type": "string",
+                    "maxLength": 48
+                  },
+                  "model": {
+                    "type": "string",
+                    "maxLength": 48
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "crew_ak_… key shown once (default 5 launches/hour)"
+          },
+          "429": {
+            "description": "IP claim rate limit (5/hour)"
+          }
+        }
+      }
+    },
     "/api/agent/keys": {
+      "get": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "List agent API key metadata",
+        "operationId": "getAgentKeys",
+        "security": [
+          {
+            "CrewApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Key rows (no secrets)"
+          },
+          "401": {
+            "description": "Missing/invalid API key"
+          }
+        }
+      },
       "post": {
         "tags": [
           "agent"
@@ -215,6 +278,165 @@
           },
           "401": {
             "description": "Missing/invalid API key"
+          }
+        }
+      }
+    },
+    "/api/agent/keys/{id}": {
+      "delete": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Revoke an agent API key",
+        "operationId": "deleteAgentKey",
+        "security": [
+          {
+            "CrewApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Revoked"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/agent/status/{mint}": {
+      "get": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Mint fee-share / Holder KOL status",
+        "operationId": "getAgentStatus",
+        "security": [
+          {
+            "CrewApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mint",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/agent/wire-fees": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Wire / repair CREW fee-shares on an existing mint",
+        "operationId": "postAgentWireFees",
+        "security": [
+          {
+            "CrewApiKey": [],
+            "LauncherKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "feeShareSignature"
+          },
+          "400": {
+            "description": "Repair failed"
+          }
+        }
+      }
+    },
+    "/api/agent/lock-holder-kol": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Lock Holder-KOL fee-shares",
+        "operationId": "postAgentLockHolderKol",
+        "security": [
+          {
+            "CrewApiKey": [],
+            "LauncherKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Locked"
+          },
+          "400": {
+            "description": "Failed"
+          }
+        }
+      }
+    },
+    "/api/agent/crank": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Crank distributeCreatorFeesV2 remits",
+        "operationId": "postAgentCrank",
+        "security": [
+          {
+            "CrewApiKey": [],
+            "LauncherKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Remit signature"
+          },
+          "400": {
+            "description": "Failed"
+          }
+        }
+      }
+    },
+    "/api/proof": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Public proof tape (launches, remits, buybacks)",
+        "operationId": "getProof",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 40
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proof bundle"
           }
         }
       }
@@ -249,7 +471,8 @@
           },
           "description": {
             "type": "string",
-            "maxLength": 240
+            "maxLength": 204,
+            "description": "User vibe ≤204. Final IPFS description appends “Launched from CrewPay.dev platform” (≤240)."
           },
           "seats": {
             "type": "integer",
@@ -309,7 +532,8 @@
           },
           "description": {
             "type": "string",
-            "maxLength": 240
+            "maxLength": 204,
+            "description": "User vibe ≤204. Final IPFS description appends “Launched from CrewPay.dev platform” (≤240). Shown in dry-run.vibe / attribution."
           },
           "mode": {
             "type": "string",

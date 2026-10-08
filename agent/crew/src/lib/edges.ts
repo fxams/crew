@@ -26,7 +26,7 @@ export const CREW_EDGES = [
     id: 'control',
     title: 'You set the hire map',
     agency: 'Launcher cannot control the mind after launch.',
-    crew: 'Assign caller / chart / raid roles + wallets before the first block.',
+    crew: 'Assign caller / chart / raid roles + wallets in the launch path (atomic create+fee-lock when possible).',
   },
   {
     id: 'tape',

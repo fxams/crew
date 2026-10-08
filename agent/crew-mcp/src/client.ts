@@ -58,8 +58,8 @@ export async function crewFetch(
     if (!cfg.apiKey) {
       throw new Error(
         cfg.publicMode
-          ? 'Missing API key — pass header x-crew-api-key on the MCP HTTP request (or run crewpay-mcp locally with CREW_AGENT_API_KEY). Ask the operator; keys are minted via POST /api/agent/keys.'
-          : 'Missing CREW_AGENT_API_KEY — set it in the MCP server env. Ask the operator; keys are minted via POST /api/agent/keys.',
+          ? 'Missing API key — pass header x-crew-api-key on the MCP HTTP request (or run crewpay-mcp locally with CREW_AGENT_API_KEY). Mint via POST /api/agent/keys/claim.'
+          : 'Missing CREW_AGENT_API_KEY — set it in the MCP server env. Mint via POST /api/agent/keys/claim.',
       )
     }
     headers.set('x-crew-api-key', cfg.apiKey)
