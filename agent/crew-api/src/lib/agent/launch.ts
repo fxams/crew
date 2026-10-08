@@ -1,6 +1,6 @@
 import { Keypair, PublicKey, type TransactionInstruction } from '@solana/web3.js'
 import { NATIVE_MINT, TOKEN_PROGRAM_ID } from '@solana/spl-token'
-import { OnlinePumpSdk, PumpSdk, getBuyTokenAmountFromSolAmount } from '@pump-fun/pump-sdk'
+import { OnlinePumpSdk, PumpSdk, getBuyTokenAmountFromSolAmount } from './pump.js'
 import BN from 'bn.js'
 import {
   PUMP_COIN_URL,
