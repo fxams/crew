@@ -32,9 +32,25 @@ export async function fetchBoard(): Promise<{
   return apiFetch('/api/board')
 }
 
-export async function pushCoin(coin: CoinRecord): Promise<CoinRecord> {
+export type BoardWallet = {
+  publicKey: { toBase58(): string }
+  signMessage?: (msg: Uint8Array) => Promise<Uint8Array>
+}
+
+export async function pushCoin(
+  coin: CoinRecord,
+  opts?: { wallet?: BoardWallet | null },
+): Promise<CoinRecord> {
+  const headers: Record<string, string> = {}
+  if (opts?.wallet?.publicKey && opts.wallet.signMessage) {
+    Object.assign(
+      headers,
+      await boardWriteHeaders({ mint: coin.mint, wallet: opts.wallet }),
+    )
+  }
   const { coin: saved } = await apiFetch<{ coin: CoinRecord }>('/api/coins', {
     method: 'PUT',
+    headers,
     body: JSON.stringify(coin),
   })
   return saved
