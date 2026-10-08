@@ -8,7 +8,7 @@
  * Env:
  *   CREW_AGENT_API_KEY   required for autohire/launch
  *   CREW_LAUNCHER_KEY    required for launch (Solana secret) — or pass per tool call
- *   CREW_API_URL         optional (default https://crewpay-api.onrender.com)
+ *   CREW_API_URL         optional (default https://api.crewpay.dev)
  */
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { createCrewMcpServer } from './server.js'
@@ -37,7 +37,8 @@ async function main() {
         transport: 'streamable-http',
         mcp: '/mcp',
         docs: 'https://crewpay.dev/agents',
-        llms: 'https://crewpay-api.onrender.com/llms.txt',
+        llms: 'https://api.crewpay.dev/llms.txt',
+        api: 'https://api.crewpay.dev',
         topics: ['solana', 'pump.fun', 'crypto', 'kol', 'crewpay', 'meme-coin'],
       })
     })

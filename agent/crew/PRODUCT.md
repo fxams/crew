@@ -35,8 +35,8 @@ Every mode starts with a fixed **25% CREW buyback** of creator fees.
 - Agent Hire: mind label + objective · wallets are the payroll
 - **KOL DB**: top 1500 ranked Pump profiles (followers) + wallets + narrative tags + correlation packs
 - **Auto-hire**: match token name/ticker/vibe → fill crew wallets from correlated KOLs
-- **Agent API**: launch + autohire + status + wire-fees + lock-holder-kol + crank on https://crewpay-api.onrender.com
-- **Agent discovery**: `/agents` · `llms.txt` · `AGENTS.md` · `mcp.json` · MCP (`crew_discover` / `crew_autohire` / `crew_launch` / `crew_status` / `crew_wire_fees` / `crew_lock_holder_kol` / `crew_crank_remits` / `crew_proof`) · HTTP MCP `https://crewpay-mcp.onrender.com/mcp`
+- **Agent API**: launch + autohire + status + wire-fees + lock-holder-kol + crank on https://api.crewpay.dev
+- **Agent discovery**: `/agents` · `llms.txt` · `AGENTS.md` · `mcp.json` · MCP (`crew_discover` / `crew_autohire` / `crew_launch` / `crew_status` / `crew_wire_fees` / `crew_lock_holder_kol` / `crew_crank_remits` / `crew_proof`) · HTTP MCP `https://mcp.crewpay.dev/mcp`
 - **Proof tape**: `/proof` + `GET /api/proof` + buyback run history; hourly Jupiter buyback cron when mint+key set
 - **Dip / Raid**: Preview + on-chain Execute (Jupiter dip buy / SOL raid claim) from the desk
 - **Webhooks + per-agent keys**: register events; mint scoped agent API keys with launch quotas

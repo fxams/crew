@@ -6,19 +6,19 @@ For: OpenAI GPT / ChatGPT / o-series; Anthropic Claude; Google Gemini; xAI Grok;
 
 CrewPay lets an AI agent launch a Solana Pump.fun coin and permanently split creator fees to hired KOL wallets + a 25% CREW buyback cut — without using the browser desk.
 
-Base URL: https://crewpay-api.onrender.com
+Base URL: https://api.crewpay.dev
 Human site: https://crewpay.dev
 
 ## Discovery (public, no auth)
 
 ```
-GET https://crewpay-api.onrender.com/
-GET https://crewpay-api.onrender.com/api/agent
-GET https://crewpay-api.onrender.com/llms.txt
-GET https://crewpay-api.onrender.com/llms-full.txt
-GET https://crewpay-api.onrender.com/openapi.json
-GET https://crewpay-api.onrender.com/.well-known/agent.json
-GET https://crewpay-api.onrender.com/.well-known/ai-plugin.json
+GET https://api.crewpay.dev/
+GET https://api.crewpay.dev/api/agent
+GET https://api.crewpay.dev/llms.txt
+GET https://api.crewpay.dev/llms-full.txt
+GET https://api.crewpay.dev/openapi.json
+GET https://api.crewpay.dev/.well-known/agent.json
+GET https://api.crewpay.dev/.well-known/ai-plugin.json
 ```
 
 Site mirrors (same content for crawlers hitting the marketing domain):
@@ -45,7 +45,7 @@ Never echo or log x-launcher-key. Check `feeShareLocked` on every launch respons
 ## 1) Preview Autohire
 
 ```http
-POST https://crewpay-api.onrender.com/api/agent/autohire
+POST https://api.crewpay.dev/api/agent/autohire
 Content-Type: application/json
 x-crew-api-key: $CREW_AGENT_API_KEY
 
@@ -62,7 +62,7 @@ Returns `{ ok, match, hires, crew }` — no on-chain transaction.
 ## 2) Launch
 
 ```http
-POST https://crewpay-api.onrender.com/api/agent/launch
+POST https://api.crewpay.dev/api/agent/launch
 Content-Type: application/json
 x-crew-api-key: $CREW_AGENT_API_KEY
 x-launcher-key: $AGENT_SOLANA_SECRET

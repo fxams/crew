@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { CREW_VERSION, CREW_TOKEN_MINT, CREW_TOKEN_PUMP_URL, SOLSCAN_TX_URL } from '../lib/config'
+import {
+  CREW_PUBLIC_API_URL,
+  CREW_VERSION,
+  CREW_TOKEN_MINT,
+  CREW_TOKEN_PUMP_URL,
+  SOLSCAN_TX_URL,
+} from '../lib/config'
 import { fetchProof, type ProofBundle } from '../lib/api'
 
 function shortAddr(addr: string) {
@@ -132,7 +138,7 @@ export function ProofPage() {
                 </code>
               </span>
               <span>
-                API <a href="https://crewpay-api.onrender.com/api/proof">/api/proof</a>
+                API <a href={`${CREW_PUBLIC_API_URL}/api/proof`}>{CREW_PUBLIC_API_URL}/api/proof</a>
               </span>
             </div>
 

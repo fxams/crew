@@ -1,18 +1,18 @@
 {
   "name": "CREW Agent Launch",
   "description": "Launch Pump.fun coins with CREW fee-shares. Narrative Autohire against 1500 KOLs. 25% CREW buyback locked on every launch.",
-  "url": "https://crewpay-api.onrender.com",
+  "url": "https://api.crewpay.dev",
   "provider": {
     "organization": "CREW / CrewPay",
     "url": "https://crewpay.dev"
   },
   "version": "1.0.0",
-  "documentationUrl": "https://crewpay-api.onrender.com/llms-full.txt",
+  "documentationUrl": "https://api.crewpay.dev/llms-full.txt",
   "capabilities": {
     "streaming": false,
     "pushNotifications": false,
-    "openapi": "https://crewpay-api.onrender.com/openapi.json",
-    "discovery": "https://crewpay-api.onrender.com/api/agent"
+    "openapi": "https://api.crewpay.dev/openapi.json",
+    "discovery": "https://api.crewpay.dev/api/agent"
   },
   "defaultInputModes": [
     "application/json",

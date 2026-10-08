@@ -2,7 +2,7 @@ import type { CoinRecord, RemitRecord } from './types'
 
 const base = (
   (import.meta.env.VITE_CREW_API_URL as string | undefined)?.replace(/\/$/, '') ||
-  'https://crewpay-api.onrender.com'
+  'https://api.crewpay.dev'
 )
 const apiKey = (import.meta.env.VITE_CREW_API_KEY as string | undefined)?.trim() || ''
 

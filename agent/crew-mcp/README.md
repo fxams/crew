@@ -28,7 +28,7 @@ Resources: `crew-discovery`, `crew-llms`.
       "env": {
         "CREW_AGENT_API_KEY": "your-server-agent-key",
         "CREW_LAUNCHER_KEY": "your-solana-secret-base58",
-        "CREW_API_URL": "https://crewpay-api.onrender.com"
+        "CREW_API_URL": "https://api.crewpay.dev"
       }
     }
   }
@@ -60,12 +60,12 @@ CREW_MCP_HTTP=1 CREW_AGENT_API_KEY=… npm start
 # → http://localhost:3333/mcp
 ```
 
-Production (Render service `crewpay-mcp`): `https://crewpay-mcp.onrender.com/mcp`
+Production (Render service `crewpay-mcp`): `https://mcp.crewpay.dev/mcp`
 
 Public discovery (no MCP client required):
 
 - https://crewpay.dev/llms.txt
-- https://crewpay-api.onrender.com/api/agent
+- https://api.crewpay.dev/api/agent
 - https://crewpay.dev/agents
 
 ## Env
@@ -74,7 +74,7 @@ Public discovery (no MCP client required):
 |----------|----------|---------|
 | `CREW_AGENT_API_KEY` | autohire/launch | Server agent key (not browser `VITE_` key) |
 | `CREW_LAUNCHER_KEY` | launch (or pass `launcherKey` tool arg) | Solana secret |
-| `CREW_API_URL` | no | Default `https://crewpay-api.onrender.com` |
+| `CREW_API_URL` | no | Default `https://api.crewpay.dev` (alias: crewpay-api.onrender.com) |
 | `CREW_MCP_HTTP` | no | `1` for Streamable HTTP |
 
 ## Crypto agent keywords
