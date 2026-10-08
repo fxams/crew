@@ -40,8 +40,9 @@ const ENDPOINTS = [
 
 const LAUNCH_CURL = `curl -sS ${CREW_AGENT_API_URL}/api/agent/launch \\
   -H "content-type: application/json" \\
-  -H "x-crew-api-key: $CREW_API_KEY" \\
+  -H "x-crew-api-key: $CREW_AGENT_API_KEY" \\
   -H "x-launcher-key: $AGENT_SOLANA_SECRET" \\
+  -H "x-idempotency-key: desk-cat-$(date +%s)" \\
   -d '{
     "name": "Desk Cat",
     "ticker": "DCAT",
@@ -170,8 +171,9 @@ export function AgentsApiPage() {
           Call surface.
         </h2>
         <p className="section-sub">
-          Auth: platform <code>x-crew-api-key</code> plus the agent&apos;s Solana secret as{' '}
-          <code>x-launcher-key</code> (never logged).
+          Auth: server-only <code>CREW_AGENT_API_KEY</code> as <code>x-crew-api-key</code>, plus the
+          agent&apos;s Solana secret as <code>x-launcher-key</code> (never logged). Optional{' '}
+          <code>x-idempotency-key</code> on launch. Always check <code>feeShareLocked</code>.
         </p>
         <div className="agents-endpoint-list" role="list">
           {ENDPOINTS.map((ep) => (

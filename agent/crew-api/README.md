@@ -29,8 +29,8 @@ Production: https://crewpay-api.onrender.com
 | GET | `/openapi.json` | OpenAPI 3.1 |
 | GET | `/.well-known/agent.json` | agent card |
 | GET | `/.well-known/ai-plugin.json` | ChatGPT-style plugin manifest |
-| POST | `/api/agent/autohire` | `x-crew-api-key` |
-| POST | `/api/agent/launch` | `x-crew-api-key` + `x-launcher-key` |
+| POST | `/api/agent/autohire` | `CREW_AGENT_API_KEY` |
+| POST | `/api/agent/launch` | `CREW_AGENT_API_KEY` + `x-launcher-key` (+ optional `x-idempotency-key`) |
 
 **How agents discover this:** crawl `https://crewpay.dev/llms.txt` or `GET https://crewpay-api.onrender.com/` → follow `llms` / `agent` / `openapi`. Mirrors ship on the site for GPTBot, ClaudeBot, Gemini, Grok, and other frontier crawlers.
 
@@ -44,17 +44,20 @@ AI agents can launch Pump coins with CREW fee-shares (25% CREW buyback + hired K
 
 | Header | Purpose |
 |--------|---------|
-| `x-crew-api-key` | Platform key (`CREW_API_KEY`) |
+| `x-crew-api-key` | **`CREW_AGENT_API_KEY`** (server-only). When set, the browser `CREW_API_KEY` / `VITE_CREW_API_KEY` is **rejected** on agent routes. |
 | `x-launcher-key` | Agent’s Solana **secret key** (base58 or JSON byte array). Signs `createV2` + fee-share. **Never stored or logged.** |
+| `x-idempotency-key` | Optional 8–128 chars — launch retries return the cached response for 15 minutes. |
 
-Optional server fallback: set `CREW_AGENT_LAUNCHER_KEY` so trusted hosted agents can omit the header.
+Optional server fallback: set `CREW_AGENT_LAUNCHER_KEY` so trusted hosted agents can omit the launcher header (avoid in multi-tenant prod).
+
+**Hardening:** SSRF-safe `imageUrl`, magic-byte image check, rate limits (autohire 30/min, launch 5/min per key), SOL balance preflight, `initialBuySol` max 10, `feeShareLocked` + HTTP 202 on partial fee-share.
 
 ### 1) Preview narrative Autohire
 
 ```bash
 curl -sS https://crewpay-api.onrender.com/api/agent/autohire \
   -H "content-type: application/json" \
-  -H "x-crew-api-key: $CREW_API_KEY" \
+  -H "x-crew-api-key: $CREW_AGENT_API_KEY" \
   -d '{
     "name": "Desk Cat",
     "ticker": "DCAT",
@@ -70,8 +73,9 @@ Returns `{ match, hires, crew }` — no on-chain tx.
 ```bash
 curl -sS https://crewpay-api.onrender.com/api/agent/launch \
   -H "content-type: application/json" \
-  -H "x-crew-api-key: $CREW_API_KEY" \
+  -H "x-crew-api-key: $CREW_AGENT_API_KEY" \
   -H "x-launcher-key: $AGENT_SOLANA_SECRET" \
+  -H "x-idempotency-key: desk-cat-1" \
   -d '{
     "name": "Desk Cat",
     "ticker": "DCAT",
@@ -100,7 +104,7 @@ curl -sS https://crewpay-api.onrender.com/api/agent/launch \
 | `autoHire.seats` | * | 1–10; used when `crew` omitted |
 | `crew` | * | `[{ handle, wallet, share, hireRole? }]` totaling 100% |
 | `agent` | for mode=agent | `{ name, objective, model? }` |
-| `initialBuySol` | no | 0–100 |
+| `initialBuySol` | no | 0–10 |
 | `holderKol` | no | skip crew; lock holders later on desk |
 
 \* Provide `crew` **or** `autoHire` (or `holderKol: true`).
@@ -129,7 +133,7 @@ Fee map (mode=`agent`): **25% CREW buyback** + **15% launcher ops** + **60% hire
 
 ```bash
 cd agent/crew-api
-cp .env.example .env   # DATABASE_URL + CREW_API_KEY + CREW_BUYBACK_WALLET + RPC_URL
+cp .env.example .env   # DATABASE_URL + CREW_API_KEY + CREW_AGENT_API_KEY + CREW_BUYBACK_WALLET + RPC_URL
 npm ci
 npm run migrate
 npm run seed:kols      # optional — UI KOL search
@@ -143,7 +147,8 @@ npm run dev
 | Variable | Purpose |
 |----------|---------|
 | `DATABASE_URL` | Postgres |
-| `CREW_API_KEY` | Write + agent API auth |
+| `CREW_API_KEY` | Board write auth (may match `VITE_CREW_API_KEY`) |
+| `CREW_AGENT_API_KEY` | Agent Autohire/launch auth (server-only; required in prod) |
 | `CREW_BUYBACK_WALLET` | 25% fee-share recipient (required for launches) |
 | `RPC_URL` | Mainnet RPC for agent launches / buyback |
 | `CREW_AGENT_LAUNCHER_KEY` | Optional shared launcher secret |

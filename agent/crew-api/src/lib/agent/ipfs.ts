@@ -1,19 +1,42 @@
 import { PUMP_IPFS_URL } from './constants.js'
+import { fetchPublicUrl } from './safe-url.js'
 
 export type AgentImageInput =
   | { kind: 'url'; url: string }
   | { kind: 'base64'; data: string; contentType?: string; filename?: string }
 
+const IMAGE_MAGIC: Array<{ type: string; test: (b: Buffer) => boolean }> = [
+  { type: 'image/png', test: (b) => b.length >= 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47 },
+  { type: 'image/jpeg', test: (b) => b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
+  { type: 'image/webp', test: (b) => b.length >= 12 && b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WEBP' },
+  { type: 'image/gif', test: (b) => b.length >= 6 && (b.toString('ascii', 0, 6) === 'GIF87a' || b.toString('ascii', 0, 6) === 'GIF89a') },
+]
+
+function sniffImageType(buf: Buffer): string | null {
+  for (const row of IMAGE_MAGIC) {
+    if (row.test(buf)) return row.type
+  }
+  return null
+}
+
 async function toBlob(image: AgentImageInput): Promise<{ blob: Blob; filename: string }> {
   if (image.kind === 'url') {
-    const res = await fetch(image.url, { redirect: 'follow' })
+    const res = await fetchPublicUrl(image.url, { label: 'imageUrl', maxRedirects: 3, timeoutMs: 12_000 })
     if (!res.ok) throw new Error(`Failed to fetch imageUrl (${res.status})`)
-    const type = res.headers.get('content-type') || 'image/png'
-    if (!type.startsWith('image/')) throw new Error('imageUrl must point to an image')
+    const headerType = (res.headers.get('content-type') || '').split(';')[0]!.trim().toLowerCase()
     const buf = Buffer.from(await res.arrayBuffer())
     if (buf.byteLength < 64) throw new Error('imageUrl body too small')
     if (buf.byteLength > 5_000_000) throw new Error('imageUrl max 5MB')
-    const ext = type.includes('jpeg') || type.includes('jpg') ? 'jpg' : type.includes('webp') ? 'webp' : 'png'
+    const sniffed = sniffImageType(buf)
+    if (!sniffed) throw new Error('imageUrl body is not a PNG/JPEG/WebP/GIF image')
+    if (headerType && headerType.startsWith('image/') && headerType !== sniffed && !headerType.includes(sniffed.split('/')[1]!)) {
+      // Header lies are common via CDNs — prefer magic bytes, reject only clearly non-image headers.
+      if (!headerType.startsWith('image/')) {
+        throw new Error('imageUrl Content-Type must be an image')
+      }
+    }
+    const type = sniffed
+    const ext = type.includes('jpeg') ? 'jpg' : type.includes('webp') ? 'webp' : type.includes('gif') ? 'gif' : 'png'
     return { blob: new Blob([buf], { type }), filename: `crew-agent.${ext}` }
   }
 
@@ -27,9 +50,12 @@ async function toBlob(image: AgentImageInput): Promise<{ blob: Blob; filename: s
   const buf = Buffer.from(raw, 'base64')
   if (buf.byteLength < 64) throw new Error('imageBase64 too small')
   if (buf.byteLength > 5_000_000) throw new Error('imageBase64 max 5MB')
-  const ext = contentType.includes('jpeg') || contentType.includes('jpg') ? 'jpg' : contentType.includes('webp') ? 'webp' : 'png'
+  const sniffed = sniffImageType(buf)
+  if (!sniffed) throw new Error('imageBase64 is not a PNG/JPEG/WebP/GIF image')
+  const type = sniffed || contentType
+  const ext = type.includes('jpeg') ? 'jpg' : type.includes('webp') ? 'webp' : type.includes('gif') ? 'gif' : 'png'
   return {
-    blob: new Blob([buf], { type: contentType }),
+    blob: new Blob([buf], { type }),
     filename: image.filename || `crew-agent.${ext}`,
   }
 }

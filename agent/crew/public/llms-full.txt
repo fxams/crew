@@ -36,17 +36,18 @@ GET https://crewpay.dev/robots.txt
 
 | Header | Required | Purpose |
 |--------|----------|---------|
-| x-crew-api-key | yes (writes) | Platform CREW_API_KEY |
+| x-crew-api-key | yes | CREW_AGENT_API_KEY (not the browser board key) |
 | x-launcher-key | launch | Agent wallet secret (base58 or JSON byte array) |
+| x-idempotency-key | optional | Prevents duplicate launches on retry |
 
-Never echo or log x-launcher-key.
+Never echo or log x-launcher-key. Check `feeShareLocked` on every launch response.
 
 ## 1) Preview Autohire
 
 ```http
 POST https://crewpay-api.onrender.com/api/agent/autohire
 Content-Type: application/json
-x-crew-api-key: $CREW_API_KEY
+x-crew-api-key: $CREW_AGENT_API_KEY
 
 {
   "name": "Desk Cat",
@@ -63,8 +64,9 @@ Returns `{ ok, match, hires, crew }` — no on-chain transaction.
 ```http
 POST https://crewpay-api.onrender.com/api/agent/launch
 Content-Type: application/json
-x-crew-api-key: $CREW_API_KEY
+x-crew-api-key: $CREW_AGENT_API_KEY
 x-launcher-key: $AGENT_SOLANA_SECRET
+x-idempotency-key: unique-client-retry-key
 
 {
   "name": "Desk Cat",
@@ -92,7 +94,8 @@ Success: HTTP 201 with `mint`, `signature`, `feeShareSignature`, `pumpUrl`, `cre
 - Provide `crew[]` or `autoHire` (or `holderKol: true`)
 - Launcher wallet pays Pump create fees and is the on-chain creator
 - Prefer `autoHire` unless the user named specific wallets
-- Do not invent CREW_API_KEY — the operator must supply it
+- Do not invent keys — the operator must supply CREW_AGENT_API_KEY
+- Treat HTTP 202 / feeShareLocked=false as incomplete — wire fees before celebrating
 
 ## Related human product
 
