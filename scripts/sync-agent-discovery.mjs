@@ -33,7 +33,8 @@ const files = [
   ['robots.txt', mod.robotsTxt()],
   ['openapi.json', JSON.stringify(mod.openApiSpec(), null, 2) + '\n'],
   ['.well-known/llms.txt', mod.llmsTxt()],
-  ['.well-known/agent.json', JSON.stringify(mod.agentCard(), null, 2) + '\n'],
+  // Site origin must match card.url for WellKnown / A2A crawlers.
+  ['.well-known/agent.json', JSON.stringify(mod.agentCard('site'), null, 2) + '\n'],
   [
     '.well-known/ai-plugin.json',
     JSON.stringify(mod.aiPluginManifest(), null, 2) + '\n',
