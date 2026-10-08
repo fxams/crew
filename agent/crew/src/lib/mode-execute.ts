@@ -1,6 +1,7 @@
 /**
  * Real Dip Buyback fire + Raid claim executions (wallet-signed).
  * Preview helpers remain in desk-actions.ts for dry projections.
+ * Dip/Raid rules are enforced via desk-rules before signing.
  */
 
 import {
@@ -12,8 +13,14 @@ import {
 } from '@solana/web3.js'
 import type { WalletContextState } from '@solana/wallet-adapter-react'
 import { RPC_URL } from './config'
-import { DEFAULT_BUYBACK, DEFAULT_RAID_QUESTS } from './edges'
-import type { CoinRecord } from './types'
+import { DEFAULT_BUYBACK } from './edges'
+import {
+  evaluateDipGate,
+  evaluateRaidGate,
+  markDipFired,
+  markRaidClaimed,
+} from './desk-rules'
+import type { CoinRecord, RemitRecord } from './types'
 
 function id(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`
@@ -37,7 +44,11 @@ export async function executeRaidClaim(opts: {
   coin: CoinRecord
   wallet: WalletContextState
   questId?: string
+  /** Proof link / reference required by the quest (unless force). */
+  proofUrl?: string
   amountSol?: number
+  /** Skip proof + cooldown checks (operator override). */
+  force?: boolean
 }): Promise<{
   id: string
   signature: string
@@ -45,14 +56,19 @@ export async function executeRaidClaim(opts: {
   handle: string
   wallet: string
   kind: 'raid_claim'
+  questId: string
+  proofUrl?: string
 }> {
   const { coin, wallet } = opts
-  if (coin.mode !== 'raid') throw new Error('Raid claims only work on Raid Pool coins.')
   if (!wallet.publicKey) throw new Error('Connect Phantom.')
 
-  const quests = coin.raidQuests ?? DEFAULT_RAID_QUESTS
-  const quest = quests.find((q) => q.id === opts.questId) ?? quests[0]
-  if (!quest) throw new Error('No raid quests configured.')
+  const gate = evaluateRaidGate(coin, {
+    questId: opts.questId,
+    proofUrl: opts.proofUrl,
+    force: opts.force,
+  })
+  if (!gate.ok) throw new Error(gate.error)
+  const quest = gate.quest
 
   const winner =
     coin.crew.find((c) => c.hireRole === 'raid') ||
@@ -73,6 +89,7 @@ export async function executeRaidClaim(opts: {
     }),
   )
   const signature = await sendWalletTx(wallet, tx)
+  markRaidClaimed(coin.mint, quest.id)
   return {
     id: id('raid'),
     signature,
@@ -80,6 +97,8 @@ export async function executeRaidClaim(opts: {
     handle: winner.handle,
     wallet: winner.wallet,
     kind: 'raid_claim',
+    questId: quest.id,
+    proofUrl: opts.proofUrl?.trim() || undefined,
   }
 }
 
@@ -91,6 +110,9 @@ export async function executeBuybackFire(opts: {
   coin: CoinRecord
   wallet: WalletContextState
   amountSol?: number
+  remits?: RemitRecord[]
+  /** Skip dip% + cooldown checks (operator override). */
+  force?: boolean
 }): Promise<{
   id: string
   signature: string
@@ -99,14 +121,18 @@ export async function executeBuybackFire(opts: {
   wallet: string
   kind: 'dip_fire'
   outAmount?: string
+  dropPct?: number
+  priceUsd?: number
 }> {
   const { coin, wallet } = opts
-  if (coin.mode !== 'buyback') throw new Error('Buyback fire only works on Dip Buyback coins.')
   if (!wallet.publicKey || !wallet.signTransaction) {
     throw new Error('Connect Phantom with transaction signing.')
   }
 
-  const rule = coin.buybackRule ?? DEFAULT_BUYBACK
+  const gate = await evaluateDipGate(coin, { force: opts.force, remits: opts.remits })
+  if (!gate.ok) throw new Error(gate.error)
+
+  const rule = gate.rule ?? coin.buybackRule ?? DEFAULT_BUYBACK
   const amountSol = Math.min(
     rule.maxSolPerFire,
     opts.amountSol ?? Math.max(0.005, rule.maxSolPerFire * 0.25),
@@ -170,6 +196,7 @@ export async function executeBuybackFire(opts: {
   const latest = await connection.getLatestBlockhash('confirmed')
   await connection.confirmTransaction({ signature, ...latest }, 'confirmed')
 
+  markDipFired(coin.mint)
   return {
     id: id('buyback'),
     signature,
@@ -178,5 +205,7 @@ export async function executeBuybackFire(opts: {
     wallet: wallet.publicKey.toBase58(),
     kind: 'dip_fire',
     outAmount: String(quote.outAmount),
+    dropPct: gate.dropPct,
+    priceUsd: gate.priceUsd,
   }
 }

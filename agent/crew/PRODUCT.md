@@ -29,17 +29,18 @@ Every mode starts with a fixed **25% CREW buyback** of creator fees.
 | Raid Pool | 25% pot + editable quest board · 50% crew |
 | **Agent Hire** | AI agent brief + hire roles; 15% ops → launcher · 60% hired KOLs |
 
-## Platform (v2.6+ production)
+## Platform (v2.7+ production)
 
 - Phantom → Pump IPFS → `createV2` → permanent fee-share
 - Agent Hire: mind label + objective · wallets are the payroll
 - **KOL DB**: top 1500 ranked Pump profiles (followers) + wallets + narrative tags + correlation packs
-- **Auto-hire**: match token name/ticker/vibe → fill crew wallets from correlated KOLs
-- **Agent API**: launch + autohire + status + wire-fees + lock-holder-kol + crank on https://api.crewpay.dev
-- **Agent discovery**: `/agents` · `llms.txt` · `AGENTS.md` · `mcp.json` · MCP (`crew_discover` / `crew_autohire` / `crew_launch` / `crew_status` / `crew_wire_fees` / `crew_lock_holder_kol` / `crew_crank_remits` / `crew_proof`) · HTTP MCP `https://mcp.crewpay.dev/mcp`
+- **Auto-hire**: match token name/ticker/vibe → fill crew wallets from correlated KOLs (public profiles — not opt-in partners)
+- **Agent API**: dry-run + launch + autohire + status + wire-fees + lock-holder-kol + crank + keys on https://api.crewpay.dev
+- **Agent discovery**: `/agents` · `llms.txt` · `AGENTS.md` · `mcp.json` · MCP (`crew_discover` / `crew_autohire` / `crew_launch_dry_run` / `crew_launch` / `crew_status` / `crew_wire_fees` / `crew_lock_holder_kol` / `crew_crank_remits` / `crew_proof`) · HTTP MCP `https://mcp.crewpay.dev/mcp`
 - **Proof tape**: `/proof` + `GET /api/proof` + buyback run history; hourly Jupiter buyback cron when mint+key set
-- **Dip / Raid**: Preview + on-chain Execute (Jupiter dip buy / SOL raid claim) from the desk
-- **Webhooks + per-agent keys**: register events; mint scoped agent API keys with launch quotas
+- **Dip / Raid**: Preview + on-chain Execute with **enforced dip% / cooldown** and **raid proof + quest cooldown**
+- **Board writes**: API key **or** Phantom-signed `crew-board:` message
+- **Webhooks + per-agent keys**: register events; mint scoped `crew_ak_…` keys with launch quotas
 - No demo mint path — empty desk until real launches
 - Launch templates (incl. Agent hires), scoreboard, desk pulse, CT receipts
 - Crank remits via `distributeCreatorFeesV2`
@@ -48,5 +49,6 @@ Every mode starts with a fixed **25% CREW buyback** of creator fees.
 ## Explicitly out
 
 - Multi-model autonomous “mind” with API keys in the browser UI
-- Prompt firewall / isolated signer / double-entry ledger
+- Prompt firewall / isolated signer / double-entry ledger / non-custodial agent launch
+- Autohire consent marketplace (opt-in KOL partners)
 - Stock quote pairs + X Money rails
