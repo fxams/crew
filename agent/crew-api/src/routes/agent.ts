@@ -26,7 +26,7 @@ import {
   wireFeesForAgent,
 } from '../lib/agent/repair.js'
 import { assertSafeHttpUrl } from '../lib/agent/safe-url.js'
-import { parseLauncherKey } from '../lib/agent/send.js'
+import { parseLauncherKey, resolveOpsPayer } from '../lib/agent/send.js'
 import { solanaAddress } from '../lib/agent/solana-address.js'
 import { emitWebhookEvent } from '../lib/webhooks.js'
 
@@ -489,8 +489,22 @@ agentRouter.post('/agent/crank', requireAgentApiKey, async (req, res) => {
     const fp = apiKeyFingerprint(req)
     if (!applyRateLimit(res, `crank:key:${fp}`, 20, 60_000)) return
     const mint = z.object({ mint: solanaAddress }).parse(req.body).mint
-    const launcher = parseLauncherKey(resolveLauncherKey(req))
-    const result = await crankRemitsForAgent({ mint, launcher })
+    // distributeCreatorFeesV2 is permissionless — prefer x-launcher-key, else CREW_OPS_KEY / buyback key.
+    let payer
+    try {
+      const fromHeader = (req.header('x-launcher-key') || '').trim()
+      payer = fromHeader ? parseLauncherKey(fromHeader) : resolveOpsPayer()
+    } catch (keyErr) {
+      res.status(400).json({
+        ok: false,
+        error:
+          keyErr instanceof Error
+            ? keyErr.message
+            : 'Provide x-launcher-key or set CREW_OPS_KEY for permissionless crank.',
+      })
+      return
+    }
+    const result = await crankRemitsForAgent({ mint, payer })
     void emitWebhookEvent('remit.cranked', {
       mint: result.mint,
       signature: result.signature,

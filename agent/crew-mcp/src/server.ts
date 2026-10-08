@@ -393,7 +393,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Crank creator fee remits',
       description:
-        'Call distributeCreatorFeesV2 for a mint so CREW buyback + KOL wallets receive accrued fees. Requires CREW_LAUNCHER_KEY in MCP env.',
+        'Distribute accrued creator fees (sweep + distributeCreatorFeesV2). Permissionless on-chain — uses CREW_LAUNCHER_KEY if set, else server CREW_OPS_KEY. Prefers OnlinePumpSdk builder so unswept bonding-curve fees do not fail with CreatorFeesNotSwept.',
       inputSchema: {
         mint: mintSchema,
         ...forbiddenSecretFields,
@@ -402,10 +402,11 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     },
     async (input) => {
       assertNoSecretToolArgs(input as Record<string, unknown>)
+      // Launcher optional — API falls back to CREW_OPS_KEY / buyback key.
       const data = await crewFetch(cfg, '/api/agent/crank', {
         method: 'POST',
         auth: true,
-        launcher: true,
+        launcher: Boolean(cfg.launcherKey),
         body: JSON.stringify({ mint: input.mint }),
       })
       return asText(data)

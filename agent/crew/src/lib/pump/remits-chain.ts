@@ -43,12 +43,37 @@ export function parseDistributeRowsFromTx(
     if (total <= 0n) continue
     const at = atMs || Number(event.timestamp) * 1000
 
+    // Prefer actual lamport deltas from tx meta (avoids ±1 lamport bps rounding dust).
+    const keys = tx.transaction.message.getAccountKeys({
+      accountKeysFromLookups: tx.meta?.loadedAddresses,
+    })
+    const pre = tx.meta?.preBalances
+    const post = tx.meta?.postBalances
+    const deltaByWallet = new Map<string, bigint>()
+    if (pre && post && pre.length === post.length) {
+      for (let i = 0; i < pre.length; i += 1) {
+        const delta = BigInt(post[i]!) - BigInt(pre[i]!)
+        if (delta <= 0n) continue
+        try {
+          const wallet = keys.get(i)?.toBase58()
+          if (wallet) deltaByWallet.set(wallet, (deltaByWallet.get(wallet) || 0n) + delta)
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+
     for (const sh of event.shareholders) {
-      const lamports = (total * BigInt(sh.shareBps)) / 10_000n
+      const wallet = sh.address.toBase58()
+      const fromMeta = deltaByWallet.get(wallet)
+      const lamports =
+        fromMeta && fromMeta > 0n
+          ? fromMeta
+          : (total * BigInt(sh.shareBps)) / 10_000n
       if (lamports <= 0n) continue
       rows.push({
         signature,
-        wallet: sh.address.toBase58(),
+        wallet,
         amountSol: Number(lamports) / 1e9,
         at,
       })

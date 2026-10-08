@@ -280,32 +280,51 @@ export async function lockHolderKolForAgent(opts: {
 
 export async function crankRemitsForAgent(opts: {
   mint: string
-  launcher: import('@solana/web3.js').Keypair
-}): Promise<{ ok: true; signature: string; mint: string }> {
+  /** Fee payer — distributeCreatorFeesV2 is permissionless; any funded wallet works. */
+  payer: import('@solana/web3.js').Keypair
+}): Promise<{ ok: true; signature: string; mint: string; swept: boolean }> {
   const mint = new PublicKey(opts.mint.trim())
   const connection = getConnection()
-  const sdk = new PumpSdk()
   const sharingConfigAddress = feeSharingConfigPda(mint)
   const accountInfo = await connection.getAccountInfo(sharingConfigAddress)
   if (!accountInfo) {
     throw new Error('No fee-sharing config — wire fees first.')
   }
-  const sharingConfig = sdk.decodeSharingConfig(accountInfo)
-  const ix = await sdk.distributeCreatorFeesV2({
-    mint,
-    sharingConfig,
-    sharingConfigAddress,
+  // OnlinePumpSdk prepends transferCreatorFeesToPump / sweep when bonding_curve
+  // still holds unswept creator_fee (avoids CreatorFeesNotSwept 6095).
+  const online = new OnlinePumpSdk(connection)
+  try {
+    const minFee = await online.getMinimumDistributableFee(mint, opts.payer.publicKey, {
+      quoteMint: NATIVE_MINT,
+    })
+    if (minFee?.canDistribute === false) {
+      throw new Error(
+        'No distributable creator fees yet (below minimum or already drained).',
+      )
+    }
+  } catch (err) {
+    if (err instanceof Error && /No distributable/.test(err.message)) throw err
+    /* view sim optional — still try build+send */
+  }
+  const built = await online.buildDistributeCreatorFeesInstructions(mint, {
     quoteMint: NATIVE_MINT,
-    payer: opts.launcher.publicKey,
-    shouldInitializeAta: true,
     quoteTokenProgram: TOKEN_PROGRAM_ID,
+    payer: opts.payer.publicKey,
   })
+  if (!built.instructions.length) {
+    throw new Error('No distribute instructions built for this mint.')
+  }
   const signature = await sendInstructions({
-    payer: opts.launcher,
-    ixs: [ix],
+    payer: opts.payer,
+    ixs: built.instructions,
     attempts: 2,
   })
-  return { ok: true, signature, mint: mint.toBase58() }
+  return {
+    ok: true,
+    signature,
+    mint: mint.toBase58(),
+    swept: built.instructions.length > 1,
+  }
 }
 
 export function deskModeOrDefault(mode?: string): DeskMode {

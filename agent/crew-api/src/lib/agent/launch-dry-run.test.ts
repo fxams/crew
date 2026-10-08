@@ -40,6 +40,35 @@ describe('dryRunLaunchForAgent', () => {
     expect(plan.vibe).toContain('Launched from CrewPay.dev platform')
     expect(plan.image?.contentType).toBe('image/png')
     expect(plan.nextSteps.some((s) => /own wallet|CREW_LAUNCHER|REST/i.test(s))).toBe(true)
+    expect(plan.sufficient).toBeNull()
+    expect(plan.hirePlan).toBeTruthy()
+    expect(plan.crew.every((m) => typeof m.effectiveBps === 'number')).toBe(true)
+    expect(plan.shareholders?.some((s) => s.role === 'buyback')).toBe(true)
+  })
+
+  it('returns hirePlan null and top-level sufficient for explicit crew', async () => {
+    const plan = await dryRunLaunchForAgent(
+      {
+        name: 'Desk Cat',
+        ticker: 'DCAT',
+        description: 'ai agent trench meme',
+        mode: 'agent',
+        image: { kind: 'base64', data: PNG_B64, contentType: 'image/png' },
+        crew: [
+          {
+            handle: '@alice',
+            wallet: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+            share: 100,
+            hireRole: 'kol',
+          },
+        ],
+        agent: { name: 'DeskBot', objective: 'Hire KOLs and grow DCAT on CREW', model: 'claude' },
+      },
+      { launcherPubkey: PLATFORM },
+    )
+    expect(plan.hirePlan).toBeNull()
+    expect(plan.sufficient).toBe(true)
+    expect(typeof plan.crew[0]?.effectiveBps).toBe('number')
   })
 
   it('rejects SVG images like a real launch would', async () => {
@@ -102,6 +131,7 @@ describe('launchNextSteps', () => {
       pumpUrl: 'https://pump.fun/coin/x',
       launcher: PLATFORM,
       crew: [],
+      hirePlan: null,
       mode: 'agent',
       coin: {
         id: 'c',
