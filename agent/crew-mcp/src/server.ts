@@ -147,9 +147,11 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         ticker: z.string().max(13).optional().describe('Token ticker (2–13 on launch)'),
         description: z
           .string()
-          .max(240)
+          .max(204)
           .optional()
-          .describe('Narrative / vibe — drives KOL matching (ai, animal, trench, meme, …)'),
+          .describe(
+            'Narrative / vibe (≤204 — leaves room for “Launched from CrewPay.dev platform”)',
+          ),
         seats: z.number().int().min(1).max(10).optional().describe('Crew seats 1–10 (default 5)'),
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
@@ -178,7 +180,11 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
       inputSchema: {
         name: z.string().min(2).max(32),
         ticker: z.string().min(2).max(13),
-        description: z.string().max(240).optional(),
+        description: z
+          .string()
+          .max(204)
+          .optional()
+          .describe('≤204 chars; attribution appended to reach ≤240 final'),
         imageUrl: z.string().url().optional().describe('Public image URL (or use imageBase64)'),
         imageBase64: z.string().min(64).optional(),
         seats: z.number().int().min(1).max(10).optional(),
@@ -384,7 +390,11 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
           .min(2)
           .max(13)
           .regex(/^\$?[A-Za-z0-9]{2,13}$/, 'Ticker must be 2–13 letters/numbers'),
-        description: z.string().max(240).optional(),
+        description: z
+          .string()
+          .max(204)
+          .optional()
+          .describe('≤204 chars; attribution appended to reach ≤240 final'),
         imageUrl: z.string().url().optional().describe('Public image URL (or use imageBase64)'),
         imageBase64: z.string().min(64).optional(),
         seats: z.number().int().min(1).max(10).optional().describe('Autohire seats when crew omitted'),

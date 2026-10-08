@@ -56,6 +56,20 @@ describe('dryRunLaunchForAgent', () => {
     ).rejects.toThrow(/PNG\/JPEG\/WebP\/GIF|not a PNG/i)
   })
 
+  it('rejects user descriptions that leave no room for attribution', async () => {
+    await expect(
+      dryRunLaunchForAgent({
+        name: 'Desk Cat',
+        ticker: 'DCAT',
+        description: 'x'.repeat(240),
+        mode: 'agent',
+        image: { kind: 'base64', data: PNG_B64 },
+        autoHire: { seats: 3 },
+        agent: { name: 'DeskBot', objective: 'Hire KOLs and grow DCAT on CREW' },
+      }),
+    ).rejects.toThrow(/Description max 204/i)
+  })
+
   it('rejects crew shares that do not total 100%', async () => {
     await expect(
       dryRunLaunchForAgent({

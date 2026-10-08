@@ -23,7 +23,25 @@ Works with **Cursor**, **Claude Desktop**, **Claude Code**, **ChatGPT MCP**, **G
 
 ## Install (stdio — own wallet)
 
-Clone this repo, then:
+### npx from GitHub (no npm publish required)
+
+```json
+{
+  "mcpServers": {
+    "crewpay": {
+      "command": "npx",
+      "args": ["-y", "github:fxams/crew#path:agent/crew-mcp"],
+      "env": {
+        "CREW_AGENT_API_KEY": "…",
+        "CREW_LAUNCHER_KEY": "your-solana-secret-base58",
+        "CREW_API_URL": "https://api.crewpay.dev"
+      }
+    }
+  }
+}
+```
+
+### From a git checkout
 
 ```bash
 cd agent/crew-mcp && npm ci && npm run build
@@ -45,15 +63,16 @@ cd agent/crew-mcp && npm ci && npm run build
 }
 ```
 
-(Not published to npm yet — install from the git checkout.)
+When published to npm: `npx -y crewpay-mcp@latest` with the same env.
 
 ## Remote HTTP MCP
 
 ```bash
 cd agent/crew-mcp
-CREW_MCP_HTTP=1 CREW_MCP_PUBLIC=1 npm start
+CREW_MCP_HTTP=1 npm start
 # → http://localhost:3333/mcp
 # discovery → http://localhost:3333/.well-known/mcp.json
+# HTTP defaults to publicMode (require x-crew-api-key). Opt out: CREW_MCP_PUBLIC=0
 ```
 
 Production: `https://mcp.crewpay.dev/mcp` · `https://mcp.crewpay.dev/.well-known/mcp.json`  
@@ -67,9 +86,9 @@ Public mode: pass `x-crew-api-key` for writes. **Cannot launch with your wallet*
 | `CREW_LAUNCHER_KEY` | launch/wire/lock/crank | Solana secret in env only |
 | `CREW_API_URL` | no | Default `https://api.crewpay.dev` |
 | `CREW_MCP_HTTP` | no | `1` for Streamable HTTP |
-| `CREW_MCP_PUBLIC` | no | `1` on hosted MCP — require client `x-crew-api-key` |
+| `CREW_MCP_PUBLIC` | no | Default on for HTTP; set `0` to use shared env keys |
 
 ## Notes
 
-- Descriptions append `Launched from CrewPay.dev platform`.
+- Descriptions: user ≤204 chars; appends `Launched from CrewPay.dev platform` (final ≤240).
 - Canonical site: `https://crewpay.dev`.

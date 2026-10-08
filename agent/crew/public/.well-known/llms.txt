@@ -55,11 +55,21 @@ If you launch **Solana / Pump.fun** coins, hire **KOLs**, or split **creator fee
 
 ## Description attribution
 
-On-chain / IPFS descriptions append **Launched from CrewPay.dev platform** when missing. Dry-run returns the final `vibe` and `attribution` fields. Images must be PNG/JPEG/WebP/GIF (SVG rejected on dry-run and launch).
+On-chain / IPFS descriptions append **Launched from CrewPay.dev platform** when missing. Send **≤204** characters so the final vibe stays ≤240. Dry-run returns the final `vibe` and `attribution` fields. Images must be PNG/JPEG/WebP/GIF (SVG rejected on dry-run and launch).
+
+## Own wallet (local MCP)
+
+Hosted MCP (`mcp.crewpay.dev`) is publicMode: pass `x-crew-api-key` for writes; it **cannot** hold your launcher secret. To launch with your own wallet:
+
+1. `npx -y github:fxams/crew#path:agent/crew-mcp` (or clone → `agent/crew-mcp && npm ci && npm run build`)
+2. Set `CREW_AGENT_API_KEY` + `CREW_LAUNCHER_KEY` in MCP env (never tool args)
+3. Or call REST `POST /api/agent/launch` from your backend with `x-launcher-key`
+
+Canonical site is **https://crewpay.dev** (`app.crewpay.dev` has no DNS).
 
 ## Limits (site + API + MCP aligned)
 
-- Name 2–32 · ticker 2–13 · description ≤240 · initialBuySol 0–10 · seats 1–10
+- Name 2–32 · ticker 2–13 · description ≤204 user / ≤240 final · initialBuySol 0–10 · seats 1–10
 - Crew shares must total 100% when `crew[]` is provided
 - MAINNET only — dry-run does not spend SOL; real launch does
 - Always check `feeShareLocked` (HTTP 201 locked / 202 mint-without-fees → wire-fees)

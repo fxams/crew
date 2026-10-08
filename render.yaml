@@ -110,8 +110,10 @@ services:
         value: "1"
       - key: CREW_API_URL
         value: https://api.crewpay.dev
+      # HTTP MCP defaults to publicMode even if this env is missing (code-side).
       # Do not set CREW_AGENT_API_KEY on the public MCP — clients pass x-crew-api-key.
       # Private stdio installs still use CREW_AGENT_API_KEY in local env.
+      # To force private HTTP with shared env keys: CREW_MCP_PUBLIC=0.
 
   - type: cron
     name: crewpay-buyback
