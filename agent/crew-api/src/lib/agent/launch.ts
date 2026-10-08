@@ -3,6 +3,8 @@ import { NATIVE_MINT, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { OnlinePumpSdk, PumpSdk, getBuyTokenAmountFromSolAmount } from './pump.js'
 import BN from 'bn.js'
 import {
+  MAX_INITIAL_BUY_SOL,
+  MIN_LAUNCH_FEE_SOL,
   PUMP_COIN_URL,
   USER_DESCRIPTION_MAX,
   withCrewLaunchDescription,
@@ -13,6 +15,7 @@ import { uploadPumpMetadata, type AgentImageInput } from './ipfs.js'
 import { planNarrativeHires, type CrewMember, type NarrativeHirePlan } from './narrative.js'
 import { getConnection, sendInstructions } from './send.js'
 import { buildCrewShareholders, normalizeCrew } from './shareholders.js'
+import { assertSafeHttpUrl } from './safe-url.js'
 
 export type AgentLaunchInput = {
   name: string
@@ -37,6 +40,8 @@ export type AgentLaunchResult =
       mint: string
       signature: string
       feeShareSignature?: string
+      /** false when mint exists but CREW fee-share was not locked — agents must handle. */
+      feeShareLocked: boolean
       pumpUrl: string
       launcher: string
       crew: CrewMember[]
@@ -111,8 +116,11 @@ export async function launchForAgent(
       throw new Error(`Description max ${USER_DESCRIPTION_MAX} characters.`)
     }
     const initialBuySol = Number(input.initialBuySol || 0)
-    if (initialBuySol < 0 || initialBuySol > 100) {
-      throw new Error('initialBuySol must be 0–100.')
+    if (initialBuySol < 0 || initialBuySol > MAX_INITIAL_BUY_SOL) {
+      throw new Error(`initialBuySol must be 0–${MAX_INITIAL_BUY_SOL}.`)
+    }
+    if (input.website?.trim()) {
+      assertSafeHttpUrl(input.website.trim(), 'website')
     }
 
     let agent: { name: string; objective: string; model: string } | undefined
@@ -147,6 +155,15 @@ export async function launchForAgent(
       ? null
       : buildCrewShareholders(effectiveCrew, mode, { deskWallet })
 
+    const connection = getConnection()
+    const lamports = await connection.getBalance(launcher.publicKey, 'confirmed')
+    const needSol = initialBuySol + MIN_LAUNCH_FEE_SOL
+    if (lamports / 1e9 < needSol) {
+      throw new Error(
+        `Launcher wallet needs ≥ ${needSol.toFixed(3)} SOL (buy ${initialBuySol} + fees); has ${(lamports / 1e9).toFixed(4)} SOL.`,
+      )
+    }
+
     const { metadataUri } = await uploadPumpMetadata({
       name,
       symbol: ticker,
@@ -156,7 +173,6 @@ export async function launchForAgent(
       image: input.image,
     })
 
-    const connection = getConnection()
     const online = new OnlinePumpSdk(connection)
     const sdk = new PumpSdk()
     const mintKp = Keypair.generate()
@@ -246,6 +262,7 @@ export async function launchForAgent(
           ok: true,
           mint: mintStr,
           signature,
+          feeShareLocked: false,
           pumpUrl: coinBase.pumpUrl,
           launcher: deskWallet,
           crew: effectiveCrew,
@@ -278,6 +295,7 @@ export async function launchForAgent(
         mint: mintStr,
         signature,
         feeShareSignature,
+        feeShareLocked: true,
         pumpUrl: coinBase.pumpUrl,
         launcher: deskWallet,
         crew: effectiveCrew,
@@ -286,28 +304,28 @@ export async function launchForAgent(
         coin: { ...coinBase, feeShareSignature },
       }
     } catch (feeErr) {
-      console.error('Agent launch fee-share failed after create', feeErr)
+      const feeMsg = feeErr instanceof Error ? feeErr.message : 'fee-share failed'
+      console.error('Agent launch fee-share failed after create', feeMsg)
       return {
         ok: true,
         mint: mintStr,
         signature,
+        feeShareLocked: false,
         pumpUrl: coinBase.pumpUrl,
         launcher: deskWallet,
         crew: effectiveCrew,
         mode,
         hirePlan,
-        warning:
-          feeErr instanceof Error
-            ? `Mint live but fee-share not locked — wire fees on the desk. ${feeErr.message}`
-            : 'Mint live but fee-share not locked — wire fees on the desk.',
+        warning: `Mint live but fee-share not locked — wire fees on the desk. ${feeMsg}`,
         coin: coinBase,
       }
     }
   } catch (err) {
-    console.error('Agent launch failed', err)
+    const msg = err instanceof Error ? err.message : 'Launch failed.'
+    console.error('Agent launch failed', msg)
     return {
       ok: false,
-      error: err instanceof Error ? err.message : 'Launch failed.',
+      error: msg,
     }
   }
 }

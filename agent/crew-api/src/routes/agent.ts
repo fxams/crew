@@ -1,11 +1,18 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { requireApiKey } from '../lib/auth.js'
+import { apiKeyFingerprint, clientIp, requireAgentApiKey } from '../lib/auth.js'
 import { upsertCoin, type ApiCoin } from '../lib/coins.js'
-import { MAX_CREW } from '../lib/agent/constants.js'
+import { MAX_CREW, MAX_INITIAL_BUY_SOL } from '../lib/agent/constants.js'
 import { agentDiscoveryJson } from '../lib/agent/discovery.js'
+import {
+  getIdempotent,
+  normalizeIdempotencyKey,
+  setIdempotent,
+} from '../lib/agent/idempotency.js'
 import { planNarrativeHires } from '../lib/agent/narrative.js'
 import { launchForAgent, type AgentLaunchInput } from '../lib/agent/launch.js'
+import { takeRateLimit } from '../lib/agent/rate-limit.js'
+import { assertSafeHttpUrl } from '../lib/agent/safe-url.js'
 import { parseLauncherKey } from '../lib/agent/send.js'
 
 export const agentRouter = Router()
@@ -20,12 +27,16 @@ const crewMemberSchema = z.object({
 const launchBodySchema = z
   .object({
     name: z.string().min(2).max(32),
-    ticker: z.string().min(2).max(13),
+    ticker: z
+      .string()
+      .min(2)
+      .max(13)
+      .regex(/^\$?[A-Za-z0-9]{2,13}$/, 'Ticker must be 2–13 letters/numbers'),
     description: z.string().max(240).optional().default(''),
     mode: z.enum(['split', 'buyback', 'raid', 'agent']).optional().default('agent'),
     twitter: z.string().max(128).optional(),
     website: z.string().max(256).optional(),
-    initialBuySol: z.number().min(0).max(100).optional().default(0),
+    initialBuySol: z.number().min(0).max(MAX_INITIAL_BUY_SOL).optional().default(0),
     imageUrl: z.string().url().optional(),
     imageBase64: z.string().min(64).optional(),
     imageContentType: z.string().max(64).optional(),
@@ -59,6 +70,28 @@ const launchBodySchema = z
         path: ['autoHire'],
       })
     }
+    if (val.imageUrl) {
+      try {
+        assertSafeHttpUrl(val.imageUrl, 'imageUrl')
+      } catch (err) {
+        ctx.addIssue({
+          code: 'custom',
+          message: err instanceof Error ? err.message : 'Invalid imageUrl',
+          path: ['imageUrl'],
+        })
+      }
+    }
+    if (val.website) {
+      try {
+        assertSafeHttpUrl(val.website, 'website')
+      } catch (err) {
+        ctx.addIssue({
+          code: 'custom',
+          message: err instanceof Error ? err.message : 'Invalid website',
+          path: ['website'],
+        })
+      }
+    }
   })
 
 const autohireBodySchema = z.object({
@@ -68,13 +101,40 @@ const autohireBodySchema = z.object({
   seats: z.number().int().min(1).max(MAX_CREW).optional().default(5),
 })
 
+function applyRateLimit(
+  res: import('express').Response,
+  key: string,
+  limit: number,
+  windowMs: number,
+): boolean {
+  const result = takeRateLimit(key, { limit, windowMs })
+  res.setHeader('X-RateLimit-Limit', String(limit))
+  res.setHeader('X-RateLimit-Remaining', String(result.remaining))
+  res.setHeader('X-RateLimit-Reset', String(Math.ceil(result.resetAt / 1000)))
+  if (!result.ok) {
+    res.setHeader('Retry-After', String(result.retryAfterSec))
+    res.status(429).json({
+      ok: false,
+      error: 'Rate limit exceeded — slow down and retry.',
+      retryAfterSec: result.retryAfterSec,
+    })
+    return false
+  }
+  return true
+}
+
 agentRouter.get('/agent', (_req, res) => {
   res.setHeader('Cache-Control', 'public, max-age=300')
   res.json(agentDiscoveryJson())
 })
 
-agentRouter.post('/agent/autohire', requireApiKey, async (req, res) => {
+agentRouter.post('/agent/autohire', requireAgentApiKey, async (req, res) => {
   try {
+    const fp = apiKeyFingerprint(req)
+    const ip = clientIp(req)
+    if (!applyRateLimit(res, `autohire:key:${fp}`, 30, 60_000)) return
+    if (!applyRateLimit(res, `autohire:ip:${ip}`, 60, 60_000)) return
+
     const body = autohireBodySchema.parse(req.body)
     if (!body.name.trim() && !body.ticker.trim() && !body.description.trim()) {
       res.status(400).json({
@@ -104,6 +164,7 @@ agentRouter.post('/agent/autohire', requireApiKey, async (req, res) => {
         score: h.score,
       })),
       crew: plan.crew,
+      tip: 'Inspect hires/reasons, optionally remix via crew[] on launch, or keep autoHire.',
     })
   } catch (err) {
     res.status(400).json({ error: err instanceof Error ? err.message : 'autohire failed' })
@@ -120,8 +181,29 @@ function resolveLauncherKey(req: { header(name: string): string | undefined }): 
   )
 }
 
-agentRouter.post('/agent/launch', requireApiKey, async (req, res) => {
+agentRouter.post('/agent/launch', requireAgentApiKey, async (req, res) => {
   try {
+    const fp = apiKeyFingerprint(req)
+    const ip = clientIp(req)
+    if (!applyRateLimit(res, `launch:key:${fp}`, 5, 60_000)) return
+    if (!applyRateLimit(res, `launch:ip:${ip}`, 10, 60_000)) return
+
+    let idem: string | null = null
+    try {
+      idem = normalizeIdempotencyKey(req.header('x-idempotency-key') || undefined)
+    } catch (err) {
+      res.status(400).json({ ok: false, error: err instanceof Error ? err.message : 'bad idempotency key' })
+      return
+    }
+    if (idem) {
+      const cached = getIdempotent(`launch:${fp}:${idem}`)
+      if (cached) {
+        res.setHeader('X-Idempotency-Replayed', '1')
+        res.status(cached.status).json(cached.body)
+        return
+      }
+    }
+
     const body = launchBodySchema.parse(req.body)
     const launcher = parseLauncherKey(resolveLauncherKey(req))
 
@@ -161,12 +243,17 @@ agentRouter.post('/agent/launch', requireApiKey, async (req, res) => {
         feeShareSignature: result.feeShareSignature,
       } as ApiCoin)
     } catch (persistErr) {
-      console.warn('agent launch persist failed', persistErr)
+      const msg = persistErr instanceof Error ? persistErr.message : 'persist failed'
+      console.warn('agent launch persist failed', msg)
     }
 
-    res.status(201).json(result)
+    // 201 = fully locked; 202 = mint live but fee-share incomplete (agents must check feeShareLocked).
+    const status = result.feeShareLocked ? 201 : 202
+    if (idem) setIdempotent(`launch:${fp}:${idem}`, status, result)
+    res.status(status).json(result)
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'launch failed'
+    // Never include header material; Zod issues are safe.
     const status = /unauthorized|launcher key|api key/i.test(msg) ? 401 : 400
     res.status(status).json({ ok: false, error: msg })
   }

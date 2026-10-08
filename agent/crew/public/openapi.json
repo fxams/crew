@@ -166,7 +166,7 @@
         "type": "apiKey",
         "in": "header",
         "name": "x-crew-api-key",
-        "description": "Platform CREW_API_KEY"
+        "description": "CREW_AGENT_API_KEY (server-only agent key)"
       },
       "LauncherKey": {
         "type": "apiKey",
@@ -270,7 +270,7 @@
           "initialBuySol": {
             "type": "number",
             "minimum": 0,
-            "maximum": 100,
+            "maximum": 10,
             "default": 0
           },
           "imageUrl": {

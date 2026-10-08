@@ -73,6 +73,8 @@ services:
           property: connectionString
       - key: CREW_API_KEY
         sync: false
+      - key: CREW_AGENT_API_KEY
+        sync: false
       - key: CREW_BUYBACK_WALLET
         sync: false
       - key: RPC_URL

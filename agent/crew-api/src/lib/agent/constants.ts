@@ -1,4 +1,8 @@
 export const MAX_CREW = 10
+/** Cap agent initial buys — confused agents should not dump large wallets. */
+export const MAX_INITIAL_BUY_SOL = 10
+/** Minimum SOL left for create + fee-share txs beyond the initial buy. */
+export const MIN_LAUNCH_FEE_SOL = 0.02
 export const PLATFORM_BUYBACK_BPS = 2500
 export const MODE_DESK_BPS = {
   split: 0,

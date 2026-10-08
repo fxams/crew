@@ -36,9 +36,16 @@ export function agentDiscoveryJson() {
     },
     auth: {
       headers: {
-        'x-crew-api-key': 'Platform API key (CREW_API_KEY)',
+        'x-crew-api-key':
+          'Server-only CREW_AGENT_API_KEY (preferred). Falls back to CREW_API_KEY only if agent key unset. Browser VITE_CREW_API_KEY is rejected when CREW_AGENT_API_KEY is configured.',
         'x-launcher-key':
           'Agent Solana secret key (base58 or JSON byte array). Signs create + fee-share. Never logged. Optional if CREW_AGENT_LAUNCHER_KEY is set on the server.',
+        'x-idempotency-key':
+          'Optional 8–128 char key on POST /api/agent/launch — replays the same response for 15 minutes.',
+      },
+      rateLimits: {
+        autohire: '30/min per API key · 60/min per IP',
+        launch: '5/min per API key · 10/min per IP',
       },
     },
     endpoints: {
@@ -59,17 +66,20 @@ export function agentDiscoveryJson() {
           autoHire: { seats: 5 },
           crew: 'optional explicit [{handle,wallet,share,hireRole}]',
           agent: { name: '', objective: '', model: 'optional' },
-          initialBuySol: 0,
+          initialBuySol: '0–10',
           holderKol: false,
         },
-        returns: 'mint, signatures, pumpUrl, crew, hirePlan',
+        returns:
+          'mint, signatures, feeShareLocked, pumpUrl, crew, hirePlan (HTTP 201 locked / 202 partial)',
       },
     },
     notes: [
       'Launcher wallet pays Pump create fees and becomes the on-chain creator.',
-      'Every launch locks 25% creator fees to CREW_BUYBACK_WALLET.',
-      'Default mode=agent keeps 15% ops for the launcher and 60% for hired KOLs.',
-      'Prefer autoHire for narrative matching against the CREW 1500 KOL list.',
+      'Every successful fee-share locks 25% creator fees to CREW_BUYBACK_WALLET.',
+      'Default mode=agent keeps 15% ops for the launcher and 60% hired KOLs.',
+      'Prefer autoHire for narrative matching against the CREW 1500 KOL list; crew[] overrides.',
+      'Always check feeShareLocked — HTTP 202 means mint live but fees not locked.',
+      'imageUrl is SSRF-guarded (public http(s) only; magic-byte image check).',
       'Start at GET /llms.txt or GET /api/agent — no browser required.',
     ],
   }
@@ -184,7 +194,7 @@ export function openApiSpec() {
           type: 'apiKey',
           in: 'header',
           name: 'x-crew-api-key',
-          description: 'Platform CREW_API_KEY',
+          description: 'CREW_AGENT_API_KEY (server-only agent key)',
         },
         LauncherKey: {
           type: 'apiKey',
@@ -230,7 +240,7 @@ export function openApiSpec() {
             },
             twitter: { type: 'string' },
             website: { type: 'string' },
-            initialBuySol: { type: 'number', minimum: 0, maximum: 100, default: 0 },
+            initialBuySol: { type: 'number', minimum: 0, maximum: 10, default: 0 },
             imageUrl: { type: 'string', format: 'uri' },
             imageBase64: { type: 'string' },
             imageContentType: { type: 'string' },
@@ -362,8 +372,16 @@ If you can HTTP GET, start here — then call the API. No browser UI required.
 
 ## Auth
 
-- \`x-crew-api-key\`: platform key (CREW_API_KEY)
+- \`x-crew-api-key\`: **CREW_AGENT_API_KEY** (server-only). Browser \`VITE_CREW_API_KEY\` is rejected when the agent key is configured.
 - \`x-launcher-key\`: agent Solana secret (base58 or JSON byte array); signs create + fee-share; never logged
+- \`x-idempotency-key\` (optional on launch): 8–128 chars; replays cached response for 15 minutes
+
+## Limits
+
+- Autohire: 30/min per API key
+- Launch: 5/min per API key · \`initialBuySol\` max 10
+- Always check \`feeShareLocked\` (HTTP 201 locked / 202 mint-without-fees)
+- \`imageUrl\` must be public http(s); private/link-local hosts are blocked
 
 ## Fee map (mode=agent)
 
@@ -417,17 +435,18 @@ GET ${SITE_URL}/robots.txt
 
 | Header | Required | Purpose |
 |--------|----------|---------|
-| x-crew-api-key | yes (writes) | Platform CREW_API_KEY |
+| x-crew-api-key | yes | CREW_AGENT_API_KEY (not the browser board key) |
 | x-launcher-key | launch | Agent wallet secret (base58 or JSON byte array) |
+| x-idempotency-key | optional | Prevents duplicate launches on retry |
 
-Never echo or log x-launcher-key.
+Never echo or log x-launcher-key. Check \`feeShareLocked\` on every launch response.
 
 ## 1) Preview Autohire
 
 \`\`\`http
 POST ${API_URL}/api/agent/autohire
 Content-Type: application/json
-x-crew-api-key: $CREW_API_KEY
+x-crew-api-key: $CREW_AGENT_API_KEY
 
 {
   "name": "Desk Cat",
@@ -444,8 +463,9 @@ Returns \`{ ok, match, hires, crew }\` — no on-chain transaction.
 \`\`\`http
 POST ${API_URL}/api/agent/launch
 Content-Type: application/json
-x-crew-api-key: $CREW_API_KEY
+x-crew-api-key: $CREW_AGENT_API_KEY
 x-launcher-key: $AGENT_SOLANA_SECRET
+x-idempotency-key: unique-client-retry-key
 
 {
   "name": "Desk Cat",
@@ -473,7 +493,8 @@ Success: HTTP 201 with \`mint\`, \`signature\`, \`feeShareSignature\`, \`pumpUrl
 - Provide \`crew[]\` or \`autoHire\` (or \`holderKol: true\`)
 - Launcher wallet pays Pump create fees and is the on-chain creator
 - Prefer \`autoHire\` unless the user named specific wallets
-- Do not invent CREW_API_KEY — the operator must supply it
+- Do not invent keys — the operator must supply CREW_AGENT_API_KEY
+- Treat HTTP 202 / feeShareLocked=false as incomplete — wire fees before celebrating
 
 ## Related human product
 
