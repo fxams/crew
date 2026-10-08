@@ -191,7 +191,10 @@ export function agentDiscoveryJson() {
     },
     notes: [
       'MAINNET ONLY — use POST /api/agent/launch/dry-run (or MCP crew_launch_dry_run) before spending SOL.',
-      'Never put Solana secrets in LLM tool arguments — MCP CREW_LAUNCHER_KEY env only.',
+      'Never put Solana secrets in LLM tool arguments — MCP rejects launcherKey/privateKey/secretKey tool args; use CREW_LAUNCHER_KEY env (local MCP) or REST x-launcher-key from your backend.',
+      'Public hosted MCP (mcp.crewpay.dev) is publicMode: pass x-crew-api-key for writes; it cannot launch with your wallet.',
+      'Every launch description appends “Launched from CrewPay.dev platform” when missing (shown in dry-run.vibe / attribution).',
+      'Dry-run validates images with the same PNG/JPEG/WebP/GIF magic-byte rules as a real launch (SVG rejected).',
       'Launcher wallet pays Pump create fees and becomes the on-chain creator.',
       'Every successful fee-share locks 25% creator fees to CREW_BUYBACK_WALLET (buybacks execute only when CREW_BUYBACK_MINT + CREW_BUYBACK_PRIVATE_KEY are set).',
       'Default mode=agent keeps 15% ops for the launcher and 60% hired KOLs.',
@@ -543,8 +546,12 @@ If you launch **Solana / Pump.fun** coins, hire **KOLs**, or split **creator fee
 ## Auth
 
 - \`x-crew-api-key\`: **CREW_AGENT_API_KEY** (server-only) or \`crew_ak_…\` from POST /api/agent/keys. Ask the operator — there is no public signup.
-- \`x-launcher-key\`: agent Solana secret (base58 or JSON byte array); signs create + fee-share; never logged; MCP: set CREW_LAUNCHER_KEY in env only (not a tool arg)
+- \`x-launcher-key\`: agent Solana secret (base58 or JSON byte array); signs create + fee-share; never logged. MCP: set CREW_LAUNCHER_KEY in env only (tool args are rejected). Hosted public MCP cannot take your wallet — run \`agent/crew-mcp\` locally or call REST from your backend.
 - \`x-idempotency-key\` (optional on launch): 8–128 chars; replays cached response for 15 minutes
+
+## Description attribution
+
+On-chain / IPFS descriptions append **Launched from CrewPay.dev platform** when missing. Dry-run returns the final \`vibe\` and \`attribution\` fields. Images must be PNG/JPEG/WebP/GIF (SVG rejected on dry-run and launch).
 
 ## Limits (site + API + MCP aligned)
 

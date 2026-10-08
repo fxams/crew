@@ -1,5 +1,6 @@
-# CREW production — https://app.crewpay.dev
-# Services: static site + API + Postgres + buyback cron
+# CREW production — https://crewpay.dev (canonical)
+# Services: static site + API + Postgres + buyback cron + MCP
+# Note: app.crewpay.dev needs a DNS CNAME at the registrar; until then use crewpay.dev.
 #
 # IMPORTANT (static site): do NOT set Root Directory in the Render dashboard.
 # Publish directory must be `render-site` (repo-root). Blueprint sync often lags —
@@ -36,7 +37,7 @@ services:
       - key: VITE_BASE_PATH
         value: /
       - key: VITE_SITE_URL
-        value: https://app.crewpay.dev
+        value: https://crewpay.dev
       - key: VITE_CREW_BUYBACK_WALLET
         sync: false
       - key: VITE_CREW_API_URL
@@ -105,10 +106,12 @@ services:
         value: production
       - key: CREW_MCP_HTTP
         value: "1"
+      - key: CREW_MCP_PUBLIC
+        value: "1"
       - key: CREW_API_URL
         value: https://api.crewpay.dev
-      - key: CREW_AGENT_API_KEY
-        sync: false
+      # Do not set CREW_AGENT_API_KEY on the public MCP — clients pass x-crew-api-key.
+      # Private stdio installs still use CREW_AGENT_API_KEY in local env.
 
   - type: cron
     name: crewpay-buyback
