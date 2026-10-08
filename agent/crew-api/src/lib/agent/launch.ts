@@ -481,7 +481,8 @@ export async function launchForAgent(
     })
 
     // Prefer atomic create(+buy)+fee-lock so snipers cannot skim undivided fees.
-    // Path: (1) single v0+ALT tx  (2) Jito bundle [create, lock]  (3) sequential (racy).
+    // Path: (1) Jito bundle [create, lock]  (2) single v0+ALT tx  (3) sequential (racy).
+    // Jito is first — combined create+fee-share routinely exceeds 1232 bytes without ALT.
     if (!input.holderKol && shareholders) {
       const newShareholders = shareholders.map((s) => ({
         address: new PublicKey(s.wallet),
@@ -509,8 +510,53 @@ export async function launchForAgent(
         holderKol: false as const,
         agent,
       }
+      const atomicFailures: string[] = []
 
-      // (1) Single v0 transaction (fits when CREW_LOOKUP_TABLE compresses static accounts).
+      // (1) Jito bundle — create then lock land in order with no public mempool gap.
+      try {
+        const { signatures, engine } = await sendJitoBundle({
+          payer: launcher,
+          steps: [
+            { ixs: createIxs, signers: [mintKp] },
+            { ixs: feeIxs },
+          ],
+        })
+        const signature = signatures[0]!
+        const feeShareSignature = signatures[1]!
+        const [createSlot, lockSlot] = await Promise.all([
+          getSignatureSlot(signature),
+          getSignatureSlot(feeShareSignature),
+        ])
+        return {
+          ok: true,
+          mint: mintStr,
+          signature,
+          feeShareSignature,
+          feeShareLocked: true,
+          pumpUrl,
+          launcher: deskWallet,
+          crew: crewWithBps,
+          shareholders: shareholderTable,
+          mode,
+          hirePlan: hirePlanOut,
+          lockPath: 'jito-bundle',
+          createSlot,
+          lockSlot,
+          warning: `Atomic via Jito (${engine}).`,
+          coin: {
+            ...coinBaseFields,
+            signature,
+            feeShareSignature,
+            launchedAt,
+          },
+        }
+      } catch (jitoErr) {
+        const jitoMsg = jitoErr instanceof Error ? jitoErr.message : 'jito bundle failed'
+        atomicFailures.push(`jito: ${jitoMsg}`)
+        console.warn('Agent launch Jito bundle failed; trying single-tx', jitoMsg)
+      }
+
+      // (2) Single v0 transaction (needs CREW_LOOKUP_TABLE to fit ≤1232 bytes typically).
       try {
         const signature = await sendInstructions({
           payer: launcher,
@@ -544,53 +590,12 @@ export async function launchForAgent(
       } catch (atomicErr) {
         const atomicMsg =
           atomicErr instanceof Error ? atomicErr.message : 'atomic create+fee-share failed'
-        console.warn('Agent launch single-tx atomic failed; trying Jito bundle', atomicMsg)
-      }
-
-      // (2) Jito bundle — create then lock land in order with no public mempool gap.
-      try {
-        const { signatures } = await sendJitoBundle({
-          payer: launcher,
-          steps: [
-            { ixs: createIxs, signers: [mintKp] },
-            { ixs: feeIxs },
-          ],
-        })
-        const signature = signatures[0]!
-        const feeShareSignature = signatures[1]!
-        const [createSlot, lockSlot] = await Promise.all([
-          getSignatureSlot(signature),
-          getSignatureSlot(feeShareSignature),
-        ])
-        return {
-          ok: true,
-          mint: mintStr,
-          signature,
-          feeShareSignature,
-          feeShareLocked: true,
-          pumpUrl,
-          launcher: deskWallet,
-          crew: crewWithBps,
-          shareholders: shareholderTable,
-          mode,
-          hirePlan: hirePlanOut,
-          lockPath: 'jito-bundle',
-          createSlot,
-          lockSlot,
-          coin: {
-            ...coinBaseFields,
-            signature,
-            feeShareSignature,
-            launchedAt,
-          },
-        }
-      } catch (jitoErr) {
-        const jitoMsg = jitoErr instanceof Error ? jitoErr.message : 'jito bundle failed'
-        console.warn('Agent launch Jito bundle failed', jitoMsg)
+        atomicFailures.push(`single-tx: ${atomicMsg}`)
+        console.warn('Agent launch single-tx atomic failed', atomicMsg)
         if (atomicRequired) {
           return {
             ok: false,
-            error: `Atomic fee-lock required (CREW_ATOMIC_REQUIRED=1) but both single-tx and Jito bundle failed: ${jitoMsg}. Set CREW_LOOKUP_TABLE or retry.`,
+            error: `Atomic fee-lock required (CREW_ATOMIC_REQUIRED=1). Failures: ${atomicFailures.join(' · ')}. Set CREW_LOOKUP_TABLE / check Jito egress from Render.`,
           }
         }
       }
@@ -630,8 +635,13 @@ export async function launchForAgent(
             lockPath: 'sequential',
             createSlot,
             lockSlot,
-            warning:
-              'Fee-shares locked in a follow-up tx (atomic single-tx + Jito bundle both failed). Snipers between createSlot and lockSlot pay undivided creator fees to the launcher vault — set CREW_LOOKUP_TABLE or ensure Jito reachability.',
+            warning: [
+              'Fee-shares locked in a follow-up tx (atomic paths failed — racy ~2s window).',
+              `createSlot=${createSlot ?? '?'} lockSlot=${lockSlot ?? '?'}.`,
+              'Snipers between those slots pay undivided fees to the launcher vault.',
+              `Atomic failures: ${atomicFailures.join(' · ') || 'unknown'}.`,
+              'Deploy latest main + set CREW_LOOKUP_TABLE and/or allow Jito egress; CREW_ATOMIC_REQUIRED=1 to refuse this fallback.',
+            ].join(' '),
             coin: { ...coinBase, feeShareSignature },
           }
         } catch (feeErr) {

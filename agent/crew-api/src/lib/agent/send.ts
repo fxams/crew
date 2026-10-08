@@ -12,9 +12,10 @@ import {
 import bs58 from 'bs58'
 import { rpcUrl } from './constants.js'
 
-/** Well-known Jito tip accounts (mainnet). */
-const JITO_TIP_ACCOUNTS = [
+/** Fallback Jito tip accounts (mainnet) — refreshed via getTipAccounts when possible. */
+const JITO_TIP_ACCOUNTS_FALLBACK = [
   '96gYZGLnJYVFmbjzopPSU6QiUV5CwfOwksMrsVfnxpk',
+  'HFqU5x63VTqvQss8hp11i4wVV8bD44PvwucfZ2bU7gRe',
   'HFqU5x63VTqvQss8hp11i4bVmkNWgQAvp9J2iWkxXkK',
   'Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvLkY',
   'ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49',
@@ -24,9 +25,15 @@ const JITO_TIP_ACCOUNTS = [
   '3AVi9Tg9Uo68tJfuvoKvqKNWKkC5wPdSSdeBnizKZ6jT',
 ]
 
-const JITO_BUNDLE_URL =
-  process.env.CREW_JITO_BUNDLE_URL?.trim() ||
-  'https://mainnet.block-engine.jito.wtf/api/v1/bundles'
+/** Regional block engines — try in order until one accepts the bundle. */
+const JITO_BUNDLE_URLS = [
+  process.env.CREW_JITO_BUNDLE_URL?.trim(),
+  'https://mainnet.block-engine.jito.wtf/api/v1/bundles',
+  'https://amsterdam.mainnet.block-engine.jito.wtf/api/v1/bundles',
+  'https://frankfurt.mainnet.block-engine.jito.wtf/api/v1/bundles',
+  'https://ny.mainnet.block-engine.jito.wtf/api/v1/bundles',
+  'https://tokyo.mainnet.block-engine.jito.wtf/api/v1/bundles',
+].filter((u): u is string => Boolean(u))
 
 export function parseLauncherKey(raw: string): Keypair {
   const secret = raw.trim()
@@ -228,32 +235,61 @@ export async function sendInstructions(opts: {
   throw lastErr instanceof Error ? lastErr : new Error('sendInstructions failed')
 }
 
-async function jitoSendBundle(encodedTxs: string[]): Promise<string> {
+async function jitoRpc(
+  url: string,
+  method: string,
+  params: unknown[],
+): Promise<unknown> {
   const headers: Record<string, string> = { 'content-type': 'application/json' }
   const uuid = process.env.CREW_JITO_UUID?.trim()
   if (uuid) headers['x-jito-auth'] = uuid
-
-  const res = await fetch(JITO_BUNDLE_URL, {
+  const res = await fetch(url, {
     method: 'POST',
     headers,
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'sendBundle',
-      params: [encodedTxs],
-    }),
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
   })
   const json = (await res.json()) as {
-    result?: string
+    result?: unknown
     error?: { message?: string }
   }
-  if (json.error?.message) throw new Error(`Jito bundle: ${json.error.message}`)
-  if (!json.result) throw new Error(`Jito bundle failed (HTTP ${res.status})`)
-  return String(json.result)
+  if (json.error?.message) throw new Error(`${method}: ${json.error.message}`)
+  if (!res.ok) throw new Error(`${method} HTTP ${res.status}`)
+  return json.result
+}
+
+async function resolveJitoTipAccount(bundleUrl: string): Promise<PublicKey> {
+  try {
+    const tips = (await jitoRpc(bundleUrl, 'getTipAccounts', [])) as string[] | null
+    if (Array.isArray(tips) && tips.length) {
+      return new PublicKey(tips[Math.floor(Math.random() * tips.length)]!)
+    }
+  } catch {
+    /* use fallback list */
+  }
+  return new PublicKey(
+    JITO_TIP_ACCOUNTS_FALLBACK[
+      Math.floor(Math.random() * JITO_TIP_ACCOUNTS_FALLBACK.length)
+    ]!,
+  )
+}
+
+async function jitoSendBundle(encodedTxs: string[]): Promise<{ bundleId: string; url: string }> {
+  const errors: string[] = []
+  for (const url of JITO_BUNDLE_URLS) {
+    try {
+      const result = await jitoRpc(url, 'sendBundle', [encodedTxs])
+      if (!result) throw new Error('empty result')
+      return { bundleId: String(result), url }
+    } catch (err) {
+      errors.push(`${url}: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+  throw new Error(`Jito bundle rejected by all engines — ${errors.join(' | ')}`)
 }
 
 /**
  * Land multiple instruction groups as a Jito bundle (atomic ordering).
+ * Tip is appended to the **last** business tx (not a separate tip-only tx).
  * Closes the create→fee-lock sniper window when a single tx is too large.
  */
 export async function sendJitoBundle(opts: {
@@ -261,48 +297,50 @@ export async function sendJitoBundle(opts: {
   steps: { ixs: TransactionInstruction[]; signers?: Keypair[] }[]
   /** Lamports tip to Jito (default 100_000 = 0.0001 SOL). */
   tipLamports?: number
-}): Promise<{ signatures: string[]; bundleId: string }> {
-  if (opts.steps.length < 1 || opts.steps.length > 4) {
-    throw new Error('Jito bundle needs 1–4 steps')
+}): Promise<{ signatures: string[]; bundleId: string; engine: string }> {
+  if (opts.steps.length < 1 || opts.steps.length > 5) {
+    throw new Error('Jito bundle needs 1–5 steps')
   }
   const connection = getConnection()
   const { blockhash } = await connection.getLatestBlockhash('confirmed')
   const tipLamports = Math.max(1_000, opts.tipLamports ?? 100_000)
-  const tipAccount = new PublicKey(
-    JITO_TIP_ACCOUNTS[Math.floor(Math.random() * JITO_TIP_ACCOUNTS.length)]!,
-  )
+  const tipAccount = await resolveJitoTipAccount(JITO_BUNDLE_URLS[0]!)
 
-  const encoded: string[] = []
-  const signatures: string[] = []
-
-  for (const step of opts.steps) {
-    const v0 = await buildVersioned(
-      connection,
-      opts.payer,
-      step.ixs,
-      step.signers || [],
-      blockhash,
-    )
-    encoded.push(Buffer.from(v0.raw).toString('base64'))
-    signatures.push(v0.signature)
-  }
-
-  // Tip as final tx so the bundle lands.
   const tipIx = SystemProgram.transfer({
     fromPubkey: opts.payer.publicKey,
     toPubkey: tipAccount,
     lamports: tipLamports,
   })
-  const tipTx = await buildVersioned(connection, opts.payer, [tipIx], [], blockhash)
-  encoded.push(Buffer.from(tipTx.raw).toString('base64'))
 
-  const bundleId = await jitoSendBundle(encoded)
+  const encoded: string[] = []
+  const signatures: string[] = []
 
-  // Confirm first (create) and last business signature.
+  for (let i = 0; i < opts.steps.length; i += 1) {
+    const step = opts.steps[i]!
+    const isLast = i === opts.steps.length - 1
+    const ixs = isLast ? [...step.ixs, tipIx] : step.ixs
+    const v0 = await buildVersioned(
+      connection,
+      opts.payer,
+      ixs,
+      step.signers || [],
+      blockhash,
+    )
+    if (v0.bytes > 1232) {
+      throw new Error(
+        `Jito step ${i} too large (${v0.bytes} bytes). Shrink crew or set CREW_LOOKUP_TABLE.`,
+      )
+    }
+    encoded.push(Buffer.from(v0.raw).toString('base64'))
+    signatures.push(v0.signature)
+  }
+
+  const { bundleId, url } = await jitoSendBundle(encoded)
+
   for (const sig of signatures) {
     await confirmSignature(connection, sig, 120_000)
   }
-  return { signatures, bundleId }
+  return { signatures, bundleId, engine: url }
 }
 
 /** Slot of a confirmed signature (null if unknown). */

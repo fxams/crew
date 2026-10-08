@@ -219,7 +219,7 @@ export function agentDiscoveryJson() {
       'Self-serve auth: POST /api/agent/keys/claim → crew_ak_… then pass x-crew-api-key (no operator signup).',
       'Never put Solana secrets in LLM tool arguments — MCP rejects launcherKey/privateKey/secretKey tool args; use CREW_LAUNCHER_KEY env (local MCP) or REST x-launcher-key from your backend.',
       'Public hosted MCP (mcp.crewpay.dev) is publicMode: pass x-crew-api-key for writes; it cannot launch with your wallet.',
-      'Launch prefers atomic v0+ALT single-tx, then Jito bundle [create,lock]; sequential fallback is racy (see lockPath/createSlot/lockSlot). Set CREW_LOOKUP_TABLE and/or CREW_ATOMIC_REQUIRED=1. HTTP 202 → crew_wire_fees({ mint }).',
+      'Launch prefers Jito bundle [create,lock] first (combined tx usually >1232 bytes), then v0+ALT single-tx; sequential fallback is racy (~2s — see lockPath/createSlot/lockSlot + atomicFailures in warning). Set CREW_LOOKUP_TABLE and/or CREW_ATOMIC_REQUIRED=1. HTTP 202 → crew_wire_fees({ mint }).',
       'Crank uses OnlinePumpSdk.buildDistributeCreatorFeesInstructions (sweep before distribute) — fixes CreatorFeesNotSwept 6095. Payer may be CREW_OPS_KEY (no launcher secret).',
       'Every launch description appends “Launched from CrewPay.dev platform” when missing (shown in dry-run.vibe / attribution).',
       'Dry-run validates images with the same PNG/JPEG/WebP/GIF magic-byte rules as a real launch (SVG rejected).',
