@@ -51,6 +51,10 @@ discoveryRouter.get('/mcp.json', (_req, res) =>
     api: API_URL,
     openapi: `${API_URL}/openapi.json`,
     proof: `${SITE_URL}/proof`,
+    aliases: {
+      api: ['https://crewpay-api.onrender.com'],
+      mcp_http: ['https://crewpay-mcp.onrender.com/mcp'],
+    },
     mcp: {
       stdio: {
         package: 'agent/crew-mcp',
@@ -59,6 +63,7 @@ discoveryRouter.get('/mcp.json', (_req, res) =>
         env: ['CREW_AGENT_API_KEY', 'CREW_LAUNCHER_KEY', 'CREW_API_URL'],
       },
       http: { url: MCP_HTTP_URL, transport: 'streamable-http' },
+      http_legacy: 'https://crewpay-mcp.onrender.com/mcp',
     },
     tools: [
       'crew_discover',

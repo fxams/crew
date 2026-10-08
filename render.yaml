@@ -62,6 +62,9 @@ services:
     buildCommand: npm ci && npm run build
     startCommand: npm run migrate && npm run start
     healthCheckPath: /api/healthz
+    # Custom domain: CNAME api → crewpay-api.onrender.com (Namecheap / DNS)
+    domains:
+      - api.crewpay.dev
     envVars:
       - key: NODE_VERSION
         value: "22"
@@ -92,7 +95,9 @@ services:
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /healthz
-
+    # Custom domain: CNAME mcp → crewpay-mcp.onrender.com
+    domains:
+      - mcp.crewpay.dev
     envVars:
       - key: NODE_VERSION
         value: "22"
@@ -101,7 +106,7 @@ services:
       - key: CREW_MCP_HTTP
         value: "1"
       - key: CREW_API_URL
-        value: https://crewpay-api.onrender.com
+        value: https://api.crewpay.dev
       - key: CREW_AGENT_API_KEY
         sync: false
 

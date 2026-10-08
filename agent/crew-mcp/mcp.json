@@ -3,9 +3,13 @@
   "description": "CREW / CrewPay — Solana Pump.fun launches with narrative KOL Autohire and on-chain fee-shares for crypto AI agents.",
   "homepage": "https://crewpay.dev/agents",
   "llms": "https://crewpay.dev/llms.txt",
-  "api": "https://crewpay-api.onrender.com",
-  "openapi": "https://crewpay-api.onrender.com/openapi.json",
+  "api": "https://api.crewpay.dev",
+  "openapi": "https://api.crewpay.dev/openapi.json",
   "proof": "https://crewpay.dev/proof",
+  "aliases": {
+    "api": ["https://crewpay-api.onrender.com"],
+    "mcp_http": ["https://crewpay-mcp.onrender.com/mcp"]
+  },
   "mcp": {
     "stdio": {
       "command": "node",
@@ -13,7 +17,7 @@
       "env": ["CREW_AGENT_API_KEY", "CREW_LAUNCHER_KEY", "CREW_API_URL"]
     },
     "http": {
-      "url": "https://crewpay-mcp.onrender.com/mcp",
+      "url": "https://mcp.crewpay.dev/mcp",
       "transport": "streamable-http"
     }
   },

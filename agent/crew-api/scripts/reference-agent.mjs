@@ -13,7 +13,7 @@
  *   node scripts/reference-agent.mjs "desk cat" --launch
  */
 
-const API = (process.env.CREW_API_URL || 'https://crewpay-api.onrender.com').replace(/\/$/, '')
+const API = (process.env.CREW_API_URL || 'https://api.crewpay.dev').replace(/\/$/, '')
 const KEY = process.env.CREW_AGENT_API_KEY || ''
 const LAUNCHER = process.env.CREW_LAUNCHER_KEY || ''
 
