@@ -32,7 +32,10 @@ describe('agent discovery docs', () => {
   })
 
   it('ships agent card + ai-plugin + robots allows', () => {
-    expect(agentCard().skills.map((s) => s.id)).toContain('crew-launch')
+    expect(agentCard('api').skills.map((s) => s.id)).toContain('crew-launch')
+    expect(agentCard('api').url).toBe('https://api.crewpay.dev')
+    expect(agentCard('site').url).toBe('https://crewpay.dev')
+    expect(agentCard('api').capabilities.mcp).toBe('https://mcp.crewpay.dev/mcp')
     expect(aiPluginManifest().api.url).toContain('/openapi.json')
     expect(robotsTxt()).toContain('GPTBot')
     expect(robotsTxt()).toContain('ClaudeBot')

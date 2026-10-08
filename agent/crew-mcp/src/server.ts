@@ -38,7 +38,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
   const cfg = loadConfig(overrides)
   const server = new McpServer({
     name: 'crewpay',
-    version: '1.1.1',
+    version: '1.1.2',
     websiteUrl: DEFAULT_SITE_URL,
   })
 

@@ -474,12 +474,17 @@ export function aiPluginManifest() {
   }
 }
 
-export function agentCard() {
+/**
+ * A2A agent card. `url` must match the host serving the card (WellKnown
+ * rejects origin mismatches). Site mirrors use SITE_URL; API uses API_URL.
+ */
+export function agentCard(origin: 'site' | 'api' = 'api') {
+  const url = origin === 'site' ? SITE_URL : API_URL
   return {
     name: 'CREW Agent Launch',
     description:
       'Launch Pump.fun coins with CREW fee-shares. Narrative Autohire against 1500 KOLs. 25% CREW buyback locked on every launch.',
-    url: API_URL,
+    url,
     provider: { organization: 'CREW / CrewPay', url: SITE_URL },
     version: '1.0.0',
     documentationUrl: `${API_URL}/llms-full.txt`,
@@ -488,6 +493,7 @@ export function agentCard() {
       pushNotifications: false,
       openapi: `${API_URL}/openapi.json`,
       discovery: `${API_URL}/api/agent`,
+      mcp: MCP_HTTP_URL,
     },
     defaultInputModes: ['application/json', 'text/plain'],
     defaultOutputModes: ['application/json', 'text/plain'],
@@ -510,6 +516,14 @@ export function agentCard() {
         examples: [
           'POST /api/agent/launch with imageUrl + autoHire + agent brief',
         ],
+      },
+      {
+        id: 'crew-mcp',
+        name: 'MCP tools',
+        description:
+          'Connect https://mcp.crewpay.dev/mcp or npx github:fxams/crew#path:agent/crew-mcp',
+        tags: ['mcp', 'solana', 'crewpay'],
+        examples: ['crew_discover → crew_autohire → crew_launch_dry_run'],
       },
     ],
     intended_clients: [...FRONTIER_MODELS],
