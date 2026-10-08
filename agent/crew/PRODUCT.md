@@ -44,7 +44,8 @@ Every mode starts with a fixed **25% CREW buyback** of creator fees.
 - No demo mint path — empty desk until real launches
 - Launch templates (incl. Agent hires), scoreboard, desk pulse, CT receipts
 - Crank remits via `distributeCreatorFeesV2`
-- Hosting: https://app.crewpay.dev / https://crewpay.dev (Render static)
+- Hosting: https://crewpay.dev (Render static; `app.crewpay.dev` optional / no DNS)
+- **Distribution**: see repo-root [`DISCOVERY.md`](../../DISCOVERY.md) — WellKnown, MCP registries, Solana Agent Registry, CT draft
 
 ## Explicitly out
 
