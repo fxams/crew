@@ -40,7 +40,7 @@ services:
       - key: VITE_CREW_BUYBACK_WALLET
         sync: false
       - key: VITE_CREW_API_URL
-        sync: false
+        value: https://api.crewpay.dev
       - key: VITE_CREW_API_KEY
         sync: false
       - key: VITE_RPC_URL

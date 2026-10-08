@@ -1,7 +1,7 @@
 /**
  * Materialize llms.txt / OpenAPI / well-known files into the Vite public/
  * folder so frontier LLM crawlers hitting crewpay.dev find the same docs
- * as crewpay-api.onrender.com.
+ * as api.crewpay.dev.
  *
  * Source of truth: agent/crew-api/src/lib/agent/discovery.ts (built JS).
  */

@@ -1,0 +1,103 @@
+# CREW Agent Launch — full instructions
+
+For: OpenAI GPT / ChatGPT / o-series; Anthropic Claude; Google Gemini; xAI Grok; Meta Llama; DeepSeek; Mistral; Cursor Cloud / IDE agents; MCP clients (Cursor, Claude Desktop, custom); Crypto / Solana / Pump.fun trading & launch agents; Any tool-using agent with HTTP GET/POST.
+
+## What this is
+
+CrewPay lets an AI agent launch a Solana Pump.fun coin and permanently split creator fees to hired KOL wallets + a 25% CREW buyback cut — without using the browser desk.
+
+Base URL: https://api.crewpay.dev
+Human site: https://crewpay.dev
+
+## Discovery (public, no auth)
+
+```
+GET https://api.crewpay.dev/
+GET https://api.crewpay.dev/api/agent
+GET https://api.crewpay.dev/llms.txt
+GET https://api.crewpay.dev/llms-full.txt
+GET https://api.crewpay.dev/openapi.json
+GET https://api.crewpay.dev/.well-known/agent.json
+GET https://api.crewpay.dev/.well-known/ai-plugin.json
+```
+
+Site mirrors (same content for crawlers hitting the marketing domain):
+
+```
+GET https://crewpay.dev/llms.txt
+GET https://crewpay.dev/llms-full.txt
+GET https://crewpay.dev/openapi.json
+GET https://crewpay.dev/.well-known/agent.json
+GET https://crewpay.dev/.well-known/ai-plugin.json
+GET https://crewpay.dev/robots.txt
+```
+
+## Auth headers
+
+| Header | Required | Purpose |
+|--------|----------|---------|
+| x-crew-api-key | yes | CREW_AGENT_API_KEY (not the browser board key) |
+| x-launcher-key | launch | Agent wallet secret (base58 or JSON byte array) |
+| x-idempotency-key | optional | Prevents duplicate launches on retry |
+
+Never echo or log x-launcher-key. Check `feeShareLocked` on every launch response.
+
+## 1) Preview Autohire
+
+```http
+POST https://api.crewpay.dev/api/agent/autohire
+Content-Type: application/json
+x-crew-api-key: $CREW_AGENT_API_KEY
+
+{
+  "name": "Desk Cat",
+  "ticker": "DCAT",
+  "description": "ai agent hires kols for a trench meme",
+  "seats": 5
+}
+```
+
+Returns `{ ok, match, hires, crew }` — no on-chain transaction.
+
+## 2) Launch
+
+```http
+POST https://api.crewpay.dev/api/agent/launch
+Content-Type: application/json
+x-crew-api-key: $CREW_AGENT_API_KEY
+x-launcher-key: $AGENT_SOLANA_SECRET
+x-idempotency-key: unique-client-retry-key
+
+{
+  "name": "Desk Cat",
+  "ticker": "DCAT",
+  "description": "ai agent hires kols",
+  "mode": "agent",
+  "imageUrl": "https://example.com/cat.png",
+  "autoHire": { "seats": 5 },
+  "agent": {
+    "name": "DeskBot",
+    "objective": "Hire KOLs and grow DCAT on CREW",
+    "model": "claude"
+  },
+  "initialBuySol": 0
+}
+```
+
+`agent.model` is a free-form label — use values like `gpt`, `claude`, `gemini`, `grok`, `llama`, `deepseek`, `mistral`, `cursor`, etc.
+
+Success: HTTP 201 with `mint`, `signature`, `feeShareSignature`, `pumpUrl`, `crew`, `hirePlan`.
+
+## Rules agents must follow
+
+- Provide `imageUrl` or `imageBase64`
+- Provide `crew[]` or `autoHire` (or `holderKol: true`)
+- Launcher wallet pays Pump create fees and is the on-chain creator
+- Prefer `autoHire` unless the user named specific wallets
+- Do not invent keys — the operator must supply CREW_AGENT_API_KEY
+- Treat HTTP 202 / feeShareLocked=false as incomplete — wire fees before celebrating
+
+## Related human product
+
+Desk UI: https://crewpay.dev
+Product brief: see repository PRODUCT.md (Agent API section)

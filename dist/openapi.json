@@ -1,0 +1,326 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "CREW Agent Launch API",
+    "version": "1.0.0",
+    "summary": "Launch Pump.fun coins with CREW fee-shares from any AI agent",
+    "description": "CrewPay agent API for frontier LLMs and tool-using agents.\n\nCompatible with: OpenAI GPT / ChatGPT / o-series, Anthropic Claude, Google Gemini, xAI Grok, Meta Llama, DeepSeek, Mistral, Cursor Cloud / IDE agents, MCP clients (Cursor, Claude Desktop, custom), Crypto / Solana / Pump.fun trading & launch agents, Any tool-using agent with HTTP GET/POST.\n\nHuman desk: https://crewpay.dev — Agent discovery: GET /api/agent or /llms.txt",
+    "contact": {
+      "url": "https://crewpay.dev"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.crewpay.dev",
+      "description": "Production"
+    }
+  ],
+  "tags": [
+    {
+      "name": "discovery",
+      "description": "Public machine-readable docs"
+    },
+    {
+      "name": "agent",
+      "description": "Autohire + launch"
+    }
+  ],
+  "paths": {
+    "/llms.txt": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "llms.txt index for AI crawlers",
+        "operationId": "getLlmsTxt",
+        "responses": {
+          "200": {
+            "description": "text/plain llms.txt"
+          }
+        }
+      }
+    },
+    "/llms-full.txt": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Full agent instructions",
+        "operationId": "getLlmsFullTxt",
+        "responses": {
+          "200": {
+            "description": "text/plain full docs"
+          }
+        }
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "This OpenAPI document",
+        "operationId": "getOpenApi",
+        "responses": {
+          "200": {
+            "description": "OpenAPI 3.1 JSON"
+          }
+        }
+      }
+    },
+    "/api/agent": {
+      "get": {
+        "tags": [
+          "discovery",
+          "agent"
+        ],
+        "summary": "Agent capability discovery JSON",
+        "operationId": "getAgentDiscovery",
+        "responses": {
+          "200": {
+            "description": "Discovery document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/autohire": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Preview narrative KOL autohire (no on-chain tx)",
+        "operationId": "postAgentAutohire",
+        "security": [
+          {
+            "CrewApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutohireRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Hire plan + crew wallets"
+          },
+          "401": {
+            "description": "Missing/invalid API key"
+          }
+        }
+      }
+    },
+    "/api/agent/launch": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Launch Pump coin with CREW fee-shares",
+        "operationId": "postAgentLaunch",
+        "security": [
+          {
+            "CrewApiKey": [],
+            "LauncherKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LaunchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Mint created"
+          },
+          "400": {
+            "description": "Validation or launch error"
+          },
+          "401": {
+            "description": "Missing/invalid auth"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "CrewApiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-crew-api-key",
+        "description": "CREW_AGENT_API_KEY (server-only agent key)"
+      },
+      "LauncherKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-launcher-key",
+        "description": "Agent Solana secret (base58 or JSON byte array)"
+      }
+    },
+    "schemas": {
+      "AutohireRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 32
+          },
+          "ticker": {
+            "type": "string",
+            "maxLength": 13
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 240
+          },
+          "seats": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10,
+            "default": 5
+          }
+        }
+      },
+      "CrewMember": {
+        "type": "object",
+        "required": [
+          "handle",
+          "wallet",
+          "share"
+        ],
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "wallet": {
+            "type": "string"
+          },
+          "share": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "hireRole": {
+            "type": "string",
+            "enum": [
+              "caller",
+              "chart",
+              "raid",
+              "kol",
+              "dev"
+            ]
+          }
+        }
+      },
+      "LaunchRequest": {
+        "type": "object",
+        "required": [
+          "name",
+          "ticker"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 32
+          },
+          "ticker": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 13
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 240
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "split",
+              "buyback",
+              "raid",
+              "agent"
+            ],
+            "default": "agent"
+          },
+          "twitter": {
+            "type": "string"
+          },
+          "website": {
+            "type": "string"
+          },
+          "initialBuySol": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10,
+            "default": 0
+          },
+          "imageUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "imageBase64": {
+            "type": "string"
+          },
+          "imageContentType": {
+            "type": "string"
+          },
+          "crew": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CrewMember"
+            }
+          },
+          "autoHire": {
+            "type": "object",
+            "properties": {
+              "seats": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10,
+                "default": 5
+              }
+            }
+          },
+          "agent": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "objective": {
+                "type": "string"
+              },
+              "model": {
+                "type": "string",
+                "description": "Optional mind label — e.g. gpt, claude, gemini, grok, llama, deepseek, mistral, cursor"
+              }
+            }
+          },
+          "holderKol": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      }
+    }
+  }
+}

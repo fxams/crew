@@ -3,7 +3,7 @@
  * Reference crypto agent — discover → autohire → (optional) launch.
  *
  * Env:
- *   CREW_API_URL           default https://crewpay-api.onrender.com
+ *   CREW_API_URL           default https://api.crewpay.dev
  *   CREW_AGENT_API_KEY     required for autohire/launch
  *   CREW_LAUNCHER_KEY      required only when --launch
  *   CREW_IMAGE_URL         public image for --launch

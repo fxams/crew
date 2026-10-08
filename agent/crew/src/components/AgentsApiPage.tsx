@@ -344,7 +344,7 @@ export function AgentsApiPage() {
           {" · "}
           <Link to="/launch">Launch desk</Link>
           {" · "}
-          <a href={`${CREW_AGENT_API_URL}/llms.txt`} target="_blank" rel="noreferrer">
+          <a href={`${CREW_PUBLIC_API_URL}/llms.txt`} target="_blank" rel="noreferrer">
             llms.txt
           </a>
         </div>
