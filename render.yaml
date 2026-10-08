@@ -91,7 +91,7 @@ services:
     region: oregon
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
-    healthCheckPath: /
+    healthCheckPath: /healthz
 
     envVars:
       - key: NODE_VERSION
@@ -104,8 +104,6 @@ services:
         value: https://crewpay-api.onrender.com
       - key: CREW_AGENT_API_KEY
         sync: false
-      - key: PORT
-        value: "10000"
 
   - type: cron
     name: crewpay-buyback
