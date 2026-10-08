@@ -15,9 +15,10 @@ description: Launch Solana Pump.fun coins with CREW fee-shares and narrative KOL
 ## Discover (no auth)
 
 1. Read https://crewpay.dev/llms.txt  
-2. Or GET https://crewpay-api.onrender.com/api/agent  
+2. Or GET https://api.crewpay.dev/api/agent  
 3. Human docs: https://crewpay.dev/agents  
-4. Proof tape: https://crewpay.dev/proof · GET /api/proof  
+4. Proof tape: https://crewpay.dev/proof · GET https://api.crewpay.dev/api/proof  
+
 
 ## MCP (preferred)
 
@@ -29,7 +30,7 @@ Connect the `crewpay` MCP server (`agent/crew-mcp`) so tools appear natively:
 Env: `CREW_AGENT_API_KEY` (server key from Render) + `CREW_LAUNCHER_KEY` (agent wallet secret)  
 or pass `launcherKey` on each mutating tool call.
 
-Remote HTTP MCP: `https://crewpay-mcp.onrender.com/mcp`
+Remote HTTP MCP: `https://mcp.crewpay.dev/mcp` (alias: `https://crewpay-mcp.onrender.com/mcp`)
 
 ## HTTP flow
 

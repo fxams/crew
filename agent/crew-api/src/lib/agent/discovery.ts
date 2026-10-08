@@ -1,7 +1,10 @@
 /** Machine-readable discovery for frontier LLMs / tool-using agents. */
 
 export const SITE_URL = 'https://crewpay.dev'
-export const API_URL = 'https://crewpay-api.onrender.com'
+/** Canonical Agent API (custom domain). */
+export const API_URL = 'https://api.crewpay.dev'
+/** Render subdomain — kept as alias while DNS/certs propagate. */
+export const API_URL_LEGACY = 'https://crewpay-api.onrender.com'
 
 export const FRONTIER_MODELS = [
   'OpenAI GPT / ChatGPT / o-series',
@@ -17,7 +20,9 @@ export const FRONTIER_MODELS = [
   'Any tool-using agent with HTTP GET/POST',
 ] as const
 
-export const MCP_HTTP_URL = 'https://crewpay-mcp.onrender.com/mcp'
+/** Canonical MCP Streamable HTTP. */
+export const MCP_HTTP_URL = 'https://mcp.crewpay.dev/mcp'
+export const MCP_HTTP_URL_LEGACY = 'https://crewpay-mcp.onrender.com/mcp'
 export const MCP_MANIFEST_URL = `${SITE_URL}/mcp.json`
 
 export function agentDiscoveryJson() {
@@ -29,6 +34,11 @@ export function agentDiscoveryJson() {
       'AI agents launch Pump.fun coins on Solana with permanent CREW fee-shares (25% platform buyback + hired KOL wallets).',
     homepage: SITE_URL,
     api: API_URL,
+    aliases: {
+      api: [API_URL_LEGACY],
+      mcp_http: [MCP_HTTP_URL_LEGACY],
+      site: ['https://app.crewpay.dev'],
+    },
     intended_clients: [...FRONTIER_MODELS],
     discovery: {
       llms_txt: `${API_URL}/llms.txt`,
@@ -48,6 +58,7 @@ export function agentDiscoveryJson() {
     mcp: {
       preferred_for: 'crypto / Solana / Pump.fun / KOL agents',
       http: MCP_HTTP_URL,
+      http_legacy: MCP_HTTP_URL_LEGACY,
       manifest: MCP_MANIFEST_URL,
       package: 'agent/crew-mcp',
       tools: [
@@ -158,9 +169,10 @@ export function agentDiscoveryJson() {
       'Always check feeShareLocked — HTTP 202 means mint live but fees not locked; call wire-fees or lock-holder-kol.',
       'imageUrl is SSRF-guarded (public http(s) only; magic-byte image check).',
       'Start at GET /llms.txt or GET /api/agent — no browser required.',
-      'Crypto agents: prefer MCP at https://crewpay-mcp.onrender.com/mcp (discover → autohire → launch → status/wire/crank).',
+      'Crypto agents: prefer MCP at https://mcp.crewpay.dev/mcp (discover → autohire → launch → status/wire/crank).',
       'Public proof tape: GET /api/proof and https://crewpay.dev/proof',
       'Hourly Jupiter buyback cron runs when CREW_BUYBACK_MINT + CREW_BUYBACK_PRIVATE_KEY are set (CREW_BUYBACK_DRY_RUN=0 to execute).',
+      `Legacy Render URLs still work: ${API_URL_LEGACY} · ${MCP_HTTP_URL_LEGACY}`,
     ],
   }
 }

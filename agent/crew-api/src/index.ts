@@ -62,7 +62,11 @@ async function main() {
         aiPlugin: '/.well-known/ai-plugin.json',
       },
       mcp: '/mcp.json',
-      mcpHttp: 'https://crewpay-mcp.onrender.com/mcp',
+      mcpHttp: 'https://mcp.crewpay.dev/mcp',
+      aliases: {
+        api: 'https://crewpay-api.onrender.com',
+        mcpHttp: 'https://crewpay-mcp.onrender.com/mcp',
+      },
     })
   })
 

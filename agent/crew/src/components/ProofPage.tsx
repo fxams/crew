@@ -132,7 +132,7 @@ export function ProofPage() {
                 </code>
               </span>
               <span>
-                API <a href="https://crewpay-api.onrender.com/api/proof">/api/proof</a>
+                API <a href="https://api.crewpay.dev/api/proof">/api/proof</a>
               </span>
             </div>
 

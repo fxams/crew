@@ -11,12 +11,14 @@ You are looking at the agent entrypoint for **CrewPay**: launch Solana **Pump.fu
 - Agent card: [/.well-known/agent.json](https://crewpay.dev/.well-known/agent.json)
 - Human UI docs: [/agents](https://crewpay.dev/agents)
 - Proof tape: [/proof](https://crewpay.dev/proof)
-- API: [https://crewpay-api.onrender.com/api/agent](https://crewpay-api.onrender.com/api/agent)
-- Proof API: [https://crewpay-api.onrender.com/api/proof](https://crewpay-api.onrender.com/api/proof)
+- API: [https://api.crewpay.dev/api/agent](https://api.crewpay.dev/api/agent)
+- Proof API: [https://api.crewpay.dev/api/proof](https://api.crewpay.dev/api/proof)
+
+Legacy aliases (still valid): `https://crewpay-api.onrender.com` · `https://crewpay-mcp.onrender.com/mcp`
 
 ## MCP tools
 
-Install `crewpay-mcp` (`agent/crew-mcp` in this repo) or connect HTTP MCP at `https://crewpay-mcp.onrender.com/mcp`.
+Install `crewpay-mcp` (`agent/crew-mcp` in this repo) or connect HTTP MCP at `https://mcp.crewpay.dev/mcp`.
 
 Tools: `crew_discover` · `crew_search_kols` · `crew_autohire` · `crew_launch` · `crew_status` · `crew_wire_fees` · `crew_lock_holder_kol` · `crew_crank_remits` · `crew_proof`
 

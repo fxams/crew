@@ -1,4 +1,4 @@
-export const DEFAULT_API_URL = 'https://crewpay-api.onrender.com'
+export const DEFAULT_API_URL = 'https://api.crewpay.dev'
 export const DEFAULT_SITE_URL = 'https://crewpay.dev'
 
 export type CrewApiConfig = {

@@ -1,4 +1,7 @@
-# Deploy CREW
+# Deploy
+
+Custom domains: see [DOMAINS.md](./DOMAINS.md) (`api.crewpay.dev` / `mcp.crewpay.dev`).
+ CREW
 
 ## Production (Render only) — **https://app.crewpay.dev**
 
@@ -7,7 +10,7 @@ GitHub Pages is **decommissioned**. Do not use `fxams.github.io/crew`.
 | Field | Value |
 | --- | --- |
 | Static site | **`crewpay`** → https://app.crewpay.dev (also apex `crewpay.dev`) |
-| API | **`crewpay-api`** → https://crewpay-api.onrender.com |
+| API | **`crewpay-api`** → https://api.crewpay.dev |
 | Database | **`crewpay-db`** (Postgres) — coins, remits, 1500 KOLs |
 | Buyback cron | **`crewpay-buyback`** hourly (`CREW_BUYBACK_*` secrets) |
 | Dashboard (site) | https://dashboard.render.com/static/srv-db32invavr4c739imk00 |
@@ -56,7 +59,7 @@ Set in the Render dashboard (or via API). **Do not commit API keys to git.**
 | `VITE_BASE_PATH` | `/` |
 | `VITE_SITE_URL` | `https://app.crewpay.dev` |
 | `VITE_CREW_BUYBACK_WALLET` | **Required** — Solana treasury for 25% CREW buyback fee-share |
-| `VITE_CREW_API_URL` | `https://crewpay-api.onrender.com` |
+| `VITE_CREW_API_URL` | `https://api.crewpay.dev` |
 | `VITE_CREW_API_KEY` | Same as API `CREW_API_KEY` (write sync) |
 | `VITE_RPC_URL` | Helius / Alchemy mainnet URL (recommended) |
 | `VITE_PINATA_JWT` | Optional metadata upload fallback |

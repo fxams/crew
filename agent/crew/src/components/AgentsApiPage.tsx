@@ -18,7 +18,7 @@ const DISCOVERY = [
   { label: 'AI plugin', path: '/.well-known/ai-plugin.json', note: 'Plugin manifest' },
 ] as const
 
-const MCP_HTTP = 'https://crewpay-mcp.onrender.com/mcp'
+const MCP_HTTP = 'https://mcp.crewpay.dev/mcp'
 const MCP_CONFIG = `{
   "mcpServers": {
     "crewpay": {

@@ -9,7 +9,7 @@
   },
   "api": {
     "type": "openapi",
-    "url": "https://crewpay-api.onrender.com/openapi.json",
+    "url": "https://api.crewpay.dev/openapi.json",
     "is_user_authenticated": false
   },
   "logo_url": "https://crewpay.dev/brand/logo-mark.svg",

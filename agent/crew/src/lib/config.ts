@@ -5,11 +5,14 @@ export const CREW_VERSION = '2.6.0'
 /** Official CREW / CrewPay HQ account on X. */
 export const CREW_X_URL = 'https://x.com/CrewPayHQ'
 
-/** Public Agent Launch API (no trailing slash). */
+/** Public Agent Launch API (no trailing slash). Canonical: api.crewpay.dev */
 export const CREW_AGENT_API_URL = (
   (import.meta.env.VITE_CREW_API_URL as string | undefined)?.replace(/\/$/, '') ||
-  'https://crewpay-api.onrender.com'
+  'https://api.crewpay.dev'
 )
+
+/** Streamable MCP HTTP endpoint (canonical custom domain). */
+export const CREW_MCP_HTTP_URL = 'https://mcp.crewpay.dev/mcp'
 
 /** Frontier / tool-using clients the Agent API is documented for. */
 export const AGENT_API_CLIENTS = [

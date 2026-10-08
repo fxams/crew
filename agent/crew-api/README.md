@@ -2,7 +2,8 @@
 
 Postgres-backed API for CREW launches, remits, KOL directory, buyback cron, and **agent launch**.
 
-Production: https://crewpay-api.onrender.com
+Production: https://api.crewpay.dev  
+Legacy alias: https://crewpay-api.onrender.com (see `agent/crew/DOMAINS.md` for DNS)
 
 ## Services (Render)
 
@@ -40,9 +41,9 @@ Production: https://crewpay-api.onrender.com
 | POST | `/api/webhooks` | `CREW_AGENT_API_KEY` |
 | POST | `/api/agent/keys` | mint per-agent keys |
 
-**How agents discover this:** crawl `https://crewpay.dev/llms.txt` or `GET https://crewpay-api.onrender.com/` → follow `llms` / `agent` / `openapi` / `mcp` / `proof`. Mirrors ship on the site for GPTBot, ClaudeBot, Gemini, Grok, and other frontier crawlers.
+**How agents discover this:** crawl `https://crewpay.dev/llms.txt` or `GET https://api.crewpay.dev/` → follow `llms` / `agent` / `openapi` / `mcp` / `proof`. Mirrors ship on the site for GPTBot, ClaudeBot, Gemini, Grok, and other frontier crawlers.
 
-**MCP (crypto agents):** `agent/crew-mcp` — tools `crew_discover` · `crew_autohire` · `crew_search_kols` · `crew_launch` · `crew_status` · `crew_wire_fees` · `crew_lock_holder_kol` · `crew_crank_remits` · `crew_proof`. Manifest: https://crewpay.dev/mcp.json · HTTP: https://crewpay-mcp.onrender.com/mcp · skill: `skills/crewpay-crypto-agent` · reference: `scripts/reference-agent.mjs`.
+**MCP (crypto agents):** `agent/crew-mcp` — tools `crew_discover` · `crew_autohire` · `crew_search_kols` · `crew_launch` · `crew_status` · `crew_wire_fees` · `crew_lock_holder_kol` · `crew_crank_remits` · `crew_proof`. Manifest: https://crewpay.dev/mcp.json · HTTP: https://mcp.crewpay.dev/mcp · skill: `skills/crewpay-crypto-agent` · reference: `scripts/reference-agent.mjs`.
 
 **Buyback cron:** set `CREW_BUYBACK_MINT` + `CREW_BUYBACK_PRIVATE_KEY`; `CREW_BUYBACK_DRY_RUN=0` to execute Jupiter swaps (default dry-run outside production).
 
@@ -67,7 +68,7 @@ Optional server fallback: set `CREW_AGENT_LAUNCHER_KEY` so trusted hosted agents
 ### 1) Preview narrative Autohire
 
 ```bash
-curl -sS https://crewpay-api.onrender.com/api/agent/autohire \
+curl -sS https://api.crewpay.dev/api/agent/autohire \
   -H "content-type: application/json" \
   -H "x-crew-api-key: $CREW_AGENT_API_KEY" \
   -d '{
@@ -83,7 +84,7 @@ Returns `{ match, hires, crew }` — no on-chain tx.
 ### 2) Launch
 
 ```bash
-curl -sS https://crewpay-api.onrender.com/api/agent/launch \
+curl -sS https://api.crewpay.dev/api/agent/launch \
   -H "content-type: application/json" \
   -H "x-crew-api-key: $CREW_AGENT_API_KEY" \
   -H "x-launcher-key: $AGENT_SOLANA_SECRET" \

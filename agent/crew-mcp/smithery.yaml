@@ -28,7 +28,7 @@ startCommand:
         description: Optional default Solana launcher secret (or pass per tool call)
       crewApiUrl:
         type: string
-        default: https://crewpay-api.onrender.com
+        default: https://api.crewpay.dev
   commandFunction: |
     (config) => ({
       command: 'node',
@@ -36,6 +36,6 @@ startCommand:
       env: {
         CREW_AGENT_API_KEY: config.crewAgentApiKey,
         CREW_LAUNCHER_KEY: config.crewLauncherKey || '',
-        CREW_API_URL: config.crewApiUrl || 'https://crewpay-api.onrender.com',
+        CREW_API_URL: config.crewApiUrl || 'https://api.crewpay.dev',
       },
     })
