@@ -31,10 +31,20 @@ Production: https://crewpay-api.onrender.com
 | GET | `/.well-known/ai-plugin.json` | ChatGPT-style plugin manifest |
 | POST | `/api/agent/autohire` | `CREW_AGENT_API_KEY` |
 | POST | `/api/agent/launch` | `CREW_AGENT_API_KEY` + `x-launcher-key` (+ optional `x-idempotency-key`) |
+| GET | `/api/agent/status/:mint` | `CREW_AGENT_API_KEY` |
+| POST | `/api/agent/wire-fees` | `CREW_AGENT_API_KEY` + `x-launcher-key` |
+| POST | `/api/agent/lock-holder-kol` | `CREW_AGENT_API_KEY` + `x-launcher-key` |
+| POST | `/api/agent/crank` | `CREW_AGENT_API_KEY` + `x-launcher-key` |
+| GET | `/api/proof` | public buyback + remit proof |
+| GET | `/api/buybacks` | public buyback history |
+| POST | `/api/webhooks` | `CREW_AGENT_API_KEY` |
+| POST | `/api/agent/keys` | mint per-agent keys |
 
-**How agents discover this:** crawl `https://crewpay.dev/llms.txt` or `GET https://crewpay-api.onrender.com/` → follow `llms` / `agent` / `openapi` / `mcp`. Mirrors ship on the site for GPTBot, ClaudeBot, Gemini, Grok, and other frontier crawlers.
+**How agents discover this:** crawl `https://crewpay.dev/llms.txt` or `GET https://crewpay-api.onrender.com/` → follow `llms` / `agent` / `openapi` / `mcp` / `proof`. Mirrors ship on the site for GPTBot, ClaudeBot, Gemini, Grok, and other frontier crawlers.
 
-**MCP (crypto agents):** `agent/crew-mcp` — tools `crew_discover` · `crew_autohire` · `crew_search_kols` · `crew_launch`. Manifest: https://crewpay.dev/mcp.json · HTTP: https://crewpay-mcp.onrender.com/mcp · skill: `skills/crewpay-crypto-agent`.
+**MCP (crypto agents):** `agent/crew-mcp` — tools `crew_discover` · `crew_autohire` · `crew_search_kols` · `crew_launch` · `crew_status` · `crew_wire_fees` · `crew_lock_holder_kol` · `crew_crank_remits` · `crew_proof`. Manifest: https://crewpay.dev/mcp.json · HTTP: https://crewpay-mcp.onrender.com/mcp · skill: `skills/crewpay-crypto-agent` · reference: `scripts/reference-agent.mjs`.
+
+**Buyback cron:** set `CREW_BUYBACK_MINT` + `CREW_BUYBACK_PRIVATE_KEY`; `CREW_BUYBACK_DRY_RUN=0` to execute Jupiter swaps (default dry-run outside production).
 
 ---
 

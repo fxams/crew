@@ -71,3 +71,97 @@ export async function searchKols(q: string, limit = 20): Promise<ApiKol[]> {
 export async function apiHealth(): Promise<{ ok: boolean; kols?: number }> {
   return apiFetch('/api/healthz')
 }
+
+export type ProofBundle = {
+  ok: boolean
+  generatedAt: number
+  platform: {
+    buybackWallet: string | null
+    crewMint: string | null
+    kolDirectorySize: number
+  }
+  stats: {
+    coins: number
+    feeShareLocked: number
+    remitRows: number
+    remitSolTotal: number
+    buybackRuns: number
+    buybackOkRuns: number
+    buybackSolSpent: number
+    modeActions: number
+  }
+  buybacks: {
+    id: number
+    status: string
+    solSpent: number | null
+    crewMint: string | null
+    signature: string | null
+    detail: string | null
+    at: number
+  }[]
+  remits: RemitRecord[]
+  coins: {
+    mint: string
+    ticker: string
+    name: string
+    mode: string
+    feeShareLocked: boolean
+    holderKol: boolean
+    launchedAt: number
+    pumpUrl: string
+    launcher: string
+  }[]
+  modeActions: {
+    id: string
+    mint: string
+    mode: string
+    kind: string
+    amountSol: number
+    wallet: string
+    handle: string
+    signature: string
+    detail: string | null
+    at: number
+  }[]
+}
+
+export async function fetchProof(limit = 40): Promise<ProofBundle> {
+  const params = new URLSearchParams({ limit: String(limit) })
+  return apiFetch(`/api/proof?${params}`)
+}
+
+export async function pushModeAction(action: {
+  id: string
+  mint: string
+  mode: string
+  kind: 'dip_fire' | 'raid_claim' | 'desk_preview'
+  amountSol: number
+  wallet?: string
+  handle?: string
+  signature: string
+  detail?: string
+}): Promise<void> {
+  await apiFetch('/api/mode-actions', {
+    method: 'POST',
+    body: JSON.stringify(action),
+  })
+}
+
+/** Optional Phantom-signed board write headers. */
+export async function boardWriteHeaders(opts: {
+  mint: string
+  wallet: { publicKey: { toBase58(): string }; signMessage?: (msg: Uint8Array) => Promise<Uint8Array> }
+}): Promise<Record<string, string>> {
+  const signMessage = opts.wallet.signMessage
+  if (!signMessage) return {}
+  const timestamp = Date.now()
+  const message = `crew-board:${opts.mint}:${timestamp}`
+  const sig = await signMessage(new TextEncoder().encode(message))
+  const { default: bs58 } = await import('bs58')
+  return {
+    'x-crew-wallet': opts.wallet.publicKey.toBase58(),
+    'x-crew-timestamp': String(timestamp),
+    'x-crew-signature': bs58.encode(sig),
+    'x-crew-mint': opts.mint,
+  }
+}

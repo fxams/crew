@@ -91,8 +91,8 @@ export type RemitRecord = {
   mode: DeskMode
   at: number
   signature?: string
-  /** Set when parsed from a mainnet distributeCreatorFees tx. */
-  source?: 'chain'
+  /** chain = distributeCreatorFees; dip_fire / raid_claim = mode desk executions. */
+  source?: 'chain' | 'dip_fire' | 'raid_claim'
 }
 
 export type LaunchOk = {

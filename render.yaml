@@ -128,5 +128,9 @@ services:
         sync: false
       - key: CREW_BUYBACK_MAX_SOL
         value: "0.05"
+      - key: CREW_BUYBACK_DRY_RUN
+        value: "0"
+      - key: CREW_BUYBACK_SLIPPAGE_BPS
+        value: "100"
       - key: RPC_URL
         sync: false

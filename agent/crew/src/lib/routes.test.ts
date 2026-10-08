@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isAgentsPath, isKolsPath, isLaunchPath } from "./routes";
+import { isAgentsPath, isKolsPath, isLaunchPath, isProofPath } from "./routes";
 
 describe("isLaunchPath", () => {
   it("keeps the launch desk off the home page", () => {
@@ -37,5 +37,15 @@ describe("isAgentsPath", () => {
     expect(isAgentsPath("/")).toBe(false);
     expect(isAgentsPath("/launch")).toBe(false);
     expect(isAgentsPath("/kols")).toBe(false);
+  });
+});
+
+describe("isProofPath", () => {
+  it("matches the public proof tape", () => {
+    expect(isProofPath("/proof")).toBe(true);
+    expect(isProofPath("/proof/")).toBe(true);
+    expect(isProofPath("/crew/proof")).toBe(true);
+    expect(isProofPath("/")).toBe(false);
+    expect(isProofPath("/agents")).toBe(false);
   });
 });

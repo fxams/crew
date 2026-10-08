@@ -10,6 +10,9 @@ import {
   type ApiCoin,
   type ApiRemit,
 } from '../lib/coins.js'
+import { requireApiKeyOrWallet } from '../lib/wallet-auth.js'
+
+const writeAuth = requireApiKeyOrWallet(requireApiKey)
 
 export const coinsRouter = Router()
 
@@ -75,9 +78,14 @@ coinsRouter.get('/coins/:mint', async (req, res) => {
   }
 })
 
-coinsRouter.put('/coins', requireApiKey, async (req, res) => {
+coinsRouter.put('/coins', writeAuth, async (req, res) => {
   try {
     const parsed = coinSchema.parse(req.body)
+    const wallet = (req as typeof req & { crewWallet?: string }).crewWallet
+    if (wallet && wallet !== parsed.launcher) {
+      res.status(403).json({ error: 'Wallet signature must match coin launcher' })
+      return
+    }
     const coin = await upsertCoin(parsed as ApiCoin)
     res.json({ coin })
   } catch (err) {
@@ -95,7 +103,7 @@ coinsRouter.get('/remits', async (req, res) => {
   }
 })
 
-coinsRouter.post('/remits', requireApiKey, async (req, res) => {
+coinsRouter.post('/remits', writeAuth, async (req, res) => {
   try {
     const body = z.object({ remits: z.array(remitSchema).max(200) }).parse(req.body)
     const saved = await upsertRemits(body.remits as ApiRemit[])

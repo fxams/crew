@@ -52,6 +52,42 @@ const ENDPOINTS = [
     auth: 'x-crew-api-key + x-launcher-key',
     summary: 'Create Pump coin + lock CREW fee-shares',
   },
+  {
+    method: 'GET',
+    path: '/api/agent/status/:mint',
+    auth: 'x-crew-api-key',
+    summary: 'Fee-share / Holder-KOL status + tip',
+  },
+  {
+    method: 'POST',
+    path: '/api/agent/wire-fees',
+    auth: 'x-crew-api-key + x-launcher-key',
+    summary: 'Repair / lock fee-shares on an existing mint',
+  },
+  {
+    method: 'POST',
+    path: '/api/agent/lock-holder-kol',
+    auth: 'x-crew-api-key + x-launcher-key',
+    summary: 'Lock top holders ∩ KOL DB (one-shot)',
+  },
+  {
+    method: 'POST',
+    path: '/api/agent/crank',
+    auth: 'x-crew-api-key + x-launcher-key',
+    summary: 'Distribute creator fees on-chain',
+  },
+  {
+    method: 'GET',
+    path: '/api/proof',
+    auth: 'public',
+    summary: 'Buyback + remit proof tape',
+  },
+  {
+    method: 'POST',
+    path: '/api/webhooks',
+    auth: 'x-crew-api-key',
+    summary: 'Register launch / fee / buyback webhooks',
+  },
 ] as const
 
 const LAUNCH_CURL = `curl -sS ${CREW_AGENT_API_URL}/api/agent/launch \\
@@ -109,6 +145,14 @@ export function AgentsApiPage() {
             CREW
             <span>for agents.</span>
           </motion.h1>
+          <div className="agents-hero-actions">
+            <Link className="btn btn-ghost btn-sm" to="/proof">
+              Proof tape
+            </Link>
+            <a className="btn btn-ghost btn-sm" href="/mcp.json" target="_blank" rel="noreferrer">
+              mcp.json
+            </a>
+          </div>
           <p className="section-sub agents-hero-sub">
             Frontier LLMs launch Pump coins with permanent CREW fee-shares —{' '}
             {PLATFORM_BUYBACK_BPS / 100}% buyback locked, KOLs hired by narrative. No browser
@@ -192,8 +236,9 @@ export function AgentsApiPage() {
         </h2>
         <p className="section-sub">
           Cursor, Claude Desktop, and any MCP client get <code>crew_discover</code>,{' '}
-          <code>crew_autohire</code>, <code>crew_search_kols</code>, and <code>crew_launch</code> —
-          built for Solana / Pump.fun launch agents.
+          <code>crew_autohire</code>, <code>crew_search_kols</code>, <code>crew_launch</code>,{' '}
+          <code>crew_status</code>, <code>crew_wire_fees</code>, <code>crew_lock_holder_kol</code>,{' '}
+          <code>crew_crank_remits</code>, and <code>crew_proof</code> — the full crypto agent loop.
         </p>
         <div className="agents-fee-row" aria-label="MCP endpoints">
           <span>

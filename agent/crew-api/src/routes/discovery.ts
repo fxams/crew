@@ -50,6 +50,7 @@ discoveryRouter.get('/mcp.json', (_req, res) =>
     llms: `${SITE_URL}/llms.txt`,
     api: API_URL,
     openapi: `${API_URL}/openapi.json`,
+    proof: `${SITE_URL}/proof`,
     mcp: {
       stdio: {
         package: 'agent/crew-mcp',
@@ -59,8 +60,28 @@ discoveryRouter.get('/mcp.json', (_req, res) =>
       },
       http: { url: MCP_HTTP_URL, transport: 'streamable-http' },
     },
-    tools: ['crew_discover', 'crew_search_kols', 'crew_autohire', 'crew_launch'],
-    tags: ['solana', 'pump.fun', 'crypto', 'meme-coin', 'kol', 'crewpay', 'agent', 'fee-share'],
+    tools: [
+      'crew_discover',
+      'crew_search_kols',
+      'crew_autohire',
+      'crew_launch',
+      'crew_status',
+      'crew_wire_fees',
+      'crew_lock_holder_kol',
+      'crew_crank_remits',
+      'crew_proof',
+    ],
+    tags: [
+      'solana',
+      'pump.fun',
+      'crypto',
+      'meme-coin',
+      'kol',
+      'crewpay',
+      'agent',
+      'fee-share',
+      'buyback',
+    ],
     manifest: MCP_MANIFEST_URL,
   }),
 )

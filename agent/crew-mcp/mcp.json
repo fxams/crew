@@ -5,6 +5,7 @@
   "llms": "https://crewpay.dev/llms.txt",
   "api": "https://crewpay-api.onrender.com",
   "openapi": "https://crewpay-api.onrender.com/openapi.json",
+  "proof": "https://crewpay.dev/proof",
   "mcp": {
     "stdio": {
       "command": "node",
@@ -20,16 +21,12 @@
     "crew_discover",
     "crew_search_kols",
     "crew_autohire",
-    "crew_launch"
+    "crew_launch",
+    "crew_status",
+    "crew_wire_fees",
+    "crew_lock_holder_kol",
+    "crew_crank_remits",
+    "crew_proof"
   ],
-  "tags": [
-    "solana",
-    "pump.fun",
-    "crypto",
-    "meme-coin",
-    "kol",
-    "crewpay",
-    "agent",
-    "fee-share"
-  ]
+  "tags": ["solana", "pump.fun", "crypto", "meme-coin", "kol", "crewpay", "agent", "fee-share", "buyback"]
 }

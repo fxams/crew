@@ -34,16 +34,21 @@ describe('auth middleware', () => {
     NODE_ENV: process.env.NODE_ENV,
     CREW_API_KEY: process.env.CREW_API_KEY,
     CREW_AGENT_API_KEY: process.env.CREW_AGENT_API_KEY,
+    DATABASE_URL: process.env.DATABASE_URL,
   }
   beforeEach(() => {
     process.env.NODE_ENV = 'production'
     process.env.CREW_API_KEY = 'board-key-aaaaaaaa'
     process.env.CREW_AGENT_API_KEY = 'agent-key-bbbbbbbb'
+    // Avoid DB lookup noise in unit tests
+    delete process.env.DATABASE_URL
   })
   afterEach(() => {
     process.env.NODE_ENV = saved.NODE_ENV
     process.env.CREW_API_KEY = saved.CREW_API_KEY
     process.env.CREW_AGENT_API_KEY = saved.CREW_AGENT_API_KEY
+    if (saved.DATABASE_URL) process.env.DATABASE_URL = saved.DATABASE_URL
+    else delete process.env.DATABASE_URL
   })
 
   it('accepts board key on requireApiKey', () => {
@@ -55,10 +60,10 @@ describe('auth middleware', () => {
     expect(next).toBe(true)
   })
 
-  it('rejects board key on agent routes when agent key is configured', () => {
+  it('rejects board key on agent routes when agent key is configured', async () => {
     const res = mockRes() as Response & { statusCode?: number; body?: { error?: string } }
     let next = false
-    requireAgentApiKey(mockReq({ 'x-crew-api-key': 'board-key-aaaaaaaa' }), res, () => {
+    await requireAgentApiKey(mockReq({ 'x-crew-api-key': 'board-key-aaaaaaaa' }), res, () => {
       next = true
     })
     expect(next).toBe(false)
@@ -66,10 +71,10 @@ describe('auth middleware', () => {
     expect(String(res.body?.error || '')).toMatch(/CREW_AGENT_API_KEY/)
   })
 
-  it('accepts agent key on agent routes', () => {
+  it('accepts agent key on agent routes', async () => {
     const res = mockRes()
     let next = false
-    requireAgentApiKey(mockReq({ 'x-crew-api-key': 'agent-key-bbbbbbbb' }), res, () => {
+    await requireAgentApiKey(mockReq({ 'x-crew-api-key': 'agent-key-bbbbbbbb' }), res, () => {
       next = true
     })
     expect(next).toBe(true)
