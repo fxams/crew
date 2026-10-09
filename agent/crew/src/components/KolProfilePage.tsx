@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { CREW_VERSION } from '../lib/config'
+import { useOwnRegisteredHandle } from '../lib/registered-kol'
 import { kolHandleFromPath } from '../lib/routes'
 
 const API = (
@@ -93,11 +94,14 @@ export function KolProfilePage() {
   const handle = kolHandleFromPath(pathname) || ''
   const [params] = useSearchParams()
   const wallet = useWallet()
+  const ownHandle = useOwnRegisteredHandle(wallet.publicKey?.toBase58())
   const [desk, setDesk] = useState<Desk | null>(null)
   const [missing, setMissing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const justRegistered = params.get('registered') === '1'
+  const viewingOwnDesk =
+    Boolean(ownHandle) && ownHandle!.toLowerCase() === handle.toLowerCase()
 
   useEffect(() => {
     let cancelled = false
@@ -145,8 +149,8 @@ export function KolProfilePage() {
       <section className="section section-kols">
         <div className="kols-page-head">
           <div className="launch-page-head-row">
-            <Link className="launch-back" to="/register">
-              ← Register
+            <Link className="launch-back" to={viewingOwnDesk ? '/kols' : '/register'}>
+              {viewingOwnDesk ? '← KOLs' : '← Register'}
             </Link>
             <p className="section-label">KOL desk · v{CREW_VERSION}</p>
           </div>
