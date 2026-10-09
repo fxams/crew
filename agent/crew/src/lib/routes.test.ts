@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isAgentsPath, isKolsPath, isLaunchPath, isProofPath } from "./routes";
+import { isAgentsPath, isKolsPath, isLaunchPath, isProofPath, isRegisterPath } from "./routes";
 
 describe("isLaunchPath", () => {
   it("keeps the launch desk off the home page", () => {
@@ -37,6 +37,15 @@ describe("isAgentsPath", () => {
     expect(isAgentsPath("/")).toBe(false);
     expect(isAgentsPath("/launch")).toBe(false);
     expect(isAgentsPath("/kols")).toBe(false);
+  });
+});
+
+describe("isRegisterPath", () => {
+  it("matches the KOL registration portal", () => {
+    expect(isRegisterPath("/register")).toBe(true);
+    expect(isRegisterPath("/register/")).toBe(true);
+    expect(isRegisterPath("/kols")).toBe(false);
+    expect(isRegisterPath("/")).toBe(false);
   });
 });
 

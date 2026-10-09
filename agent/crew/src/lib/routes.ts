@@ -14,6 +14,12 @@ export function isKolsPath(pathname: string): boolean {
   return path === "/kols" || path.endsWith("/kols");
 }
 
+/** Opt-in KOL registration portal (X + Solana). */
+export function isRegisterPath(pathname: string): boolean {
+  const path = normalizePath(pathname);
+  return path === "/register" || path.endsWith("/register");
+}
+
 /** Agent API / discovery docs page. */
 export function isAgentsPath(pathname: string): boolean {
   const path = normalizePath(pathname);
