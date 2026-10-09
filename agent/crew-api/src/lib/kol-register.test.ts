@@ -6,6 +6,7 @@ import {
   codeChallengeS256,
   registrationMessage,
   verifyWalletLink,
+  xAvatarLarge,
 } from './kol-register.js'
 
 describe('KOL registration wallet link', () => {
@@ -23,6 +24,13 @@ describe('KOL registration wallet link', () => {
     const message = registrationMessage(other, 'cd'.repeat(16))
     const sig = nacl.sign.detached(new TextEncoder().encode(message), signer.secretKey)
     expect(verifyWalletLink(other, message, bs58.encode(sig))).toBe(false)
+  })
+
+  it('upgrades an X avatar to the large size', () => {
+    expect(xAvatarLarge('https://pbs.twimg.com/profile_images/1/a_normal.jpg')).toBe(
+      'https://pbs.twimg.com/profile_images/1/a_400x400.jpg',
+    )
+    expect(xAvatarLarge(null)).toBeNull()
   })
 
   it('builds an S256 code challenge without padding', () => {

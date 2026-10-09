@@ -4,6 +4,7 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import { useWalletModal } from '@solana/wallet-adapter-react-ui'
 import bs58 from 'bs58'
 import { CREW_VERSION } from '../lib/config'
+import { kolProfilePath } from '../lib/routes'
 
 const API = (
   (import.meta.env.VITE_CREW_API_URL as string | undefined)?.replace(/\/$/, '') ||
@@ -57,7 +58,9 @@ export function KolRegisterPage() {
   const [xOauth, setXOauth] = useState<boolean | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(params.get('error'))
+  const [ownHandle, setOwnHandle] = useState<string | null>(null)
   const registeredHandle = params.get('registered') === '1' ? params.get('handle') : null
+  const deskHandle = registeredHandle || ownHandle
 
   const load = useCallback(async () => {
     const [statusRes, boardRes] = await Promise.all([
@@ -85,6 +88,28 @@ export function KolRegisterPage() {
   useEffect(() => {
     void load().catch(() => setError('Could not load the registration board.'))
   }, [load])
+
+  const connectedWallet = wallet.publicKey?.toBase58() || ''
+  useEffect(() => {
+    if (!connectedWallet) {
+      setOwnHandle(null)
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetch(`${API}/api/kols/registered/wallet/${encodeURIComponent(connectedWallet)}`)
+        if (!res.ok) return
+        const body = (await res.json()) as { profile?: { xUsername?: string } }
+        if (!cancelled && body.profile?.xUsername) setOwnHandle(body.profile.xUsername)
+      } catch {
+        /* desk link is optional */
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [connectedWallet])
 
   async function onRegister() {
     setError(null)
@@ -161,8 +186,11 @@ export function KolRegisterPage() {
             </li>
           </ol>
 
-          {registeredHandle ? (
-            <p className="register-ok">Registered @{registeredHandle}. You are on the tape and the leaderboard.</p>
+          {deskHandle ? (
+            <p className="register-ok">
+              @{deskHandle} is on the board.{' '}
+              <Link to={kolProfilePath(deskHandle)}>Open desk</Link>
+            </p>
           ) : null}
           {error ? <p className="register-err">{error}</p> : null}
           {xOauth === false ? (
@@ -195,18 +223,16 @@ export function KolRegisterPage() {
           ) : (
             <div className="register-tape-track">
               {tape.map((row) => (
-                <a
+                <Link
                   className="register-tape-item"
                   key={`tape-${row.xUserId}`}
-                  href={`https://x.com/${row.xUsername}`}
-                  target="_blank"
-                  rel="noreferrer"
+                  to={kolProfilePath(row.xUsername)}
                 >
                   <strong>@{row.xUsername}</strong>
                   <span>{formatFollowers(row.followers)} followers</span>
                   <span>{shortAddr(row.wallet)}</span>
                   <span>{formatWhen(row.registeredAt)}</span>
-                </a>
+                </Link>
               ))}
             </div>
           )}
@@ -228,10 +254,10 @@ export function KolRegisterPage() {
                 {row.rank || '—'}
               </span>
               <span className="kols-identity" role="cell">
-                <a href={`https://x.com/${row.xUsername}`} target="_blank" rel="noreferrer">
+                <Link to={kolProfilePath(row.xUsername)}>
                   @{row.xUsername}
                   {row.xVerified ? ' ✓' : ''}
-                </a>
+                </Link>
                 <span className="kols-pump">{row.xName}</span>
               </span>
               <span className="kols-foll" role="cell">

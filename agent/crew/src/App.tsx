@@ -16,6 +16,7 @@ import {
 import { ReceiptCard } from "./components/ReceiptCard";
 import { AgentsApiPage } from "./components/AgentsApiPage";
 import { ProofPage } from "./components/ProofPage";
+import { KolProfilePage } from "./components/KolProfilePage";
 import { KolRegisterPage } from "./components/KolRegisterPage";
 import { TopKolsPage } from "./components/TopKolsPage";
 import { apiConfigured, pushModeAction, pushRemits } from "./lib/api";
@@ -57,7 +58,7 @@ import {
 } from "./lib/edges";
 import type { HireRole } from "./lib/types";
 import { launchCrew } from "./lib/launch";
-import { isAgentsPath, isKolsPath, isLaunchPath, isProofPath, isRegisterPath } from "./lib/routes";
+import { isAgentsPath, isKolsPath, isLaunchPath, isProofPath, isRegisterPath, kolHandleFromPath } from "./lib/routes";
 import { distributeCreatorFees, lockHolderKolFeeShares, wireCrewFeeShares } from "./lib/pump/fees";
 import {
   remitsFromSignature,
@@ -147,6 +148,7 @@ export default function App() {
   const isLaunchPage = isLaunchPath(path);
   const isKolsPage = isKolsPath(path);
   const isRegisterPage = isRegisterPath(path);
+  const isKolProfilePage = Boolean(kolHandleFromPath(path));
   const isAgentsPage = isAgentsPath(path);
   const isProofPage = isProofPath(path);
   const [draft, setDraft] = useState<LaunchDraft>(() => initialDraft());
@@ -1285,10 +1287,11 @@ export default function App() {
 
       {isKolsPage ? <TopKolsPage /> : null}
       {isRegisterPage ? <KolRegisterPage /> : null}
+      {isKolProfilePage ? <KolProfilePage /> : null}
       {isAgentsPage ? <AgentsApiPage /> : null}
       {isProofPage ? <ProofPage /> : null}
 
-      {!isLaunchPage && !isKolsPage && !isRegisterPage && !isAgentsPage && !isProofPage ? (
+      {!isLaunchPage && !isKolsPage && !isRegisterPage && !isKolProfilePage && !isAgentsPage && !isProofPage ? (
         <>
       <div className="app-shell">
         <main id="top">
@@ -2774,7 +2777,7 @@ export default function App() {
           </div>
         </footer>
       </div>
-      ) : isAgentsPage || isKolsPage || isRegisterPage || isProofPage ? null : (
+      ) : isAgentsPage || isKolsPage || isRegisterPage || isKolProfilePage || isProofPage ? null : (
       <div className="app-shell">
         <section className="section" id="brand">
           <p className="section-label">Brand kit</p>
