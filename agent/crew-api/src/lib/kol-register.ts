@@ -28,6 +28,12 @@ export type KolRegistration = {
   rank: number
 }
 
+/** X serves a tiny `_normal` avatar. The profile desk wants the larger file. */
+export function xAvatarLarge(url: string | null | undefined): string | null {
+  if (!url) return null
+  return url.replace(/_(normal|mini|bigger)(\.[a-z0-9]+)$/i, '_400x400$2')
+}
+
 export function registrationMessage(wallet: string, nonce: string): string {
   return `${REGISTER_MESSAGE_PREFIX}\nWallet: ${wallet.trim()}\nNonce: ${nonce.trim()}`
 }
@@ -304,4 +310,174 @@ export async function listRegistered(limit = 50): Promise<{
     tape: tapeOut,
     total: Number(countRows[0]?.n || 0),
   }
+}
+
+export type KolDeskCoin = {
+  mint: string
+  ticker: string
+  name: string
+  mode: string
+  launchedAt: string
+  pumpUrl: string
+  signature: string
+  share: number | null
+  hireRole: string | null
+  seatHandle: string | null
+  solReceived: number
+  launchedByKol: boolean
+}
+
+export type KolDeskRemit = {
+  mint: string
+  ticker: string
+  amountSol: number
+  mode: string
+  at: string
+  signature: string
+  handle: string
+}
+
+export type KolPerformance = {
+  coinsHired: number
+  coinsLaunched: number
+  solReceived: number
+  remitCount: number
+  coins: KolDeskCoin[]
+  remits: KolDeskRemit[]
+}
+
+export type KolProfile = {
+  profile: KolRegistration
+  performance: KolPerformance
+}
+
+const X_HANDLE = /^[A-Za-z0-9_]{1,15}$/
+
+function num(value: unknown): number {
+  const n = Number(value ?? 0)
+  return Number.isFinite(n) ? n : 0
+}
+
+function mapCoin(
+  row: Record<string, unknown>,
+  wallet: string,
+  seat: boolean,
+): KolDeskCoin {
+  return {
+    mint: String(row.mint),
+    ticker: String(row.ticker),
+    name: String(row.name),
+    mode: String(row.mode),
+    launchedAt: new Date(String(row.launched_at)).toISOString(),
+    pumpUrl: String(row.pump_url || ''),
+    signature: String(row.signature || ''),
+    share: seat ? num(row.share) : null,
+    hireRole: seat && row.hire_role ? String(row.hire_role) : null,
+    seatHandle: seat && row.handle ? String(row.handle) : null,
+    solReceived: num(row.sol_received),
+    launchedByKol: String(row.launcher || '') === wallet,
+  }
+}
+
+async function loadPerformance(wallet: string): Promise<KolPerformance> {
+  const [crew, launchedOnly, totals, remits] = await Promise.all([
+    query(
+      `SELECT c.mint, c.ticker, c.name, c.mode, c.launched_at, c.pump_url, c.signature, c.launcher,
+              cc.share, cc.hire_role, cc.handle,
+              COALESCE((
+                SELECT SUM(amount_sol) FROM remits r
+                WHERE r.mint = c.mint AND r.wallet = $1
+              ), 0)::text AS sol_received
+       FROM coin_crew cc
+       JOIN coins c ON c.mint = cc.mint
+       WHERE cc.wallet = $1
+       ORDER BY c.launched_at DESC`,
+      [wallet],
+    ),
+    query(
+      `SELECT c.mint, c.ticker, c.name, c.mode, c.launched_at, c.pump_url, c.signature, c.launcher,
+              COALESCE((
+                SELECT SUM(amount_sol) FROM remits r
+                WHERE r.mint = c.mint AND r.wallet = $1
+              ), 0)::text AS sol_received
+       FROM coins c
+       WHERE c.launcher = $1
+         AND NOT EXISTS (
+           SELECT 1 FROM coin_crew cc WHERE cc.mint = c.mint AND cc.wallet = $1
+         )
+       ORDER BY c.launched_at DESC`,
+      [wallet],
+    ),
+    query<{ sol: string; n: string }>(
+      `SELECT COALESCE(SUM(amount_sol), 0)::text AS sol, COUNT(*)::text AS n
+       FROM remits WHERE wallet = $1`,
+      [wallet],
+    ),
+    query(
+      `SELECT mint, ticker, amount_sol, mode, at, signature, handle
+       FROM remits WHERE wallet = $1
+       ORDER BY at DESC LIMIT 12`,
+      [wallet],
+    ),
+  ])
+
+  const coins = [
+    ...crew.rows.map((raw) => mapCoin(raw as Record<string, unknown>, wallet, true)),
+    ...launchedOnly.rows.map((raw) => mapCoin(raw as Record<string, unknown>, wallet, false)),
+  ].sort((a, b) => Date.parse(b.launchedAt) - Date.parse(a.launchedAt))
+
+  return {
+    coinsHired: crew.rows.length,
+    coinsLaunched: coins.filter((coin) => coin.launchedByKol).length,
+    solReceived: num(totals.rows[0]?.sol),
+    remitCount: num(totals.rows[0]?.n),
+    coins,
+    remits: remits.rows.map((raw) => {
+      const row = raw as Record<string, unknown>
+      return {
+        mint: String(row.mint),
+        ticker: String(row.ticker),
+        amountSol: num(row.amount_sol),
+        mode: String(row.mode),
+        at: new Date(String(row.at)).toISOString(),
+        signature: String(row.signature || ''),
+        handle: String(row.handle || ''),
+      }
+    }),
+  }
+}
+
+async function profileFromUsername(username: string): Promise<KolProfile | null> {
+  const handle = username.trim().replace(/^@/, '')
+  if (!X_HANDLE.test(handle)) return null
+  const { rows } = await query(
+    `SELECT * FROM (
+       SELECT *, rank() OVER (ORDER BY followers DESC, registered_at ASC) AS board_rank
+       FROM kol_registrations
+     ) ranked
+     WHERE lower(x_username) = lower($1)`,
+    [handle],
+  )
+  const row = rows[0] as Record<string, unknown> | undefined
+  if (!row) return null
+  const profile = mapReg(row, Number(row.board_rank || 0))
+  profile.profileImageUrl = xAvatarLarge(profile.profileImageUrl)
+  const performance = await loadPerformance(profile.wallet)
+  return { profile, performance }
+}
+
+export async function getKolProfile(username: string): Promise<KolProfile | null> {
+  return profileFromUsername(username)
+}
+
+export async function getKolProfileByWallet(wallet: string): Promise<KolProfile | null> {
+  const address = wallet.trim()
+  if (address.length < 32 || address.length > 64) return null
+  const { rows } = await query<{ x_username: string }>(
+    `SELECT x_username FROM kol_registrations WHERE wallet = $1`,
+    [address],
+  )
+  const name = rows[0]?.x_username
+  if (!name) return null
+  return profileFromUsername(name)
 }
