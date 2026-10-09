@@ -4,6 +4,8 @@ import { takeRateLimit } from '../lib/agent/rate-limit.js'
 import {
   beginXAuth,
   completeXCallback,
+  getKolProfile,
+  getKolProfileByWallet,
   issueNonce,
   listRegistered,
   siteUrl,
@@ -27,6 +29,32 @@ kolRegisterRouter.get('/kols/register/status', (_req, res) => {
     redirectUri: process.env.X_REDIRECT_URI?.trim() || 'https://api.crewpay.dev/api/kols/register/callback',
     requires: ['solana wallet signature', 'x oauth'],
   })
+})
+
+kolRegisterRouter.get('/kols/registered/wallet/:wallet', async (req, res) => {
+  try {
+    const profile = await getKolProfileByWallet(String(req.params.wallet || ''))
+    if (!profile) {
+      res.status(404).json({ ok: false, error: 'No registration for this wallet.' })
+      return
+    }
+    res.json({ ok: true, ...profile })
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : 'profile failed' })
+  }
+})
+
+kolRegisterRouter.get('/kols/registered/:username', async (req, res) => {
+  try {
+    const profile = await getKolProfile(String(req.params.username || ''))
+    if (!profile) {
+      res.status(404).json({ ok: false, error: 'KOL is not registered.' })
+      return
+    }
+    res.json({ ok: true, ...profile })
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : 'profile failed' })
+  }
 })
 
 kolRegisterRouter.get('/kols/registered', async (req, res) => {
@@ -95,7 +123,7 @@ kolRegisterRouter.get('/kols/register/callback', async (req, res) => {
   try {
     const saved = await completeXCallback(code, state)
     res.redirect(
-      `${site}/register?registered=1&handle=${encodeURIComponent(saved.xUsername)}`,
+      `${site}/kol/${encodeURIComponent(saved.xUsername)}?registered=1`,
     )
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Registration failed'
