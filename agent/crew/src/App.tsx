@@ -58,7 +58,8 @@ import {
 } from "./lib/edges";
 import type { HireRole } from "./lib/types";
 import { launchCrew } from "./lib/launch";
-import { isAgentsPath, isKolsPath, isLaunchPath, isProofPath, isRegisterPath, kolHandleFromPath } from "./lib/routes";
+import { useOwnRegisteredHandle } from "./lib/registered-kol";
+import { isAgentsPath, isKolsPath, isLaunchPath, isProofPath, isRegisterPath, kolHandleFromPath, kolProfilePath } from "./lib/routes";
 import { distributeCreatorFees, lockHolderKolFeeShares, wireCrewFeeShares } from "./lib/pump/fees";
 import {
   remitsFromSignature,
@@ -151,6 +152,11 @@ export default function App() {
   const isKolProfilePage = Boolean(kolHandleFromPath(path));
   const isAgentsPage = isAgentsPath(path);
   const isProofPage = isProofPath(path);
+  const ownRegisteredHandle = useOwnRegisteredHandle(wallet.publicKey?.toBase58());
+  const isOwnDeskPage =
+    isKolProfilePage &&
+    Boolean(ownRegisteredHandle) &&
+    (kolHandleFromPath(path) || "").toLowerCase() === ownRegisteredHandle!.toLowerCase();
   const [draft, setDraft] = useState<LaunchDraft>(() => initialDraft());
   const [busy, setBusy] = useState(false);
   const [cranking, setCranking] = useState<string | null>(null);
@@ -1236,12 +1242,21 @@ export default function App() {
             >
               KOLs
             </Link>
-            <Link
-              className={isRegisterPage ? "is-active-nav-text" : undefined}
-              to="/register"
-            >
-              Register
-            </Link>
+            {ownRegisteredHandle ? (
+              <Link
+                className={isOwnDeskPage ? "is-active-nav-text" : undefined}
+                to={kolProfilePath(ownRegisteredHandle)}
+              >
+                Desk
+              </Link>
+            ) : (
+              <Link
+                className={isRegisterPage ? "is-active-nav-text" : undefined}
+                to="/register"
+              >
+                Register
+              </Link>
+            )}
             <Link
               className={isAgentsPage ? "is-active-nav-text" : undefined}
               to="/agents"

@@ -4,6 +4,7 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import { useWalletModal } from '@solana/wallet-adapter-react-ui'
 import bs58 from 'bs58'
 import { CREW_VERSION } from '../lib/config'
+import { useOwnRegisteredHandle } from '../lib/registered-kol'
 import { kolProfilePath } from '../lib/routes'
 
 const API = (
@@ -58,9 +59,10 @@ export function KolRegisterPage() {
   const [xOauth, setXOauth] = useState<boolean | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(params.get('error'))
-  const [ownHandle, setOwnHandle] = useState<string | null>(null)
+  const ownHandle = useOwnRegisteredHandle(wallet.publicKey?.toBase58())
   const registeredHandle = params.get('registered') === '1' ? params.get('handle') : null
   const deskHandle = registeredHandle || ownHandle
+  const alreadyRegistered = Boolean(ownHandle)
 
   const load = useCallback(async () => {
     const [statusRes, boardRes] = await Promise.all([
@@ -89,29 +91,10 @@ export function KolRegisterPage() {
     void load().catch(() => setError('Could not load the registration board.'))
   }, [load])
 
-  const connectedWallet = wallet.publicKey?.toBase58() || ''
-  useEffect(() => {
-    if (!connectedWallet) {
-      setOwnHandle(null)
+  async function onRegister() {
+    if (alreadyRegistered && ownHandle) {
       return
     }
-    let cancelled = false
-    void (async () => {
-      try {
-        const res = await fetch(`${API}/api/kols/registered/wallet/${encodeURIComponent(connectedWallet)}`)
-        if (!res.ok) return
-        const body = (await res.json()) as { profile?: { xUsername?: string } }
-        if (!cancelled && body.profile?.xUsername) setOwnHandle(body.profile.xUsername)
-      } catch {
-        /* desk link is optional */
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [connectedWallet])
-
-  async function onRegister() {
     setError(null)
     if (!wallet.publicKey || !wallet.signMessage) {
       setVisible(true)
@@ -205,14 +188,20 @@ export function KolRegisterPage() {
                 Connect wallet
               </button>
             ) : null}
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              disabled={busy || xOauth === false}
-              onClick={() => void onRegister()}
-            >
-              {busy ? 'Waiting for X…' : 'Register with X'}
-            </button>
+            {alreadyRegistered && ownHandle ? (
+              <Link className="btn btn-primary btn-sm" to={kolProfilePath(ownHandle)}>
+                Open desk
+              </Link>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                disabled={busy || xOauth === false}
+                onClick={() => void onRegister()}
+              >
+                {busy ? 'Waiting for X…' : 'Register with X'}
+              </button>
+            )}
           </div>
         </div>
 

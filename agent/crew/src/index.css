@@ -2987,8 +2987,10 @@ a {
   margin: 0;
   font-family: var(--font-display);
   font-size: clamp(1.7rem, 4vw, 2.4rem);
-  line-height: 1;
+  line-height: 1.05;
   letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .desk-check {
@@ -3010,6 +3012,9 @@ a {
   max-width: 36rem;
   color: var(--ink);
   line-height: 1.4;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
 }
 
 .desk-wallet-row {
@@ -3084,6 +3089,9 @@ a {
   font-family: var(--font-display);
   font-size: 1.25rem;
   letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
 }
 
 .desk-stats span {
@@ -3187,6 +3195,8 @@ a {
 
 .desk-coin-name {
   margin: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .desk-coin-sol {
@@ -3243,12 +3253,19 @@ a {
 @media (max-width: 720px) {
   .desk-hero {
     grid-template-columns: 84px minmax(0, 1fr);
+    overflow: hidden;
   }
 
   .desk-avatar,
   .desk-avatar-fallback {
     width: 84px;
     height: 84px;
+  }
+
+  .desk-identity,
+  .desk-hero > div {
+    min-width: 0;
+    max-width: 100%;
   }
 
   .desk-rank {
@@ -3261,6 +3278,10 @@ a {
     grid-template-columns: 1fr 1fr;
   }
 
+  .desk-stats div {
+    min-width: 0;
+  }
+
   .desk-stats div:nth-child(odd) {
     border-right: 1px solid rgba(200, 255, 61, 0.12);
   }
@@ -3270,8 +3291,38 @@ a {
     border-bottom: 1px solid rgba(200, 255, 61, 0.12);
   }
 
+  .desk-stats strong {
+    font-size: 1.05rem;
+  }
+
   .desk-remit {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .desk-remit strong,
+  .desk-remit span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .register-tape-item {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.25rem 0.75rem;
+  }
+
+  .register-tape-item strong,
+  .register-tape-item span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .kols-row-register {
+    grid-template-columns: 2rem minmax(0, 1fr) 4.5rem;
+  }
+
+  .kols-row-register .kols-wallet,
+  .kols-row-register span:nth-child(4) {
+    display: none;
   }
 }
 
