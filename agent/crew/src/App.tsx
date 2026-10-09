@@ -58,7 +58,8 @@ import {
 } from "./lib/edges";
 import type { HireRole } from "./lib/types";
 import { launchCrew } from "./lib/launch";
-import { isAgentsPath, isKolsPath, isLaunchPath, isProofPath, isRegisterPath, kolHandleFromPath } from "./lib/routes";
+import { useOwnRegisteredHandle } from "./lib/registered-kol";
+import { isAgentsPath, isKolsPath, isLaunchPath, isProofPath, isRegisterPath, kolHandleFromPath, kolProfilePath } from "./lib/routes";
 import { distributeCreatorFees, lockHolderKolFeeShares, wireCrewFeeShares } from "./lib/pump/fees";
 import {
   remitsFromSignature,
@@ -151,6 +152,11 @@ export default function App() {
   const isKolProfilePage = Boolean(kolHandleFromPath(path));
   const isAgentsPage = isAgentsPath(path);
   const isProofPage = isProofPath(path);
+  const ownRegisteredHandle = useOwnRegisteredHandle(wallet.publicKey?.toBase58());
+  const isOwnDeskPage =
+    isKolProfilePage &&
+    Boolean(ownRegisteredHandle) &&
+    (kolHandleFromPath(path) || "").toLowerCase() === ownRegisteredHandle!.toLowerCase();
   const [draft, setDraft] = useState<LaunchDraft>(() => initialDraft());
   const [busy, setBusy] = useState(false);
   const [cranking, setCranking] = useState<string | null>(null);
@@ -1227,21 +1233,34 @@ export default function App() {
             />
             CREW
           </Link>
-          <nav className="nav-links">
-            <Link to={{ pathname: "/", hash: "edges" }}>Edges</Link>
-            <Link to={{ pathname: "/", hash: "board" }}>Tape</Link>
+          <nav className="nav-links" aria-label="Site">
+            <Link className="nav-link-home" to={{ pathname: "/", hash: "edges" }}>
+              Edges
+            </Link>
+            <Link className="nav-link-home" to={{ pathname: "/", hash: "board" }}>
+              Tape
+            </Link>
             <Link
               className={isKolsPage ? "is-active-nav-text" : undefined}
               to="/kols"
             >
               KOLs
             </Link>
-            <Link
-              className={isRegisterPage ? "is-active-nav-text" : undefined}
-              to="/register"
-            >
-              Register
-            </Link>
+            {ownRegisteredHandle ? (
+              <Link
+                className={isOwnDeskPage ? "is-active-nav-text" : undefined}
+                to={kolProfilePath(ownRegisteredHandle)}
+              >
+                Desk
+              </Link>
+            ) : (
+              <Link
+                className={isRegisterPage ? "is-active-nav-text" : undefined}
+                to="/register"
+              >
+                Register
+              </Link>
+            )}
             <Link
               className={isAgentsPage ? "is-active-nav-text" : undefined}
               to="/agents"
@@ -1254,14 +1273,26 @@ export default function App() {
             >
               Proof
             </Link>
-            <Link to={{ pathname: "/", hash: "brand" }}>Brand</Link>
-            <a href={CREW_X_URL} target="_blank" rel="noreferrer">
+            <Link className="nav-link-home" to={{ pathname: "/", hash: "brand" }}>
+              Brand
+            </Link>
+            <a className="nav-link-x" href={CREW_X_URL} target="_blank" rel="noreferrer">
               X
             </a>
+          </nav>
+          <div className="nav-actions">
             <button
               type="button"
               className={`btn btn-ghost btn-nav wallet-btn${connected ? " is-on" : ""}`}
-              onClick={() => setVisible(true)}
+              title={connected ? "Disconnect wallet" : "Connect wallet"}
+              aria-label={connected ? "Disconnect wallet" : "Connect wallet"}
+              onClick={() => {
+                if (connected) {
+                  void wallet.disconnect();
+                  return;
+                }
+                setVisible(true);
+              }}
             >
               {connected ? shortAddr(wallet.publicKey!.toBase58()) : "Connect"}
             </button>
@@ -1271,7 +1302,7 @@ export default function App() {
             >
               Launch
             </Link>
-          </nav>
+          </div>
         </div>
       </header>
 
