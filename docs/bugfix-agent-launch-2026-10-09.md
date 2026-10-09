@@ -28,6 +28,8 @@ Sources: STRAW2GOLD + CATMEETING (against `0b0e2d6`), then $CADDY (fee-lock OK, 
 
 **Root cause for this launch:** production API had not rolled `e161d62`+ (Jito-first atomic). Client still hit the old “try legacy combined → fall back sequential” path from `0b0e2d6`.
 
+**Why Render stayed on `0b0e2d6`:** every later deploy built OK then died at boot — `migrate()` ran `schema.sql`’s `coins_agent_key_id_idx` before `ALTER TABLE … ADD COLUMN agent_key_id` on the live `coins` table (`column "agent_key_id" does not exist`, exit 1 / `update_failed`).
+
 **After deploy, expected path:** `lockPath: "jito-bundle"` (or `atomic-v0` if `CREW_LOOKUP_TABLE` set). Sequential must include `atomicFailures` in `warning`.
 
 ## Operator knobs
