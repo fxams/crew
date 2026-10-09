@@ -37,9 +37,14 @@ export function TopKolsPage() {
             Highest-reach wallets in the CREW 1500 list — ranked by followers. Hire them from
             the launch desk with narrative matching.
           </p>
-          <Link className="btn btn-primary btn-sm" to="/launch">
-            Open launch desk
-          </Link>
+          <div className="register-actions">
+            <Link className="btn btn-primary btn-sm" to="/register">
+              Register as a KOL
+            </Link>
+            <Link className="btn btn-ghost btn-sm" to="/launch">
+              Open launch desk
+            </Link>
+          </div>
         </div>
 
         <div className="kols-table" role="table" aria-label="Top 20 KOLs">

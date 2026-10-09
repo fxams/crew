@@ -88,6 +88,15 @@ services:
         sync: false
       - key: CORS_ORIGINS
         value: https://app.crewpay.dev,https://crewpay.dev,https://www.crewpay.dev
+      - key: SITE_URL
+        value: https://crewpay.dev
+      - key: X_REDIRECT_URI
+        value: https://api.crewpay.dev/api/kols/register/callback
+      # X app (OAuth 2.0, PKCE). Callback must match X_REDIRECT_URI. Portal stays closed until both are set.
+      - key: X_CLIENT_ID
+        sync: false
+      - key: X_CLIENT_SECRET
+        sync: false
 
   - type: web
     name: crewpay-mcp

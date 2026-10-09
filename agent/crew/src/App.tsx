@@ -16,6 +16,7 @@ import {
 import { ReceiptCard } from "./components/ReceiptCard";
 import { AgentsApiPage } from "./components/AgentsApiPage";
 import { ProofPage } from "./components/ProofPage";
+import { KolRegisterPage } from "./components/KolRegisterPage";
 import { TopKolsPage } from "./components/TopKolsPage";
 import { apiConfigured, pushModeAction, pushRemits } from "./lib/api";
 import { evaluateDipGate } from "./lib/desk-rules";
@@ -56,7 +57,7 @@ import {
 } from "./lib/edges";
 import type { HireRole } from "./lib/types";
 import { launchCrew } from "./lib/launch";
-import { isAgentsPath, isKolsPath, isLaunchPath, isProofPath } from "./lib/routes";
+import { isAgentsPath, isKolsPath, isLaunchPath, isProofPath, isRegisterPath } from "./lib/routes";
 import { distributeCreatorFees, lockHolderKolFeeShares, wireCrewFeeShares } from "./lib/pump/fees";
 import {
   remitsFromSignature,
@@ -145,6 +146,7 @@ export default function App() {
   const path = location.pathname.replace(/\/+$/, "") || "/";
   const isLaunchPage = isLaunchPath(path);
   const isKolsPage = isKolsPath(path);
+  const isRegisterPage = isRegisterPath(path);
   const isAgentsPage = isAgentsPath(path);
   const isProofPage = isProofPath(path);
   const [draft, setDraft] = useState<LaunchDraft>(() => initialDraft());
@@ -1233,6 +1235,12 @@ export default function App() {
               KOLs
             </Link>
             <Link
+              className={isRegisterPage ? "is-active-nav-text" : undefined}
+              to="/register"
+            >
+              Register
+            </Link>
+            <Link
               className={isAgentsPage ? "is-active-nav-text" : undefined}
               to="/agents"
             >
@@ -1276,10 +1284,11 @@ export default function App() {
       </div>
 
       {isKolsPage ? <TopKolsPage /> : null}
+      {isRegisterPage ? <KolRegisterPage /> : null}
       {isAgentsPage ? <AgentsApiPage /> : null}
       {isProofPage ? <ProofPage /> : null}
 
-      {!isLaunchPage && !isKolsPage && !isAgentsPage && !isProofPage ? (
+      {!isLaunchPage && !isKolsPage && !isRegisterPage && !isAgentsPage && !isProofPage ? (
         <>
       <div className="app-shell">
         <main id="top">
@@ -2765,7 +2774,7 @@ export default function App() {
           </div>
         </footer>
       </div>
-      ) : isAgentsPage || isKolsPage || isProofPage ? null : (
+      ) : isAgentsPage || isKolsPage || isRegisterPage || isProofPage ? null : (
       <div className="app-shell">
         <section className="section" id="brand">
           <p className="section-label">Brand kit</p>

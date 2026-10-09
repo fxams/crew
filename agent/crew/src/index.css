@@ -616,6 +616,94 @@ a {
   justify-self: start;
 }
 
+.register-card {
+  border: 1px solid rgba(200, 255, 61, 0.22);
+  padding: 1rem 1.1rem;
+  margin: 0.5rem 0 1.25rem;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.register-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.register-steps li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.85rem;
+  border-bottom: 1px solid rgba(200, 255, 61, 0.1);
+  padding-bottom: 0.35rem;
+}
+
+.register-steps li span {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.register-steps li.is-done strong {
+  color: var(--acid);
+}
+
+.register-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.register-ok {
+  margin: 0;
+  color: var(--acid);
+}
+
+.register-err {
+  margin: 0;
+  color: #ffb4a8;
+  font-size: 0.85rem;
+}
+
+.register-tape {
+  margin-bottom: 1.25rem;
+}
+
+.register-tape-track {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.register-tape-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) 7rem 6rem minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: center;
+  text-decoration: none;
+  color: var(--ink);
+  border-bottom: 1px solid rgba(200, 255, 61, 0.1);
+  padding: 0.4rem 0;
+  font-size: 0.82rem;
+}
+
+.register-tape-item span {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.register-board-title {
+  font-size: 1.35rem;
+  margin-bottom: 0.25rem;
+}
+
+.kols-row-register {
+  grid-template-columns: 2.5rem minmax(0, 1.4fr) 5rem 4.5rem 5.5rem;
+}
+
 .kols-table {
   display: grid;
   gap: 0.35rem;

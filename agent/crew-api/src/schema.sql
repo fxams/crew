@@ -147,3 +147,39 @@ CREATE TABLE IF NOT EXISTS mode_actions (
 );
 
 CREATE INDEX IF NOT EXISTS mode_actions_mint_idx ON mode_actions (mint, created_at DESC);
+
+-- Opt-in KOL registrations (X OAuth + signed Solana wallet). Separate from the seeded directory.
+CREATE TABLE IF NOT EXISTS kol_registrations (
+  x_user_id TEXT PRIMARY KEY,
+  x_username TEXT NOT NULL,
+  x_name TEXT NOT NULL DEFAULT '',
+  x_verified BOOLEAN NOT NULL DEFAULT false,
+  followers INT NOT NULL DEFAULT 0,
+  following INT NOT NULL DEFAULT 0,
+  tweet_count INT NOT NULL DEFAULT 0,
+  listed_count INT NOT NULL DEFAULT 0,
+  profile_image_url TEXT,
+  description TEXT NOT NULL DEFAULT '',
+  wallet TEXT NOT NULL,
+  registered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  stats_refreshed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS kol_registrations_wallet_idx ON kol_registrations (wallet);
+CREATE UNIQUE INDEX IF NOT EXISTS kol_registrations_username_idx ON kol_registrations (lower(x_username));
+CREATE INDEX IF NOT EXISTS kol_registrations_followers_idx ON kol_registrations (followers DESC, registered_at ASC);
+CREATE INDEX IF NOT EXISTS kol_registrations_registered_idx ON kol_registrations (registered_at DESC);
+
+CREATE TABLE IF NOT EXISTS kol_oauth_nonces (
+  nonce TEXT PRIMARY KEY,
+  wallet TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS kol_oauth_states (
+  state TEXT PRIMARY KEY,
+  code_verifier TEXT NOT NULL,
+  wallet TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
