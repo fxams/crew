@@ -6,6 +6,8 @@ import {
   completeXCallback,
   issueNonce,
   listRegistered,
+  oauthReturnForState,
+  phantomReturnPage,
   siteUrl,
   xOAuthConfigured,
 } from '../lib/kol-register.js'
@@ -68,6 +70,7 @@ kolRegisterRouter.post('/kols/register/start', async (req, res) => {
         wallet: solanaAddress,
         message: z.string().min(20).max(400),
         signature: z.string().min(64).max(128),
+        returnTo: z.enum(['phantom', 'web']).optional(),
       })
       .parse(req.body)
     const out = await beginXAuth(body)
@@ -79,26 +82,53 @@ kolRegisterRouter.post('/kols/register/start', async (req, res) => {
   }
 })
 
+function finishRegister(
+  res: { redirect: (url: string) => void; type: (t: string) => { send: (body: string) => void } },
+  returnTo: 'phantom' | 'web',
+  nextPath: string,
+  page: { heading: string; detail: string },
+) {
+  if (returnTo === 'phantom') {
+    res.type('html').send(phantomReturnPage({ ...page, nextPath }))
+    return
+  }
+  res.redirect(`${siteUrl()}${nextPath}`)
+}
+
 kolRegisterRouter.get('/kols/register/callback', async (req, res) => {
-  const site = siteUrl()
   const code = typeof req.query.code === 'string' ? req.query.code : ''
   const state = typeof req.query.state === 'string' ? req.query.state : ''
   const oauthError = typeof req.query.error === 'string' ? req.query.error : ''
+  const returnTo = await oauthReturnForState(state).catch(() => 'web' as const)
   if (oauthError) {
-    res.redirect(`${site}/register?error=${encodeURIComponent(oauthError)}`)
+    const detail = oauthError.slice(0, 180)
+    finishRegister(res, returnTo, `/register?error=${encodeURIComponent(detail)}`, {
+      heading: 'X sign-in did not finish',
+      detail,
+    })
     return
   }
   if (!code || !state) {
-    res.redirect(`${site}/register?error=${encodeURIComponent('Missing X authorization code')}`)
+    const detail = 'Missing X authorization code'
+    finishRegister(res, returnTo, `/register?error=${encodeURIComponent(detail)}`, {
+      heading: 'X sign-in did not finish',
+      detail,
+    })
     return
   }
   try {
-    const saved = await completeXCallback(code, state)
-    res.redirect(
-      `${site}/register?registered=1&handle=${encodeURIComponent(saved.xUsername)}`,
-    )
+    const { registration, returnTo: savedReturn } = await completeXCallback(code, state)
+    const handle = registration.xUsername
+    finishRegister(res, savedReturn, `/register?registered=1&handle=${encodeURIComponent(handle)}`, {
+      heading: `Registered @${handle}`,
+      detail: 'You are on the tape and the leaderboard. Open Phantom to see it.',
+    })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Registration failed'
-    res.redirect(`${site}/register?error=${encodeURIComponent(msg.slice(0, 180))}`)
+    const detail = msg.slice(0, 180)
+    finishRegister(res, returnTo, `/register?error=${encodeURIComponent(detail)}`, {
+      heading: 'Registration failed',
+      detail,
+    })
   }
 })

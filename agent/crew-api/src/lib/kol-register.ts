@@ -58,6 +58,46 @@ export function siteUrl(): string {
   return (process.env.SITE_URL?.trim() || 'https://crewpay.dev').replace(/\/$/, '')
 }
 
+export type OAuthReturn = 'phantom' | 'web'
+
+export function asOAuthReturn(value: unknown): OAuthReturn {
+  return value === 'phantom' ? 'phantom' : 'web'
+}
+
+/** Opens `target` inside Phantom's in-app browser. Requires a user tap on mobile. */
+export function phantomBrowseUrl(target: string): string {
+  const ref = siteUrl()
+  return `https://phantom.com/ul/browse/${encodeURIComponent(target)}?ref=${encodeURIComponent(ref)}`
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+/** Page X redirects to after OAuth when the user started inside Phantom mobile. */
+export function phantomReturnPage(opts: { heading: string; detail: string; nextPath: string }): string {
+  const next = `${siteUrl()}${opts.nextPath.startsWith('/') ? opts.nextPath : `/${opts.nextPath}`}`
+  const open = phantomBrowseUrl(next)
+  return `<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Back to CrewPay</title>
+<body style="font-family:system-ui,sans-serif;background:#0c0c0c;color:#f4f4f4;margin:0;padding:32px 20px">
+  <main style="max-width:28rem;margin:0 auto">
+    <h1 style="font-size:1.4rem">${escapeHtml(opts.heading)}</h1>
+    <p style="line-height:1.45">${escapeHtml(opts.detail)}</p>
+    <p><a href="${escapeHtml(open)}" style="display:inline-block;background:#ab9ff2;color:#111;text-decoration:none;font-weight:700;padding:12px 16px;border-radius:10px">Open in Phantom</a></p>
+    <p style="color:#aaa;font-size:.9rem">This tap is required. iPhone and Android only switch back into Phantom when you tap the link.</p>
+  </main>
+</body>
+</html>`
+}
+
 function b64url(buf: Buffer): string {
   return buf
     .toString('base64')
@@ -68,6 +108,14 @@ function b64url(buf: Buffer): string {
 
 export function codeChallengeS256(verifier: string): string {
   return b64url(createHash('sha256').update(verifier).digest())
+}
+
+/** X returns this when the developer app is still a Standalone App, not inside a Project. */
+export function explainXError(raw: string): string {
+  if (/attached to a Project/i.test(raw) || /client-not-enrolled/i.test(raw)) {
+    return 'X blocked this app because it is not inside a Project. In the X developer portal, move the app out of Standalone Apps and into a Project, then register again.'
+  }
+  return raw
 }
 
 export function buildXAuthorizeUrl(opts: { state: string; codeVerifier: string }): string {
@@ -102,6 +150,7 @@ export async function beginXAuth(opts: {
   wallet: string
   message: string
   signature: string
+  returnTo?: OAuthReturn
 }): Promise<{ authorizeUrl: string }> {
   if (!xOAuthConfigured()) {
     throw new Error('X sign-in is not configured. Set X_CLIENT_ID and X_CLIENT_SECRET on crewpay-api.')
@@ -126,11 +175,18 @@ export async function beginXAuth(opts: {
   await query(`DELETE FROM kol_oauth_states WHERE created_at < now() - interval '15 minutes'`)
   const state = randomBytes(16).toString('hex')
   const codeVerifier = b64url(randomBytes(32))
+  const returnTo = asOAuthReturn(opts.returnTo)
   await query(
-    `INSERT INTO kol_oauth_states (state, code_verifier, wallet) VALUES ($1, $2, $3)`,
-    [state, codeVerifier, wallet],
+    `INSERT INTO kol_oauth_states (state, code_verifier, wallet, return_to) VALUES ($1, $2, $3, $4)`,
+    [state, codeVerifier, wallet, returnTo],
   )
   return { authorizeUrl: buildXAuthorizeUrl({ state, codeVerifier }) }
+}
+
+export async function oauthReturnForState(state: string): Promise<OAuthReturn> {
+  if (!state) return 'web'
+  const { rows } = await query(`SELECT return_to FROM kol_oauth_states WHERE state = $1`, [state])
+  return asOAuthReturn((rows[0] as { return_to?: string } | undefined)?.return_to)
 }
 
 type XUser = {
@@ -169,31 +225,31 @@ async function exchangeCode(code: string, codeVerifier: string): Promise<string>
   })
   const json = (await res.json()) as { access_token?: string; error?: string; error_description?: string }
   if (!res.ok || !json.access_token) {
-    throw new Error(json.error_description || json.error || `X token HTTP ${res.status}`)
+    throw new Error(explainXError(json.error_description || json.error || `X token HTTP ${res.status}`))
   }
   return json.access_token
 }
 
 async function fetchXMe(accessToken: string): Promise<XUser> {
   const url = new URL('https://api.x.com/2/users/me')
-  url.searchParams.set(
-    'user.fields',
-    'public_metrics,description,verified,profile_image_url,created_at',
-  )
+  url.searchParams.set('user.fields', 'public_metrics,description,verified,profile_image_url')
   const res = await fetch(url, { headers: { authorization: `Bearer ${accessToken}` } })
-  const json = (await res.json()) as { data?: XUser; detail?: string; title?: string }
+  const json = (await res.json()) as { data?: XUser; detail?: string; title?: string; reason?: string }
   if (!res.ok || !json.data?.id || !json.data.username) {
-    throw new Error(json.detail || json.title || `X user HTTP ${res.status}`)
+    throw new Error(explainXError(json.detail || json.title || `X user HTTP ${res.status}`))
   }
   return json.data
 }
 
-export async function completeXCallback(code: string, state: string): Promise<KolRegistration> {
+export async function completeXCallback(
+  code: string,
+  state: string,
+): Promise<{ registration: KolRegistration; returnTo: OAuthReturn }> {
   const { rows } = await query(
-    `DELETE FROM kol_oauth_states WHERE state = $1 RETURNING code_verifier, wallet`,
+    `DELETE FROM kol_oauth_states WHERE state = $1 RETURNING code_verifier, wallet, return_to`,
     [state],
   )
-  const row = rows[0] as { code_verifier?: string; wallet?: string } | undefined
+  const row = rows[0] as { code_verifier?: string; wallet?: string; return_to?: string } | undefined
   if (!row?.code_verifier || !row.wallet) {
     throw new Error('Sign-in session expired. Connect your wallet and try again.')
   }
@@ -245,7 +301,7 @@ export async function completeXCallback(code: string, state: string): Promise<Ko
 
   const saved = await getRegistrationByX(user.id)
   if (!saved) throw new Error('Registration saved but could not be read back.')
-  return saved
+  return { registration: saved, returnTo: asOAuthReturn(row.return_to) }
 }
 
 function mapReg(r: Record<string, unknown>, rank: number): KolRegistration {

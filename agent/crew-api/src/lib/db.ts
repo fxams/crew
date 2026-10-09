@@ -72,6 +72,9 @@ export async function migrate(): Promise<void> {
   // Additive alters (CREATE IF NOT EXISTS in schema.sql will not change live tables).
   await query(`ALTER TABLE coins ADD COLUMN IF NOT EXISTS agent_key_id TEXT`)
   await query(
+    `ALTER TABLE kol_oauth_states ADD COLUMN IF NOT EXISTS return_to TEXT NOT NULL DEFAULT 'web'`,
+  )
+  await query(
     `CREATE INDEX IF NOT EXISTS coins_agent_key_id_idx ON coins (agent_key_id) WHERE agent_key_id IS NOT NULL`,
   )
   await query(
