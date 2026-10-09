@@ -312,7 +312,8 @@ function scoreKolForLaunch(
 
   const x = (kol.x || '').trim().replace(/^@+/, '').toLowerCase()
   if (!x || BAD_X.has(x) || x === (kol.pump || '').toLowerCase()) {
-    score -= 24
+    // Strong demotion — rank-1 / high Pump-follower junk X must not win seats (CP-3).
+    score -= 48
     reasons.push(x ? `unverified/weak X @${x}` : 'no X handle')
   }
 

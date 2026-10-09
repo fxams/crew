@@ -22,6 +22,27 @@ describe('agent narrative autohire', () => {
     const m = detectNarratives({ name: 'Mind', ticker: 'AGENT', vibe: '' })
     expect(m.tags[0]).toBe('ai')
   })
+
+  it('demotes known-bad X @oxrxbt out of hire #1 (CP-3)', () => {
+    const plan = planNarrativeHires(
+      { name: 'Viral Cat', ticker: 'CAT', vibe: 'a trench meme about a viral cat' },
+      { limit: 5 },
+    )
+    expect(plan.hires.length).toBe(5)
+    const top = plan.hires[0]!
+    const topX = (top.kol.x || '').toLowerCase().replace(/^@/, '')
+    expect(topX).not.toBe('oxrxbt')
+    expect(top.kol.pump.toLowerCase()).not.toBe('oxr')
+    const oxr = plan.hires.find(
+      (h) =>
+        (h.kol.x || '').toLowerCase().replace(/^@/, '') === 'oxrxbt' ||
+        h.kol.pump.toLowerCase() === 'oxr',
+    )
+    if (oxr) {
+      expect(oxr.reasons.some((r) => /unverified\/weak X/i.test(r))).toBe(true)
+      expect(oxr.hireRank).toBeGreaterThan(1)
+    }
+  })
 })
 
 describe('shareholders', () => {

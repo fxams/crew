@@ -64,6 +64,8 @@ const TAG_KEYWORDS: Record<NarrativeTag, string[]> = {
 }
 
 const JUNK_USER = /^user\d+$/i
+/** Known Pump x_username values that are empty / protected / not real CT reach (CP-3). */
+const BAD_X = new Set(['oxrxbt', 'oxr'].map((s) => s.toLowerCase()))
 
 function loadKolDb(): KolRecord[] {
   const here = dirname(fileURLToPath(import.meta.url))
@@ -237,10 +239,21 @@ export function planNarrativeHires(
           reasons.push(`ticker in @${h}`)
         }
       }
+      // `followers` is Pump follower count — not verified X reach (CP-3).
       score += Math.log10(kol.followers + 10) * 4
-      if (kol.rank <= 20) score += 9
-      else if (kol.rank <= 100) score += 5
+      reasons.push(`pumpFollowers ${kol.followers}`)
+      if (kol.rank <= 20) {
+        score += 9
+        reasons.push(`top ${kol.rank}`)
+      } else if (kol.rank <= 100) score += 5
       else if (kol.rank <= 300) score += 2
+
+      // Demote empty / protected / known-bad X handles (CP-3 — was missing on API path).
+      const x = (kol.x || '').trim().replace(/^@+/, '').toLowerCase()
+      if (!x || BAD_X.has(x) || x === (kol.pump || '').toLowerCase()) {
+        score -= 48
+        reasons.push(x ? `unverified/weak X @${x}` : 'no X handle')
+      }
 
       return {
         kol,

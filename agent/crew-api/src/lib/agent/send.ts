@@ -275,9 +275,12 @@ async function resolveJitoTipAccount(bundleUrl: string): Promise<PublicKey> {
 
 async function jitoSendBundle(encodedTxs: string[]): Promise<{ bundleId: string; url: string }> {
   const errors: string[] = []
+  // Jito defaults to base58 (deprecated). We encode base64 — must pass encoding or
+  // every engine returns "transaction #0 could not be decoded" (CP-2 / PRAYDOG).
+  const params: unknown[] = [encodedTxs, { encoding: 'base64' }]
   for (const url of JITO_BUNDLE_URLS) {
     try {
-      const result = await jitoRpc(url, 'sendBundle', [encodedTxs])
+      const result = await jitoRpc(url, 'sendBundle', params)
       if (!result) throw new Error('empty result')
       return { bundleId: String(result), url }
     } catch (err) {
@@ -353,6 +356,79 @@ export async function getSignatureSlot(signature: string): Promise<number | null
     })
     return tx?.slot ?? null
   } catch {
+    return null
+  }
+}
+
+/** Create-tx block time in ms (null if unknown). Prefer over server Date.now() for launchedAt. */
+export async function getSignatureBlockTimeMs(signature: string): Promise<number | null> {
+  try {
+    const connection = getConnection()
+    const tx = await connection.getTransaction(signature, {
+      maxSupportedTransactionVersion: 1,
+      commitment: 'confirmed',
+    })
+    return tx?.blockTime != null ? tx.blockTime * 1000 : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Sum launcher creator-vault balance increases in txs with slot in [createSlot, lockSlot).
+ * Excludes the create and lock signatures themselves. Best-effort; returns null on RPC errors.
+ */
+export async function estimatePreLockCreatorFeesLamports(opts: {
+  launcher: PublicKey
+  createSignature: string
+  lockSignature: string
+  createSlot: number | null
+  lockSlot: number | null
+}): Promise<number | null> {
+  const { createSlot, lockSlot } = opts
+  if (createSlot == null || lockSlot == null || lockSlot <= createSlot) return 0
+  try {
+    // Lazy require — same BN ESM issue as other pump imports.
+    const { createRequire } = await import('node:module')
+    const require = createRequire(import.meta.url)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const pump = require('@pump-fun/pump-sdk') as typeof import('@pump-fun/pump-sdk')
+    const vault = pump.creatorVaultPda(opts.launcher)
+    const connection = getConnection()
+    const sigs = await connection.getSignaturesForAddress(vault, { limit: 40 })
+    let total = 0n
+    for (const entry of sigs) {
+      if (entry.err) continue
+      if (entry.signature === opts.createSignature || entry.signature === opts.lockSignature) {
+        continue
+      }
+      const slot = entry.slot
+      if (slot < createSlot || slot >= lockSlot) continue
+      const tx = await connection.getTransaction(entry.signature, {
+        maxSupportedTransactionVersion: 1,
+        commitment: 'confirmed',
+      })
+      if (!tx?.meta?.preBalances || !tx.meta.postBalances) continue
+      const keys = tx.transaction.message.getAccountKeys({
+        accountKeysFromLookups: tx.meta.loadedAddresses,
+      })
+      const vaultStr = vault.toBase58()
+      for (let i = 0; i < tx.meta.preBalances.length; i += 1) {
+        try {
+          if (keys.get(i)?.toBase58() !== vaultStr) continue
+          const delta = BigInt(tx.meta.postBalances[i]!) - BigInt(tx.meta.preBalances[i]!)
+          if (delta > 0n) total += delta
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    return Number(total)
+  } catch (err) {
+    console.warn(
+      'preLockCreatorFeesLamports estimate failed',
+      err instanceof Error ? err.message : err,
+    )
     return null
   }
 }

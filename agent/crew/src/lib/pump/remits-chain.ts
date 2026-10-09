@@ -43,17 +43,26 @@ export function parseDistributeRowsFromTx(
     if (total <= 0n) continue
     const at = atMs || Number(event.timestamp) * 1000
 
-    // Prefer actual lamport deltas from tx meta (avoids ±1 lamport bps rounding dust).
+    // Prefer net balance deltas, but add back the tx fee when the shareholder
+    // was also the fee payer (otherwise remits under-report by ~5000 lamports — CP-7).
+    // Fall back to bps×distributed when meta is missing (floor dust ≤1 lamport — CP-6).
     const keys = tx.transaction.message.getAccountKeys({
       accountKeysFromLookups: tx.meta?.loadedAddresses,
     })
     const pre = tx.meta?.preBalances
     const post = tx.meta?.postBalances
+    const fee = BigInt(tx.meta?.fee ?? 0)
+    let feePayer: string | null = null
+    try {
+      feePayer = keys.get(0)?.toBase58() ?? null
+    } catch {
+      feePayer = null
+    }
     const deltaByWallet = new Map<string, bigint>()
     if (pre && post && pre.length === post.length) {
       for (let i = 0; i < pre.length; i += 1) {
         const delta = BigInt(post[i]!) - BigInt(pre[i]!)
-        if (delta <= 0n) continue
+        if (delta === 0n) continue
         try {
           const wallet = keys.get(i)?.toBase58()
           if (wallet) deltaByWallet.set(wallet, (deltaByWallet.get(wallet) || 0n) + delta)
@@ -65,11 +74,14 @@ export function parseDistributeRowsFromTx(
 
     for (const sh of event.shareholders) {
       const wallet = sh.address.toBase58()
-      const fromMeta = deltaByWallet.get(wallet)
+      const fromBps = (total * BigInt(sh.shareBps)) / 10_000n
+      let fromMeta = deltaByWallet.get(wallet)
+      if (fromMeta != null && feePayer && wallet === feePayer && fee > 0n) {
+        // Net change = distribution − fee; remits should equal the distribution transfer.
+        fromMeta += fee
+      }
       const lamports =
-        fromMeta && fromMeta > 0n
-          ? fromMeta
-          : (total * BigInt(sh.shareBps)) / 10_000n
+        fromMeta != null && fromMeta > 0n ? fromMeta : fromBps
       if (lamports <= 0n) continue
       rows.push({
         signature,

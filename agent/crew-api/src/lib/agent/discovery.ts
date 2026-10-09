@@ -25,10 +25,31 @@ export const MCP_HTTP_URL = 'https://mcp.crewpay.dev/mcp'
 export const MCP_HTTP_URL_LEGACY = 'https://crewpay-mcp.onrender.com/mcp'
 export const MCP_MANIFEST_URL = `${SITE_URL}/mcp.json`
 
+/** Render injects RENDER_GIT_COMMIT; local/dev may set CREW_GIT_COMMIT. */
+export function buildInfo() {
+  const commit =
+    process.env.RENDER_GIT_COMMIT?.trim() ||
+    process.env.CREW_GIT_COMMIT?.trim() ||
+    process.env.GIT_COMMIT?.trim() ||
+    null
+  const deployedAt =
+    process.env.RENDER_DEPLOY_CREATED_AT?.trim() ||
+    process.env.CREW_DEPLOYED_AT?.trim() ||
+    null
+  return {
+    commit: commit ? commit.slice(0, 40) : null,
+    commitShort: commit ? commit.slice(0, 12) : null,
+    deployedAt,
+    source: commit ? 'env' : 'unknown',
+  }
+}
+
 export function agentDiscoveryJson() {
+  const build = buildInfo()
   return {
     service: 'crew-agent-api',
     version: '1',
+    build,
     name: 'CREW / CrewPay Agent Launch',
     description:
       'AI agents launch Pump.fun coins on Solana with permanent CREW fee-shares (25% platform buyback + hired KOL wallets).',
@@ -110,7 +131,7 @@ export function agentDiscoveryJson() {
         'x-crew-api-key':
           'crew_ak_… from POST /api/agent/keys/claim (self-serve) or operator CREW_AGENT_API_KEY / POST /api/agent/keys. Browser VITE_CREW_API_KEY is rejected when the agent key is configured. MCP reads work without a key; writes require a key.',
         'x-launcher-key':
-          'Agent Solana secret (base58 or JSON bytes). Required on launch/wire/lock/crank. Put it in MCP CREW_LAUNCHER_KEY env — never as a tool argument. Server CREW_AGENT_LAUNCHER_KEY only if CREW_ALLOW_SERVER_LAUNCHER=1.',
+          'Agent Solana secret (base58 or JSON bytes). Required on launch/wire/lock. Optional on crank (permissionless — falls back to server CREW_OPS_KEY). Put it in MCP CREW_LAUNCHER_KEY env — never as a tool argument. Server CREW_AGENT_LAUNCHER_KEY only if CREW_ALLOW_SERVER_LAUNCHER=1.',
         'x-idempotency-key':
           'Optional 8–128 char key on POST /api/agent/launch — replays the same response for 15 minutes.',
       },
@@ -164,9 +185,11 @@ export function agentDiscoveryJson() {
           agent: { name: '', objective: '', model: 'optional' },
           initialBuySol: '0–10',
           holderKol: false,
+          atomicRequired:
+            'optional bool — refuse sequential create→lock fallback (also CREW_ATOMIC_REQUIRED=1)',
         },
         returns:
-          'mint, signatures, feeShareLocked, nextSteps, pumpUrl, crew, hirePlan (HTTP 201 locked / 202 partial)',
+          'mint, signatures, feeShareLocked, lockPath, createSlot/lockSlot, preLockCreatorFeesLamports, nextSteps, pumpUrl, crew, hirePlan (HTTP 201 locked / 202 partial)',
       },
       'GET /api/agent/status/:mint': {
         auth: 'x-crew-api-key',
@@ -212,6 +235,12 @@ export function agentDiscoveryJson() {
       },
       'GET /api/proof': 'Public buyback + remit proof bundle',
       'GET /api/buybacks': 'Buyback run history',
+      'GET /api/kols': 'Public KOL directory (query: q, limit)',
+      'GET /api/kols/wallet/{wallet}': 'KOL by wallet',
+      'GET /api/coins': 'Public recent launches',
+      'GET /api/coins/{mint}': 'Coin by mint',
+      'GET /api/board': 'Coins + remits board snapshot',
+      'GET /api/remits': 'Public remits (query: mint, limit)',
       'POST /api/webhooks': 'Register agent webhook (auth)',
     },
     notes: [
@@ -219,8 +248,10 @@ export function agentDiscoveryJson() {
       'Self-serve auth: POST /api/agent/keys/claim → crew_ak_… then pass x-crew-api-key (no operator signup).',
       'Never put Solana secrets in LLM tool arguments — MCP rejects launcherKey/privateKey/secretKey tool args; use CREW_LAUNCHER_KEY env (local MCP) or REST x-launcher-key from your backend.',
       'Public hosted MCP (mcp.crewpay.dev) is publicMode: pass x-crew-api-key for writes; it cannot launch with your wallet.',
-      'Launch prefers Jito bundle [create,lock] first (combined tx usually >1232 bytes), then v0+ALT single-tx; sequential fallback is racy (~2s — see lockPath/createSlot/lockSlot + atomicFailures in warning). Set CREW_LOOKUP_TABLE and/or CREW_ATOMIC_REQUIRED=1. HTTP 202 → crew_wire_fees({ mint }).',
-      'Crank uses OnlinePumpSdk.buildDistributeCreatorFeesInstructions (sweep before distribute) — fixes CreatorFeesNotSwept 6095. Payer may be CREW_OPS_KEY (no launcher secret).',
+      'Launch prefers Jito bundle [create,lock] first (sendBundle encoding=base64), then v0+ALT single-tx; sequential fallback is racy (~2s — see lockPath/createSlot/lockSlot/preLockCreatorFeesLamports + atomicFailures). Set CREW_LOOKUP_TABLE and/or atomicRequired / CREW_ATOMIC_REQUIRED=1. HTTP 202 → crew_wire_fees({ mint }).',
+      'Crank uses OnlinePumpSdk.buildDistributeCreatorFeesInstructions (sweep before distribute) — fixes CreatorFeesNotSwept 6095. Permissionless: x-launcher-key optional; server CREW_OPS_KEY pays when unset.',
+      'coin.launchedAt is create-tx blockTime (ms) when RPC returns it; /api/proof may store truncated-to-second timestamps from DB.',
+      `Build: commit=${build.commitShort || 'unknown'} deployedAt=${build.deployedAt || 'unknown'}.`,
       'Every launch description appends “Launched from CrewPay.dev platform” when missing (shown in dry-run.vibe / attribution).',
       'Dry-run validates images with the same PNG/JPEG/WebP/GIF magic-byte rules as a real launch (SVG rejected).',
       'Launcher wallet pays Pump create fees and becomes the on-chain creator.',
@@ -481,9 +512,11 @@ export function openApiSpec() {
       '/api/agent/crank': {
         post: {
           tags: ['agent'],
-          summary: 'Crank distributeCreatorFeesV2 remits',
+          summary: 'Crank distributeCreatorFeesV2 remits (permissionless fee payer)',
+          description:
+            'x-launcher-key is optional. When omitted, the server uses CREW_OPS_KEY (or buyback key) as the fee payer.',
           operationId: 'postAgentCrank',
-          security: [{ CrewApiKey: [], LauncherKey: [] }],
+          security: [{ CrewApiKey: [] }, { CrewApiKey: [], LauncherKey: [] }],
           responses: { '200': { description: 'Remit signature' }, '400': { description: 'Failed' } },
         },
       },
@@ -502,6 +535,88 @@ export function openApiSpec() {
           responses: { '200': { description: 'Proof bundle' } },
         },
       },
+      '/api/kols': {
+        get: {
+          tags: ['discovery'],
+          summary: 'Public KOL directory search',
+          operationId: 'getKols',
+          parameters: [
+            { name: 'q', in: 'query', schema: { type: 'string' } },
+            { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 200 } },
+          ],
+          responses: { '200': { description: 'KOL rows' } },
+        },
+      },
+      '/api/kols/wallet/{wallet}': {
+        get: {
+          tags: ['discovery'],
+          summary: 'KOL by wallet',
+          operationId: 'getKolByWallet',
+          parameters: [
+            { name: 'wallet', in: 'path', required: true, schema: { type: 'string' } },
+          ],
+          responses: { '200': { description: 'KOL row' }, '404': { description: 'Not found' } },
+        },
+      },
+      '/api/coins': {
+        get: {
+          tags: ['discovery'],
+          summary: 'Recent CREW launches',
+          operationId: 'getCoins',
+          responses: { '200': { description: 'Coin list' } },
+        },
+      },
+      '/api/coins/{mint}': {
+        get: {
+          tags: ['discovery'],
+          summary: 'Coin by mint',
+          operationId: 'getCoin',
+          parameters: [
+            { name: 'mint', in: 'path', required: true, schema: { type: 'string' } },
+          ],
+          responses: { '200': { description: 'Coin' }, '404': { description: 'Not found' } },
+        },
+      },
+      '/api/board': {
+        get: {
+          tags: ['discovery'],
+          summary: 'Board snapshot (coins + remits)',
+          operationId: 'getBoard',
+          responses: { '200': { description: 'Board' } },
+        },
+      },
+      '/api/remits': {
+        get: {
+          tags: ['discovery'],
+          summary: 'Public remits tape',
+          operationId: 'getRemits',
+          parameters: [
+            { name: 'mint', in: 'query', schema: { type: 'string' } },
+            { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 200 } },
+          ],
+          responses: { '200': { description: 'Remits' } },
+        },
+      },
+      '/api/buybacks': {
+        get: {
+          tags: ['discovery'],
+          summary: 'Buyback run history',
+          operationId: 'getBuybacks',
+          responses: { '200': { description: 'Buyback runs' } },
+        },
+      },
+      '/api/webhooks': {
+        post: {
+          tags: ['agent'],
+          summary: 'Register webhook',
+          operationId: 'postWebhooks',
+          security: [{ CrewApiKey: [] }],
+          responses: {
+            '201': { description: 'Registered' },
+            '401': { description: 'Unauthorized' },
+          },
+        },
+      },
     },
     components: {
       securitySchemes: {
@@ -515,7 +630,8 @@ export function openApiSpec() {
           type: 'apiKey',
           in: 'header',
           name: 'x-launcher-key',
-          description: 'Agent Solana secret (base58 or JSON byte array)',
+          description:
+            'Agent Solana secret (base58 or JSON byte array). Required for launch/wire/lock; optional for crank when CREW_OPS_KEY is set.',
         },
       },
       schemas: {
@@ -592,6 +708,12 @@ export function openApiSpec() {
               },
             },
             holderKol: { type: 'boolean', default: false },
+            atomicRequired: {
+              type: 'boolean',
+              default: false,
+              description:
+                'When true, refuse sequential create→lock fallback (same as CREW_ATOMIC_REQUIRED=1).',
+            },
           },
         },
       },
@@ -811,7 +933,7 @@ GET ${SITE_URL}/robots.txt
 | Header | Required | Purpose |
 |--------|----------|---------|
 | x-crew-api-key | yes (writes) | \`crew_ak_…\` from POST /api/agent/keys/claim (self-serve) or operator CREW_AGENT_API_KEY |
-| x-launcher-key | launch | Agent wallet secret (base58 or JSON byte array) |
+| x-launcher-key | launch / wire / lock (optional on crank) | Agent wallet secret (base58 or JSON byte array). Crank is permissionless — omit and server uses CREW_OPS_KEY when set. |
 | x-idempotency-key | optional | Prevents duplicate launches on retry |
 
 Self-serve key mint (no operator):
@@ -879,7 +1001,7 @@ x-idempotency-key: unique-client-retry-key
 
 \`agent.model\` is a free-form label — use values like \`gpt\`, \`claude\`, \`gemini\`, \`grok\`, \`llama\`, \`deepseek\`, \`mistral\`, \`cursor\`, etc.
 
-Success: HTTP 201 with \`mint\`, \`signature\`, \`feeShareSignature\`, \`pumpUrl\`, \`crew\` (with \`effectiveBps\`), \`shareholders\`, \`hirePlan\` (null when explicit crew[]), \`lockPath\`, \`createSlot\`/\`lockSlot\`.
+Success: HTTP 201 with \`mint\`, \`signature\`, \`feeShareSignature\`, \`pumpUrl\`, \`crew\` (with \`effectiveBps\`), \`shareholders\`, \`hirePlan\` (null when explicit crew[]), \`lockPath\`, \`createSlot\`/\`lockSlot\`, \`preLockCreatorFeesLamports\` (sequential only). Optional body \`atomicRequired: true\` refuses sequential fallback. \`GET /api/agent\` exposes \`build.commit\` so clients can confirm the deploy.
 
 ## 0) Dry-run (recommended)
 
