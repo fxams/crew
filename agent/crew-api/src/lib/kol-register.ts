@@ -77,7 +77,9 @@ export function buildXAuthorizeUrl(opts: { state: string; codeVerifier: string }
     response_type: 'code',
     client_id: clientId,
     redirect_uri: xRedirectUri(),
-    scope: 'users.read tweet.read offline.access',
+    // users.read is required for /2/users/me. tweet.read is the base read scope.
+    // offline.access is omitted — we do not store a refresh token.
+    scope: 'users.read tweet.read',
     state: opts.state,
     code_challenge: codeChallengeS256(opts.codeVerifier),
     code_challenge_method: 'S256',
