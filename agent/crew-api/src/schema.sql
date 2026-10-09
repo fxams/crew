@@ -181,5 +181,6 @@ CREATE TABLE IF NOT EXISTS kol_oauth_states (
   state TEXT PRIMARY KEY,
   code_verifier TEXT NOT NULL,
   wallet TEXT NOT NULL,
+  return_to TEXT NOT NULL DEFAULT 'web',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

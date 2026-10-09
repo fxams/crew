@@ -36,6 +36,14 @@ function formatFollowers(n: number) {
   return String(n)
 }
 
+function friendlyRegisterError(raw: string | null): string | null {
+  if (!raw) return null
+  if (/attached to a Project/i.test(raw) || /client-not-enrolled/i.test(raw)) {
+    return 'X blocked this app because it is not inside a Project. In the X developer portal, move the app out of Standalone Apps and into a Project, then register again.'
+  }
+  return raw
+}
+
 function formatWhen(iso: string) {
   const t = Date.parse(iso)
   if (!Number.isFinite(t)) return ''
@@ -56,7 +64,7 @@ export function KolRegisterPage() {
   const [total, setTotal] = useState(0)
   const [xOauth, setXOauth] = useState<boolean | null>(null)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(params.get('error'))
+  const [error, setError] = useState<string | null>(friendlyRegisterError(params.get('error')))
   const registeredHandle = params.get('registered') === '1' ? params.get('handle') : null
 
   const load = useCallback(async () => {
