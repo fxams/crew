@@ -4,7 +4,7 @@ Sources: STRAW2GOLD + CATMEETING (against `0b0e2d6`), then $CADDY (fee-lock OK, 
 
 | ID | Severity | Status |
 |----|----------|--------|
-| B1 | High | **Still open in prod** — combined create+lock still falls back to ~2s sequential. Code on `main` prefers **Jito bundle first**, then v0+ALT, then sequential with `lockPath`/`createSlot`/`lockSlot` + failure reasons. **`api.crewpay.dev` was still serving the pre-Jito build** when $CADDY launched (no `/api/agent/launches`, old discovery notes). Manual Render deploy required. |
+| B1 | High | **Code fixed** — deploy `65dd591`+ migrate, then CP-2 `sendBundle` `{encoding:"base64"}`. Prod was stuck on `0b0e2d6` (migrate crash) then sequential because Jito decoded base64 as base58. See `docs/cp-findings-2026-10-09.md`. |
 | B2 | High | **Fixed in code** — crank/desk use `OnlinePumpSdk.buildDistributeCreatorFeesInstructions` (6095) |
 | B3 | Medium | **Fixed in code** — crank via `CREW_OPS_KEY` / buyback key |
 | B4 | Medium | **Mitigated** — Autohire demotes weak/known-bad X (`oxrxbt`) |

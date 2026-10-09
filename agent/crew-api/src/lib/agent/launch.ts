@@ -17,7 +17,9 @@ import {
 import { uploadPumpMetadata, validateAgentImage, type AgentImageInput } from './ipfs.js'
 import { planNarrativeHires, type CrewMember, type NarrativeHirePlan } from './narrative.js'
 import {
+  estimatePreLockCreatorFeesLamports,
   getConnection,
+  getSignatureBlockTimeMs,
   getSignatureSlot,
   sendInstructions,
   sendJitoBundle,
@@ -40,6 +42,11 @@ export type AgentLaunchInput = {
   autoHire?: { seats?: number }
   agent?: { name: string; objective: string; model?: string }
   holderKol?: boolean
+  /**
+   * When true, refuse sequential create→lock fallback (same as CREW_ATOMIC_REQUIRED=1).
+   * Prefer Jito bundle or v0+ALT; return ok:false if both fail.
+   */
+  atomicRequired?: boolean
 }
 
 export type AgentLaunchResult =
@@ -63,6 +70,8 @@ export type AgentLaunchResult =
       lockPath?: 'atomic-v0' | 'jito-bundle' | 'sequential' | 'holder-kol-open'
       createSlot?: number | null
       lockSlot?: number | null
+      /** Creator-vault lamports accrued in [createSlot, lockSlot) before fee-share lock (CP-1). */
+      preLockCreatorFeesLamports?: number | null
       coin: {
         id: string
         mint: string
@@ -401,6 +410,7 @@ export async function launchForAgent(
     /** Always present — null when explicit crew[] (not Autohire). */
     const hirePlanOut: NarrativeHirePlan | null = hirePlan ?? null
     const atomicRequired =
+      input.atomicRequired === true ||
       process.env.CREW_ATOMIC_REQUIRED === '1' ||
       process.env.CREW_ATOMIC_REQUIRED === 'true'
 
@@ -471,7 +481,8 @@ export async function launchForAgent(
     }
 
     const mintStr = mintKp.publicKey.toBase58()
-    const launchedAt = Date.now()
+    /** Placeholder until create confirms — overwritten with create blockTime when available (CP-9). */
+    let launchedAt = Date.now()
     const pumpUrl = PUMP_COIN_URL(mintStr)
 
     const createShareIx = await sdk.createFeeSharingConfig({
@@ -523,10 +534,12 @@ export async function launchForAgent(
         })
         const signature = signatures[0]!
         const feeShareSignature = signatures[1]!
-        const [createSlot, lockSlot] = await Promise.all([
+        const [createSlot, lockSlot, createBlockMs] = await Promise.all([
           getSignatureSlot(signature),
           getSignatureSlot(feeShareSignature),
+          getSignatureBlockTimeMs(signature),
         ])
+        launchedAt = createBlockMs ?? launchedAt
         return {
           ok: true,
           mint: mintStr,
@@ -542,6 +555,7 @@ export async function launchForAgent(
           lockPath: 'jito-bundle',
           createSlot,
           lockSlot,
+          preLockCreatorFeesLamports: 0,
           warning: `Atomic via Jito (${engine}).`,
           coin: {
             ...coinBaseFields,
@@ -565,6 +579,7 @@ export async function launchForAgent(
           attempts: 1,
         })
         const slot = await getSignatureSlot(signature)
+        launchedAt = (await getSignatureBlockTimeMs(signature)) ?? launchedAt
         return {
           ok: true,
           mint: mintStr,
@@ -580,6 +595,7 @@ export async function launchForAgent(
           lockPath: 'atomic-v0',
           createSlot: slot,
           lockSlot: slot,
+          preLockCreatorFeesLamports: 0,
           coin: {
             ...coinBaseFields,
             signature,
@@ -609,10 +625,11 @@ export async function launchForAgent(
           attempts: 1,
         })
         const createSlot = await getSignatureSlot(signature)
+        launchedAt = (await getSignatureBlockTimeMs(signature)) ?? Date.now()
         const coinBase = {
           ...coinBaseFields,
           signature,
-          launchedAt: Date.now(),
+          launchedAt,
         }
         try {
           const feeShareSignature = await sendInstructions({
@@ -620,6 +637,13 @@ export async function launchForAgent(
             ixs: feeIxs,
           })
           const lockSlot = await getSignatureSlot(feeShareSignature)
+          const preLockCreatorFeesLamports = await estimatePreLockCreatorFeesLamports({
+            launcher: launcher.publicKey,
+            createSignature: signature,
+            lockSignature: feeShareSignature,
+            createSlot,
+            lockSlot,
+          })
           return {
             ok: true,
             mint: mintStr,
@@ -635,13 +659,19 @@ export async function launchForAgent(
             lockPath: 'sequential',
             createSlot,
             lockSlot,
+            preLockCreatorFeesLamports,
             warning: [
               'Fee-shares locked in a follow-up tx (atomic paths failed — racy ~2s window).',
               `createSlot=${createSlot ?? '?'} lockSlot=${lockSlot ?? '?'}.`,
               'Snipers between those slots pay undivided fees to the launcher vault.',
+              preLockCreatorFeesLamports != null
+                ? `preLockCreatorFeesLamports=${preLockCreatorFeesLamports}.`
+                : '',
               `Atomic failures: ${atomicFailures.join(' · ') || 'unknown'}.`,
-              'Deploy latest main + set CREW_LOOKUP_TABLE and/or allow Jito egress; CREW_ATOMIC_REQUIRED=1 to refuse this fallback.',
-            ].join(' '),
+              'Jito needs encoding=base64; set CREW_LOOKUP_TABLE for v0+ALT; atomicRequired/CREW_ATOMIC_REQUIRED=1 to refuse this fallback.',
+            ]
+              .filter(Boolean)
+              .join(' '),
             coin: { ...coinBase, feeShareSignature },
           }
         } catch (feeErr) {

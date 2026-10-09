@@ -131,6 +131,8 @@ const launchBodySchema = z
       })
       .optional(),
     holderKol: z.boolean().optional().default(false),
+    /** Refuse sequential create→lock fallback (also settable via CREW_ATOMIC_REQUIRED=1). */
+    atomicRequired: z.boolean().optional().default(false),
     /** Optional public launcher address for dry-run balance checks only. */
     launcherPubkey: solanaAddress.optional(),
   })
@@ -167,7 +169,11 @@ function applyRateLimit(
 
 agentRouter.get('/agent', (_req, res) => {
   res.setHeader('Cache-Control', 'public, max-age=300')
-  res.json(agentDiscoveryJson())
+  const doc = agentDiscoveryJson()
+  if (doc.build?.commitShort) {
+    res.setHeader('X-Crew-Build', doc.build.commitShort)
+  }
+  res.json(doc)
 })
 
 agentRouter.post('/agent/autohire', requireAgentApiKey, async (req, res) => {
@@ -253,6 +259,7 @@ function bodyToLaunchInput(body: z.infer<typeof launchBodySchema>): AgentLaunchI
     autoHire: body.holderKol ? undefined : body.autoHire || (body.crew ? undefined : { seats: 5 }),
     agent: body.agent,
     holderKol: body.holderKol,
+    atomicRequired: body.atomicRequired,
   }
 }
 

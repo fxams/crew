@@ -32,6 +32,21 @@ describe('agent discovery docs', () => {
     expect(spec.paths['/api/agent/keys/claim']).toBeTruthy()
     expect(spec.paths['/api/agent/wire-fees']).toBeTruthy()
     expect(spec.paths['/api/proof']).toBeTruthy()
+    expect(spec.paths['/api/kols']).toBeTruthy()
+    expect(spec.paths['/api/coins']).toBeTruthy()
+    expect(spec.paths['/api/board']).toBeTruthy()
+    expect(spec.paths['/api/remits']).toBeTruthy()
+    expect(spec.paths['/api/buybacks']).toBeTruthy()
+    expect(spec.paths['/api/agent/crank'].post.security).toEqual(
+      expect.arrayContaining([{ CrewApiKey: [] }]),
+    )
+    expect(spec.components.schemas.LaunchRequest.properties.atomicRequired).toBeTruthy()
+  })
+
+  it('exposes build.commit field for deploy identification (CP-10)', () => {
+    expect(agentDiscoveryJson().build).toBeTruthy()
+    expect(agentDiscoveryJson().build).toHaveProperty('commit')
+    expect(agentDiscoveryJson().build).toHaveProperty('commitShort')
   })
 
   it('ships agent card + ai-plugin + robots allows', () => {
