@@ -1233,9 +1233,13 @@ export default function App() {
             />
             CREW
           </Link>
-          <nav className="nav-links">
-            <Link to={{ pathname: "/", hash: "edges" }}>Edges</Link>
-            <Link to={{ pathname: "/", hash: "board" }}>Tape</Link>
+          <nav className="nav-links" aria-label="Site">
+            <Link className="nav-link-home" to={{ pathname: "/", hash: "edges" }}>
+              Edges
+            </Link>
+            <Link className="nav-link-home" to={{ pathname: "/", hash: "board" }}>
+              Tape
+            </Link>
             <Link
               className={isKolsPage ? "is-active-nav-text" : undefined}
               to="/kols"
@@ -1269,14 +1273,26 @@ export default function App() {
             >
               Proof
             </Link>
-            <Link to={{ pathname: "/", hash: "brand" }}>Brand</Link>
-            <a href={CREW_X_URL} target="_blank" rel="noreferrer">
+            <Link className="nav-link-home" to={{ pathname: "/", hash: "brand" }}>
+              Brand
+            </Link>
+            <a className="nav-link-x" href={CREW_X_URL} target="_blank" rel="noreferrer">
               X
             </a>
+          </nav>
+          <div className="nav-actions">
             <button
               type="button"
               className={`btn btn-ghost btn-nav wallet-btn${connected ? " is-on" : ""}`}
-              onClick={() => setVisible(true)}
+              title={connected ? "Disconnect wallet" : "Connect wallet"}
+              aria-label={connected ? "Disconnect wallet" : "Connect wallet"}
+              onClick={() => {
+                if (connected) {
+                  void wallet.disconnect();
+                  return;
+                }
+                setVisible(true);
+              }}
             >
               {connected ? shortAddr(wallet.publicKey!.toBase58()) : "Connect"}
             </button>
@@ -1286,7 +1302,7 @@ export default function App() {
             >
               Launch
             </Link>
-          </nav>
+          </div>
         </div>
       </header>
 
