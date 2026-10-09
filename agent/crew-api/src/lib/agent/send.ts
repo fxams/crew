@@ -12,20 +12,19 @@ import {
 import bs58 from 'bs58'
 import { rpcUrl } from './constants.js'
 
-/** Fallback Jito tip accounts (mainnet) — refreshed via getTipAccounts when possible. */
+/** Fallback tip accounts (mainnet) — prefer live getTipAccounts; keep this list current. */
 const JITO_TIP_ACCOUNTS_FALLBACK = [
-  '96gYZGLnJYVFmbjzopPSU6QiUV5CwfOwksMrsVfnxpk',
   'HFqU5x63VTqvQss8hp11i4wVV8bD44PvwucfZ2bU7gRe',
-  'HFqU5x63VTqvQss8hp11i4bVmkNWgQAvp9J2iWkxXkK',
-  'Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvLkY',
-  'ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49',
-  'DfXygSm4jCyNCybVYYK6DwvZqfPicUDBgVYmHtgJJpiZ',
   'ADuUkR4vqLUMWXxW9gh6D6L8pMSawimctcNZ5pGwDcEt',
-  'DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL',
+  'ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49',
   '3AVi9Tg9Uo68tJfuvoKvqKNWKkC5wPdSSdeBnizKZ6jT',
+  'DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL',
+  'DfXygSm4jCyNCybVYYK6DwvWqjKee8pbDmJGcLWNDXjh',
+  'Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvLkY',
+  '96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5',
 ]
 
-/** Regional block engines — try in order until one accepts the bundle. */
+/** Regional block engines — broadcast in parallel (first accept ≠ landed). */
 const JITO_BUNDLE_URLS = [
   process.env.CREW_JITO_BUNDLE_URL?.trim(),
   'https://mainnet.block-engine.jito.wtf/api/v1/bundles',
@@ -34,6 +33,14 @@ const JITO_BUNDLE_URLS = [
   'https://ny.mainnet.block-engine.jito.wtf/api/v1/bundles',
   'https://tokyo.mainnet.block-engine.jito.wtf/api/v1/bundles',
 ].filter((u): u is string => Boolean(u))
+
+function jitoTipLamports(override?: number): number {
+  if (override != null && override > 0) return Math.max(1_000, override)
+  const fromEnv = Number(process.env.CREW_JITO_TIP_LAMPORTS || '')
+  if (Number.isFinite(fromEnv) && fromEnv > 0) return Math.max(1_000, Math.floor(fromEnv))
+  // Default 0.001 SOL — 0.0001 was accepted but often never landed (TSYPA / 2026-10-09).
+  return 1_000_000
+}
 
 export function parseLauncherKey(raw: string): Keypair {
   const secret = raw.trim()
@@ -273,21 +280,111 @@ async function resolveJitoTipAccount(bundleUrl: string): Promise<PublicKey> {
   )
 }
 
-async function jitoSendBundle(encodedTxs: string[]): Promise<{ bundleId: string; url: string }> {
-  const errors: string[] = []
-  // Jito defaults to base58 (deprecated). We encode base64 — must pass encoding or
-  // every engine returns "transaction #0 could not be decoded" (CP-2 / PRAYDOG).
+async function jitoSendBundleBroadcast(
+  encodedTxs: string[],
+): Promise<{ bundleId: string; urls: string[]; errors: string[] }> {
+  // Jito defaults to base58 (deprecated). We encode base64 — must pass encoding.
   const params: unknown[] = [encodedTxs, { encoding: 'base64' }]
-  for (const url of JITO_BUNDLE_URLS) {
-    try {
-      const result = await jitoRpc(url, 'sendBundle', params)
-      if (!result) throw new Error('empty result')
-      return { bundleId: String(result), url }
-    } catch (err) {
-      errors.push(`${url}: ${err instanceof Error ? err.message : String(err)}`)
-    }
+  const errors: string[] = []
+  const accepted: { bundleId: string; url: string }[] = []
+
+  await Promise.all(
+    JITO_BUNDLE_URLS.map(async (url) => {
+      try {
+        const result = await jitoRpc(url, 'sendBundle', params)
+        if (!result) throw new Error('empty result')
+        accepted.push({ bundleId: String(result), url })
+      } catch (err) {
+        errors.push(`${url}: ${err instanceof Error ? err.message : String(err)}`)
+      }
+    }),
+  )
+
+  if (!accepted.length) {
+    throw new Error(`Jito bundle rejected by all engines — ${errors.join(' | ')}`)
   }
-  throw new Error(`Jito bundle rejected by all engines — ${errors.join(' | ')}`)
+  // Bundle ids should match across engines for the same payload; keep the first.
+  return {
+    bundleId: accepted[0]!.bundleId,
+    urls: accepted.map((a) => a.url),
+    errors,
+  }
+}
+
+type JitoInflightStatus =
+  | 'Invalid'
+  | 'Pending'
+  | 'Failed'
+  | 'Landed'
+  | string
+
+async function waitForJitoBundle(opts: {
+  bundleId: string
+  urls: string[]
+  signatures: string[]
+  connection: Connection
+  timeoutMs?: number
+}): Promise<void> {
+  const timeoutMs = opts.timeoutMs ?? 90_000
+  const started = Date.now()
+  let lastStatus = 'Pending'
+
+  while (Date.now() - started < timeoutMs) {
+    // Prefer engine status over public RPC (bundle can land before RPC indexes).
+    for (const url of opts.urls) {
+      try {
+        const statuses = (await jitoRpc(url, 'getInflightBundleStatuses', [
+          [opts.bundleId],
+        ])) as { status?: JitoInflightStatus; landed_slot?: number }[] | null
+        const st = Array.isArray(statuses) ? statuses[0] : null
+        const status = st?.status || ''
+        if (status) lastStatus = status
+        if (status === 'Landed') {
+          // Best-effort RPC confirm; don't fail if indexing lags.
+          try {
+            await confirmSignature(opts.connection, opts.signatures[0]!, 15_000)
+          } catch {
+            /* landed per Jito is enough for launch path */
+          }
+          return
+        }
+        if (status === 'Failed' || status === 'Invalid') {
+          throw new Error(`Jito bundle ${status}: ${opts.bundleId}`)
+        }
+      } catch (err) {
+        if (err instanceof Error && /Jito bundle (Failed|Invalid)/.test(err.message)) {
+          throw err
+        }
+        /* try next engine / fall through to RPC */
+      }
+    }
+
+    // RPC shortcut — any signature confirmed means the bundle (or race) landed.
+    try {
+      const { value } = await opts.connection.getSignatureStatuses(opts.signatures, {
+        searchTransactionHistory: true,
+      })
+      const anyErr = value.find((v) => v?.err)
+      if (anyErr?.err) {
+        throw new Error(`Jito bundle tx failed on-chain: ${JSON.stringify(anyErr.err)}`)
+      }
+      if (
+        value.some(
+          (v) =>
+            v?.confirmationStatus === 'confirmed' || v?.confirmationStatus === 'finalized',
+        )
+      ) {
+        return
+      }
+    } catch (err) {
+      if (err instanceof Error && /failed on-chain/.test(err.message)) throw err
+    }
+
+    await sleep(1_200)
+  }
+  throw new Error(
+    `Jito bundle not landed (${lastStatus}) bundle=${opts.bundleId} sig0=${opts.signatures[0]}`,
+  )
 }
 
 /**
@@ -298,52 +395,70 @@ async function jitoSendBundle(encodedTxs: string[]): Promise<{ bundleId: string;
 export async function sendJitoBundle(opts: {
   payer: Keypair
   steps: { ixs: TransactionInstruction[]; signers?: Keypair[] }[]
-  /** Lamports tip to Jito (default 100_000 = 0.0001 SOL). */
+  /** Lamports tip to Jito (default CREW_JITO_TIP_LAMPORTS or 1_000_000). */
   tipLamports?: number
 }): Promise<{ signatures: string[]; bundleId: string; engine: string }> {
   if (opts.steps.length < 1 || opts.steps.length > 5) {
     throw new Error('Jito bundle needs 1–5 steps')
   }
   const connection = getConnection()
-  const { blockhash } = await connection.getLatestBlockhash('confirmed')
-  const tipLamports = Math.max(1_000, opts.tipLamports ?? 100_000)
+  const tipLamports = jitoTipLamports(opts.tipLamports)
   const tipAccount = await resolveJitoTipAccount(JITO_BUNDLE_URLS[0]!)
 
-  const tipIx = SystemProgram.transfer({
-    fromPubkey: opts.payer.publicKey,
-    toPubkey: tipAccount,
-    lamports: tipLamports,
-  })
+  // One retry with a fresh blockhash if the first bundle expires / fails to land.
+  let lastErr: unknown
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      const { blockhash } = await connection.getLatestBlockhash('confirmed')
+      const tipIx = SystemProgram.transfer({
+        fromPubkey: opts.payer.publicKey,
+        toPubkey: tipAccount,
+        lamports: tipLamports,
+      })
 
-  const encoded: string[] = []
-  const signatures: string[] = []
+      const encoded: string[] = []
+      const signatures: string[] = []
 
-  for (let i = 0; i < opts.steps.length; i += 1) {
-    const step = opts.steps[i]!
-    const isLast = i === opts.steps.length - 1
-    const ixs = isLast ? [...step.ixs, tipIx] : step.ixs
-    const v0 = await buildVersioned(
-      connection,
-      opts.payer,
-      ixs,
-      step.signers || [],
-      blockhash,
-    )
-    if (v0.bytes > 1232) {
-      throw new Error(
-        `Jito step ${i} too large (${v0.bytes} bytes). Shrink crew or set CREW_LOOKUP_TABLE.`,
-      )
+      for (let i = 0; i < opts.steps.length; i += 1) {
+        const step = opts.steps[i]!
+        const isLast = i === opts.steps.length - 1
+        const ixs = isLast ? [...step.ixs, tipIx] : step.ixs
+        const v0 = await buildVersioned(
+          connection,
+          opts.payer,
+          ixs,
+          step.signers || [],
+          blockhash,
+        )
+        if (v0.bytes > 1232) {
+          throw new Error(
+            `Jito step ${i} too large (${v0.bytes} bytes). Shrink crew or set CREW_LOOKUP_TABLE.`,
+          )
+        }
+        encoded.push(Buffer.from(v0.raw).toString('base64'))
+        signatures.push(v0.signature)
+      }
+
+      const { bundleId, urls } = await jitoSendBundleBroadcast(encoded)
+      await waitForJitoBundle({
+        bundleId,
+        urls,
+        signatures,
+        connection,
+        timeoutMs: attempt === 1 ? 60_000 : 75_000,
+      })
+      return { signatures, bundleId, engine: urls[0]! }
+    } catch (err) {
+      lastErr = err
+      const msg = err instanceof Error ? err.message : String(err)
+      // Don't retry oversized steps.
+      if (/too large/.test(msg)) throw err
+      console.warn(`Jito bundle attempt ${attempt} failed`, msg)
+      if (attempt >= 2) break
+      await sleep(400)
     }
-    encoded.push(Buffer.from(v0.raw).toString('base64'))
-    signatures.push(v0.signature)
   }
-
-  const { bundleId, url } = await jitoSendBundle(encoded)
-
-  for (const sig of signatures) {
-    await confirmSignature(connection, sig, 120_000)
-  }
-  return { signatures, bundleId, engine: url }
+  throw lastErr instanceof Error ? lastErr : new Error('Jito bundle failed')
 }
 
 /** Slot of a confirmed signature (null if unknown). */

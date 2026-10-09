@@ -19,12 +19,13 @@ Source report: mainnet agent launch findings (STRAW2GOLD … PRAYDOG) prepared 1
 ```bash
 # Render → crewpay-api Environment
 CREW_OPS_KEY=<base58 ops wallet>          # crank without launcher secret
-CREW_LOOKUP_TABLE=<alt pubkey>            # v0 single-tx atomic backup
-# After a successful jito-bundle launch:
+CREW_LOOKUP_TABLE=<alt pubkey>            # helps a bit; create+lock often still >1232
+CREW_JITO_TIP_LAMPORTS=1000000            # 0.001 SOL — low tips get accepted but not landed
+# Only after a live lockPath=jito-bundle:
 CREW_ATOMIC_REQUIRED=1                    # or per-request atomicRequired: true
 ```
 
-Creating the ALT is a one-time mainnet setup (extend with Pump / fee-program static accounts). Jito-first should succeed without it once encoding is fixed.
+**2026-10-09 TSYPA:** `CREW_ATOMIC_REQUIRED=1` blocked launches when Jito accepted a bundle that never landed (confirm timeout; sig absent on RPC) and single-tx stayed 1520–1827 bytes even with ALT. Atomic required was set back to `0` until jito-bundle is reliable; tip raised + multi-region broadcast + inflight status polling.
 
 ## Verify after deploy
 
