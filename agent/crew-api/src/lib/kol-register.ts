@@ -82,7 +82,7 @@ export function buildXAuthorizeUrl(opts: { state: string; codeVerifier: string }
     code_challenge: codeChallengeS256(opts.codeVerifier),
     code_challenge_method: 'S256',
   })
-  return `https://twitter.com/i/oauth2/authorize?${params.toString()}`
+  return `https://x.com/i/oauth2/authorize?${params.toString()}`
 }
 
 export async function issueNonce(wallet: string): Promise<{ nonce: string; message: string }> {
