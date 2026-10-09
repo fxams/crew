@@ -14,6 +14,18 @@ export function isKolsPath(pathname: string): boolean {
   return path === "/kols" || path.endsWith("/kols");
 }
 
+/** Public desk for one registered KOL: `/kol/:handle`. */
+export function kolHandleFromPath(pathname: string): string | null {
+  const path = normalizePath(pathname)
+  const match = path.match(/(?:^|\/)kol\/([A-Za-z0-9_]{1,15})$/)
+  return match?.[1] ?? null
+}
+
+export function kolProfilePath(username: string): string {
+  const handle = username.trim().replace(/^@/, '')
+  return `/kol/${encodeURIComponent(handle)}`
+}
+
 /** Opt-in KOL registration portal (X + Solana). */
 export function isRegisterPath(pathname: string): boolean {
   const path = normalizePath(pathname);
