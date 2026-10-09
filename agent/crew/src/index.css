@@ -123,6 +123,13 @@ a {
   max-width: 100%;
 }
 
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+
 .brand {
   display: inline-flex;
   align-items: center;
@@ -1785,6 +1792,11 @@ a {
   color: var(--acid);
 }
 
+.wallet-btn.is-on:hover {
+  border-color: rgba(255, 92, 106, 0.55);
+  color: #ffb4a8;
+}
+
 .form-status {
   margin: 0;
   color: var(--amber);
@@ -2541,34 +2553,87 @@ a {
   }
 
   .nav {
-    gap: 0.45rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "brand actions"
+      "links links";
+    gap: 0.35rem 0.55rem;
+    align-items: center;
+    padding: 0.45rem 0 0.35rem;
+  }
+
+  .nav .brand {
+    grid-area: brand;
+    min-width: 0;
+  }
+
+  .nav-actions {
+    grid-area: actions;
+    gap: 0.35rem;
   }
 
   .nav-links {
-    gap: 0.4rem;
+    grid-area: links;
+    justify-content: flex-start;
+    gap: 0.15rem;
+    width: calc(100% + (var(--gutter) * 2));
+    margin-left: calc(var(--gutter) * -1);
+    margin-right: calc(var(--gutter) * -1);
+    padding: 0.15rem var(--gutter) 0.2rem;
     overflow-x: auto;
     overscroll-behavior-x: contain;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
+    border-top: 1px solid rgba(200, 255, 61, 0.08);
   }
 
   .nav-links::-webkit-scrollbar {
     display: none;
   }
 
-  /* React Router renders hash links as /#section — match either form. */
-  .nav-links a[href="#edges"],
-  .nav-links a[href="/#edges"],
-  .nav-links a[href="#board"],
-  .nav-links a[href="/#board"],
-  .nav-links a[href="#brand"],
-  .nav-links a[href="/#brand"] {
+  .nav-links a {
+    flex: 0 0 auto;
+    padding: 0.45rem 0.55rem;
+    border-radius: 999px;
+    color: var(--muted);
+  }
+
+  .nav-links a.is-active-nav-text {
+    color: var(--acid-ink);
+    background: var(--acid);
+  }
+
+  .nav-links .nav-link-home,
+  .nav-links .nav-link-x {
     display: none;
   }
 
   .btn-nav {
-    padding: 0.5rem 0.7rem !important;
+    padding: 0.45rem 0.65rem !important;
     flex-shrink: 0;
+    font-size: 0.72rem;
+  }
+
+  .wallet-btn {
+    max-width: 7.5rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .launch-page-head-row {
+    gap: 0.5rem;
+  }
+
+  .launch-page-head-row .section-label {
+    font-size: 0.62rem;
+    letter-spacing: 0.06em;
+    text-align: right;
+  }
+
+  .kols-page-head .section-title {
+    font-size: clamp(1.35rem, 7vw, 1.8rem);
   }
 
   .kols-row {
