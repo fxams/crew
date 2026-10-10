@@ -12,7 +12,9 @@ import {
   listRegistered,
   lookupReferralCuts,
   REFERRAL_POINTS_HIRE,
+  REFERRAL_POINTS_MIN_FOLLOWERS,
   REFERRAL_POINTS_REGISTER,
+  REFERRAL_POINTS_REGISTER_DAILY_CAP,
   siteUrl,
   xOAuthConfigured,
 } from '../lib/kol-register.js'
@@ -43,7 +45,9 @@ kolRegisterRouter.get('/kols/register/status', (_req, res) => {
       points: {
         register: REFERRAL_POINTS_REGISTER,
         hire: REFERRAL_POINTS_HIRE,
-        note: 'Points accrue for a future CREW token airdrop. Direct referrals only.',
+        minFollowers: REFERRAL_POINTS_MIN_FOLLOWERS,
+        registerDailyCap: REFERRAL_POINTS_REGISTER_DAILY_CAP,
+        note: 'Points accrue for a future CREW token airdrop. Direct referrals only. Register awards require min followers and a per-referrer daily cap.',
       },
     },
   })
@@ -52,6 +56,13 @@ kolRegisterRouter.get('/kols/register/status', (_req, res) => {
 /** Lookup direct referrer wallets for hired crew handles (fee-share preview). */
 kolRegisterRouter.get('/kols/referral-cuts', async (req, res) => {
   try {
+    const ip = clientIp(req)
+    const gate = takeRateLimit(`kolreg:refcuts:${ip}`, { limit: 30, windowMs: 60_000 })
+    if (!gate.ok) {
+      res.setHeader('Retry-After', String(gate.retryAfterSec))
+      res.status(429).json({ ok: false, error: 'Slow down and retry.' })
+      return
+    }
     const raw = typeof req.query.handles === 'string' ? req.query.handles : ''
     const handles = raw
       .split(',')
@@ -157,6 +168,13 @@ kolRegisterRouter.get('/kols/registered/:username', async (req, res) => {
 
 kolRegisterRouter.get('/kols/registered', async (req, res) => {
   try {
+    const ip = clientIp(req)
+    const gate = takeRateLimit(`kolreg:list:${ip}`, { limit: 60, windowMs: 60_000 })
+    if (!gate.ok) {
+      res.setHeader('Retry-After', String(gate.retryAfterSec))
+      res.status(429).json({ ok: false, error: 'Slow down and retry.' })
+      return
+    }
     const limit = Number(req.query.limit || 50)
     const board = await listRegistered(limit)
     res.json({ ok: true, ...board })

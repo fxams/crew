@@ -13,7 +13,6 @@ const API = (
 )
 
 type Registration = {
-  xUserId: string
   xUsername: string
   xName: string
   xVerified: boolean
@@ -263,7 +262,7 @@ export function KolRegisterPage() {
               {tape.map((row) => (
                 <Link
                   className="register-tape-item"
-                  key={`tape-${row.xUserId}`}
+                  key={`tape-${row.xUsername}`}
                   to={kolProfilePath(row.xUsername)}
                 >
                   <strong>@{row.xUsername}</strong>
@@ -287,7 +286,7 @@ export function KolRegisterPage() {
             <span role="columnheader">Wallet</span>
           </div>
           {board.map((row) => (
-            <div className="kols-row kols-row-register" role="row" key={row.xUserId}>
+            <div className="kols-row kols-row-register" role="row" key={row.xUsername}>
               <span className="kols-rank" role="cell">
                 {row.rank || '—'}
               </span>
