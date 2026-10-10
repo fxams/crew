@@ -40,7 +40,7 @@ Prefer **PNG** or **JPG** for social uploads and CT. Keep **SVG** for product UI
 | `banner-x-header` | `.jpg` `.png` | 16:9 | X/Twitter profile header |
 | `post-hire` | `.jpg` `.png` | 1:1 | “Humans get paid” |
 | `post-tape` | `.jpg` `.png` | 1:1 | Money tape |
-| `post-zero-cut` | `.jpg` `.png` | 1:1 | 25% CREW buyback |
+| `post-zero-cut` | `.jpg` `.png` | 1:1 | 25% CrewPay treasury |
 | `post-modes` | `.jpg` `.png` | 1:1 | Modes explainer |
 
 ## Do / don’t
