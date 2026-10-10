@@ -163,6 +163,11 @@ CREATE TABLE IF NOT EXISTS kol_registrations (
   wallet TEXT NOT NULL,
   -- Scraped Pump wallets + previous linked wallets; desk earnings sum across these.
   prior_wallets TEXT[] NOT NULL DEFAULT '{}',
+  -- Direct referral program: every KOL has a code; referred_by_code is set once at first register.
+  referral_code TEXT,
+  referred_by_code TEXT,
+  -- Cached sum of kol_referral_events.points — for future CREW airdrop eligibility.
+  referral_points INT NOT NULL DEFAULT 0,
   registered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   stats_refreshed_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -170,6 +175,9 @@ CREATE TABLE IF NOT EXISTS kol_registrations (
 
 CREATE UNIQUE INDEX IF NOT EXISTS kol_registrations_wallet_idx ON kol_registrations (wallet);
 CREATE UNIQUE INDEX IF NOT EXISTS kol_registrations_username_idx ON kol_registrations (lower(x_username));
+CREATE UNIQUE INDEX IF NOT EXISTS kol_registrations_referral_code_idx
+  ON kol_registrations (lower(referral_code)) WHERE referral_code IS NOT NULL;
+CREATE INDEX IF NOT EXISTS kol_registrations_referred_by_idx ON kol_registrations (lower(referred_by_code));
 CREATE INDEX IF NOT EXISTS kol_registrations_followers_idx ON kol_registrations (followers DESC, registered_at ASC);
 CREATE INDEX IF NOT EXISTS kol_registrations_registered_idx ON kol_registrations (registered_at DESC);
 
@@ -200,5 +208,27 @@ CREATE TABLE IF NOT EXISTS kol_oauth_states (
   state TEXT PRIMARY KEY,
   code_verifier TEXT NOT NULL,
   wallet TEXT NOT NULL,
+  referral_code TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Ledger for referral points (airdrop-ready). register = join with code; hire = referred KOL fee-locked.
+CREATE TABLE IF NOT EXISTS kol_referral_events (
+  id TEXT PRIMARY KEY,
+  event_type TEXT NOT NULL CHECK (event_type IN ('register', 'hire')),
+  referrer_code TEXT NOT NULL,
+  referred_handle TEXT NOT NULL,
+  referred_x_user_id TEXT,
+  points INT NOT NULL CHECK (points > 0),
+  mint TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS kol_referral_events_register_uidx
+  ON kol_referral_events (referred_x_user_id)
+  WHERE event_type = 'register' AND referred_x_user_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS kol_referral_events_hire_uidx
+  ON kol_referral_events (mint, lower(referred_handle))
+  WHERE event_type = 'hire' AND mint IS NOT NULL;
+CREATE INDEX IF NOT EXISTS kol_referral_events_referrer_idx
+  ON kol_referral_events (lower(referrer_code), created_at DESC);

@@ -93,6 +93,27 @@ describe('validateDraft', () => {
     expect(out.shareholders.reduce((s, r) => s + r.bps, 0)).toBe(10_000)
   })
 
+  it('applies a 5% direct referral cut of the referred KOL seat', () => {
+    const referrer = 'SysvarRent111111111111111111111111111111111'
+    const out = validateDraft(base, {
+      deskWallet: '11111111111111111111111111111111',
+      platformWallet: PLATFORM,
+      referralCuts: [
+        {
+          handle: 'alice',
+          referrerWallet: referrer,
+          referrerHandle: 'referrer',
+        },
+      ],
+    })
+    const crewPool = 7500 // split mode: no desk reserve
+    const aliceSeat = Math.floor((crewPool * 60) / 100)
+    const ref = out.shareholders.find((s) => s.role === 'referral')
+    expect(ref?.wallet).toBe(referrer)
+    expect(ref?.bps).toBe(Math.max(1, Math.floor((aliceSeat * 500) / 10_000)))
+    expect(out.shareholders.reduce((s, r) => s + r.bps, 0)).toBe(10_000)
+  })
+
   it('appends CrewPay attribution to the on-chain description', () => {
     const out = validateDraft(base, {
       deskWallet: '11111111111111111111111111111111',

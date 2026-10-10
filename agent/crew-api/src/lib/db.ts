@@ -103,4 +103,66 @@ export async function migrate(): Promise<void> {
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['003_kol_prior_wallets_mentions'],
   )
+  await query(
+    `ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS referral_code TEXT`,
+  )
+  await query(
+    `ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS referred_by_code TEXT`,
+  )
+  await query(
+    `ALTER TABLE kol_oauth_states ADD COLUMN IF NOT EXISTS referral_code TEXT`,
+  )
+  // Backfill codes from username for existing registrations.
+  await query(`
+    UPDATE kol_registrations
+    SET referral_code = lower(regexp_replace(x_username, '[^a-zA-Z0-9_]', '', 'g'))
+    WHERE referral_code IS NULL
+      AND x_username IS NOT NULL
+      AND length(regexp_replace(x_username, '[^a-zA-Z0-9_]', '', 'g')) >= 2
+  `)
+  await query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS kol_registrations_referral_code_idx
+      ON kol_registrations (lower(referral_code)) WHERE referral_code IS NOT NULL
+  `)
+  await query(
+    `CREATE INDEX IF NOT EXISTS kol_registrations_referred_by_idx
+      ON kol_registrations (lower(referred_by_code))`,
+  )
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['004_kol_referral_codes'],
+  )
+  await query(
+    `ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS referral_points INT NOT NULL DEFAULT 0`,
+  )
+  await query(`
+    CREATE TABLE IF NOT EXISTS kol_referral_events (
+      id TEXT PRIMARY KEY,
+      event_type TEXT NOT NULL CHECK (event_type IN ('register', 'hire')),
+      referrer_code TEXT NOT NULL,
+      referred_handle TEXT NOT NULL,
+      referred_x_user_id TEXT,
+      points INT NOT NULL CHECK (points > 0),
+      mint TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS kol_referral_events_register_uidx
+      ON kol_referral_events (referred_x_user_id)
+      WHERE event_type = 'register' AND referred_x_user_id IS NOT NULL
+  `)
+  await query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS kol_referral_events_hire_uidx
+      ON kol_referral_events (mint, lower(referred_handle))
+      WHERE event_type = 'hire' AND mint IS NOT NULL
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS kol_referral_events_referrer_idx
+      ON kol_referral_events (lower(referrer_code), created_at DESC)
+  `)
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['005_kol_referral_points'],
+  )
 }

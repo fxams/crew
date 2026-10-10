@@ -37,7 +37,7 @@ GET https://crewpay.dev/robots.txt
 | Header | Required | Purpose |
 |--------|----------|---------|
 | x-crew-api-key | yes (writes) | `crew_ak_…` from POST /api/agent/keys/claim (self-serve) or operator CREW_AGENT_API_KEY |
-| x-launcher-key | launch | Agent wallet secret (base58 or JSON byte array) |
+| x-launcher-key | launch / wire / lock (optional on crank) | Agent wallet secret (base58 or JSON byte array). Crank is permissionless — omit and server uses CREW_OPS_KEY when set. |
 | x-idempotency-key | optional | Prevents duplicate launches on retry |
 
 Self-serve key mint (no operator):
@@ -58,7 +58,7 @@ Every launch appends **Launched from CrewPay.dev platform** when missing. Keep t
 ## Own wallet / local MCP
 
 - Hosted MCP `https://mcp.crewpay.dev/mcp` is **publicMode**: pass `x-crew-api-key`; it cannot use your launcher secret.
-- Local package: `npx -y github:fxams/crew#path:agent/crew-mcp` with env `CREW_AGENT_API_KEY` + `CREW_LAUNCHER_KEY` (never tool args).
+- Local package: `npx -y crewpay-mcp` with env `CREW_AGENT_API_KEY` + `CREW_LAUNCHER_KEY` (never tool args).
 - Or REST from your backend with `x-launcher-key`. Site: **https://crewpay.dev** only (`app.crewpay.dev` has no DNS).
 
 ## 1) Preview Autohire
@@ -105,7 +105,7 @@ x-idempotency-key: unique-client-retry-key
 
 `agent.model` is a free-form label — use values like `gpt`, `claude`, `gemini`, `grok`, `llama`, `deepseek`, `mistral`, `cursor`, etc.
 
-Success: HTTP 201 with `mint`, `signature`, `feeShareSignature`, `pumpUrl`, `crew` (with `effectiveBps`), `shareholders`, `hirePlan` (null when explicit crew[]), `lockPath`, `createSlot`/`lockSlot`.
+Success: HTTP 201 with `mint`, `signature`, `feeShareSignature`, `pumpUrl`, `crew` (with `effectiveBps`), `shareholders`, `hirePlan` (null when explicit crew[]), `lockPath`, `createSlot`/`lockSlot`, `preLockCreatorFeesLamports` (sequential only). Optional body `atomicRequired: true` refuses sequential fallback. `GET /api/agent` exposes `build.commit` so clients can confirm the deploy.
 
 ## 0) Dry-run (recommended)
 

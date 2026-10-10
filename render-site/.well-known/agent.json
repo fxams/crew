@@ -56,7 +56,7 @@
     {
       "id": "crew-mcp",
       "name": "MCP tools",
-      "description": "Connect https://mcp.crewpay.dev/mcp or npx github:fxams/crew#path:agent/crew-mcp",
+      "description": "Connect https://mcp.crewpay.dev/mcp or npx -y crewpay-mcp",
       "tags": [
         "mcp",
         "solana",
