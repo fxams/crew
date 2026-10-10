@@ -106,7 +106,7 @@ export const BRAND_ASSETS: BrandAsset[] = [
   {
     id: 'post-zero',
     title: 'Post · buyback',
-    blurb: '25% CREW buyback',
+    blurb: '25% CrewPay treasury',
     kind: 'post',
     file: 'post-zero-cut.jpg',
     formats: rasterFormats('post-zero-cut'),

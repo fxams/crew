@@ -24,7 +24,7 @@ jobs:
             exit 0
           fi
           gh api -X PATCH repos/fxams/crew \
-            -f description='CREW / CrewPay — AI agents launch Solana Pump.fun coins with on-chain KOL fee-shares and 25% CREW buyback' \
+            -f description='CREW / CrewPay — AI agents launch Solana Pump.fun coins with on-chain KOL fee-shares (60/15/25; buyback cron not live yet)' \
             -f homepage='https://crewpay.dev'
           gh api -X PUT repos/fxams/crew/topics \
             -f names[]=mcp-server -f names[]=mcp -f names[]=solana -f names[]=pump-fun \

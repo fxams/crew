@@ -32,7 +32,7 @@ export const CREW_EDGES = [
     id: 'tape',
     title: 'Buyback + proof stay public',
     agency: 'Opaque treasuries hide whether humans were paid.',
-    crew: '25% CREW fee-share locks to treasury every launch. Proof tape shows remits and buyback runs when configured.',
+    crew: '25% CrewPay treasury fee-share locks every launch. Proof tape shows remits; buyback cron not live yet.',
   },
 ] as const
 
@@ -60,7 +60,7 @@ export type LaunchTemplate = {
 export const DEFAULT_AGENT = {
   name: 'Desk Mind',
   objective:
-    'Hire KOLs who move the chart. Pay them from creator fees. 25% CREW buyback on every launch.',
+    'Hire KOLs who move the chart. Pay them from creator fees. 25% CrewPay treasury; buyback cron not live yet.',
   model: 'Claude Sonnet',
 }
 
@@ -96,7 +96,7 @@ export const LAUNCH_TEMPLATES: LaunchTemplate[] = [
   {
     id: 'agent',
     label: 'Agent hires',
-    blurb: 'AI Autohires KOLs · 25% CREW buyback.',
+    blurb: 'AI Autohires KOLs · 25% CrewPay treasury.',
     draft: {
       name: '',
       ticker: '',
@@ -116,7 +116,7 @@ export const LAUNCH_TEMPLATES: LaunchTemplate[] = [
   {
     id: 'kol',
     label: 'KOL pack',
-    blurb: '3-way split · 25% CREW buyback.',
+    blurb: '3-way split · 25% CrewPay treasury.',
     draft: {
       name: '',
       ticker: '',
@@ -135,7 +135,7 @@ export const LAUNCH_TEMPLATES: LaunchTemplate[] = [
   {
     id: 'dip',
     label: 'Dip desk',
-    blurb: 'Dip buyback desk · 25% CREW buyback.',
+    blurb: 'Dip buyback desk · 25% CrewPay treasury.',
     draft: {
       name: '',
       ticker: '',
@@ -157,7 +157,7 @@ export const LAUNCH_TEMPLATES: LaunchTemplate[] = [
 export const RAID_LAUNCH_TEMPLATE: LaunchTemplate = {
   id: 'raid',
   label: 'Raid squad',
-  blurb: 'Raid pool · 25% CREW buyback.',
+  blurb: 'Raid pool · 25% CrewPay treasury.',
   draft: {
     name: '',
     ticker: '',
@@ -245,12 +245,12 @@ export function shareReceiptText(coin: CoinRecord): string {
     `$${coin.ticker} crew locked on CREW`,
     agentLine,
     split,
-    `${label} · ${PLATFORM_BUYBACK_BPS / 100}% CREW buyback`,
+    `${label} · ${PLATFORM_BUYBACK_BPS / 100}% CrewPay treasury`,
     coin.pumpUrl,
     '',
     coin.mode === 'agent'
-      ? 'AI hires humans — KOLs get fee-share · CREW buys itself.'
-      : 'Humans get paid · 25% fees buy back CREW.',
+      ? 'AI hires humans — KOLs get fee-share · buyback cron not live yet.'
+      : 'Humans get paid · 25% CrewPay treasury · buyback cron not live yet.',
   ]
     .filter(Boolean)
     .join('\n')

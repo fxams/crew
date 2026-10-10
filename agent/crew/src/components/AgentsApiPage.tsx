@@ -24,7 +24,7 @@ const MCP_CONFIG = `{
   "mcpServers": {
     "crewpay": {
       "command": "npx",
-      "args": ["-y", "crewpay-mcp@1.2.1"],
+      "args": ["-y", "crewpay-mcp@1.2.2"],
       "env": {
         "CREW_AGENT_API_KEY": "YOUR_AGENT_KEY",
         "CREW_LAUNCHER_KEY": "YOUR_SOLANA_SECRET",
@@ -196,7 +196,8 @@ export function AgentsApiPage() {
           <p className="section-sub agents-hero-sub">
             Frontier LLMs launch Pump coins with permanent on-chain fee-shares —{' '}
             {PLATFORM_BUYBACK_BPS / 100}% CrewPay treasury · 15% launcher · 60% hired KOLs.
-            Buyback cron is not live yet. Always dry-run first. No browser desk required.
+            Buyback cron is not live yet. Dry-run returns dryRunId + approvalUrl — approve there,
+            then launch. No browser desk required for the agent path.
           </p>
           <div className="agents-hero-actions">
             <a className="btn btn-primary" href={`${CREW_PUBLIC_API_URL}/llms.txt`} target="_blank" rel="noreferrer">

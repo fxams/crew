@@ -102,7 +102,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         docs: `${DEFAULT_SITE_URL}/agents`,
         llms: `${cfg.apiUrl}/llms.txt`,
         discovery: data,
-        tip: 'Safe flow: crew_claim_key (if needed) → crew_discover → crew_autohire → crew_launch_dry_run → crew_launch. Secrets stay in MCP env only.',
+        tip: 'Safe flow: crew_claim_key (if needed) → crew_discover → crew_autohire → crew_launch_dry_run → open approvalUrl → crew_launch(dryRunId). Secrets stay in MCP env only.',
         auth: {
           reads: 'crew_discover / crew_search_kols / crew_proof / crew_claim_key need no API key',
           writes: cfg.publicMode
@@ -205,7 +205,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Dry-run a CREW launch (no chain tx)',
       description:
-        'Validate name/ticker/image/crew or autoHire, preview fee map + KOL pack, estimate SOL needed. MAINNET only — does not create a mint. Prefer this before crew_launch. Requires CREW_AGENT_API_KEY. No launcher secret needed.',
+        'Validate name/ticker/image/crew or autoHire, preview fee map + KOL pack, estimate SOL needed. Returns dryRunId + approvalUrl — a human must open approvalUrl before crew_launch. MAINNET only — does not create a mint. Requires CREW_AGENT_API_KEY. No launcher secret needed.',
       inputSchema: {
         name: z.string().min(2).max(32),
         ticker: z.string().min(2).max(13),
@@ -436,8 +436,13 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Launch Pump coin via CrewPay (MAINNET)',
       description:
-        'MAINNET launch: create a Solana Pump.fun coin with on-chain fee-shares (60% KOL crew / 15% launching agent / 25% CrewPay treasury). Buyback cron is not live yet. Prefers atomic create+fee-lock. Always crew_launch_dry_run + human approval first. Requires CREW_AGENT_API_KEY + CREW_LAUNCHER_KEY in MCP env (never tool args). Check feeShareLocked — HTTP 202 needs crew_wire_fees.',
+        'MAINNET launch: create a Solana Pump.fun coin with on-chain fee-shares (60% KOL crew / 15% launching agent / 25% CrewPay treasury). Buyback cron is not live yet. Prefers atomic create+fee-lock. Requires dryRunId from crew_launch_dry_run after a human opens approvalUrl. Requires CREW_AGENT_API_KEY + CREW_LAUNCHER_KEY in MCP env (never tool args). Check feeShareLocked — HTTP 202 needs crew_wire_fees.',
       inputSchema: {
+        dryRunId: z
+          .string()
+          .min(16)
+          .max(64)
+          .describe('From crew_launch_dry_run after human approval on approvalUrl'),
         name: z.string().min(2).max(32),
         ticker: z
           .string()
@@ -485,6 +490,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         throw new Error('Provide imageUrl or imageBase64')
       }
       const body: Record<string, unknown> = {
+        dryRunId: input.dryRunId,
         name: input.name,
         ticker: input.ticker,
         description: input.description || '',
@@ -574,9 +580,9 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
             type: 'text',
             text: [
               'You are a crypto launch agent using CREW / CrewPay MCP tools on Solana MAINNET.',
-              'Flow: crew_claim_key (if no key) → crew_discover → crew_autohire → crew_launch_dry_run → crew_launch → crew_status → (crew_wire_fees | crew_lock_holder_kol) → crew_crank_remits.',
+              'Flow: crew_claim_key (if no key) → crew_discover → crew_autohire → crew_launch_dry_run → human opens approvalUrl → crew_launch(dryRunId) → crew_status → (crew_wire_fees | crew_lock_holder_kol) → crew_crank_remits.',
               'Never pass Solana secrets as tool args — they must live in MCP env (CREW_LAUNCHER_KEY).',
-              'Autohire wallets are public Pump profiles, not consenting partners — confirm with the operator before launch.',
+              'Autohire wallets are public Pump profiles, not consenting partners — open approvalUrl before launch.',
               'Prefer autoHire unless the user named specific wallets. Crew shares must total 100%. Always check feeShareLocked (atomic lock preferred).',
               `Idea: ${idea}`,
               ticker ? `Ticker hint: ${ticker}` : '',

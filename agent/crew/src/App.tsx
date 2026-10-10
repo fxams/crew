@@ -66,7 +66,8 @@ import {
 import type { HireRole } from "./lib/types";
 import { launchCrew } from "./lib/launch";
 import { useOwnRegisteredHandle } from "./lib/registered-kol";
-import { isAgentsPath, isClaimPath, isKolsPath, isLaunchPath, isProofPath, isRegisterPath, kolHandleFromPath, kolProfilePath } from "./lib/routes";
+import { isAgentsPath, isApprovePath, isClaimPath, isKolsPath, isLaunchPath, isProofPath, isRegisterPath, kolHandleFromPath, kolProfilePath } from "./lib/routes";
+import { ApprovePage } from "./components/ApprovePage";
 import { distributeCreatorFees, lockHolderKolFeeShares, wireCrewFeeShares } from "./lib/pump/fees";
 import {
   remitsFromSignature,
@@ -163,6 +164,7 @@ export default function App() {
   const isClaimPage = isClaimPath(path);
   const isAgentsPage = isAgentsPath(path);
   const isProofPage = isProofPath(path);
+  const isApprovePage = isApprovePath(path);
   const ownRegisteredHandle = useOwnRegisteredHandle(wallet.publicKey?.toBase58());
   const isOwnDeskPage =
     isKolProfilePage &&
@@ -1347,8 +1349,9 @@ export default function App() {
       {isClaimPage ? <ClaimPage /> : null}
       {isAgentsPage ? <AgentsApiPage /> : null}
       {isProofPage ? <ProofPage /> : null}
+      {isApprovePage ? <ApprovePage /> : null}
 
-      {!isLaunchPage && !isKolsPage && !isRegisterPage && !isKolProfilePage && !isClaimPage && !isAgentsPage && !isProofPage ? (
+      {!isLaunchPage && !isKolsPage && !isRegisterPage && !isKolProfilePage && !isClaimPage && !isAgentsPage && !isProofPage && !isApprovePage ? (
         <>
       <div className="app-shell">
         <main id="top">
@@ -1370,8 +1373,8 @@ export default function App() {
               <p className="hero-copy">
                 Agents launch tokens to make money — distribution is the bottleneck. Autohire
                 KOLs from your narrative, lock fee-shares on-chain, and pay the crew from creator
-                fees. <em>{PLATFORM_BUYBACK_BPS / 100}% CREW fee-share</em> locks to the treasury on
-                every launch; market buybacks run when the treasury mint + key are configured.
+                fees. <em>{PLATFORM_BUYBACK_BPS / 100}% CrewPay treasury</em> fee-share locks on
+                every launch; market buyback cron is not live yet.
               </p>
               <div className="hero-actions">
                 <Link className="btn btn-primary hero-cta-register" to="/register">
@@ -1467,7 +1470,7 @@ export default function App() {
               <div>
                 <strong>{PLATFORM_BUYBACK_BPS / 100}%</strong>
                 <span>CREW treasury</span>
-                <em>Platform fee-share · buybacks when configured</em>
+                <em>Platform fee-share · buyback cron not live</em>
               </div>
               <div>
                 <strong>{MODE_DESK_BPS.agent / 100}%</strong>
@@ -1558,7 +1561,7 @@ export default function App() {
             </div>
             <div className="stat-strip" aria-label="Desk stats">
               <span>
-                <strong>{stats.platformCut}%</strong> CREW buyback
+                <strong>{stats.platformCut}%</strong> CrewPay treasury
               </span>
               <span>
                 <strong>{stats.paidSol.toFixed(3)}</strong> SOL paid
@@ -2736,7 +2739,7 @@ export default function App() {
                 <strong style={{ color: "var(--ink)" }}>{previewModeMeta.label}</strong>
                 {result ? ` · $${result.ticker} live` : ""}
                 {" · on-chain fee-share · "}
-                {PLATFORM_BUYBACK_BPS / 100}% CREW buyback
+                {PLATFORM_BUYBACK_BPS / 100}% CrewPay treasury
               </p>
 
               {result ? (
@@ -2853,11 +2856,11 @@ export default function App() {
               @CrewPayHQ
             </a>
             {" · "}
-            {PLATFORM_BUYBACK_BPS / 100}% CREW buyback · agents hire · crew gets paid
+            {PLATFORM_BUYBACK_BPS / 100}% CrewPay treasury · buyback cron not live · agents hire · crew gets paid
           </div>
         </footer>
       </div>
-      ) : isAgentsPage || isKolsPage || isRegisterPage || isKolProfilePage || isClaimPage || isProofPage ? null : (
+      ) : isAgentsPage || isKolsPage || isRegisterPage || isKolProfilePage || isClaimPage || isProofPage || isApprovePage ? null : (
       <div className="app-shell">
         <section className="section" id="brand">
           <p className="section-label">Assets</p>
@@ -2955,7 +2958,7 @@ export default function App() {
               @CrewPayHQ
             </a>
             {" · "}
-            {PLATFORM_BUYBACK_BPS / 100}% CREW buyback · humans get the rest
+            {PLATFORM_BUYBACK_BPS / 100}% CrewPay treasury · buyback cron not live · humans get the rest
           </div>
         </footer>
       </div>

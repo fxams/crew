@@ -1,18 +1,18 @@
 # Agent / MCP directory submissions
 
 **Primary discovery path (preferred):** Official MCP Registry + Smithery + ClawHub.  
-Glama + awesome-mcp-servers are **skipped** (Glama scoring is optional and blocked merge of #16008).
+Also refresh Glama / mcp.so / awesome-mcp with honest 60/15/25 + dryRunId approval copy.
 
 | Channel | Status | Doc |
 |---------|--------|-----|
-| Official MCP Registry | Live — `server.json` / remote `crewpay-mcp@1.2.1` | [../mcp-registry-publish.md](../mcp-registry-publish.md) |
-| Smithery | Live — refresh anytime | [smithery.md](./smithery.md) |
-| ClawHub skill | Published `@fxams/crewpay` | repo `skills/crewpay/` |
-| mcp.so | Optional paid draft | [mcp-so.md](./mcp-so.md) |
+| Official MCP Registry | Live — `server.json` / remote `crewpay-mcp@1.2.2` | [../mcp-registry-publish.md](../mcp-registry-publish.md) |
+| Smithery | Live — refresh description + pin `1.2.2` | [smithery.md](./smithery.md) |
+| ClawHub skill | Publish `@fxams/crewpay` **1.1.2** | repo `skills/crewpay/` |
+| mcp.so | Draft updated for `1.2.2` | [mcp-so.md](./mcp-so.md) |
 | Musebook | SIWS register via ops wallet (`slug=crewpay`) | [musebook.md](./musebook.md) |
 | ClawPump | **Live agent** — marketplace listing optional | [clawpump.md](./clawpump.md) |
-| Glama | **Skipped** | [glama.md](./glama.md) (kept for later) |
-| awesome-mcp-servers | **Closed / skipped** | Was #16008 — required Glama score |
+| Glama | Resubmit with honest copy | [glama.md](./glama.md) |
+| awesome-mcp-servers | New PR draft (was #16008) | [../awesome-mcp-pr.md](../awesome-mcp-pr.md) |
 
 ## Framework plugin upstream
 

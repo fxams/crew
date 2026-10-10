@@ -1,4 +1,4 @@
-# Official MCP Registry — publish `crewpay-mcp@1.2.0` + hosted remote
+# Official MCP Registry — publish `crewpay-mcp@1.2.2` + hosted remote
 
 **Primary discovery channel** (with Smithery + ClawHub). Glama / awesome-mcp are skipped.
 
@@ -14,7 +14,7 @@ curl -sS 'https://registry.modelcontextprotocol.io/v0/servers?search=crewpay&ver
 
 Card includes:
 
-- npm package `crewpay-mcp@1.2.0` (stdio) — already on npm
+- npm package `crewpay-mcp@1.2.2` (stdio) — already on npm
 - remote `streamable-http` → `https://mcp.crewpay.dev/mcp`
 
 ## Install the official CLI (not npm)

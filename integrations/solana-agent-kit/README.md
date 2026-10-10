@@ -13,5 +13,5 @@ Actions map to REST:
 7. proof → `GET /api/proof`
 
 ```bash
-npx -y crewpay-mcp@1.2.0
+npx -y crewpay-mcp@1.2.2
 ```

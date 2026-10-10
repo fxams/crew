@@ -15,23 +15,21 @@ const dry = await plugin.service.crewpay_launch_dry_run({
   ticker: 'DCAT',
   autoHire: { seats: 3 },
 })
-// human confirms…
+// human opens dry.approvalUrl…
 await plugin.service.crewpay_launch({
   name: 'Desk Cat',
   ticker: 'DCAT',
   autoHire: { seats: 3 },
-  dryRunToken: dry.dryRunToken,
-  humanConfirmed: true,
-  confirmPhrase: 'APPROVE_SOL_SPEND',
+  dryRunId: dry.dryRunId,
 })
 ```
 
-Prefer `npx -y crewpay-mcp@1.2.1` for local signing; hosted MCP `https://mcp.crewpay.dev/mcp` for discover/autohire without a launcher secret.
+Prefer `npx -y crewpay-mcp@1.2.2` for local signing; hosted MCP `https://mcp.crewpay.dev/mcp` for discover/autohire without a launcher secret.
 
 ## Safety
 
 - Fee map **60/15/25**; buyback cron not live yet
-- Launch/wire require dry-run token + exact phrase `APPROVE_SOL_SPEND`
+- Launch requires server `dryRunId` after human approval on `approvalUrl`
 
 ## Links
 
