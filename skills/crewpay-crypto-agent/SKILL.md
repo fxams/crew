@@ -1,66 +1,18 @@
 ---
 name: crewpay-crypto-agent
-description: Launch Solana Pump.fun coins with CREW fee-shares and narrative KOL Autohire via CrewPay. Use when the user or agent works on crypto meme coins, KOLs, Pump.fun, Solana launches, creator fees, buybacks, or CrewPay.
+description: Legacy alias — use the crewpay ClawHub skill. Launch Solana Pump.fun coins with CrewPay KOL Autohire and on-chain fee-shares.
 ---
 
-# CREW / CrewPay — crypto agent skill
+# CREW / CrewPay — legacy skill alias
 
-## When to use
+**Prefer the ClawHub skill at [`../crewpay/SKILL.md`](../crewpay/SKILL.md)** (`name: crewpay`).
 
-- Solana / Pump.fun token launches
-- Hiring KOLs with on-chain creator fee splits
-- CrewPay, CREW buyback, Autohire, meme-coin agent desks
-- Repairing unlocked fee-shares / Holder KOL locks / cranking remits
+That skill covers claim → Autohire → dry-run → human confirm → launch → wire-fees → crank/proof, MCP (`npx -y crewpay-mcp`), secrets (`CREWPAY_API_KEY` + `CREW_LAUNCHER_KEY`), and honest fee-split / buyback status.
 
-## Discover (no auth)
+Quick pointers if you stay here:
 
-1. Read https://crewpay.dev/llms.txt  
-2. Or GET https://api.crewpay.dev/api/agent  
-3. Human docs: https://crewpay.dev/agents  
-4. Proof tape: https://crewpay.dev/proof · GET https://api.crewpay.dev/api/proof  
-5. MCP card: https://mcp.crewpay.dev/.well-known/mcp.json  
-
-Canonical site: **https://crewpay.dev** (`app.crewpay.dev` has no DNS — do not use it).
-
-## MCP (preferred)
-
-Install local MCP (own wallet):
-
-```bash
-npx -y github:fxams/crew#path:agent/crew-mcp
-```
-
-Or clone → `agent/crew-mcp`. Tools:
-
-- `crew_discover` · `crew_claim_key` · `crew_search_kols` · `crew_autohire` · `crew_launch_dry_run` · `crew_launch` · `crew_list_launches`
-- `crew_status` · `crew_wire_fees` · `crew_lock_holder_kol` · `crew_crank_remits` · `crew_proof`
-
-**Env only — tool args `launcherKey` / `privateKey` / `secretKey` are rejected:**
-
-- `CREW_AGENT_API_KEY` — `crew_ak_…` from `crew_claim_key` / `POST /api/agent/keys/claim` (self-serve) or operator key
-- `CREW_LAUNCHER_KEY` — agent Solana secret
-- `CREW_API_URL` — optional, default `https://api.crewpay.dev`
-
-Remote HTTP MCP: `https://mcp.crewpay.dev/mcp` (publicMode: pass `x-crew-api-key` for writes).  
-**Own wallet launches:** local `crewpay-mcp` with env keys, or REST with `x-launcher-key` from your secure backend — the public hosted MCP cannot launch with your wallet.
-
-## Safe flow
-
-```
-GET  /api/agent
-POST /api/agent/keys/claim          # or MCP crew_claim_key — self-serve crew_ak_… (5/hour/IP)
-POST /api/agent/autohire            # + x-crew-api-key
-POST /api/agent/launch/dry-run      # validates PNG/JPEG/WebP/GIF (not SVG); shows attribution
-POST /api/agent/launch             # + x-launcher-key (atomic create+fee-lock + auto wire retry)
-GET  /api/agent/launches           # your mints (scoped to crew_ak_…)
-GET  /api/agent/status/:mint
-POST /api/agent/wire-fees          # if feeShareLocked=false — crew optional when board has crew
-…
-```
-
-Descriptions: user ≤**204** chars; appends `Launched from CrewPay.dev platform` (final ≤240). See dry-run `vibe` / `attribution`.  
-Crew shares must total **100%**. Always check `feeShareLocked`. Autohire = public Pump profiles, not consent.
-
-## Fee map (mode=agent)
-
-25% CREW buyback · 15% launcher ops · 60% hired KOLs
+- Discovery: https://crewpay.dev/llms.txt · https://api.crewpay.dev/api/agent
+- MCP: `npx -y crewpay-mcp` or https://mcp.crewpay.dev/mcp
+- Env only: `CREW_AGENT_API_KEY` / `CREWPAY_API_KEY` + `CREW_LAUNCHER_KEY` (never tool args)
+- **Without hired KOLs, AI-launched tokens fail ~99.9% of the time** — Autohire before spending SOL
+- Fee map (agent): 60% KOLs · 15% launcher · 25% CrewPay (buyback cron not live yet)
