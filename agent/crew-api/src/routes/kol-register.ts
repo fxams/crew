@@ -4,6 +4,7 @@ import { takeRateLimit } from '../lib/agent/rate-limit.js'
 import {
   beginXAuth,
   completeXCallback,
+  getClaimPitch,
   getKolProfile,
   getKolProfileByWallet,
   issueNonce,
@@ -11,6 +12,10 @@ import {
   siteUrl,
   xOAuthConfigured,
 } from '../lib/kol-register.js'
+import {
+  listMentionDrafts,
+  setMentionDraftStatus,
+} from '../lib/kol-mentions.js'
 
 export const kolRegisterRouter = Router()
 
@@ -29,6 +34,70 @@ kolRegisterRouter.get('/kols/register/status', (_req, res) => {
     redirectUri: process.env.X_REDIRECT_URI?.trim() || 'https://api.crewpay.dev/api/kols/register/callback',
     requires: ['solana wallet signature', 'x oauth'],
   })
+})
+
+kolRegisterRouter.get('/kols/claim/:username', async (req, res) => {
+  try {
+    const pitch = await getClaimPitch(String(req.params.username || ''))
+    if (!pitch) {
+      res.status(404).json({ ok: false, error: 'No CrewPay earnings found for this handle yet.' })
+      return
+    }
+    res.json({ ok: true, ...pitch })
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : 'claim failed' })
+  }
+})
+
+/** Operator: list pending @CrewPayHQ mention drafts (approval gate — never auto-posts). */
+kolRegisterRouter.get('/kols/mentions/drafts', async (req, res) => {
+  try {
+    const key = (req.header('x-crew-api-key') || '').trim()
+    const ops = (process.env.CREW_AGENT_API_KEY || '').trim()
+    if (!ops || key !== ops) {
+      res.status(401).json({ ok: false, error: 'Operator key required.' })
+      return
+    }
+    const status = String(req.query.status || 'pending') as 'pending' | 'all'
+    const drafts = await listMentionDrafts(status === 'all' ? 'all' : 'pending')
+    res.json({ ok: true, drafts, note: 'Approve in dashboard/API, then post manually or via X tool — never auto-tweets.' })
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : 'list failed' })
+  }
+})
+
+kolRegisterRouter.post('/kols/mentions/drafts/:id/:action', async (req, res) => {
+  try {
+    const key = (req.header('x-crew-api-key') || '').trim()
+    const ops = (process.env.CREW_AGENT_API_KEY || '').trim()
+    if (!ops || key !== ops) {
+      res.status(401).json({ ok: false, error: 'Operator key required.' })
+      return
+    }
+    const action = String(req.params.action || '')
+    if (action !== 'approve' && action !== 'reject') {
+      res.status(400).json({ ok: false, error: 'Use approve or reject.' })
+      return
+    }
+    const draft = await setMentionDraftStatus(
+      String(req.params.id || ''),
+      action === 'approve' ? 'approved' : 'rejected',
+    )
+    if (!draft) {
+      res.status(404).json({ ok: false, error: 'Draft not found.' })
+      return
+    }
+    res.json({
+      ok: true,
+      draft,
+      next:
+        action === 'approve'
+          ? 'Copy draftText and post from @CrewPayHQ (or wire X post tool). Mark posted with status=posted when done.'
+          : 'Draft rejected.',
+    })
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : 'update failed' })
+  }
 })
 
 kolRegisterRouter.get('/kols/registered/wallet/:wallet', async (req, res) => {

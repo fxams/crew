@@ -15,7 +15,7 @@ GET  https://mcp.crewpay.dev/.well-known/mcp.json
 Safe flow: **discover → autohire → dry-run → launch**. Prefer MCP:
 
 ```bash
-npx -y github:fxams/crew#path:agent/crew-mcp
+npx -y crewpay-mcp
 ```
 
 Env: `CREW_AGENT_API_KEY` + `CREW_LAUNCHER_KEY` (never as tool arguments).

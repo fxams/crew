@@ -20,6 +20,8 @@ type Profile = {
   profileImageUrl: string | null
   description: string
   wallet: string
+  priorWallets?: string[]
+  solEarned?: number
   registeredAt: string
   rank: number
 }
@@ -105,6 +107,7 @@ export function KolProfilePage() {
   const [missing, setMissing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [shareCopied, setShareCopied] = useState(false)
   const [avatarSrc, setAvatarSrc] = useState<string | null>(null)
   const justRegistered = params.get('registered') === '1'
   const viewingOwnDesk =
@@ -157,6 +160,34 @@ export function KolProfilePage() {
     } catch {
       setCopied(false)
     }
+  }
+
+  async function copyShareCard() {
+    if (!desk) return
+    const url = `${window.location.origin}/kol/${desk.profile.xUsername}`
+    const text = [
+      `@${desk.profile.xUsername} on CrewPay`,
+      `${formatSol(desk.performance.solReceived)} SOL earned · rank #${desk.profile.rank || '—'}`,
+      url,
+    ].join('\n')
+    try {
+      await navigator.clipboard.writeText(text)
+      setShareCopied(true)
+      window.setTimeout(() => setShareCopied(false), 1600)
+    } catch {
+      setShareCopied(false)
+    }
+  }
+
+  function shareOnX() {
+    if (!desk) return
+    const url = `${window.location.origin}/kol/${desk.profile.xUsername}`
+    const text = `@${desk.profile.xUsername} earned ${formatSol(desk.performance.solReceived)} SOL on @CrewPayHQ`
+    window.open(
+      `https://x.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,
+      '_blank',
+      'noopener,noreferrer',
+    )
   }
 
   return (
@@ -279,13 +310,40 @@ export function KolProfilePage() {
                 {formatSol(desk.performance.solReceived)}
                 <span> SOL</span>
               </p>
-              <p className="desk-pnl-sub">Creator fees paid to this wallet on CrewPay.</p>
+              <p className="desk-pnl-sub">
+                Creator fees across the linked wallet
+                {desk.profile.priorWallets?.length
+                  ? ' and prior / directory wallets'
+                  : ''}
+                .
+              </p>
               <div className="desk-pnl-chips">
                 <span>{desk.performance.coinsHired} hired</span>
                 <span>{desk.performance.coinsLaunched} launched</span>
                 <span>{desk.performance.remitCount} payments</span>
+                <span className="kol-verified">✓ registered</span>
               </div>
             </section>
+
+            <aside className="desk-share-card" aria-label="Shareable card">
+              <p className="section-label">Share</p>
+              <div className="desk-share-body">
+                <strong>@{desk.profile.xUsername}</strong>
+                <span>
+                  {formatSol(desk.performance.solReceived)} SOL · rank #
+                  {desk.profile.rank || '—'}
+                </span>
+                <span className="kol-verified">✓ CrewPay registered</span>
+              </div>
+              <div className="desk-share-actions">
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => void copyShareCard()}>
+                  {shareCopied ? 'Copied' : 'Copy card'}
+                </button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={shareOnX}>
+                  Post on X
+                </button>
+              </div>
+            </aside>
 
             <section className="desk-block">
               <h2 className="section-title desk-block-title">Coins</h2>

@@ -21,9 +21,16 @@ type Registration = {
   following: number
   tweetCount: number
   wallet: string
+  solEarned?: number
   registeredAt: string
   rank: number
   description: string
+}
+
+function formatSol(n: number) {
+  if (!Number.isFinite(n) || n === 0) return '0'
+  if (n >= 1) return n.toFixed(3)
+  return n.toFixed(4).replace(/0+$/, '').replace(/\.$/, '')
 }
 
 function shortAddr(addr: string) {
@@ -228,13 +235,13 @@ export function KolRegisterPage() {
         </div>
 
         <h2 className="section-title register-board-title">Leaderboard</h2>
-        <p className="section-sub">Ranked by X follower count.</p>
+        <p className="section-sub">Ranked by SOL earned on CrewPay (then followers).</p>
         <div className="kols-table kols-table-register" role="table" aria-label="Registered KOL leaderboard">
           <div className="kols-row kols-row-head kols-row-register" role="row">
             <span role="columnheader">#</span>
             <span role="columnheader">X</span>
+            <span role="columnheader">SOL earned</span>
             <span role="columnheader">Followers</span>
-            <span role="columnheader">Posts</span>
             <span role="columnheader">Wallet</span>
           </div>
           {board.map((row) => (
@@ -245,15 +252,18 @@ export function KolRegisterPage() {
               <span className="kols-identity" role="cell">
                 <Link to={kolProfilePath(row.xUsername)}>
                   @{row.xUsername}
-                  {row.xVerified ? ' ✓' : ''}
+                  <span className="kol-verified" title="Registered crew">
+                    {' '}
+                    ✓
+                  </span>
                 </Link>
                 <span className="kols-pump">{row.xName}</span>
               </span>
               <span className="kols-foll" role="cell">
-                {formatFollowers(row.followers)}
+                {formatSol(Number(row.solEarned || 0))}
               </span>
               <span className="kols-foll" role="cell">
-                {formatFollowers(row.tweetCount)}
+                {formatFollowers(row.followers)}
               </span>
               <span className="kols-wallet" role="cell" title={row.wallet}>
                 {shortAddr(row.wallet)}

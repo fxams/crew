@@ -1,6 +1,13 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CREW_VERSION } from '../lib/config'
 import { topKolRecords, type KolRecord } from '../lib/pump/kol-directory'
+import { kolProfilePath } from '../lib/routes'
+
+const API = (
+  (import.meta.env.VITE_CREW_API_URL as string | undefined)?.replace(/\/$/, '') ||
+  'https://api.crewpay.dev'
+)
 
 function shortAddr(addr: string) {
   if (!addr || addr.length < 10) return addr || '—'
@@ -21,6 +28,35 @@ function xUrl(kol: KolRecord) {
 
 export function TopKolsPage() {
   const top = topKolRecords(20)
+  const [registered, setRegistered] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetch(`${API}/api/kols/registered?limit=100`)
+        if (!res.ok) return
+        const data = (await res.json()) as {
+          leaderboard?: { xUsername?: string }[]
+        }
+        if (cancelled) return
+        setRegistered(
+          new Set(
+            (data.leaderboard || []).map((r) =>
+              String(r.xUsername || '')
+                .replace(/^@+/, '')
+                .toLowerCase(),
+            ),
+          ),
+        )
+      } catch {
+        /* directory still works without badges */
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
     <div className="app-shell page-kols">
@@ -34,8 +70,8 @@ export function TopKolsPage() {
           </div>
           <h1 className="section-title">Autohire directory.</h1>
           <p className="section-sub">
-            Public Pump reach list Autohire uses until enough KOLs register. Opt-in crew lives on
-            Register — that board becomes the hire preference later.
+            Public Pump reach list for Autohire. Registered crew get a verified badge and hire
+            priority when they match the narrative.
           </p>
           <div className="register-actions">
             <Link className="btn btn-primary btn-sm" to="/register">
@@ -56,15 +92,25 @@ export function TopKolsPage() {
             <span role="columnheader">Wallet</span>
           </div>
           {top.map((kol) => {
-            const handle = `@${(kol.x || kol.pump).replace(/^@+/, '')}`
+            const bare = (kol.x || kol.pump).replace(/^@+/, '')
+            const handle = `@${bare}`
             const link = xUrl(kol)
+            const isRegistered = registered.has(bare.toLowerCase())
             return (
               <div className="kols-row" role="row" key={kol.id}>
                 <span className="kols-rank" role="cell">
                   {kol.rank}
                 </span>
                 <span className="kols-identity" role="cell">
-                  {link ? (
+                  {isRegistered ? (
+                    <Link to={kolProfilePath(bare)}>
+                      {handle}
+                      <span className="kol-verified" title="Registered crew">
+                        {' '}
+                        ✓ verified
+                      </span>
+                    </Link>
+                  ) : link ? (
                     <a href={link} target="_blank" rel="noreferrer">
                       {handle}
                     </a>
