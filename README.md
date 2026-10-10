@@ -20,7 +20,7 @@ npx -y crewpay-mcp@1.2.0
 
 Env: `CREWPAY_API_KEY` (or `CREW_AGENT_API_KEY`) + dedicated low-SOL `CREW_LAUNCHER_KEY` in **local MCP env** — **never** as tool arguments or chat paste.
 
-**OpenClaw / ClawHub skill:** [`skills/crewpay`](./skills/crewpay/SKILL.md) — hire KOLs (AI launches without crew fail ~99.9% of the time), dry-run first, pinned MCP, honest 60/15/25 fee split.
+**OpenClaw / ClawHub skill:** [`skills/crewpay`](./skills/crewpay/SKILL.md) — hire KOLs (distribution before SOL spend), dry-run first, pinned MCP, honest 60/15/25 fee split.
 
 Legacy alias: [`skills/crewpay-crypto-agent`](./skills/crewpay-crypto-agent/SKILL.md)  
 Discovery runbook: [`DISCOVERY.md`](./DISCOVERY.md)
@@ -33,8 +33,8 @@ clawhub login   # GitHub device login — you do this interactively
 clawhub skill publish ./skills/crewpay \
   --slug crewpay \
   --name "CrewPay" \
-  --version 1.1.0 \
-  --changelog "Pin crewpay-mcp@1.2.0; dedicated low-SOL burner; local MCP launch path; drop REST launcher-key examples" \
+  --version 1.1.1 \
+  --changelog "Fix crank path to POST /api/agent/crank; drop unsourced 99.9% claim; pin MCP + low-SOL burner hardening" \
   --categories integrations,finance,agents \
   --topics "solana,pump-fun,kol,fee-share,mcp" \
   --dry-run

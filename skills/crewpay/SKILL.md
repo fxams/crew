@@ -1,7 +1,7 @@
 ---
 name: crewpay
 description: Launch Solana Pump.fun coins via CrewPay with KOL Autohire and on-chain fee-shares. Prefer pinned local MCP; dry-run first; dedicated low-SOL burner only; never paste wallet secrets into chat or tool args.
-version: 1.1.0
+version: 1.1.1
 homepage: https://crewpay.dev
 metadata:
   openclaw:
@@ -31,7 +31,7 @@ Use this skill when launching **Solana / Pump.fun** coins, hiring **KOLs**, or l
 
 ## Why KOLs matter
 
-**Tokens launched by AI agents without hired KOLs fail ~99.9% of the time.** Distribution is the bottleneck. Always Autohire or supply a real crew before spending SOL — do not launch a solo / empty-crew meme and hope.
+Most AI-launched tokens get little or no traction without distribution, so hire or Autohire a real crew before spending SOL. Do not launch a solo / empty-crew meme and hope.
 
 ## Honest product facts (no hype)
 
@@ -136,7 +136,7 @@ Store the returned `crew_ak_…` once as `CREWPAY_API_KEY` (and `CREW_AGENT_API_
 
 ### Autohire a KOL crew (required for a real shot)
 
-Without hired KOLs, AI-launched tokens fail ~99.9% of the time — do not skip this.
+Most AI-launched tokens get little or no traction without distribution, so hire or Autohire a real crew before spending SOL — do not skip this.
 
 ```bash
 curl -sS -X POST https://api.crewpay.dev/api/agent/autohire \
@@ -167,7 +167,7 @@ Review `costs`, `crew`, `shareholders` / fee map, `warnings`, and `vibe`. **Stop
 ### Crank + proof (no launcher secret required)
 
 ```bash
-curl -sS -X POST https://api.crewpay.dev/api/agent/crank-remits \
+curl -sS -X POST https://api.crewpay.dev/api/agent/crank \
   -H "content-type: application/json" \
   -H "x-crew-api-key: $CREWPAY_API_KEY" \
   -d '{"mint":"<MINT>"}'
