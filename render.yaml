@@ -11,9 +11,9 @@ databases:
     plan: basic_256mb
     postgresMajorVersion: "16"
     region: oregon
-    ipAllowList:
-      - source: 0.0.0.0/0
-        description: everywhere
+    # Private network only — API/cron use Render internal DATABASE_URL.
+    # Do not open 0.0.0.0/0; use temporary allowlist entries for local migrate if needed.
+    ipAllowList: []
 
 services:
   - type: web
