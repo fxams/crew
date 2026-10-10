@@ -34,6 +34,47 @@ export function xAvatarLarge(url: string | null | undefined): string | null {
   return url.replace(/_(normal|mini|bigger)(\.[a-z0-9]+)$/i, '_400x400$2')
 }
 
+/** OAuth sometimes stores X's gray default egg instead of the real profile photo. */
+export function isDefaultXProfileImage(url: string | null | undefined): boolean {
+  if (!url?.trim()) return true
+  return /default_profile_images|default_profile_\d|\/sticky\/default/i.test(url)
+}
+
+/** Public lookup when OAuth saved the default avatar URL. */
+export async function fetchPublicXAvatarUrl(username: string): Promise<string | null> {
+  const handle = username.trim().replace(/^@/, '')
+  if (!X_HANDLE.test(handle)) return null
+  try {
+    const res = await fetch(`https://unavatar.io/x/${encodeURIComponent(handle)}?json`, {
+      headers: { 'user-agent': 'CrewPay-KOL-Desk/1.0' },
+      signal: AbortSignal.timeout(8000),
+    })
+    if (!res.ok) return null
+    const json = (await res.json()) as { url?: string }
+    const url = json.url?.trim()
+    if (!url || isDefaultXProfileImage(url)) return null
+    return url
+  } catch {
+    return null
+  }
+}
+
+async function ensureDeskAvatar(profile: KolRegistration): Promise<KolRegistration> {
+  let url = profile.profileImageUrl
+  if (!isDefaultXProfileImage(url)) {
+    return { ...profile, profileImageUrl: xAvatarLarge(url) }
+  }
+  const resolved = await fetchPublicXAvatarUrl(profile.xUsername)
+  if (resolved) {
+    await query(
+      `UPDATE kol_registrations SET profile_image_url = $1, updated_at = now() WHERE x_user_id = $2`,
+      [resolved, profile.xUserId],
+    )
+    url = resolved
+  }
+  return { ...profile, profileImageUrl: xAvatarLarge(url) }
+}
+
 export function registrationMessage(wallet: string, nonce: string): string {
   return `${REGISTER_MESSAGE_PREFIX}\nWallet: ${wallet.trim()}\nNonce: ${nonce.trim()}`
 }
@@ -206,6 +247,10 @@ export async function completeXCallback(code: string, state: string): Promise<Ko
 
   const accessToken = await exchangeCode(code, row.code_verifier)
   const user = await fetchXMe(accessToken)
+  let profileImageUrl = user.profile_image_url || null
+  if (isDefaultXProfileImage(profileImageUrl)) {
+    profileImageUrl = (await fetchPublicXAvatarUrl(user.username)) || profileImageUrl
+  }
   const metrics = user.public_metrics || {}
 
   const conflict = await query(
@@ -243,7 +288,7 @@ export async function completeXCallback(code: string, state: string): Promise<Ko
       Number(metrics.following_count || 0),
       Number(metrics.tweet_count || 0),
       Number(metrics.listed_count || 0),
-      user.profile_image_url || null,
+      profileImageUrl,
       (user.description || '').slice(0, 280),
       row.wallet,
     ],
@@ -460,8 +505,7 @@ async function profileFromUsername(username: string): Promise<KolProfile | null>
   )
   const row = rows[0] as Record<string, unknown> | undefined
   if (!row) return null
-  const profile = mapReg(row, Number(row.board_rank || 0))
-  profile.profileImageUrl = xAvatarLarge(profile.profileImageUrl)
+  const profile = await ensureDeskAvatar(mapReg(row, Number(row.board_rank || 0)))
   const performance = await loadPerformance(profile.wallet)
   return { profile, performance }
 }
