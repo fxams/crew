@@ -10,6 +10,12 @@ export const DESK_MODES: {
   blurb: string
 }[] = [
   {
+    id: 'agent',
+    label: 'Agent Hire',
+    short: 'Agent',
+    blurb: '25% CREW buyback · 15% agent ops · 60% hired KOLs.',
+  },
+  {
     id: 'split',
     label: 'Fee Split',
     short: 'Split',
@@ -27,20 +33,17 @@ export const DESK_MODES: {
     short: 'Raid',
     blurb: '25% CREW buyback · 25% raid pool · 50% to crew.',
   },
-  {
-    id: 'agent',
-    label: 'Agent Hire',
-    short: 'Agent',
-    blurb: '25% CREW buyback · 15% agent ops · 60% hired KOLs.',
-  },
 ]
+
+/** Modes offered on the launch desk. Raid stays in types for existing coins. */
+export const LAUNCH_DESK_MODES = DESK_MODES.filter((mode) => mode.id !== 'raid')
 
 /** Empty Pump-style form — one seat at 100% (equal split of 1). */
 export const DEFAULT_DRAFT: LaunchDraft = {
   name: '',
   ticker: '',
   vibe: '',
-  mode: 'split',
+  mode: 'agent',
   crew: [{ handle: '', wallet: '', share: 100 }],
   initialBuySol: 0,
   imageFile: null,

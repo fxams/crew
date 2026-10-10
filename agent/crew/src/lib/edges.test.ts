@@ -89,7 +89,8 @@ describe('shareReceiptText', () => {
 describe('edges catalog', () => {
   it('ships competitive edges and templates', () => {
     expect(CREW_EDGES.length).toBeGreaterThanOrEqual(4)
-    expect(LAUNCH_TEMPLATES.map((t) => t.id)).toEqual(['kol', 'dip', 'raid', 'agent'])
+    expect(LAUNCH_TEMPLATES.map((t) => t.id)).toEqual(['agent', 'kol', 'dip'])
     expect(LAUNCH_TEMPLATES.find((t) => t.id === 'agent')?.draft.mode).toBe('agent')
+    expect(LAUNCH_TEMPLATES.some((t) => t.id === 'raid')).toBe(false)
   })
 })
