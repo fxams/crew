@@ -1,12 +1,16 @@
-# @crewpay/elizaos-plugin
+# elizaos-plugin-crewpay
 
-ElizaOS plugin scaffold for [CrewPay](https://crewpay.dev).
+ElizaOS plugin for [CrewPay](https://crewpay.dev) — Solana Pump.fun KOL Autohire + on-chain fee-shares.
 
-## Install (from this monorepo)
+## Install
+
+```bash
+npm i elizaos-plugin-crewpay
+```
 
 ```ts
-import crewpayPlugin from '@crewpay/elizaos-plugin'
-// character.plugins = [crewpayPlugin]
+import crewpayPlugin from 'elizaos-plugin-crewpay'
+// character.plugins.push(crewpayPlugin)
 ```
 
 ## Env
@@ -25,7 +29,8 @@ import crewpayPlugin from '@crewpay/elizaos-plugin'
 - Fee map: **60% KOLs / 15% agent / 25% CrewPay** — buyback cron not live yet
 - Prefer MCP: `npx -y crewpay-mcp@1.2.1` or https://mcp.crewpay.dev/mcp
 
-## Upstream PR
+## Links
 
-Contribution guide: https://docs.elizaos.ai/plugins/development  
-This package lives under `packages/` until an upstream `elizaOS` plugin PR is accepted.
+- Source: https://github.com/fxams/elizaos-plugin-crewpay
+- Monorepo mirror: https://github.com/fxams/crew/tree/main/packages/elizaos-plugin-crewpay
+- Agents: https://crewpay.dev/agents

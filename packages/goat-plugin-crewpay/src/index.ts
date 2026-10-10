@@ -7,7 +7,7 @@ import {
   CrewPayClient,
   loadCrewPayEnv,
   SOL_SPEND_CONFIRM_PHRASE,
-} from '../../crewpay-rest/src/client.ts'
+} from './client.js'
 
 export type CrewPayGoatOptions = {
   apiUrl?: string

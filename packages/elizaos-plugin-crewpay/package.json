@@ -1,13 +1,54 @@
 {
-  "name": "@crewpay/elizaos-plugin",
-  "version": "0.1.0",
-  "private": true,
+  "name": "elizaos-plugin-crewpay",
+  "version": "0.1.1",
+  "description": "ElizaOS plugin for CrewPay \u2014 Solana Pump.fun KOL Autohire + fee-shares (60/15/25). Buyback cron not live. Requires dryRunToken + APPROVE_SOL_SPEND before launch.",
   "type": "module",
-  "main": "./src/index.ts",
-  "description": "ElizaOS plugin for CrewPay — discover, autohire, dry-run, launch, wire, crank, proof.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "keywords": [
+    "elizaos",
+    "crewpay",
+    "solana",
+    "pump.fun",
+    "kol",
+    "fee-share",
+    "ai-agent"
+  ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fxams/elizaos-plugin-crewpay.git"
+  },
+  "homepage": "https://crewpay.dev/agents",
+  "bugs": {
+    "url": "https://github.com/fxams/elizaos-plugin-crewpay/issues"
+  },
   "peerDependencies": {
     "@elizaos/core": "*"
   },
-  "keywords": ["elizaos", "crewpay", "solana", "pump.fun", "mcp"]
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "private": true
 }

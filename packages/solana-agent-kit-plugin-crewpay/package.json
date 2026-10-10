@@ -1,14 +1,52 @@
 {
-  "name": "@crewpay/solana-agent-kit-plugin",
-  "version": "0.1.0",
-  "private": true,
+  "name": "crewpay-solana-agent-kit-plugin",
+  "version": "0.1.1",
+  "description": "Solana Agent Kit plugin for CrewPay \u2014 discover/autohire/dry-run/launch/wire/crank/proof. Fee map 60/15/25; buyback not live; dryRunToken + APPROVE_SOL_SPEND required.",
   "type": "module",
-  "main": "./src/index.ts",
-  "description": "Solana Agent Kit plugin for CrewPay REST (discover → proof).",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "keywords": [
+    "solana-agent-kit",
+    "crewpay",
+    "solana",
+    "pump.fun",
+    "kol",
+    "ai-agent"
+  ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fxams/solana-agent-kit-plugin-crewpay.git"
+  },
+  "homepage": "https://crewpay.dev/agents",
   "peerDependencies": {
     "solana-agent-kit": "*",
     "zod": "*"
   },
-  "keywords": ["solana-agent-kit", "crewpay", "solana", "pump.fun"]
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "zod": "^3.24.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "private": true
 }
