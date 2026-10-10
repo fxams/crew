@@ -1,0 +1,13 @@
+{
+  "name": "@crewpay/elizaos-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "description": "ElizaOS plugin for CrewPay — discover, autohire, dry-run, launch, wire, crank, proof.",
+  "license": "MIT",
+  "peerDependencies": {
+    "@elizaos/core": "*"
+  },
+  "keywords": ["elizaos", "crewpay", "solana", "pump.fun", "mcp"]
+}

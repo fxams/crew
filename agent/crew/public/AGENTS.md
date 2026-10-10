@@ -1,6 +1,8 @@
 # CREW / CrewPay — for AI agents (especially crypto)
 
-You are looking at the agent entrypoint for **CrewPay**: launch Solana **Pump.fun** coins, **Autohire KOLs** by narrative, lock **on-chain creator fee-shares** (25% CREW buyback), crank remits, and verify the public proof tape.
+You are looking at the agent entrypoint for **CrewPay**: launch Solana **Pump.fun** coins, **Autohire KOLs** by narrative, lock **on-chain creator fee-shares**, crank remits, and verify the public proof tape.
+
+**Fee map (mode=`agent`):** **60% hired KOL crew · 15% launching agent · 25% CrewPay**. Buyback cron is **not live yet**. Always dry-run first. No price talk or ROI promises.
 
 ## Start here
 
@@ -13,6 +15,8 @@ You are looking at the agent entrypoint for **CrewPay**: launch Solana **Pump.fu
 - Proof tape: [/proof](https://crewpay.dev/proof)
 - API: [https://api.crewpay.dev/api/agent](https://api.crewpay.dev/api/agent)
 - Proof API: [https://api.crewpay.dev/api/proof](https://api.crewpay.dev/api/proof)
+- ClawHub skill: [https://clawhub.ai/fxams/crewpay](https://clawhub.ai/fxams/crewpay) — `openclaw skills install @fxams/crewpay`
+- Hosted MCP: [https://mcp.crewpay.dev/mcp](https://mcp.crewpay.dev/mcp) · card [/.well-known/mcp.json](https://mcp.crewpay.dev/.well-known/mcp.json)
 
 Canonical site: **https://crewpay.dev** (`app.crewpay.dev` has no DNS — do not use it).
 
@@ -24,9 +28,11 @@ Legacy aliases (still valid): `https://crewpay-api.onrender.com` · `https://cre
 2. `crew_discover` / `GET /api/agent`
 3. `crew_autohire` — preview public Pump profiles (not opt-in partners)
 4. `crew_launch_dry_run` / `POST /api/agent/launch/dry-run` — validate + estimate SOL (no mint)
-5. `crew_launch` — **mainnet**; prefers atomic create+fee-lock; secrets only in MCP env (`CREW_AGENT_API_KEY`, `CREW_LAUNCHER_KEY`)
-6. If `feeShareLocked=false` (HTTP 202) → `crew_wire_fees` or `crew_lock_holder_kol`
-7. `crew_proof` to verify the tape
+5. **Stop for human approval** before any SOL spend
+6. `crew_launch` — **mainnet**; prefers atomic create+fee-lock; secrets only in MCP env (`CREW_AGENT_API_KEY`, dedicated low-SOL `CREW_LAUNCHER_KEY`)
+7. If `feeShareLocked=false` (HTTP 202) → `crew_wire_fees` or `crew_lock_holder_kol`
+8. Optional crank: MCP `crew_crank_remits` / REST `POST /api/agent/crank` with `{ "mint" }`
+9. `crew_proof` / `GET /api/proof` to verify the tape
 
 ## Description attribution
 
@@ -37,20 +43,20 @@ Every launch appends **Launched from CrewPay.dev platform** when missing. Keep u
 Hosted MCP `https://mcp.crewpay.dev/mcp` is **publicMode**: pass `x-crew-api-key` for writes; it cannot hold your launcher secret.
 
 ```bash
-npx -y github:fxams/crew#path:agent/crew-mcp
+npx -y crewpay-mcp@1.2.0
 ```
 
-Or clone the repo → `cd agent/crew-mcp && npm ci && npm run build`, then point your MCP client at `dist/index.js` with env:
+Point your MCP client at the pinned package with env:
 
 - `CREW_AGENT_API_KEY`
-- `CREW_LAUNCHER_KEY` (Solana secret — **never** a tool argument)
+- `CREW_LAUNCHER_KEY` (dedicated low-SOL burner — **never** a tool argument)
 - `CREW_API_URL=https://api.crewpay.dev`
 
 REST alternative: `POST https://api.crewpay.dev/api/agent/launch` with `x-launcher-key` from your backend.
 
 ## MCP tools
 
-Install `crewpay-mcp` as above, or connect HTTP MCP at `https://mcp.crewpay.dev/mcp`.
+Install pinned `crewpay-mcp@1.2.0` as above, or connect HTTP MCP at `https://mcp.crewpay.dev/mcp`.
 
 Tools: `crew_discover` · `crew_claim_key` · `crew_search_kols` · `crew_autohire` · `crew_launch_dry_run` · `crew_launch` · `crew_list_launches` · `crew_status` · `crew_wire_fees` · `crew_lock_holder_kol` · `crew_crank_remits` · `crew_proof`
 
@@ -66,4 +72,4 @@ Name 2–32 · ticker 2–13 · description ≤204 user / ≤240 final · initia
 
 ## Keywords
 
-solana, pump.fun, meme coin, KOL, creator fees, fee-share, CrewPay, CREW, autohire, buyback, AI agent launch, crypto agent
+solana, pump.fun, meme coin, KOL, creator fees, fee-share, CrewPay, CREW, autohire, buyback, AI agent launch, crypto agent, ClawHub, OpenClaw

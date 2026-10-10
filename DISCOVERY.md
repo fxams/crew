@@ -19,8 +19,10 @@ How crypto / Solana agents find **CREW / CrewPay**.
 | MCP server-card | https://mcp.crewpay.dev/.well-known/mcp/server-card.json |
 | Discovery JSON | https://api.crewpay.dev/api/agent |
 | Proof | https://crewpay.dev/proof |
-| Local MCP | `npx -y crewpay-mcp` |
-| Skill | `skills/crewpay-crypto-agent/SKILL.md` |
+| Local MCP | `npx -y crewpay-mcp@1.2.0` |
+| Hosted MCP | https://mcp.crewpay.dev/mcp |
+| ClawHub skill | `openclaw skills install @fxams/crewpay` · https://clawhub.ai/fxams/crewpay |
+| Skill (repo) | `skills/crewpay/SKILL.md` |
 | Sitemap | https://crewpay.dev/sitemap.xml |
 | Claim page | https://crewpay.dev/claim/:handle |
 | GTM register checklist | `docs/gtm-register-worth-it.md` |
@@ -34,9 +36,9 @@ How crypto / Solana agents find **CREW / CrewPay**.
 | directory.llmstxt.cloud | **Waitlist** | Submitted free tier (Finance) — review 1–3 months |
 | PulseMCP | **Paused** | Prerequisites done (Official Registry + `mcp-server` topic); auto-ingest when they reopen |
 | Smithery | **Live** | https://smithery.ai/servers/fxams/crewpay — `https://mcp.crewpay.dev/mcp` |
-| Glama | **Needs operator GitHub OAuth** | `glama.json` on main; Add MCP Server at https://glama.ai (no API key in Cursor secrets) |
-| mcp.so | **Skipped (paid)** | Optional $39; free path = Official Registry (done) |
-| Official MCP Registry | **npm 1.2.0 live; registry JWT expired** | npm `crewpay-mcp@1.2.0` (`latest`). Re-run `mcp-publisher login github && mcp-publisher publish ./server.json` for registry card @1.2.0 |
+| Glama | **Needs operator GitHub OAuth + score** | Blocks awesome PR merge — see `docs/directory-submissions/glama.md` |
+| mcp.so | **Draft ready** | `docs/directory-submissions/mcp-so.md` (paid path optional) |
+| Official MCP Registry | **npm 1.2.0 on npm; registry still 1.1.2** | Update `server.json` (remotes + 1.2.0) then `mcp-publisher login github && mcp-publisher publish` from `agent/crew-mcp` |
 | GitHub topics | **Done** | description + homepage + `mcp-server` and related topics set |
 | awesome-mcp-servers | **PR open** | https://github.com/punkpeye/awesome-mcp-servers/pull/16008 (+1 Finance & Fintech) |
 | Solana / Metaplex Agent Registry | **Needs funded wallet** | `docs/register-solana-agent.md` |
@@ -72,12 +74,24 @@ npx @smithery/cli mcp publish "https://mcp.crewpay.dev/mcp" -n fxams/crewpay \
 ### npm + Official MCP Registry
 
 ```bash
-# Set NPM_TOKEN on GitHub Actions, or locally:
-cd agent/crew-mcp && npm publish --access public
-# Then:
-npx -y mcp-publisher login github
-npx -y mcp-publisher publish ./server.json
+# npm package already at 1.2.0. Re-publish registry card with remotes:
+cd agent/crew-mcp
+npx -y mcp-publisher@latest login github   # browser / device auth — you do this
+npx -y mcp-publisher@latest publish ./server.json
+# Confirm: curl -sS 'https://registry.modelcontextprotocol.io/v0/servers?search=crewpay' | jq '.servers[0].server.version'
 ```
+
+### Framework plugins
+
+Scaffolds in `packages/` (ElizaOS, Solana Agent Kit, GOAT). Upstream PRs optional — see `packages/README.md`.
+
+### Directory drafts
+
+- Glama: `docs/directory-submissions/glama.md`
+- Smithery: `docs/directory-submissions/smithery.md`
+- mcp.so: `docs/directory-submissions/mcp-so.md`
+- Musebook: `docs/directory-submissions/musebook.md`
+- ClawPump: `docs/directory-submissions/clawpump.md`
 
 ### Re-announce WellKnown
 
