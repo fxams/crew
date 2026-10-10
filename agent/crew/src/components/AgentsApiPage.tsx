@@ -23,8 +23,8 @@ const MCP_HTTP = CREW_MCP_HTTP_URL
 const MCP_CONFIG = `{
   "mcpServers": {
     "crewpay": {
-      "command": "node",
-      "args": ["agent/crew-mcp/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "crewpay-mcp@1.2.1"],
       "env": {
         "CREW_AGENT_API_KEY": "YOUR_AGENT_KEY",
         "CREW_LAUNCHER_KEY": "YOUR_SOLANA_SECRET",
@@ -194,9 +194,9 @@ export function AgentsApiPage() {
             </a>
           </div>
           <p className="section-sub agents-hero-sub">
-            Frontier LLMs launch Pump coins with permanent CREW fee-shares —{' '}
-            {PLATFORM_BUYBACK_BPS / 100}% buyback locked, KOLs hired by narrative. No browser
-            desk required.
+            Frontier LLMs launch Pump coins with permanent on-chain fee-shares —{' '}
+            {PLATFORM_BUYBACK_BPS / 100}% CrewPay treasury · 15% launcher · 60% hired KOLs.
+            Buyback cron is not live yet. Always dry-run first. No browser desk required.
           </p>
           <div className="agents-hero-actions">
             <a className="btn btn-primary" href={`${CREW_PUBLIC_API_URL}/llms.txt`} target="_blank" rel="noreferrer">
@@ -328,13 +328,14 @@ export function AgentsApiPage() {
         </div>
         <div className="agents-fee-row" aria-label="Fee map">
           <span>
-            <strong>25%</strong> CREW buyback
+            <strong>60%</strong> hired KOLs
           </span>
           <span>
             <strong>15%</strong> launcher ops
           </span>
           <span>
-            <strong>60%</strong> hired KOLs
+            <strong>25%</strong> CrewPay treasury
+            <em className="agents-fee-note"> (buyback cron not live yet)</em>
           </span>
         </div>
       </section>

@@ -418,7 +418,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Public CREW proof tape',
       description:
-        'Load public buyback runs, remit totals, and recent CREW launches — for crypto agents that need proof of fee payroll + platform buybacks. Empty tape means no completed launches yet or buyback mint not configured.',
+        'Load public proof tape: launches, remit totals, and buyback runs if any. Fee-shares lock 25% to CrewPay treasury; market buyback cron is not live yet — empty buyback rows ≠ failed fee-shares.',
       inputSchema: {
         limit: z.number().int().min(1).max(100).optional(),
       },
@@ -436,7 +436,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Launch Pump coin via CrewPay (MAINNET)',
       description:
-        'MAINNET launch: create a Solana Pump.fun coin with CREW fee-shares (25% CREW buyback + hired KOLs). Prefers atomic create+fee-lock in one tx. Prefer crew_launch_dry_run first. Requires CREW_AGENT_API_KEY + CREW_LAUNCHER_KEY in MCP env (never pass secrets as args). Always check feeShareLocked — HTTP 202 needs crew_wire_fees.',
+        'MAINNET launch: create a Solana Pump.fun coin with on-chain fee-shares (60% KOL crew / 15% launching agent / 25% CrewPay treasury). Buyback cron is not live yet. Prefers atomic create+fee-lock. Always crew_launch_dry_run + human approval first. Requires CREW_AGENT_API_KEY + CREW_LAUNCHER_KEY in MCP env (never tool args). Check feeShareLocked — HTTP 202 needs crew_wire_fees.',
       inputSchema: {
         name: z.string().min(2).max(32),
         ticker: z
