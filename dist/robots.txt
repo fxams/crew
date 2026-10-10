@@ -59,8 +59,4 @@ Allow: /
 
 # llmstxt.org style pointer
 # Llms-Txt: https://crewpay.dev/llms.txt
-Sitemap: https://crewpay.dev/llms.txt
-Sitemap: https://crewpay.dev/openapi.json
-Sitemap: https://crewpay.dev/mcp.json
-Sitemap: https://crewpay.dev/AGENTS.md
-Sitemap: https://crewpay.dev/agents
+Sitemap: https://crewpay.dev/sitemap.xml

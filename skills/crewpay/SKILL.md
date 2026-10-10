@@ -1,7 +1,7 @@
 ---
 name: crewpay
 description: Launch Solana Pump.fun coins via CrewPay with KOL Autohire and on-chain fee-shares. Prefer pinned local MCP; dry-run first; dedicated low-SOL burner only; never paste wallet secrets into chat or tool args.
-version: 1.1.1
+version: 1.1.2
 homepage: https://crewpay.dev
 metadata:
   openclaw:
@@ -50,7 +50,7 @@ Most AI-launched tokens get little or no traction without distribution, so hire 
 **Burner wallet rules**
 
 1. Create a **new dedicated launcher wallet** for CrewPay launches. Never use a main, treasury, CEX-withdrawal, or high-balance wallet.
-2. Fund it with **only** the SOL needed for one launch + rent/fees (typically a few SOL max; dry-run reports exact costs). Keep the balance low; top up per launch.
+2. Fund it with **only** the SOL needed for one launch + rent/fees (dry-run reports exact costs). Keep the balance low; top up per launch.
 3. After a launch, leave leftover dust or drain back to cold storage — do not park large balances on the burner.
 4. Rotate the burner if it was ever pasted into chat, logs, or a shared host.
 
@@ -65,8 +65,8 @@ Hosted MCP at `https://mcp.crewpay.dev/mcp` is **publicMode**: API-key writes fo
 
 ## Safety rules
 
-1. **Always dry-run first** (`crew_launch_dry_run` or `POST /api/agent/launch/dry-run`). Dry-run spends no SOL and creates no mint.
-2. **Confirm with the human operator** before any real launch, initial buy, or other SOL spend. Show dry-run costs, crew, and fee map; wait for explicit approval.
+1. **Always dry-run first** (`crew_launch_dry_run` or `POST /api/agent/launch/dry-run`). Dry-run spends no SOL and creates no mint; it returns `dryRunId` + `approvalUrl`.
+2. **Human must open `approvalUrl`** and confirm on the CrewPay page before any real launch. Then call launch with the same body + `dryRunId`. Do not invent confirm phrases.
 3. **Original memes only** — legitimate original art and names. No impersonation of brands, people, or other tokens.
 4. Prefer **registered Autohire KOLs** when available; otherwise public Pump profiles are listings, not consent.
 5. MAINNET only. Check `feeShareLocked` after every launch.
@@ -86,7 +86,7 @@ Do **not** use `app.crewpay.dev` (no DNS).
 Install/run the **pinned** npm package (do not use `@latest` or unpinned `-y crewpay-mcp`):
 
 ```bash
-npx -y crewpay-mcp@1.2.0
+npx -y crewpay-mcp@1.2.2
 ```
 
 Configure MCP **env** (not tool args):
@@ -103,9 +103,9 @@ Tools: `crew_discover` · `crew_claim_key` · `crew_search_kols` · `crew_autohi
 
 1. `crew_claim_key` if `CREWPAY_API_KEY` / `CREW_AGENT_API_KEY` unset → store once in env.
 2. `crew_autohire` (or pass an explicit crew totaling **100%** shares).
-3. `crew_launch_dry_run` → review costs, crew, fee map, warnings.
-4. **Stop for human approval.**
-5. `crew_launch` → expect `feeShareLocked=true`; if false, `crew_wire_fees`.
+3. `crew_launch_dry_run` → review costs, crew, fee map, warnings; note `dryRunId` + `approvalUrl`.
+4. **Stop — human opens `approvalUrl` and approves.**
+5. `crew_launch` with the same body + `dryRunId` → expect `feeShareLocked=true`; if false, `crew_wire_fees`.
 6. Optional: `crew_crank_remits` · `crew_proof`.
 
 Images: PNG/JPEG/WebP/GIF only (SVG rejected). User description ≤**204** chars (final ≤240 with `Launched from CrewPay.dev platform`).
@@ -162,7 +162,7 @@ curl -sS -X POST https://api.crewpay.dev/api/agent/launch/dry-run \
   }'
 ```
 
-Review `costs`, `crew`, `shareholders` / fee map, `warnings`, and `vibe`. **Stop and get human approval**, then launch via **local MCP** (`crew_launch`), not curl.
+Review `costs`, `crew`, `shareholders` / fee map, `warnings`, `vibe`, `dryRunId`, and `approvalUrl`. **Human opens `approvalUrl`**, then launch via **local MCP** (`crew_launch` with `dryRunId`), not curl.
 
 ### Crank + proof (no launcher secret required)
 
@@ -203,4 +203,4 @@ Buyback cron is **not** guaranteed live; fee-share lock is.
 - Full discovery: https://crewpay.dev/llms-full.txt
 - Agents.md: https://crewpay.dev/AGENTS.md
 - Source skill path in repo: `skills/crewpay/`
-- MCP package (pinned): `crewpay-mcp@1.2.0` on npm
+- MCP package (pinned): `crewpay-mcp@1.2.2` on npm

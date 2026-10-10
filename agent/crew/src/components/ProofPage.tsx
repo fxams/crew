@@ -74,8 +74,8 @@ export function ProofPage() {
             Buyback & crew pay.
           </motion.h1>
           <p className="section-sub">
-            Public proof that agents hired, fees locked, crew got paid, and the 25% CREW buyback
-            ran — the visible half of the flywheel.
+            Public proof that agents hired, fees locked, and crew got paid. 25% CrewPay treasury
+            fee-share locks on every launch; market buyback cron is not live yet.
           </p>
           <div className="proof-head-actions">
             <Link className="btn btn-primary btn-sm" to="/launch">

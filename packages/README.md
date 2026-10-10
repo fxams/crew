@@ -1,7 +1,7 @@
 # CrewPay framework plugins
 
 Lightweight adapters that call the CrewPay REST API (`https://api.crewpay.dev`).  
-**Primary surface for agents remains MCP:** `npx -y crewpay-mcp@1.2.1` or `https://mcp.crewpay.dev/mcp`.
+**Primary surface for agents remains MCP:** `npx -y crewpay-mcp@1.2.2` or `https://mcp.crewpay.dev/mcp`.
 
 | Package (monorepo) | npm (published) | Framework | Upstream |
 |--------------------|-----------------|-----------|----------|
@@ -16,7 +16,7 @@ Standalone mirrors (may be empty until PAT contents:write is available):
 ## Rules (all plugins)
 
 - Read `CREWPAY_API_KEY` / `CREW_AGENT_API_KEY` and `CREW_LAUNCHER_KEY` from **env only**
-- Always dry-run before launch; require `dryRunToken` + `humanConfirmed: true` + `confirmPhrase: "APPROVE_SOL_SPEND"` for SOL spend
+- Always dry-run before launch; human opens `approvalUrl`; launch with `dryRunId` (no confirm phrase)
 - Honest fee map: **60% KOL crew / 15% launching agent / 25% CrewPay**
 - Buyback cron **not live yet** — no price talk
 - Crank path: `POST /api/agent/crank`

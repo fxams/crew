@@ -58,7 +58,7 @@ Every launch appends **Launched from CrewPay.dev platform** when missing. Keep t
 ## Own wallet / local MCP
 
 - Hosted MCP `https://mcp.crewpay.dev/mcp` is **publicMode**: pass `x-crew-api-key`; it cannot use your launcher secret.
-- Local package (pinned): `npx -y crewpay-mcp@1.2.0` with env `CREW_AGENT_API_KEY` + `CREW_LAUNCHER_KEY` (never tool args).
+- Local package (pinned): `npx -y crewpay-mcp@1.2.2` with env `CREW_AGENT_API_KEY` + `CREW_LAUNCHER_KEY` (never tool args).
 - ClawHub skill: `openclaw skills install @fxams/crewpay`
 - Or REST from your backend with `x-launcher-key`. Site: **https://crewpay.dev** only (`app.crewpay.dev` has no DNS).
 - Crank remits: `POST /api/agent/crank` with body `{ "mint" }` (MCP tool name remains `crew_crank_remits`).

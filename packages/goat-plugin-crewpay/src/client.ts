@@ -2,17 +2,12 @@
  * Minimal CrewPay REST client for framework plugins.
  * Keys from env only — never accept private keys as function arguments.
  *
- * Spend gates: dry-run issues a short-lived dryRunToken; launch/wire require that
- * token (launch) plus the exact confirmPhrase APPROVE_SOL_SPEND (not a free-form
- * boolean the model can invent from chat alone).
+ * Spend gate: POST /api/agent/launch/dry-run returns dryRunId + approvalUrl.
+ * A human opens approvalUrl; then launch with the same body + dryRunId.
+ * No APPROVE_SOL_SPEND (or any) confirm phrase.
  */
 
-import { createHash, randomBytes } from 'node:crypto'
-
 export const DEFAULT_API_URL = 'https://api.crewpay.dev'
-
-/** Exact phrase a human must supply for SOL-spending calls. */
-export const SOL_SPEND_CONFIRM_PHRASE = 'APPROVE_SOL_SPEND'
 
 export type CrewPayEnv = {
   apiUrl?: string
@@ -20,13 +15,22 @@ export type CrewPayEnv = {
   launcherKey?: string
 }
 
-type DryRunRecord = {
-  bodyHash: string
-  expiresAt: number
+/** Canonical hash of launch fields (useful for clients that cache dry-runs). */
+export function hashLaunchBody(body: Record<string, unknown>): string {
+  const pick = {
+    name: body.name,
+    ticker: body.ticker,
+    description: body.description ?? null,
+    mode: body.mode ?? 'agent',
+    initialBuySol: body.initialBuySol ?? 0,
+    imageUrl: body.imageUrl ?? null,
+    autoHire: body.autoHire ?? null,
+    crew: body.crew ?? null,
+    holderKol: body.holderKol ?? false,
+  }
+  // Stable JSON — not a security hash; server re-hashes on approve/consume.
+  return JSON.stringify(pick)
 }
-
-const pendingDryRuns = new Map<string, DryRunRecord>()
-const DRY_RUN_TTL_MS = 30 * 60 * 1000
 
 export function loadCrewPayEnv(overrides: CrewPayEnv = {}): Required<Pick<CrewPayEnv, 'apiUrl'>> & CrewPayEnv {
   return {
@@ -40,33 +44,6 @@ export function loadCrewPayEnv(overrides: CrewPayEnv = {}): Required<Pick<CrewPa
       overrides.launcherKey ||
       process.env.CREW_LAUNCHER_KEY?.trim() ||
       '',
-  }
-}
-
-/** Canonical hash of launch fields so dry-run and launch bodies must match. */
-export function hashLaunchBody(body: Record<string, unknown>): string {
-  const pick = {
-    name: body.name,
-    ticker: body.ticker,
-    description: body.description ?? null,
-    mode: body.mode ?? 'agent',
-    initialBuySol: body.initialBuySol ?? 0,
-    imageUrl: body.imageUrl ?? null,
-    autoHire: body.autoHire ?? null,
-    crew: body.crew ?? null,
-    holderKol: body.holderKol ?? false,
-  }
-  return createHash('sha256').update(JSON.stringify(pick)).digest('hex')
-}
-
-function assertSpendConfirm(opts: { humanConfirmed?: boolean; confirmPhrase?: string }, action: string) {
-  if (opts.humanConfirmed !== true) {
-    throw new Error(`${action} blocked: humanConfirmed must be true after an explicit human approval`)
-  }
-  if (opts.confirmPhrase !== SOL_SPEND_CONFIRM_PHRASE) {
-    throw new Error(
-      `${action} blocked: confirmPhrase must be exactly "${SOL_SPEND_CONFIRM_PHRASE}" (human-supplied; do not invent)`,
-    )
   }
 }
 
@@ -129,55 +106,38 @@ export class CrewPayClient {
     })
   }
 
-  async dryRun(body: Record<string, unknown>) {
-    const data = await this.fetch('/api/agent/launch/dry-run', {
+  /**
+   * Server dry-run — returns plan + dryRunId + approvalUrl.
+   * Human must open approvalUrl before launch.
+   */
+  dryRun(body: Record<string, unknown>) {
+    return this.fetch('/api/agent/launch/dry-run', {
       method: 'POST',
       auth: true,
       body: JSON.stringify(body),
     })
-    const dryRunToken = randomBytes(16).toString('hex')
-    pendingDryRuns.set(dryRunToken, {
-      bodyHash: hashLaunchBody(body),
-      expiresAt: Date.now() + DRY_RUN_TTL_MS,
-    })
-    return {
-      ...(typeof data === 'object' && data ? data : { result: data }),
-      dryRunToken,
-      confirmPhraseRequired: SOL_SPEND_CONFIRM_PHRASE,
-      tip: `To launch: pass the same body + dryRunToken + humanConfirmed:true + confirmPhrase:"${SOL_SPEND_CONFIRM_PHRASE}" (human must supply the phrase).`,
-    }
   }
 
   /**
-   * Real launch — spends SOL. Requires a prior dryRunToken for this body plus
-   * humanConfirmed and confirmPhrase APPROVE_SOL_SPEND.
+   * Real launch — spends SOL. Requires server dryRunId after human approval
+   * on the approvalUrl page from dry-run.
    */
-  launch(
-    body: Record<string, unknown>,
-    opts: { humanConfirmed: boolean; confirmPhrase: string; dryRunToken: string },
-  ) {
-    assertSpendConfirm(opts, 'Launch')
-    const pending = pendingDryRuns.get(opts.dryRunToken)
-    if (!pending || pending.expiresAt < Date.now()) {
-      throw new Error('Launch blocked: missing/expired dryRunToken — call dryRun first and reuse its dryRunToken')
+  launch(body: Record<string, unknown>, opts: { dryRunId: string }) {
+    const dryRunId = String(opts.dryRunId || '').trim()
+    if (!dryRunId) {
+      throw new Error(
+        'Launch blocked: dryRunId required — call dryRun, open approvalUrl, then launch with dryRunId',
+      )
     }
-    if (pending.bodyHash !== hashLaunchBody(body)) {
-      throw new Error('Launch blocked: body does not match the dry-run that issued dryRunToken')
-    }
-    pendingDryRuns.delete(opts.dryRunToken)
     return this.fetch('/api/agent/launch', {
       method: 'POST',
       auth: true,
       launcher: true,
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...body, dryRunId }),
     })
   }
 
-  wireFees(
-    body: { mint: string; mode?: string; crew?: unknown[] },
-    opts: { humanConfirmed: boolean; confirmPhrase: string },
-  ) {
-    assertSpendConfirm(opts, 'Wire-fees')
+  wireFees(body: { mint: string; mode?: string; crew?: unknown[] }) {
     return this.fetch('/api/agent/wire-fees', {
       method: 'POST',
       auth: true,

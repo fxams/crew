@@ -14,7 +14,7 @@
   "mcp": {
     "stdio": {
       "command": "npx",
-      "args": ["-y", "crewpay-mcp@1.2.0"],
+      "args": ["-y", "crewpay-mcp@1.2.2"],
       "env": ["CREW_AGENT_API_KEY", "CREW_LAUNCHER_KEY", "CREW_API_URL"]
     },
     "http": {

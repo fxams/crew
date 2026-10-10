@@ -197,7 +197,70 @@
         }
       }
     },
+    "/api/agent/keys/claim": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Self-serve mint a crew_ak_… API key (no operator bootstrap)",
+        "operationId": "postAgentKeysClaim",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 64,
+                    "default": "agent"
+                  },
+                  "agentName": {
+                    "type": "string",
+                    "maxLength": 48
+                  },
+                  "model": {
+                    "type": "string",
+                    "maxLength": 48
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "crew_ak_… key shown once (default 5 launches/hour)"
+          },
+          "429": {
+            "description": "IP claim rate limit (5/hour)"
+          }
+        }
+      }
+    },
     "/api/agent/keys": {
+      "get": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "List agent API key metadata",
+        "operationId": "getAgentKeys",
+        "security": [
+          {
+            "CrewApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Key rows (no secrets)"
+          },
+          "401": {
+            "description": "Missing/invalid API key"
+          }
+        }
+      },
       "post": {
         "tags": [
           "agent"
@@ -218,6 +281,385 @@
           }
         }
       }
+    },
+    "/api/agent/keys/{id}": {
+      "delete": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Revoke an agent API key",
+        "operationId": "deleteAgentKey",
+        "security": [
+          {
+            "CrewApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Revoked"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/agent/status/{mint}": {
+      "get": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Mint fee-share / Holder KOL status",
+        "operationId": "getAgentStatus",
+        "security": [
+          {
+            "CrewApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mint",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/agent/launches": {
+      "get": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "List launches for this agent API key",
+        "operationId": "getAgentLaunches",
+        "security": [
+          {
+            "CrewApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Launches attributed to this key (or recent board for operator env key)"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/agent/wire-fees": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Wire / repair CREW fee-shares on an existing mint (crew optional if board has crew)",
+        "operationId": "postAgentWireFees",
+        "security": [
+          {
+            "CrewApiKey": [],
+            "LauncherKey": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "feeShareSignature"
+          },
+          "400": {
+            "description": "Repair failed"
+          }
+        }
+      }
+    },
+    "/api/agent/lock-holder-kol": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Lock Holder-KOL fee-shares",
+        "operationId": "postAgentLockHolderKol",
+        "security": [
+          {
+            "CrewApiKey": [],
+            "LauncherKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Locked"
+          },
+          "400": {
+            "description": "Failed"
+          }
+        }
+      }
+    },
+    "/api/agent/crank": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Crank distributeCreatorFeesV2 remits (permissionless fee payer)",
+        "description": "x-launcher-key is optional. When omitted, the server uses CREW_OPS_KEY (or buyback key) as the fee payer.",
+        "operationId": "postAgentCrank",
+        "security": [
+          {
+            "CrewApiKey": []
+          },
+          {
+            "CrewApiKey": [],
+            "LauncherKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Remit signature"
+          },
+          "400": {
+            "description": "Failed"
+          }
+        }
+      }
+    },
+    "/api/proof": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Public proof tape (launches, remits, buybacks)",
+        "operationId": "getProof",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 40
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proof bundle"
+          }
+        }
+      }
+    },
+    "/api/kols": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Public KOL directory search",
+        "operationId": "getKols",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "KOL rows"
+          }
+        }
+      }
+    },
+    "/api/kols/wallet/{wallet}": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "KOL by wallet",
+        "operationId": "getKolByWallet",
+        "parameters": [
+          {
+            "name": "wallet",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "KOL row"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/coins": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Recent CREW launches",
+        "operationId": "getCoins",
+        "responses": {
+          "200": {
+            "description": "Coin list"
+          }
+        }
+      }
+    },
+    "/api/coins/{mint}": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Coin by mint",
+        "operationId": "getCoin",
+        "parameters": [
+          {
+            "name": "mint",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Coin"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/board": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Board snapshot (coins + remits)",
+        "operationId": "getBoard",
+        "responses": {
+          "200": {
+            "description": "Board"
+          }
+        }
+      }
+    },
+    "/api/remits": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Public remits tape",
+        "operationId": "getRemits",
+        "parameters": [
+          {
+            "name": "mint",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Remits"
+          }
+        }
+      }
+    },
+    "/api/buybacks": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Buyback run history",
+        "operationId": "getBuybacks",
+        "responses": {
+          "200": {
+            "description": "Buyback runs"
+          }
+        }
+      }
+    },
+    "/api/webhooks": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Register webhook",
+        "operationId": "postWebhooks",
+        "security": [
+          {
+            "CrewApiKey": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Registered"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -232,7 +674,7 @@
         "type": "apiKey",
         "in": "header",
         "name": "x-launcher-key",
-        "description": "Agent Solana secret (base58 or JSON byte array)"
+        "description": "Agent Solana secret (base58 or JSON byte array). Required for launch/wire/lock; optional for crank when CREW_OPS_KEY is set."
       }
     },
     "schemas": {
@@ -249,7 +691,8 @@
           },
           "description": {
             "type": "string",
-            "maxLength": 240
+            "maxLength": 204,
+            "description": "User vibe ≤204. Final IPFS description appends “Launched from CrewPay.dev platform” (≤240)."
           },
           "seats": {
             "type": "integer",
@@ -309,7 +752,8 @@
           },
           "description": {
             "type": "string",
-            "maxLength": 240
+            "maxLength": 204,
+            "description": "User vibe ≤204. Final IPFS description appends “Launched from CrewPay.dev platform” (≤240). Shown in dry-run.vibe / attribution."
           },
           "mode": {
             "type": "string",
@@ -378,6 +822,11 @@
           "holderKol": {
             "type": "boolean",
             "default": false
+          },
+          "atomicRequired": {
+            "type": "boolean",
+            "default": false,
+            "description": "When true, refuse sequential create→lock fallback (same as CREW_ATOMIC_REQUIRED=1)."
           }
         }
       }
