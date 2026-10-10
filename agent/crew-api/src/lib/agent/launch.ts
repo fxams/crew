@@ -15,6 +15,7 @@ import {
   type HireRole,
 } from './constants.js'
 import { uploadPumpMetadata, validateAgentImage, type AgentImageInput } from './ipfs.js'
+import { listRegisteredHireBoosts } from '../registered-hires.js'
 import { planNarrativeHires, type CrewMember, type NarrativeHirePlan } from './narrative.js'
 import {
   estimatePreLockCreatorFeesLamports,
@@ -99,10 +100,10 @@ function id(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`
 }
 
-export function resolveCrew(input: AgentLaunchInput): {
+export async function resolveCrew(input: AgentLaunchInput): Promise<{
   crew: CrewMember[]
   hirePlan?: NarrativeHirePlan
-} {
+}> {
   const mode = input.mode || 'agent'
   if (input.holderKol) {
     return { crew: [] }
@@ -111,13 +112,14 @@ export function resolveCrew(input: AgentLaunchInput): {
     return { crew: normalizeCrew(input.crew, mode) }
   }
   const seats = Math.min(10, Math.max(1, Math.floor(input.autoHire?.seats ?? 5)))
+  const registered = await listRegisteredHireBoosts()
   const hirePlan = planNarrativeHires(
     {
       name: input.name,
       ticker: input.ticker,
       vibe: input.description,
     },
-    { limit: seats },
+    { limit: seats, registered },
   )
   if (!hirePlan.crew.length) {
     throw new Error('Auto-hire found no KOLs — provide crew[] or richer narrative.')
@@ -210,7 +212,7 @@ export async function dryRunLaunchForAgent(
     }
   }
 
-  const { crew, hirePlan } = resolveCrew({ ...input, mode })
+  const { crew, hirePlan } = await resolveCrew({ ...input, mode })
   const vibe = withCrewLaunchDescription(vibeRaw)
   const deskBps = MODE_DESK_BPS[mode]
   const crewPoolBps = 10_000 - PLATFORM_BUYBACK_BPS - deskBps
@@ -381,7 +383,7 @@ export async function launchForAgent(
       }
     }
 
-    const { crew, hirePlan } = resolveCrew({ ...input, mode })
+    const { crew, hirePlan } = await resolveCrew({ ...input, mode })
     const vibe = withCrewLaunchDescription(vibeRaw)
     const deskWallet = launcher.publicKey.toBase58()
 

@@ -78,4 +78,29 @@ export async function migrate(): Promise<void> {
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['002_coins_agent_key_id'],
   )
+  await query(
+    `ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS prior_wallets TEXT[] NOT NULL DEFAULT '{}'`,
+  )
+  await query(`
+    CREATE TABLE IF NOT EXISTS kol_mention_drafts (
+      id TEXT PRIMARY KEY,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'posted', 'rejected')),
+      mint TEXT NOT NULL DEFAULT '',
+      signature TEXT NOT NULL DEFAULT '',
+      handle TEXT NOT NULL DEFAULT '',
+      wallet TEXT NOT NULL DEFAULT '',
+      amount_sol NUMERIC(20, 9) NOT NULL DEFAULT 0,
+      draft_text TEXT NOT NULL,
+      x_post_id TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await query(
+    `CREATE INDEX IF NOT EXISTS kol_mention_drafts_status_idx ON kol_mention_drafts (status, created_at DESC)`,
+  )
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['003_kol_prior_wallets_mentions'],
+  )
 }

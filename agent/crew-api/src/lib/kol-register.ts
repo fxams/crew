@@ -6,6 +6,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { PublicKey } from '@solana/web3.js'
 import bs58 from 'bs58'
 import nacl from 'tweetnacl'
+import { KOL_DB } from './agent/narrative.js'
 import { query } from './db.js'
 
 export const REGISTER_MESSAGE_PREFIX = 'CrewPay KOL registration'
@@ -22,10 +23,36 @@ export type KolRegistration = {
   profileImageUrl: string | null
   description: string
   wallet: string
+  /** Directory / previously linked wallets — desk earnings include these. */
+  priorWallets: string[]
+  solEarned: number
   registeredAt: string
   updatedAt: string
   statsRefreshedAt: string
   rank: number
+}
+
+/** Scraped Pump directory wallet for an X handle, if any. */
+export function directoryWalletForHandle(username: string): string | null {
+  const handle = username.trim().replace(/^@+/, '').toLowerCase()
+  if (!handle) return null
+  const hit = KOL_DB.find((kol) => {
+    const x = (kol.x || '').replace(/^@+/, '').toLowerCase()
+    const pump = (kol.pump || '').replace(/^@+/, '').toLowerCase()
+    return x === handle || pump === handle
+  })
+  return hit?.wallet && hit.wallet.length >= 32 ? hit.wallet : null
+}
+
+function walletsForRow(wallet: string, prior: unknown): string[] {
+  const out = new Set<string>()
+  if (wallet?.length >= 32) out.add(wallet)
+  if (Array.isArray(prior)) {
+    for (const w of prior) {
+      if (typeof w === 'string' && w.length >= 32) out.add(w)
+    }
+  }
+  return [...out]
 }
 
 /** X serves a tiny `_normal` avatar. The profile desk wants the larger file. */
@@ -261,11 +288,26 @@ export async function completeXCallback(code: string, state: string): Promise<Ko
     throw new Error('This Solana wallet is already linked to a different X account.')
   }
 
+  const prior = new Set<string>()
+  const directoryWallet = directoryWalletForHandle(user.username)
+  if (directoryWallet && directoryWallet !== row.wallet) prior.add(directoryWallet)
+  const existing = await query<{ wallet: string; prior_wallets: string[] | null }>(
+    `SELECT wallet, prior_wallets FROM kol_registrations WHERE x_user_id = $1`,
+    [user.id],
+  )
+  const prev = existing.rows[0]
+  if (prev?.wallet && prev.wallet !== row.wallet) prior.add(prev.wallet)
+  for (const w of prev?.prior_wallets || []) {
+    if (w && w !== row.wallet) prior.add(w)
+  }
+  const priorWallets = [...prior]
+
   await query(
     `INSERT INTO kol_registrations (
        x_user_id, x_username, x_name, x_verified, followers, following, tweet_count,
-       listed_count, profile_image_url, description, wallet, stats_refreshed_at, updated_at
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, now(), now())
+       listed_count, profile_image_url, description, wallet, prior_wallets,
+       stats_refreshed_at, updated_at
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, now(), now())
      ON CONFLICT (x_user_id) DO UPDATE SET
        x_username = EXCLUDED.x_username,
        x_name = EXCLUDED.x_name,
@@ -277,6 +319,7 @@ export async function completeXCallback(code: string, state: string): Promise<Ko
        profile_image_url = EXCLUDED.profile_image_url,
        description = EXCLUDED.description,
        wallet = EXCLUDED.wallet,
+       prior_wallets = EXCLUDED.prior_wallets,
        stats_refreshed_at = now(),
        updated_at = now()`,
     [
@@ -291,6 +334,7 @@ export async function completeXCallback(code: string, state: string): Promise<Ko
       profileImageUrl,
       (user.description || '').slice(0, 280),
       row.wallet,
+      priorWallets,
     ],
   )
 
@@ -312,6 +356,10 @@ function mapReg(r: Record<string, unknown>, rank: number): KolRegistration {
     profileImageUrl: r.profile_image_url ? String(r.profile_image_url) : null,
     description: String(r.description || ''),
     wallet: String(r.wallet),
+    priorWallets: Array.isArray(r.prior_wallets)
+      ? (r.prior_wallets as unknown[]).filter((w): w is string => typeof w === 'string')
+      : [],
+    solEarned: Number(r.sol_earned || 0),
     registeredAt: new Date(String(r.registered_at)).toISOString(),
     updatedAt: new Date(String(r.updated_at)).toISOString(),
     statsRefreshedAt: new Date(String(r.stats_refreshed_at)).toISOString(),
@@ -319,10 +367,27 @@ function mapReg(r: Record<string, unknown>, rank: number): KolRegistration {
   }
 }
 
+/** Rank by SOL earned across linked + prior wallets, then followers. */
+const REGISTERED_RANKED_CTE = `
+  WITH earned AS (
+    SELECT
+      kr.*,
+      COALESCE((
+        SELECT SUM(r.amount_sol)
+        FROM remits r
+        WHERE r.wallet = kr.wallet
+           OR r.wallet = ANY (COALESCE(kr.prior_wallets, '{}'))
+      ), 0) AS sol_earned
+    FROM kol_registrations kr
+  )
+  SELECT *,
+    rank() OVER (ORDER BY sol_earned DESC, followers DESC, registered_at ASC) AS board_rank
+  FROM earned
+`
+
 async function getRegistrationByX(xUserId: string): Promise<KolRegistration | null> {
   const { rows } = await query(
-    `SELECT *, rank() OVER (ORDER BY followers DESC, registered_at ASC) AS board_rank
-     FROM kol_registrations WHERE x_user_id = $1`,
+    `SELECT * FROM (${REGISTERED_RANKED_CTE}) ranked WHERE x_user_id = $1`,
     [xUserId],
   )
   const row = rows[0] as Record<string, unknown> | undefined
@@ -334,12 +399,17 @@ export async function listRegistered(limit = 50): Promise<{
   leaderboard: KolRegistration[]
   tape: KolRegistration[]
   total: number
+  rankedBy: 'sol_earned'
 }> {
   const safe = Math.min(100, Math.max(1, limit))
-  const ranked = `SELECT *, rank() OVER (ORDER BY followers DESC, registered_at ASC) AS board_rank FROM kol_registrations`
   const [{ rows: board }, { rows: tape }, { rows: countRows }] = await Promise.all([
-    query(`SELECT * FROM (${ranked}) ranked ORDER BY board_rank ASC LIMIT $1`, [safe]),
-    query(`SELECT * FROM (${ranked}) ranked ORDER BY registered_at DESC LIMIT $1`, [safe]),
+    query(`SELECT * FROM (${REGISTERED_RANKED_CTE}) ranked ORDER BY board_rank ASC LIMIT $1`, [
+      safe,
+    ]),
+    query(
+      `SELECT * FROM (${REGISTERED_RANKED_CTE}) ranked ORDER BY registered_at DESC LIMIT $1`,
+      [safe],
+    ),
     query<{ n: string }>(`SELECT count(*)::text AS n FROM kol_registrations`),
   ])
   const leaderboard = board.map((raw) => {
@@ -354,6 +424,7 @@ export async function listRegistered(limit = 50): Promise<{
     leaderboard,
     tape: tapeOut,
     total: Number(countRows[0]?.n || 0),
+    rankedBy: 'sol_earned',
   }
 }
 
@@ -424,51 +495,64 @@ function mapCoin(
   }
 }
 
-async function loadPerformance(wallet: string): Promise<KolPerformance> {
+async function loadPerformance(wallets: string[]): Promise<KolPerformance> {
+  const addrs = [...new Set(wallets.filter((w) => w.length >= 32))]
+  if (!addrs.length) {
+    return {
+      coinsHired: 0,
+      coinsLaunched: 0,
+      solReceived: 0,
+      remitCount: 0,
+      coins: [],
+      remits: [],
+    }
+  }
+  const primary = addrs[0]!
   const [crew, launchedOnly, totals, remits] = await Promise.all([
     query(
-      `SELECT c.mint, c.ticker, c.name, c.mode, c.launched_at, c.pump_url, c.signature, c.launcher,
-              cc.share, cc.hire_role, cc.handle,
+      `SELECT DISTINCT ON (c.mint)
+              c.mint, c.ticker, c.name, c.mode, c.launched_at, c.pump_url, c.signature, c.launcher,
+              cc.share, cc.hire_role, cc.handle, cc.wallet AS seat_wallet,
               COALESCE((
                 SELECT SUM(amount_sol) FROM remits r
-                WHERE r.mint = c.mint AND r.wallet = $1
+                WHERE r.mint = c.mint AND r.wallet = ANY ($1::text[])
               ), 0)::text AS sol_received
        FROM coin_crew cc
        JOIN coins c ON c.mint = cc.mint
-       WHERE cc.wallet = $1
-       ORDER BY c.launched_at DESC`,
-      [wallet],
+       WHERE cc.wallet = ANY ($1::text[])
+       ORDER BY c.mint, c.launched_at DESC`,
+      [addrs],
     ),
     query(
       `SELECT c.mint, c.ticker, c.name, c.mode, c.launched_at, c.pump_url, c.signature, c.launcher,
               COALESCE((
                 SELECT SUM(amount_sol) FROM remits r
-                WHERE r.mint = c.mint AND r.wallet = $1
+                WHERE r.mint = c.mint AND r.wallet = ANY ($1::text[])
               ), 0)::text AS sol_received
        FROM coins c
-       WHERE c.launcher = $1
+       WHERE c.launcher = ANY ($1::text[])
          AND NOT EXISTS (
-           SELECT 1 FROM coin_crew cc WHERE cc.mint = c.mint AND cc.wallet = $1
+           SELECT 1 FROM coin_crew cc WHERE cc.mint = c.mint AND cc.wallet = ANY ($1::text[])
          )
        ORDER BY c.launched_at DESC`,
-      [wallet],
+      [addrs],
     ),
     query<{ sol: string; n: string }>(
       `SELECT COALESCE(SUM(amount_sol), 0)::text AS sol, COUNT(*)::text AS n
-       FROM remits WHERE wallet = $1`,
-      [wallet],
+       FROM remits WHERE wallet = ANY ($1::text[])`,
+      [addrs],
     ),
     query(
       `SELECT mint, ticker, amount_sol, mode, at, signature, handle
-       FROM remits WHERE wallet = $1
+       FROM remits WHERE wallet = ANY ($1::text[])
        ORDER BY at DESC LIMIT 12`,
-      [wallet],
+      [addrs],
     ),
   ])
 
   const coins = [
-    ...crew.rows.map((raw) => mapCoin(raw as Record<string, unknown>, wallet, true)),
-    ...launchedOnly.rows.map((raw) => mapCoin(raw as Record<string, unknown>, wallet, false)),
+    ...crew.rows.map((raw) => mapCoin(raw as Record<string, unknown>, primary, true)),
+    ...launchedOnly.rows.map((raw) => mapCoin(raw as Record<string, unknown>, primary, false)),
   ].sort((a, b) => Date.parse(b.launchedAt) - Date.parse(a.launchedAt))
 
   return {
@@ -496,18 +580,69 @@ async function profileFromUsername(username: string): Promise<KolProfile | null>
   const handle = username.trim().replace(/^@/, '')
   if (!X_HANDLE.test(handle)) return null
   const { rows } = await query(
-    `SELECT * FROM (
-       SELECT *, rank() OVER (ORDER BY followers DESC, registered_at ASC) AS board_rank
-       FROM kol_registrations
-     ) ranked
+    `SELECT * FROM (${REGISTERED_RANKED_CTE}) ranked
      WHERE lower(x_username) = lower($1)`,
     [handle],
   )
   const row = rows[0] as Record<string, unknown> | undefined
   if (!row) return null
   const profile = await ensureDeskAvatar(mapReg(row, Number(row.board_rank || 0)))
-  const performance = await loadPerformance(profile.wallet)
+  const performance = await loadPerformance(
+    walletsForRow(profile.wallet, profile.priorWallets),
+  )
   return { profile, performance }
+}
+
+export type ClaimPitch = {
+  handle: string
+  solEarned: number
+  remitCount: number
+  directoryWallet: string | null
+  registered: boolean
+  deskPath: string | null
+  registerPath: string
+  pitch: string
+}
+
+/** Past payouts → “You've earned X SOL, claim your page”. */
+export async function getClaimPitch(username: string): Promise<ClaimPitch | null> {
+  const handle = username.trim().replace(/^@/, '')
+  if (!X_HANDLE.test(handle)) return null
+  const registered = await profileFromUsername(handle)
+  const directoryWallet = directoryWalletForHandle(handle)
+  const wallets = new Set<string>()
+  if (directoryWallet) wallets.add(directoryWallet)
+  if (registered) {
+    for (const w of walletsForRow(registered.profile.wallet, registered.profile.priorWallets)) {
+      wallets.add(w)
+    }
+  }
+  const addrs = [...wallets]
+  let solEarned = registered?.performance.solReceived ?? 0
+  let remitCount = registered?.performance.remitCount ?? 0
+  if (!registered && addrs.length) {
+    const { rows } = await query<{ sol: string; n: string }>(
+      `SELECT COALESCE(SUM(amount_sol), 0)::text AS sol, COUNT(*)::text AS n
+       FROM remits WHERE wallet = ANY ($1::text[])`,
+      [addrs],
+    )
+    solEarned = num(rows[0]?.sol)
+    remitCount = num(rows[0]?.n)
+  }
+  if (solEarned <= 0 && !registered) return null
+  const solText = solEarned >= 1 ? solEarned.toFixed(3) : solEarned.toFixed(4)
+  return {
+    handle,
+    solEarned,
+    remitCount,
+    directoryWallet,
+    registered: Boolean(registered),
+    deskPath: registered ? `/kol/${handle}` : null,
+    registerPath: '/register',
+    pitch: registered
+      ? `You've earned ${solText} SOL on CrewPay. Your desk is live.`
+      : `You've earned ${solText} SOL on CrewPay. Claim your page — register with X + your Solana wallet.`,
+  }
 }
 
 export async function getKolProfile(username: string): Promise<KolProfile | null> {

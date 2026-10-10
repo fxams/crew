@@ -43,6 +43,31 @@ describe('agent narrative autohire', () => {
       expect(oxr.hireRank).toBeGreaterThan(1)
     }
   })
+
+  it('prefers registered crew wallet when handle matches', () => {
+    const baseline = planNarrativeHires(
+      { name: 'Meme Coin', ticker: 'MEME', vibe: 'funny viral meme degen' },
+      { limit: 5 },
+    )
+    expect(baseline.hires.length).toBeGreaterThan(0)
+    // Register a mid-pack hire so preference + wallet swap are visible.
+    const seed = baseline.hires[Math.min(2, baseline.hires.length - 1)]!.kol
+    const handle = (seed.x || seed.pump).replace(/^@+/, '').toLowerCase()
+    const regWallet = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
+    const plan = planNarrativeHires(
+      { name: 'Meme Coin', ticker: 'MEME', vibe: 'funny viral meme degen' },
+      {
+        limit: 5,
+        registered: [{ handle, wallet: regWallet }],
+      },
+    )
+    const hit = plan.hires.find((h) =>
+      h.reasons.some((r) => /registered crew/i.test(r)),
+    )
+    expect(hit).toBeTruthy()
+    expect(hit!.kol.wallet).toBe(regWallet)
+    expect(hit!.hireRank).toBe(1)
+  })
 })
 
 describe('shareholders', () => {

@@ -161,6 +161,8 @@ CREATE TABLE IF NOT EXISTS kol_registrations (
   profile_image_url TEXT,
   description TEXT NOT NULL DEFAULT '',
   wallet TEXT NOT NULL,
+  -- Scraped Pump wallets + previous linked wallets; desk earnings sum across these.
+  prior_wallets TEXT[] NOT NULL DEFAULT '{}',
   registered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   stats_refreshed_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -170,6 +172,23 @@ CREATE UNIQUE INDEX IF NOT EXISTS kol_registrations_wallet_idx ON kol_registrati
 CREATE UNIQUE INDEX IF NOT EXISTS kol_registrations_username_idx ON kol_registrations (lower(x_username));
 CREATE INDEX IF NOT EXISTS kol_registrations_followers_idx ON kol_registrations (followers DESC, registered_at ASC);
 CREATE INDEX IF NOT EXISTS kol_registrations_registered_idx ON kol_registrations (registered_at DESC);
+
+-- Draft @CrewPayHQ mention posts after remits — operator approves before posting.
+CREATE TABLE IF NOT EXISTS kol_mention_drafts (
+  id TEXT PRIMARY KEY,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'posted', 'rejected')),
+  mint TEXT NOT NULL DEFAULT '',
+  signature TEXT NOT NULL DEFAULT '',
+  handle TEXT NOT NULL DEFAULT '',
+  wallet TEXT NOT NULL DEFAULT '',
+  amount_sol NUMERIC(20, 9) NOT NULL DEFAULT 0,
+  draft_text TEXT NOT NULL,
+  x_post_id TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS kol_mention_drafts_status_idx ON kol_mention_drafts (status, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS kol_oauth_nonces (
   nonce TEXT PRIMARY KEY,
