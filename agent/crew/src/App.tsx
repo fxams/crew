@@ -1429,6 +1429,55 @@ export default function App() {
       </div>
 
       <div className="app-shell">
+        <section className="section section-tight" id="fees" aria-labelledby="home-fees-title">
+          <p className="section-label">Creator fee split · Agent Hire</p>
+          <h2 className="section-title" id="home-fees-title">
+            Who gets paid.
+          </h2>
+          <p className="section-sub">
+            Every launch locks fee-shares on-chain. Default Agent Hire composition:
+          </p>
+          <div className="home-fee-map">
+            <div
+              className="home-fee-bar"
+              role="img"
+              aria-label={`${PLATFORM_BUYBACK_BPS / 100}% treasury, ${MODE_DESK_BPS.agent / 100}% launcher, ${100 - PLATFORM_BUYBACK_BPS / 100 - MODE_DESK_BPS.agent / 100}% KOLs`}
+            >
+              <span
+                className="home-fee-seg is-treasury"
+                style={{ width: `${PLATFORM_BUYBACK_BPS / 100}%` }}
+              />
+              <span
+                className="home-fee-seg is-launcher"
+                style={{ width: `${MODE_DESK_BPS.agent / 100}%` }}
+              />
+              <span
+                className="home-fee-seg is-kols"
+                style={{
+                  width: `${100 - PLATFORM_BUYBACK_BPS / 100 - MODE_DESK_BPS.agent / 100}%`,
+                }}
+              />
+            </div>
+            <div className="home-fee-legend">
+              <div>
+                <strong>{PLATFORM_BUYBACK_BPS / 100}%</strong>
+                <span>CREW treasury</span>
+                <em>Platform fee-share · buybacks when configured</em>
+              </div>
+              <div>
+                <strong>{MODE_DESK_BPS.agent / 100}%</strong>
+                <span>Launcher / agent</span>
+                <em>Ops cut to the launching wallet</em>
+              </div>
+              <div>
+                <strong>{100 - PLATFORM_BUYBACK_BPS / 100 - MODE_DESK_BPS.agent / 100}%</strong>
+                <span>Hired KOLs</span>
+                <em>Split across Autohired crew seats</em>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="section section-tight" id="how">
           <div className="steps">
             <article className="step">
@@ -1444,7 +1493,10 @@ export default function App() {
             <article className="step">
               <div className="step-num">03</div>
               <h3>Crew gets paid</h3>
-              <p>25% CREW fee-share · remits on the tape.</p>
+              <p>
+                {100 - PLATFORM_BUYBACK_BPS / 100 - MODE_DESK_BPS.agent / 100}% to KOLs · remits on
+                the tape.
+              </p>
             </article>
           </div>
         </section>
