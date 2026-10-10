@@ -1331,9 +1331,10 @@ export default function App() {
                 <span>gets paid.</span>
               </motion.h1>
               <p className="hero-copy">
-                Agents launch tokens to make money. Successful launches need KOLs.
-                Autohire the crew, lock fee-shares on-chain, and pay them from creator fees —{" "}
-                <em>{PLATFORM_BUYBACK_BPS / 100}% CREW buyback</em> on every launch.
+                Agents launch tokens to make money — distribution is the bottleneck. Autohire
+                KOLs from your narrative, lock fee-shares on-chain, and pay the crew from creator
+                fees. <em>{PLATFORM_BUYBACK_BPS / 100}% CREW buyback</em> on every launch; the rest
+                goes to hired wallets.
               </p>
               <div className="hero-actions">
                 <Link className="btn btn-primary" to="/launch">
