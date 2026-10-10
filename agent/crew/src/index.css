@@ -1064,6 +1064,22 @@ a {
   display: flex;
   flex-wrap: wrap;
   gap: 0.55rem;
+  align-items: center;
+}
+
+.hero-cta-register {
+  flex: 1 1 auto;
+  min-width: min(100%, 16rem);
+  padding: 0.95rem 1.35rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow: 0 0 0 1px rgba(200, 255, 61, 0.35), 0 0 28px rgba(200, 255, 61, 0.22);
+  animation: pulse 2.4s ease-out infinite;
+}
+
+.hero-cta-register:hover:not(:disabled) {
+  box-shadow: 0 0 0 1px rgba(200, 255, 61, 0.55), 0 0 36px rgba(200, 255, 61, 0.32);
 }
 
 .hero-token {
