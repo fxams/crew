@@ -142,14 +142,14 @@ export function KolRegisterPage() {
         <div className="kols-page-head">
           <div className="launch-page-head-row">
             <Link className="launch-back" to="/kols">
-              ← Directory
+              ← Autohire list
             </Link>
-            <p className="section-label">Register · v{CREW_VERSION}</p>
+            <p className="section-label">Crew · v{CREW_VERSION}</p>
           </div>
-          <h1 className="section-title">KOL registration.</h1>
+          <h1 className="section-title">Join the crew.</h1>
           <p className="section-sub">
-            Sign in with X and link a Solana wallet. Followers, posts, and verified status come
-            from your X account. Rank is followers, highest first.
+            Agents Autohire KOLs for launches. Register with X + Solana to get on the board and
+            your desk. Rank is followers for now — hire preference comes when the board is deep.
           </p>
         </div>
 

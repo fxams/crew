@@ -8,31 +8,31 @@ import type {
   RemitRecord,
 } from './types'
 
-/** Agency mind + CREW payroll — hybrid edges. */
+/** Product edges for Agents hire → Crew gets paid. */
 export const CREW_EDGES = [
   {
     id: 'hybrid',
-    title: 'Agent hires humans',
-    agency: 'Every coin gets a mind — fees stay inside the AI treasury.',
-    crew: 'Agent mode: mind keeps 15% ops, hires KOLs/X accounts for the rest.',
+    title: 'Agents hire the launch',
+    agency: 'A token alone rarely prints without distribution.',
+    crew: 'Autohire KOLs from narrative, lock fee-shares, then launch.',
   },
   {
     id: 'humans',
-    title: 'KOLs get a real cut',
-    agency: 'Creators cannot route fees to shillers on-chain.',
-    crew: 'Named wallets lock permanent fee-share — payroll, not vibes.',
+    title: 'Crew gets paid on-chain',
+    agency: 'Handshake deals and screenshots do not settle.',
+    crew: 'Named wallets take a permanent creator-fee cut — remits on the tape.',
   },
   {
     id: 'control',
-    title: 'You set the hire map',
-    agency: 'Launcher cannot control the mind after launch.',
-    crew: 'Assign caller / chart / raid roles + wallets; launch locks fee-shares via atomic v0 or Jito bundle before the first public block.',
+    title: 'Successful launch needs KOLs',
+    agency: 'Mind-only launches stall when nobody moves the chart.',
+    crew: 'Seats for caller / chart / KOL wallets. Atomic fee-lock before the first public block.',
   },
   {
     id: 'tape',
-    title: 'Receipts beat thought logs',
-    agency: 'Public thoughts — hard to tip a KOL with them.',
-    crew: 'Every remit hits the tape with handle + SOL. CT-ready.',
+    title: 'Buyback + proof stay public',
+    agency: 'Opaque treasuries hide whether humans were paid.',
+    crew: '25% CREW buyback on every launch. Proof tape shows buybacks and SOL paid.',
   },
 ] as const
 
@@ -94,6 +94,26 @@ export const DEFAULT_RAID_QUESTS: RaidQuest[] = [
 /** Mode / crew skeletons only — name, ticker, image still required from the user. */
 export const LAUNCH_TEMPLATES: LaunchTemplate[] = [
   {
+    id: 'agent',
+    label: 'Agent hires',
+    blurb: 'AI Autohires KOLs · 25% CREW buyback.',
+    draft: {
+      name: '',
+      ticker: '',
+      vibe: '',
+      mode: 'agent',
+      initialBuySol: 0,
+      twitter: '',
+      website: '',
+      agent: { name: '', objective: '', model: 'custom' },
+      crew: [
+        { handle: '', wallet: '', share: 45, hireRole: 'caller' },
+        { handle: '', wallet: '', share: 30, hireRole: 'chart' },
+        { handle: '', wallet: '', share: 25, hireRole: 'kol' },
+      ],
+    },
+  },
+  {
     id: 'kol',
     label: 'KOL pack',
     blurb: '3-way split · 25% CREW buyback.',
@@ -115,7 +135,7 @@ export const LAUNCH_TEMPLATES: LaunchTemplate[] = [
   {
     id: 'dip',
     label: 'Dip desk',
-    blurb: 'Dip desk · 25% CREW buyback.',
+    blurb: 'Dip buyback desk · 25% CREW buyback.',
     draft: {
       name: '',
       ticker: '',
@@ -131,47 +151,29 @@ export const LAUNCH_TEMPLATES: LaunchTemplate[] = [
       buybackRule: { ...DEFAULT_BUYBACK },
     },
   },
-  {
-    id: 'raid',
-    label: 'Raid squad',
-    blurb: 'Raid pool · 25% CREW buyback.',
-    draft: {
-      name: '',
-      ticker: '',
-      vibe: '',
-      mode: 'raid',
-      initialBuySol: 0,
-      twitter: '',
-      website: '',
-      crew: [
-        { handle: '', wallet: '', share: 45 },
-        { handle: '', wallet: '', share: 35 },
-        { handle: '', wallet: '', share: 20 },
-      ],
-      raidQuests: DEFAULT_RAID_QUESTS.map((q) => ({ ...q })),
-    },
-  },
-  {
-    id: 'agent',
-    label: 'Agent hires',
-    blurb: 'AI hires KOLs · 25% CREW buyback.',
-    draft: {
-      name: '',
-      ticker: '',
-      vibe: '',
-      mode: 'agent',
-      initialBuySol: 0,
-      twitter: '',
-      website: '',
-      agent: { name: '', objective: '', model: 'custom' },
-      crew: [
-        { handle: '', wallet: '', share: 45, hireRole: 'caller' },
-        { handle: '', wallet: '', share: 30, hireRole: 'chart' },
-        { handle: '', wallet: '', share: 25, hireRole: 'kol' },
-      ],
-    },
-  },
 ]
+
+/** Kept for existing raid coins / desk actions — not offered on new launches. */
+export const RAID_LAUNCH_TEMPLATE: LaunchTemplate = {
+  id: 'raid',
+  label: 'Raid squad',
+  blurb: 'Raid pool · 25% CREW buyback.',
+  draft: {
+    name: '',
+    ticker: '',
+    vibe: '',
+    mode: 'raid',
+    initialBuySol: 0,
+    twitter: '',
+    website: '',
+    crew: [
+      { handle: '', wallet: '', share: 45 },
+      { handle: '', wallet: '', share: 35 },
+      { handle: '', wallet: '', share: 20 },
+    ],
+    raidQuests: DEFAULT_RAID_QUESTS.map((q) => ({ ...q })),
+  },
+}
 
 export type ScoreRow = {
   handle: string
