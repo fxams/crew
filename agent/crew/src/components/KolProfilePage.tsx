@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { CREW_VERSION, KOL_REFERRAL_CUT_PCT } from '../lib/config'
+import {
+  CREW_VERSION,
+  KOL_REFERRAL_CUT_PCT,
+  REFERRAL_POINTS_HIRE,
+  REFERRAL_POINTS_REGISTER,
+} from '../lib/config'
 import { useOwnRegisteredHandle } from '../lib/registered-kol'
 import { kolHandleFromPath } from '../lib/routes'
 
@@ -24,6 +29,7 @@ type Profile = {
   referralCode?: string
   referredByCode?: string | null
   referralCount?: number
+  referralPoints?: number
   solEarned?: number
   registeredAt: string
   rank: number
@@ -375,8 +381,13 @@ export function KolProfilePage() {
                   <strong>{referralCode}</strong>
                   <span>
                     {KOL_REFERRAL_CUT_PCT}% of a referred KOL&apos;s seat · direct only ·{' '}
-                    {desk.profile.referralCount || 0} referred
+                    {desk.profile.referralCount || 0} referred ·{' '}
+                    {desk.profile.referralPoints || 0} pts
                   </span>
+                </p>
+                <p className="desk-referral-points">
+                  Earn {REFERRAL_POINTS_REGISTER} pts when someone registers with your link, +
+                  {REFERRAL_POINTS_HIRE} pts when they get hired — for a future CREW airdrop.
                 </p>
                 <p className="desk-referral-link" title={referralLink}>
                   {referralLink}

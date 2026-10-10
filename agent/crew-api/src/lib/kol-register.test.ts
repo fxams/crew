@@ -6,6 +6,8 @@ import {
   codeChallengeS256,
   isDefaultXProfileImage,
   normalizeReferralCode,
+  REFERRAL_POINTS_HIRE,
+  REFERRAL_POINTS_REGISTER,
   referralCodeFromUsername,
   registrationMessage,
   verifyWalletLink,
@@ -60,5 +62,10 @@ describe('KOL registration wallet link', () => {
     expect(normalizeReferralCode('  Foo-Bar!! ')).toBe('foobar')
     expect(referralCodeFromUsername('alice')).toBe('alice')
     expect(referralCodeFromUsername('a')).toMatch(/^crew[a-f0-9]{6}$/)
+  })
+
+  it('defines positive airdrop point weights', () => {
+    expect(REFERRAL_POINTS_REGISTER).toBe(100)
+    expect(REFERRAL_POINTS_HIRE).toBe(250)
   })
 })

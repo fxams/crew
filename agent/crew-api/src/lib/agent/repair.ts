@@ -10,7 +10,7 @@ import { MODE_DESK_BPS, PUMP_COIN_URL, type DeskMode } from './constants.js'
 import { proposeHolderKolFromChain } from './holders.js'
 import { OnlinePumpSdk, PumpSdk } from './pump.js'
 import { getConnection, sendInstructions } from './send.js'
-import { lookupReferralCuts } from '../kol-register.js'
+import { awardReferralHirePointsForCrew, lookupReferralCuts } from '../kol-register.js'
 import { buildCrewShareholders, normalizeCrew, type Shareholder } from './shareholders.js'
 import type { CrewMember } from './narrative.js'
 
@@ -192,6 +192,17 @@ export async function wireFeesForAgent(opts: {
     holderKol: false,
   }
   await upsertCoin(coin)
+  try {
+    await awardReferralHirePointsForCrew(
+      mintStr,
+      crew.map((m) => m.handle),
+    )
+  } catch (err) {
+    console.warn(
+      'referral hire points failed',
+      err instanceof Error ? err.message : err,
+    )
+  }
   return { ok: true, feeShareSignature, feeShareLocked: true, mint: mintStr, coin }
 }
 

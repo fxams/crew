@@ -141,6 +141,10 @@ export const REFERRAL_CUT_BPS = 500
 export const PUMP_MAX_SHAREHOLDERS = 10
 /** Advertised direct-referral cut for registered KOLs. */
 export const KOL_REFERRAL_CUT_PCT = 5
+/** Points for a future CREW airdrop when someone registers with your code. */
+export const REFERRAL_POINTS_REGISTER = 100
+/** Points when a referred KOL is hired and fee-shares lock. */
+export const REFERRAL_POINTS_HIRE = 250
 
 /**
  * On-chain fee-share recipient for the 25% CREW buyback cut.

@@ -132,4 +132,37 @@ export async function migrate(): Promise<void> {
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['004_kol_referral_codes'],
   )
+  await query(
+    `ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS referral_points INT NOT NULL DEFAULT 0`,
+  )
+  await query(`
+    CREATE TABLE IF NOT EXISTS kol_referral_events (
+      id TEXT PRIMARY KEY,
+      event_type TEXT NOT NULL CHECK (event_type IN ('register', 'hire')),
+      referrer_code TEXT NOT NULL,
+      referred_handle TEXT NOT NULL,
+      referred_x_user_id TEXT,
+      points INT NOT NULL CHECK (points > 0),
+      mint TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS kol_referral_events_register_uidx
+      ON kol_referral_events (referred_x_user_id)
+      WHERE event_type = 'register' AND referred_x_user_id IS NOT NULL
+  `)
+  await query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS kol_referral_events_hire_uidx
+      ON kol_referral_events (mint, lower(referred_handle))
+      WHERE event_type = 'hire' AND mint IS NOT NULL
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS kol_referral_events_referrer_idx
+      ON kol_referral_events (lower(referrer_code), created_at DESC)
+  `)
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['005_kol_referral_points'],
+  )
 }

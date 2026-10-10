@@ -38,6 +38,8 @@ import {
   MAX_CREW,
   MODE_DESK_BPS,
   PLATFORM_BUYBACK_BPS,
+  REFERRAL_POINTS_HIRE,
+  REFERRAL_POINTS_REGISTER,
   USER_DESCRIPTION_MAX,
 } from "./lib/config";
 import {
@@ -1487,7 +1489,9 @@ export default function App() {
           <p className="section-sub">
             Every registered KOL gets a referral code. When someone joins with your link and later
             gets hired, you earn {KOL_REFERRAL_CUT_PCT}% of their seat — locked into the fee-share
-            with them. No multi-level trees.
+            with them. You also bank referral points ({REFERRAL_POINTS_REGISTER} on register,{' '}
+            {REFERRAL_POINTS_HIRE} on hire) for a future CREW airdrop. Direct only — no multi-level
+            trees.
           </p>
           <div className="home-ref-actions">
             <Link className="btn btn-primary" to="/register">
