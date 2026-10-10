@@ -11,6 +11,9 @@ import { query } from './db.js'
 
 export const REGISTER_MESSAGE_PREFIX = 'CrewPay KOL registration'
 
+/** Direct referral cut advertised on site / locked into fee-shares when referred KOLs are hired. */
+export const KOL_REFERRAL_CUT_PCT = 5
+
 export type KolRegistration = {
   xUserId: string
   xUsername: string
@@ -25,11 +28,30 @@ export type KolRegistration = {
   wallet: string
   /** Directory / previously linked wallets — desk earnings include these. */
   priorWallets: string[]
+  /** Unique shareable code — every registered KOL has one. */
+  referralCode: string
+  /** Direct referrer code (set once at first registration). */
+  referredByCode: string | null
+  referralCount: number
   solEarned: number
   registeredAt: string
   updatedAt: string
   statsRefreshedAt: string
   rank: number
+}
+
+export function normalizeReferralCode(raw: string): string {
+  return raw
+    .trim()
+    .replace(/^@+/, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, '')
+    .slice(0, 24)
+}
+
+export function referralCodeFromUsername(username: string): string {
+  const base = normalizeReferralCode(username)
+  return base.length >= 2 ? base : `crew${randomBytes(3).toString('hex')}`
 }
 
 /** Scraped Pump directory wallet for an X handle, if any. */
@@ -176,6 +198,7 @@ export async function beginXAuth(opts: {
   wallet: string
   message: string
   signature: string
+  referralCode?: string
 }): Promise<{ authorizeUrl: string }> {
   if (!xOAuthConfigured()) {
     throw new Error('X sign-in is not configured. Set X_CLIENT_ID and X_CLIENT_SECRET on crewpay-api.')
@@ -197,12 +220,28 @@ export async function beginXAuth(opts: {
   ])
   if (!rows.length) throw new Error('Registration nonce expired or already used. Start again.')
 
+  let referralCode: string | null = null
+  const wanted = normalizeReferralCode(opts.referralCode || '')
+  if (wanted.length >= 2) {
+    const found = await query<{ referral_code: string; wallet: string }>(
+      `SELECT referral_code, wallet FROM kol_registrations WHERE lower(referral_code) = $1 LIMIT 1`,
+      [wanted],
+    )
+    if (!found.rows[0]) {
+      throw new Error('Unknown referral code.')
+    }
+    if (found.rows[0].wallet === wallet) {
+      throw new Error('You cannot use your own referral code.')
+    }
+    referralCode = String(found.rows[0].referral_code)
+  }
+
   await query(`DELETE FROM kol_oauth_states WHERE created_at < now() - interval '15 minutes'`)
   const state = randomBytes(16).toString('hex')
   const codeVerifier = b64url(randomBytes(32))
   await query(
-    `INSERT INTO kol_oauth_states (state, code_verifier, wallet) VALUES ($1, $2, $3)`,
-    [state, codeVerifier, wallet],
+    `INSERT INTO kol_oauth_states (state, code_verifier, wallet, referral_code) VALUES ($1, $2, $3, $4)`,
+    [state, codeVerifier, wallet, referralCode],
   )
   return { authorizeUrl: buildXAuthorizeUrl({ state, codeVerifier }) }
 }
@@ -262,12 +301,30 @@ async function fetchXMe(accessToken: string): Promise<XUser> {
   return json.data
 }
 
+async function allocateReferralCode(username: string, xUserId: string): Promise<string> {
+  const base = referralCodeFromUsername(username)
+  for (let i = 0; i < 8; i += 1) {
+    const candidate = i === 0 ? base : `${base}${i + 1}`
+    const clash = await query(
+      `SELECT x_user_id FROM kol_registrations
+       WHERE lower(referral_code) = $1 AND x_user_id <> $2 LIMIT 1`,
+      [candidate, xUserId],
+    )
+    if (!clash.rows.length) return candidate
+  }
+  return `${base}${randomBytes(2).toString('hex')}`
+}
+
 export async function completeXCallback(code: string, state: string): Promise<KolRegistration> {
   const { rows } = await query(
-    `DELETE FROM kol_oauth_states WHERE state = $1 RETURNING code_verifier, wallet`,
+    `DELETE FROM kol_oauth_states WHERE state = $1 RETURNING code_verifier, wallet, referral_code`,
     [state],
   )
-  const row = rows[0] as { code_verifier?: string; wallet?: string } | undefined
+  const row = rows[0] as {
+    code_verifier?: string
+    wallet?: string
+    referral_code?: string | null
+  } | undefined
   if (!row?.code_verifier || !row.wallet) {
     throw new Error('Sign-in session expired. Connect your wallet and try again.')
   }
@@ -291,8 +348,13 @@ export async function completeXCallback(code: string, state: string): Promise<Ko
   const prior = new Set<string>()
   const directoryWallet = directoryWalletForHandle(user.username)
   if (directoryWallet && directoryWallet !== row.wallet) prior.add(directoryWallet)
-  const existing = await query<{ wallet: string; prior_wallets: string[] | null }>(
-    `SELECT wallet, prior_wallets FROM kol_registrations WHERE x_user_id = $1`,
+  const existing = await query<{
+    wallet: string
+    prior_wallets: string[] | null
+    referral_code: string | null
+    referred_by_code: string | null
+  }>(
+    `SELECT wallet, prior_wallets, referral_code, referred_by_code FROM kol_registrations WHERE x_user_id = $1`,
     [user.id],
   )
   const prev = existing.rows[0]
@@ -302,12 +364,28 @@ export async function completeXCallback(code: string, state: string): Promise<Ko
   }
   const priorWallets = [...prior]
 
+  const ownCode =
+    prev?.referral_code || (await allocateReferralCode(user.username, user.id))
+  // Direct referral only — set once on first registration, never overwrite.
+  let referredBy: string | null = prev?.referred_by_code || null
+  if (!referredBy && row.referral_code) {
+    const ref = normalizeReferralCode(row.referral_code)
+    if (ref && ref !== normalizeReferralCode(ownCode)) {
+      const ok = await query(
+        `SELECT referral_code FROM kol_registrations WHERE lower(referral_code) = $1 LIMIT 1`,
+        [ref],
+      )
+      if (ok.rows[0]) referredBy = String(ok.rows[0].referral_code)
+    }
+  }
+
   await query(
     `INSERT INTO kol_registrations (
        x_user_id, x_username, x_name, x_verified, followers, following, tweet_count,
        listed_count, profile_image_url, description, wallet, prior_wallets,
+       referral_code, referred_by_code,
        stats_refreshed_at, updated_at
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, now(), now())
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14, now(), now())
      ON CONFLICT (x_user_id) DO UPDATE SET
        x_username = EXCLUDED.x_username,
        x_name = EXCLUDED.x_name,
@@ -320,6 +398,8 @@ export async function completeXCallback(code: string, state: string): Promise<Ko
        description = EXCLUDED.description,
        wallet = EXCLUDED.wallet,
        prior_wallets = EXCLUDED.prior_wallets,
+       referral_code = COALESCE(kol_registrations.referral_code, EXCLUDED.referral_code),
+       referred_by_code = COALESCE(kol_registrations.referred_by_code, EXCLUDED.referred_by_code),
        stats_refreshed_at = now(),
        updated_at = now()`,
     [
@@ -335,6 +415,8 @@ export async function completeXCallback(code: string, state: string): Promise<Ko
       (user.description || '').slice(0, 280),
       row.wallet,
       priorWallets,
+      ownCode,
+      referredBy,
     ],
   )
 
@@ -359,6 +441,9 @@ function mapReg(r: Record<string, unknown>, rank: number): KolRegistration {
     priorWallets: Array.isArray(r.prior_wallets)
       ? (r.prior_wallets as unknown[]).filter((w): w is string => typeof w === 'string')
       : [],
+    referralCode: String(r.referral_code || referralCodeFromUsername(String(r.x_username || ''))),
+    referredByCode: r.referred_by_code ? String(r.referred_by_code) : null,
+    referralCount: Number(r.referral_count || 0),
     solEarned: Number(r.sol_earned || 0),
     registeredAt: new Date(String(r.registered_at)).toISOString(),
     updatedAt: new Date(String(r.updated_at)).toISOString(),
@@ -377,13 +462,73 @@ const REGISTERED_RANKED_CTE = `
         FROM remits r
         WHERE r.wallet = kr.wallet
            OR r.wallet = ANY (COALESCE(kr.prior_wallets, '{}'))
-      ), 0) AS sol_earned
+      ), 0) AS sol_earned,
+      COALESCE((
+        SELECT COUNT(*)::int
+        FROM kol_registrations kids
+        WHERE kids.referred_by_code IS NOT NULL
+          AND lower(kids.referred_by_code) = lower(kr.referral_code)
+      ), 0) AS referral_count
     FROM kol_registrations kr
   )
   SELECT *,
     rank() OVER (ORDER BY sol_earned DESC, followers DESC, registered_at ASC) AS board_rank
   FROM earned
 `
+
+export type ReferralCut = {
+  /** lowercase handle without @ */
+  handle: string
+  wallet: string
+  referrerWallet: string
+  referrerHandle: string
+  referrerCode: string
+}
+
+/** Lookup direct referrers for hired crew handles (for fee-share splits). */
+export async function lookupReferralCuts(
+  handles: string[],
+): Promise<ReferralCut[]> {
+  const normalized = [
+    ...new Set(
+      handles
+        .map((h) => h.replace(/^@+/, '').toLowerCase())
+        .filter((h) => /^[a-z0-9_]{1,15}$/.test(h)),
+    ),
+  ]
+  if (!normalized.length) return []
+  const { rows } = await query<{
+    x_username: string
+    wallet: string
+    referred_by_code: string
+    ref_wallet: string
+    ref_username: string
+    ref_code: string
+  }>(
+    `SELECT
+       kr.x_username,
+       kr.wallet,
+       kr.referred_by_code,
+       ref.wallet AS ref_wallet,
+       ref.x_username AS ref_username,
+       ref.referral_code AS ref_code
+     FROM kol_registrations kr
+     JOIN kol_registrations ref
+       ON lower(ref.referral_code) = lower(kr.referred_by_code)
+     WHERE lower(kr.x_username) = ANY ($1::text[])
+       AND kr.referred_by_code IS NOT NULL
+       AND ref.wallet IS NOT NULL
+       AND ref.wallet <> kr.wallet`,
+    [normalized],
+  )
+  return rows.map((row) => ({
+    handle: String(row.x_username).replace(/^@+/, '').toLowerCase(),
+    wallet: String(row.wallet),
+    referrerWallet: String(row.ref_wallet),
+    referrerHandle: String(row.ref_username).replace(/^@+/, ''),
+    referrerCode: String(row.ref_code),
+  }))
+}
 
 async function getRegistrationByX(xUserId: string): Promise<KolRegistration | null> {
   const { rows } = await query(

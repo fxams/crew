@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { useWalletModal } from '@solana/wallet-adapter-react-ui'
 import bs58 from 'bs58'
-import { CREW_VERSION } from '../lib/config'
+import { CREW_VERSION, KOL_REFERRAL_CUT_PCT } from '../lib/config'
 import { useOwnRegisteredHandle } from '../lib/registered-kol'
 import { kolProfilePath } from '../lib/routes'
 
@@ -25,6 +25,7 @@ type Registration = {
   registeredAt: string
   rank: number
   description: string
+  referralCode?: string
 }
 
 function formatSol(n: number) {
@@ -56,6 +57,15 @@ function formatWhen(iso: string) {
   })
 }
 
+function normalizeRef(raw: string | null): string {
+  return (raw || '')
+    .trim()
+    .replace(/^@+/, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, '')
+    .slice(0, 24)
+}
+
 export function KolRegisterPage() {
   const wallet = useWallet()
   const { setVisible } = useWalletModal()
@@ -66,10 +76,12 @@ export function KolRegisterPage() {
   const [xOauth, setXOauth] = useState<boolean | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(params.get('error'))
+  const [refInput, setRefInput] = useState(() => normalizeRef(params.get('ref')))
   const ownHandle = useOwnRegisteredHandle(wallet.publicKey?.toBase58())
   const registeredHandle = params.get('registered') === '1' ? params.get('handle') : null
   const deskHandle = registeredHandle || ownHandle
   const alreadyRegistered = Boolean(ownHandle)
+  const referralCode = normalizeRef(refInput)
 
   const load = useCallback(async () => {
     const [statusRes, boardRes] = await Promise.all([
@@ -97,6 +109,11 @@ export function KolRegisterPage() {
   useEffect(() => {
     void load().catch(() => setError('Could not load the registration board.'))
   }, [load])
+
+  useEffect(() => {
+    const fromUrl = normalizeRef(params.get('ref'))
+    if (fromUrl) setRefInput(fromUrl)
+  }, [params])
 
   async function onRegister() {
     if (alreadyRegistered && ownHandle) {
@@ -128,6 +145,7 @@ export function KolRegisterPage() {
           wallet: pubkey,
           message: nonceBody.message,
           signature: bs58.encode(sigBytes),
+          ...(referralCode.length >= 2 ? { referralCode } : {}),
         }),
       })
       const startBody = (await startRes.json()) as { authorizeUrl?: string; error?: string }
@@ -155,8 +173,9 @@ export function KolRegisterPage() {
           </div>
           <h1 className="section-title">Join the crew.</h1>
           <p className="section-sub">
-            Agents Autohire KOLs for launches. Register with X + Solana to get on the board and
-            your desk. Rank is followers for now — hire preference comes when the board is deep.
+            Agents Autohire KOLs for launches. Register with X + Solana to get on the board, your
+            desk, and a referral code — earn {KOL_REFERRAL_CUT_PCT}% of a referred KOL&apos;s seat
+            when they get hired.
           </p>
         </div>
 
@@ -175,6 +194,29 @@ export function KolRegisterPage() {
               <span>{xOauth === false ? 'Waiting on X app credentials' : 'Followers + stats'}</span>
             </li>
           </ol>
+
+          {!alreadyRegistered ? (
+            <label className="register-ref">
+              <span>Referral code (optional)</span>
+              <input
+                type="text"
+                value={refInput}
+                onChange={(e) => setRefInput(e.target.value)}
+                placeholder="friendscode"
+                autoComplete="off"
+                spellCheck={false}
+                maxLength={24}
+              />
+              {referralCode.length >= 2 ? (
+                <em>
+                  Direct referral — when you&apos;re hired, {KOL_REFERRAL_CUT_PCT}% of your seat
+                  goes to this code&apos;s wallet.
+                </em>
+              ) : (
+                <em>Every registered KOL gets a shareable code on their desk.</em>
+              )}
+            </label>
+          ) : null}
 
           {deskHandle ? (
             <p className="register-ok">

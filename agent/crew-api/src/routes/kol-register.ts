@@ -8,7 +8,9 @@ import {
   getKolProfile,
   getKolProfileByWallet,
   issueNonce,
+  KOL_REFERRAL_CUT_PCT,
   listRegistered,
+  lookupReferralCuts,
   siteUrl,
   xOAuthConfigured,
 } from '../lib/kol-register.js'
@@ -33,7 +35,27 @@ kolRegisterRouter.get('/kols/register/status', (_req, res) => {
     xOauth: xOAuthConfigured(),
     redirectUri: process.env.X_REDIRECT_URI?.trim() || 'https://api.crewpay.dev/api/kols/register/callback',
     requires: ['solana wallet signature', 'x oauth'],
+    referral: {
+      cutPct: KOL_REFERRAL_CUT_PCT,
+      note: 'Every registered KOL gets a referral code. Direct referrals only — 5% of the referred KOL seat when they are hired.',
+    },
   })
+})
+
+/** Lookup direct referrer wallets for hired crew handles (fee-share preview). */
+kolRegisterRouter.get('/kols/referral-cuts', async (req, res) => {
+  try {
+    const raw = typeof req.query.handles === 'string' ? req.query.handles : ''
+    const handles = raw
+      .split(',')
+      .map((h) => h.trim())
+      .filter(Boolean)
+      .slice(0, 20)
+    const cuts = await lookupReferralCuts(handles)
+    res.json({ ok: true, cutPct: KOL_REFERRAL_CUT_PCT, cuts })
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : 'lookup failed' })
+  }
 })
 
 kolRegisterRouter.get('/kols/claim/:username', async (req, res) => {
@@ -165,6 +187,7 @@ kolRegisterRouter.post('/kols/register/start', async (req, res) => {
         wallet: solanaAddress,
         message: z.string().min(20).max(400),
         signature: z.string().min(64).max(128),
+        referralCode: z.string().min(2).max(32).optional(),
       })
       .parse(req.body)
     const out = await beginXAuth(body)

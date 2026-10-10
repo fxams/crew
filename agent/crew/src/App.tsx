@@ -34,6 +34,7 @@ import {
   CREW_VERSION,
   CREW_X_URL,
   HIRE_ROLE_OPTIONS,
+  KOL_REFERRAL_CUT_PCT,
   MAX_CREW,
   MODE_DESK_BPS,
   PLATFORM_BUYBACK_BPS,
@@ -1475,6 +1476,26 @@ export default function App() {
                 <em>Split across Autohired crew seats</em>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section className="section section-tight" id="referrals" aria-labelledby="home-ref-title">
+          <p className="section-label">KOL referral · direct only</p>
+          <h2 className="section-title" id="home-ref-title">
+            Refer crew. Earn {KOL_REFERRAL_CUT_PCT}%.
+          </h2>
+          <p className="section-sub">
+            Every registered KOL gets a referral code. When someone joins with your link and later
+            gets hired, you earn {KOL_REFERRAL_CUT_PCT}% of their seat — locked into the fee-share
+            with them. No multi-level trees.
+          </p>
+          <div className="home-ref-actions">
+            <Link className="btn btn-primary" to="/register">
+              Register &amp; get your code
+            </Link>
+            <Link className="btn btn-ghost" to="/kols">
+              See registered crew
+            </Link>
           </div>
         </section>
 

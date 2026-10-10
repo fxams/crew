@@ -103,4 +103,33 @@ export async function migrate(): Promise<void> {
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['003_kol_prior_wallets_mentions'],
   )
+  await query(
+    `ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS referral_code TEXT`,
+  )
+  await query(
+    `ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS referred_by_code TEXT`,
+  )
+  await query(
+    `ALTER TABLE kol_oauth_states ADD COLUMN IF NOT EXISTS referral_code TEXT`,
+  )
+  // Backfill codes from username for existing registrations.
+  await query(`
+    UPDATE kol_registrations
+    SET referral_code = lower(regexp_replace(x_username, '[^a-zA-Z0-9_]', '', 'g'))
+    WHERE referral_code IS NULL
+      AND x_username IS NOT NULL
+      AND length(regexp_replace(x_username, '[^a-zA-Z0-9_]', '', 'g')) >= 2
+  `)
+  await query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS kol_registrations_referral_code_idx
+      ON kol_registrations (lower(referral_code)) WHERE referral_code IS NOT NULL
+  `)
+  await query(
+    `CREATE INDEX IF NOT EXISTS kol_registrations_referred_by_idx
+      ON kol_registrations (lower(referred_by_code))`,
+  )
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['004_kol_referral_codes'],
+  )
 }

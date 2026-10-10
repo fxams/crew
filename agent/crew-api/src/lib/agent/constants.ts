@@ -4,6 +4,10 @@ export const MAX_INITIAL_BUY_SOL = 10
 /** Minimum SOL left for create + fee-share txs beyond the initial buy. */
 export const MIN_LAUNCH_FEE_SOL = 0.02
 export const PLATFORM_BUYBACK_BPS = 2500
+/** Direct referral cut: 5% of the referred KOL's seat (not of total fees). */
+export const REFERRAL_CUT_BPS = 500
+/** Pump fee-share configs allow at most this many unique wallets. */
+export const PUMP_MAX_SHAREHOLDERS = 10
 export const MODE_DESK_BPS = {
   split: 0,
   buyback: 2000,

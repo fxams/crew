@@ -89,4 +89,26 @@ describe('shareholders', () => {
     expect(shares.find((s) => s.wallet === platform)?.bps).toBe(2500)
     expect(shares.find((s) => s.wallet === desk)?.bps).toBe(1500)
   })
+
+  it('routes 5% of a referred KOL seat to the referrer wallet', () => {
+    const platform = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr'
+    const desk = 'SysvarRent111111111111111111111111111111111'
+    const kolWallet = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
+    const referrerWallet = 'So11111111111111111111111111111111111111112'
+    const crew = normalizeCrew(
+      [{ handle: '@alice', wallet: kolWallet, share: 100, hireRole: 'kol' }],
+      'agent',
+    )
+    const shares = buildCrewShareholders(crew, 'agent', {
+      deskWallet: desk,
+      platformWallet: platform,
+      referralCuts: [
+        { handle: 'alice', referrerWallet, referrerHandle: 'bob' },
+      ],
+    })
+    // Agent mode: 6000 bps crew pool → 5% of alice seat = 300 bps to referrer.
+    expect(shares.find((s) => s.wallet === referrerWallet && s.role === 'referral')?.bps).toBe(300)
+    expect(shares.find((s) => s.wallet === kolWallet)?.bps).toBe(5700)
+    expect(shares.reduce((s, r) => s + r.bps, 0)).toBe(10_000)
+  })
 })

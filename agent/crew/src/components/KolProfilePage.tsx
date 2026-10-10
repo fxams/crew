@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { CREW_VERSION } from '../lib/config'
+import { CREW_VERSION, KOL_REFERRAL_CUT_PCT } from '../lib/config'
 import { useOwnRegisteredHandle } from '../lib/registered-kol'
 import { kolHandleFromPath } from '../lib/routes'
 
@@ -21,6 +21,9 @@ type Profile = {
   description: string
   wallet: string
   priorWallets?: string[]
+  referralCode?: string
+  referredByCode?: string | null
+  referralCount?: number
   solEarned?: number
   registeredAt: string
   rank: number
@@ -108,6 +111,7 @@ export function KolProfilePage() {
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
+  const [refCopied, setRefCopied] = useState(false)
   const [avatarSrc, setAvatarSrc] = useState<string | null>(null)
   const justRegistered = params.get('registered') === '1'
   const viewingOwnDesk =
@@ -176,6 +180,25 @@ export function KolProfilePage() {
       window.setTimeout(() => setShareCopied(false), 1600)
     } catch {
       setShareCopied(false)
+    }
+  }
+
+  const referralCode =
+    desk?.profile.referralCode ||
+    desk?.profile.xUsername.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase() ||
+    ''
+  const referralLink = referralCode
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/register?ref=${encodeURIComponent(referralCode)}`
+    : ''
+
+  async function copyReferralLink() {
+    if (!referralLink) return
+    try {
+      await navigator.clipboard.writeText(referralLink)
+      setRefCopied(true)
+      window.setTimeout(() => setRefCopied(false), 1600)
+    } catch {
+      setRefCopied(false)
     }
   }
 
@@ -344,6 +367,36 @@ export function KolProfilePage() {
                 </button>
               </div>
             </aside>
+
+            {referralCode ? (
+              <aside className="desk-referral-card" aria-label="Referral code">
+                <p className="section-label">Referral</p>
+                <p className="desk-referral-code">
+                  <strong>{referralCode}</strong>
+                  <span>
+                    {KOL_REFERRAL_CUT_PCT}% of a referred KOL&apos;s seat · direct only ·{' '}
+                    {desk.profile.referralCount || 0} referred
+                  </span>
+                </p>
+                <p className="desk-referral-link" title={referralLink}>
+                  {referralLink}
+                </p>
+                <div className="desk-share-actions">
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() => void copyReferralLink()}
+                  >
+                    {refCopied ? 'Copied' : 'Copy invite link'}
+                  </button>
+                  {isOwner || viewingOwnDesk ? (
+                    <Link className="btn btn-ghost btn-sm" to={`/register?ref=${encodeURIComponent(referralCode)}`}>
+                      Preview link
+                    </Link>
+                  ) : null}
+                </div>
+              </aside>
+            ) : null}
 
             <section className="desk-block">
               <h2 className="section-title desk-block-title">Coins</h2>
