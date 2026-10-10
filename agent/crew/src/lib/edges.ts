@@ -32,7 +32,7 @@ export const CREW_EDGES = [
     id: 'tape',
     title: 'Buyback + proof stay public',
     agency: 'Opaque treasuries hide whether humans were paid.',
-    crew: '25% CREW buyback on every launch. Proof tape shows buybacks and SOL paid.',
+    crew: '25% CREW fee-share locks to treasury every launch. Proof tape shows remits and buyback runs when configured.',
   },
 ] as const
 

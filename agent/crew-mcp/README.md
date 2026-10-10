@@ -23,14 +23,14 @@ Works with **Cursor**, **Claude Desktop**, **Claude Code**, **ChatGPT MCP**, **G
 
 ## Install (stdio — own wallet)
 
-### npx from GitHub (no npm publish required)
+### npx (npm package)
 
 ```json
 {
   "mcpServers": {
     "crewpay": {
       "command": "npx",
-      "args": ["-y", "github:fxams/crew#path:agent/crew-mcp"],
+      "args": ["-y", "crewpay-mcp"],
       "env": {
         "CREW_AGENT_API_KEY": "…",
         "CREW_LAUNCHER_KEY": "your-solana-secret-base58",

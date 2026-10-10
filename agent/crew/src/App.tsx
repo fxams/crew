@@ -17,6 +17,7 @@ import {
 import { ReceiptCard } from "./components/ReceiptCard";
 import { AgentsApiPage } from "./components/AgentsApiPage";
 import { ProofPage } from "./components/ProofPage";
+import { ClaimPage } from "./components/ClaimPage";
 import { KolProfilePage } from "./components/KolProfilePage";
 import { KolRegisterPage } from "./components/KolRegisterPage";
 import { TopKolsPage } from "./components/TopKolsPage";
@@ -60,7 +61,7 @@ import {
 import type { HireRole } from "./lib/types";
 import { launchCrew } from "./lib/launch";
 import { useOwnRegisteredHandle } from "./lib/registered-kol";
-import { isAgentsPath, isKolsPath, isLaunchPath, isProofPath, isRegisterPath, kolHandleFromPath, kolProfilePath } from "./lib/routes";
+import { isAgentsPath, isClaimPath, isKolsPath, isLaunchPath, isProofPath, isRegisterPath, kolHandleFromPath, kolProfilePath } from "./lib/routes";
 import { distributeCreatorFees, lockHolderKolFeeShares, wireCrewFeeShares } from "./lib/pump/fees";
 import {
   remitsFromSignature,
@@ -154,6 +155,7 @@ export default function App() {
   const isKolsPage = isKolsPath(path);
   const isRegisterPage = isRegisterPath(path);
   const isKolProfilePage = Boolean(kolHandleFromPath(path));
+  const isClaimPage = isClaimPath(path);
   const isAgentsPage = isAgentsPath(path);
   const isProofPage = isProofPath(path);
   const ownRegisteredHandle = useOwnRegisteredHandle(wallet.publicKey?.toBase58());
@@ -567,6 +569,7 @@ export default function App() {
   }
 
   function autoHireFromNarrative() {
+    void (async () => {
     // Always read the latest draft — avoids stale closures from rapid form edits.
     const current = draftRef.current;
     const name = current.name.trim();
@@ -590,7 +593,28 @@ export default function App() {
       holderKol: false,
       crew: resizeCrew(current.crew, seats),
     };
-    const { draft: next, plan } = applyNarrativeHire(base, { limit: seats });
+    let registered: { handle: string; wallet: string }[] = [];
+    try {
+      const api = (
+        (import.meta.env.VITE_CREW_API_URL as string | undefined)?.replace(/\/$/, "") ||
+        "https://api.crewpay.dev"
+      );
+      const res = await fetch(`${api}/api/kols/registered?limit=100`);
+      if (res.ok) {
+        const data = (await res.json()) as {
+          leaderboard?: { xUsername?: string; wallet?: string }[];
+        };
+        registered = (data.leaderboard || [])
+          .map((r) => ({
+            handle: String(r.xUsername || "").replace(/^@+/, "").toLowerCase(),
+            wallet: String(r.wallet || ""),
+          }))
+          .filter((r) => r.handle && r.wallet.length >= 32);
+      }
+    } catch {
+      /* Autohire still works without the board */
+    }
+    const { draft: next, plan } = applyNarrativeHire(base, { limit: seats, registered });
     if (!plan.hires.length) {
       const msg = "No KOLs matched — try a clearer name/ticker/description.";
       setHireFeedback({ kind: "err", text: msg });
@@ -618,13 +642,20 @@ export default function App() {
         ]),
       ),
     );
-    const ok = `Auto-hired ${plan.hires.length} KOLs · #${plan.match.tags.join(" #")}`;
+    const regN = plan.hires.filter((h) =>
+      h.reasons.some((r) => /registered crew/i.test(r)),
+    ).length;
+    const ok =
+      regN > 0
+        ? `Auto-hired ${plan.hires.length} KOLs (${regN} registered) · #${plan.match.tags.join(" #")}`
+        : `Auto-hired ${plan.hires.length} KOLs · #${plan.match.tags.join(" #")}`;
     setHireFeedback({ kind: "ok", text: ok });
     setStatus(ok);
     setError(null);
     window.requestAnimationFrame(() => {
       hirePlanRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
+    })();
   }
 
   function applyTemplate(tpl: LaunchTemplate) {
@@ -1308,10 +1339,11 @@ export default function App() {
       {isKolsPage ? <TopKolsPage /> : null}
       {isRegisterPage ? <KolRegisterPage /> : null}
       {isKolProfilePage ? <KolProfilePage /> : null}
+      {isClaimPage ? <ClaimPage /> : null}
       {isAgentsPage ? <AgentsApiPage /> : null}
       {isProofPage ? <ProofPage /> : null}
 
-      {!isLaunchPage && !isKolsPage && !isRegisterPage && !isKolProfilePage && !isAgentsPage && !isProofPage ? (
+      {!isLaunchPage && !isKolsPage && !isRegisterPage && !isKolProfilePage && !isClaimPage && !isAgentsPage && !isProofPage ? (
         <>
       <div className="app-shell">
         <main id="top">
@@ -1333,8 +1365,8 @@ export default function App() {
               <p className="hero-copy">
                 Agents launch tokens to make money — distribution is the bottleneck. Autohire
                 KOLs from your narrative, lock fee-shares on-chain, and pay the crew from creator
-                fees. <em>{PLATFORM_BUYBACK_BPS / 100}% CREW buyback</em> on every launch; the rest
-                goes to hired wallets.
+                fees. <em>{PLATFORM_BUYBACK_BPS / 100}% CREW fee-share</em> locks to the treasury on
+                every launch; market buybacks run when the treasury mint + key are configured.
               </p>
               <div className="hero-actions">
                 <Link className="btn btn-primary" to="/launch">
@@ -1409,7 +1441,7 @@ export default function App() {
             <article className="step">
               <div className="step-num">03</div>
               <h3>Crew gets paid</h3>
-              <p>25% CREW buyback · remits on the tape.</p>
+              <p>25% CREW fee-share · remits on the tape.</p>
             </article>
           </div>
         </section>
@@ -2742,7 +2774,7 @@ export default function App() {
           </div>
         </footer>
       </div>
-      ) : isAgentsPage || isKolsPage || isRegisterPage || isKolProfilePage || isProofPage ? null : (
+      ) : isAgentsPage || isKolsPage || isRegisterPage || isKolProfilePage || isClaimPage || isProofPage ? null : (
       <div className="app-shell">
         <section className="section" id="brand">
           <p className="section-label">Assets</p>

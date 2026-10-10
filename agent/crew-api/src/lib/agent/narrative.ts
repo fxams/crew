@@ -50,6 +50,13 @@ export type NarrativeHirePlan = {
   crew: CrewMember[]
 }
 
+/** Opt-in registered crew — Autohire prefers these wallets over scraped Pump ones. */
+export type RegisteredHireBoost = {
+  /** lowercase handle without @ */
+  handle: string
+  wallet: string
+}
+
 const TAG_KEYWORDS: Record<NarrativeTag, string[]> = {
   meme: ['meme', 'funny', 'joke', 'lol', 'based', 'wagmi', 'ngmi', 'copium', 'hopium', 'shitpost', 'viral', 'coin'],
   animal: ['cat', 'dog', 'frog', 'pepe', 'wojak', 'bird', 'ape', 'monkey', 'fish', 'whale', 'bull', 'bear', 'raccoon', 'hamster', 'duck', 'pig', 'goat', 'fox', 'wolf', 'mouse'],
@@ -186,7 +193,12 @@ function tagWeight(match: NarrativeHirePlan['match'], tag: NarrativeTag): number
 
 export function planNarrativeHires(
   input: { name?: string; ticker?: string; vibe?: string },
-  opts?: { limit?: number; minFollowers?: number },
+  opts?: {
+    limit?: number
+    minFollowers?: number
+    /** When present, matching handles get a large score boost and hire the registered wallet. */
+    registered?: RegisteredHireBoost[]
+  },
 ): NarrativeHirePlan {
   const limit = Math.max(1, Math.min(MAX_CREW, opts?.limit ?? 5))
   const minFollowers = opts?.minFollowers ?? 5_000
@@ -195,6 +207,12 @@ export function planNarrativeHires(
   const blob = [input.name, input.ticker, input.vibe].filter(Boolean).join(' ')
   const inputTokens = new Set(tokenize(blob))
   const ticker = (input.ticker || '').toUpperCase()
+  const registeredByHandle = new Map(
+    (opts?.registered || [])
+      .filter((r) => r.handle && r.wallet.length >= 32)
+      .map((r) => [r.handle.replace(/^@+/, '').toLowerCase(), r.wallet] as const),
+  )
+  const preferRegistered = registeredByHandle.size >= 1
 
   type Scored = {
     kol: KolRecord
@@ -202,6 +220,7 @@ export function planNarrativeHires(
     reasons: string[]
     narrativeHits: number
     primaryHit: boolean
+    registered: boolean
   }
 
   const scored: Scored[] = KOL_DB.filter(
@@ -255,18 +274,33 @@ export function planNarrativeHires(
         reasons.push(x ? `unverified/weak X @${x}` : 'no X handle')
       }
 
+      let hireWallet = kol.wallet
+      let registered = false
+      for (const h of handles) {
+        const regWallet = registeredByHandle.get(h)
+        if (regWallet) {
+          registered = true
+          hireWallet = regWallet
+          score += preferRegistered ? 48 : 24
+          reasons.unshift('registered crew')
+          break
+        }
+      }
+
       return {
-        kol,
+        kol: registered && hireWallet !== kol.wallet ? { ...kol, wallet: hireWallet } : kol,
         score,
         reasons,
         narrativeHits,
         primaryHit: primary ? kol.narratives.includes(primary) : false,
+        registered,
       }
     })
-    .filter((s) => s.narrativeHits > 0 || s.score >= 12)
+    .filter((s) => s.narrativeHits > 0 || s.score >= 12 || s.registered)
 
   scored.sort(
     (a, b) =>
+      Number(b.registered) - Number(a.registered) ||
       Number(b.primaryHit) - Number(a.primaryHit) ||
       b.score - a.score ||
       a.kol.rank - b.kol.rank,
