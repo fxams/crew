@@ -13,6 +13,10 @@ export const REGISTER_MESSAGE_PREFIX = 'CrewPay KOL registration'
 
 /** Direct referral cut advertised on site / locked into fee-shares when referred KOLs are hired. */
 export const KOL_REFERRAL_CUT_PCT = 5
+/** Points awarded when someone registers with your code (future CREW airdrop weight). */
+export const REFERRAL_POINTS_REGISTER = 100
+/** Points awarded when a referred KOL is hired and fee-shares lock. */
+export const REFERRAL_POINTS_HIRE = 250
 
 export type KolRegistration = {
   xUserId: string
@@ -33,6 +37,8 @@ export type KolRegistration = {
   /** Direct referrer code (set once at first registration). */
   referredByCode: string | null
   referralCount: number
+  /** Cached referral points for a future CREW airdrop. */
+  referralPoints: number
   solEarned: number
   registeredAt: string
   updatedAt: string
@@ -379,6 +385,7 @@ export async function completeXCallback(code: string, state: string): Promise<Ko
     }
   }
 
+  const firstReferral = !prev?.referred_by_code && Boolean(referredBy)
   await query(
     `INSERT INTO kol_registrations (
        x_user_id, x_username, x_name, x_verified, followers, following, tweet_count,
@@ -420,6 +427,21 @@ export async function completeXCallback(code: string, state: string): Promise<Ko
     ],
   )
 
+  if (firstReferral && referredBy) {
+    try {
+      await awardReferralRegisterPoints({
+        referrerCode: referredBy,
+        referredHandle: user.username,
+        referredXUserId: user.id,
+      })
+    } catch (err) {
+      console.warn(
+        'referral register points failed',
+        err instanceof Error ? err.message : err,
+      )
+    }
+  }
+
   const saved = await getRegistrationByX(user.id)
   if (!saved) throw new Error('Registration saved but could not be read back.')
   return saved
@@ -444,6 +466,7 @@ function mapReg(r: Record<string, unknown>, rank: number): KolRegistration {
     referralCode: String(r.referral_code || referralCodeFromUsername(String(r.x_username || ''))),
     referredByCode: r.referred_by_code ? String(r.referred_by_code) : null,
     referralCount: Number(r.referral_count || 0),
+    referralPoints: Number(r.referral_points || 0),
     solEarned: Number(r.sol_earned || 0),
     registeredAt: new Date(String(r.registered_at)).toISOString(),
     updatedAt: new Date(String(r.updated_at)).toISOString(),
@@ -483,6 +506,96 @@ export type ReferralCut = {
   referrerWallet: string
   referrerHandle: string
   referrerCode: string
+}
+
+function referralEventId(prefix: string): string {
+  return `${prefix}_${randomBytes(8).toString('hex')}`
+}
+
+async function creditReferrerPoints(
+  referrerCode: string,
+  points: number,
+): Promise<void> {
+  const code = normalizeReferralCode(referrerCode)
+  if (!code || points <= 0) return
+  await query(
+    `UPDATE kol_registrations
+     SET referral_points = referral_points + $2, updated_at = now()
+     WHERE lower(referral_code) = $1`,
+    [code, points],
+  )
+}
+
+/** Award register points once when a KOL joins with a referral code. */
+export async function awardReferralRegisterPoints(opts: {
+  referrerCode: string
+  referredHandle: string
+  referredXUserId: string
+}): Promise<boolean> {
+  const referrerCode = normalizeReferralCode(opts.referrerCode)
+  const handle = opts.referredHandle.replace(/^@+/, '').toLowerCase()
+  const xUserId = opts.referredXUserId.trim()
+  if (!referrerCode || !handle || !xUserId) return false
+  const { rows } = await query(
+    `INSERT INTO kol_referral_events (
+       id, event_type, referrer_code, referred_handle, referred_x_user_id, points
+     ) VALUES ($1, 'register', $2, $3, $4, $5)
+     ON CONFLICT (referred_x_user_id)
+       WHERE event_type = 'register' AND referred_x_user_id IS NOT NULL
+     DO NOTHING
+     RETURNING id`,
+    [
+      referralEventId('refreg'),
+      referrerCode,
+      handle,
+      xUserId,
+      REFERRAL_POINTS_REGISTER,
+    ],
+  )
+  if (!rows.length) return false
+  await creditReferrerPoints(referrerCode, REFERRAL_POINTS_REGISTER)
+  return true
+}
+
+/** Award hire points once per mint × referred KOL when fee-shares lock. */
+export async function awardReferralHirePointsForCrew(
+  mint: string,
+  handles: string[],
+): Promise<number> {
+  const mintStr = mint.trim()
+  if (!mintStr || mintStr.length < 32) return 0
+  let cuts: ReferralCut[]
+  try {
+    cuts = await lookupReferralCuts(handles)
+  } catch {
+    return 0
+  }
+  let awarded = 0
+  for (const cut of cuts) {
+    const handle = cut.handle.replace(/^@+/, '').toLowerCase()
+    const referrerCode = normalizeReferralCode(cut.referrerCode)
+    if (!handle || !referrerCode) continue
+    const { rows } = await query(
+      `INSERT INTO kol_referral_events (
+         id, event_type, referrer_code, referred_handle, points, mint
+       ) VALUES ($1, 'hire', $2, $3, $4, $5)
+       ON CONFLICT (mint, lower(referred_handle))
+         WHERE event_type = 'hire' AND mint IS NOT NULL
+       DO NOTHING
+       RETURNING id`,
+      [
+        referralEventId('refhire'),
+        referrerCode,
+        handle,
+        REFERRAL_POINTS_HIRE,
+        mintStr,
+      ],
+    )
+    if (!rows.length) continue
+    await creditReferrerPoints(referrerCode, REFERRAL_POINTS_HIRE)
+    awarded += 1
+  }
+  return awarded
 }
 
 /** Lookup direct referrers for hired crew handles (for fee-share splits). */

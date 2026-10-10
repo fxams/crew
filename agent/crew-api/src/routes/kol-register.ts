@@ -11,6 +11,8 @@ import {
   KOL_REFERRAL_CUT_PCT,
   listRegistered,
   lookupReferralCuts,
+  REFERRAL_POINTS_HIRE,
+  REFERRAL_POINTS_REGISTER,
   siteUrl,
   xOAuthConfigured,
 } from '../lib/kol-register.js'
@@ -38,6 +40,11 @@ kolRegisterRouter.get('/kols/register/status', (_req, res) => {
     referral: {
       cutPct: KOL_REFERRAL_CUT_PCT,
       note: 'Every registered KOL gets a referral code. Direct referrals only — 5% of the referred KOL seat when they are hired.',
+      points: {
+        register: REFERRAL_POINTS_REGISTER,
+        hire: REFERRAL_POINTS_HIRE,
+        note: 'Points accrue for a future CREW token airdrop. Direct referrals only.',
+      },
     },
   })
 })
