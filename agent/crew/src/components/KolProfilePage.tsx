@@ -225,7 +225,6 @@ export function KolProfilePage() {
                 >
                   @{desk.profile.xUsername}
                 </a>
-                {desk.profile.description ? <p className="desk-bio">{desk.profile.description}</p> : null}
                 <div className="desk-wallet-row">
                   <button type="button" className="desk-wallet" onClick={() => void copyWallet()}>
                     <span>{shortAddr(desk.profile.wallet)}</span>
