@@ -1,10 +1,7 @@
 # CrewPay × GOAT SDK
 
-Expose CrewPay as GOAT tools:
+Use [`packages/goat-plugin-crewpay`](../../packages/goat-plugin-crewpay/).
 
-- `crewpay_claim_key`
-- `crewpay_autohire`
-- `crewpay_launch_dry_run`
-- `crewpay_launch`
+Tools: `crewpay_discover`, `crewpay_autohire`, `crewpay_launch_dry_run`, `crewpay_launch`, `crewpay_wire_fees`, `crewpay_crank`, `crewpay_proof`.
 
-Prefer `npx -y crewpay-mcp` for local signing; use `https://mcp.crewpay.dev/mcp` for public discover/autohire without a launcher secret.
+Prefer `npx -y crewpay-mcp@1.2.0` for local signing; use `https://mcp.crewpay.dev/mcp` for public discover/autohire without a launcher secret.

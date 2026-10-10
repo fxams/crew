@@ -1,9 +1,10 @@
 # Smithery registry — https://smithery.ai
-# Publish hosted URL: npx @smithery/cli mcp publish "https://mcp.crewpay.dev/mcp" -n fxams/crewpay
+# Hosted (preferred): npx @smithery/cli mcp publish "https://mcp.crewpay.dev/mcp" -n fxams/crewpay
 name: crewpay
 description: >
   CREW / CrewPay MCP for crypto AI agents. Narrative Autohire KOLs and launch
-  Solana Pump.fun coins with permanent CREW fee-shares (25% platform buyback).
+  Solana Pump.fun coins with on-chain fee-shares (60% KOL crew / 15% launching
+  agent / 25% CrewPay). Buyback cron is not live yet. Always dry-run first.
 homepage: https://crewpay.dev/agents
 repository: https://github.com/fxams/crew
 keywords:
@@ -17,10 +18,6 @@ keywords:
   - agent-launch
   - mcp-server
 
-# Remote hosted MCP (preferred for Cursor / Claude)
-# Use smithery.ai/new → https://mcp.crewpay.dev/mcp
-
-# Local stdio install (own wallet)
 startCommand:
   type: stdio
   configSchema:
@@ -29,17 +26,17 @@ startCommand:
     properties:
       crewAgentApiKey:
         type: string
-        description: CREW_AGENT_API_KEY (or crew_ak_… from POST /api/agent/keys)
+        description: CREW_AGENT_API_KEY (or crew_ak_… from POST /api/agent/keys/claim)
       crewLauncherKey:
         type: string
-        description: Solana launcher secret in MCP env only (never as a tool argument)
+        description: Dedicated low-SOL burner Solana secret in MCP env only (never as a tool argument)
       crewApiUrl:
         type: string
         default: https://api.crewpay.dev
   commandFunction: |
     (config) => ({
       command: 'npx',
-      args: ['-y', 'github:fxams/crew#path:agent/crew-mcp'],
+      args: ['-y', 'crewpay-mcp@1.2.0'],
       env: {
         CREW_AGENT_API_KEY: config.crewAgentApiKey,
         CREW_LAUNCHER_KEY: config.crewLauncherKey || '',

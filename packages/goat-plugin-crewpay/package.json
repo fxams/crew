@@ -1,0 +1,13 @@
+{
+  "name": "@crewpay/goat-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "description": "GOAT SDK plugin scaffold for CrewPay REST tools.",
+  "license": "MIT",
+  "peerDependencies": {
+    "@goat-sdk/core": "*"
+  },
+  "keywords": ["goat-sdk", "crewpay", "solana", "pump.fun"]
+}

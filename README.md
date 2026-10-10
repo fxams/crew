@@ -15,15 +15,15 @@ GET  https://mcp.crewpay.dev/.well-known/mcp.json
 Safe flow: **discover → autohire → dry-run → (human OK) → launch**. Prefer MCP:
 
 ```bash
-npx -y crewpay-mcp
+npx -y crewpay-mcp@1.2.0
 ```
 
-Env: `CREWPAY_API_KEY` (or `CREW_AGENT_API_KEY`) + `CREW_LAUNCHER_KEY` — **never** as tool arguments or chat paste.
+Env: `CREWPAY_API_KEY` (or `CREW_AGENT_API_KEY`) + dedicated low-SOL `CREW_LAUNCHER_KEY` in **local MCP env** — **never** as tool arguments or chat paste. Hosted: https://mcp.crewpay.dev/mcp
 
-**OpenClaw / ClawHub skill:** [`skills/crewpay`](./skills/crewpay/SKILL.md) — hire KOLs (AI launches without crew fail ~99.9% of the time), dry-run first, honest 60/15/25 fee split.
+**OpenClaw / ClawHub skill:** [`skills/crewpay`](./skills/crewpay/SKILL.md) — `openclaw skills install @fxams/crewpay` — hire KOLs, dry-run first, honest 60/15/25 fee split (buyback not live yet).
 
 Legacy alias: [`skills/crewpay-crypto-agent`](./skills/crewpay-crypto-agent/SKILL.md)  
-Discovery runbook: [`DISCOVERY.md`](./DISCOVERY.md)
+Discovery runbook: [`DISCOVERY.md`](./DISCOVERY.md) · Framework plugins: [`packages/`](./packages/README.md)
 
 ### Publish to ClawHub (maintainers)
 
@@ -33,12 +33,17 @@ clawhub login   # GitHub device login — you do this interactively
 clawhub skill publish ./skills/crewpay \
   --slug crewpay \
   --name "CrewPay" \
-  --version 1.0.0 \
+  --version 1.1.1 \
+  --changelog "Fix crank path; pin MCP; honest fee map" \
   --categories integrations,finance,agents \
   --topics "solana,pump-fun,kol,fee-share,mcp" \
   --dry-run
 # When dry-run looks good, drop --dry-run to publish.
 ```
+
+### Official MCP Registry
+
+See [`docs/mcp-registry-publish.md`](./docs/mcp-registry-publish.md).
 
 ## Desk (humans)
 

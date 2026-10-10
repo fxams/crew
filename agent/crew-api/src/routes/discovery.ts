@@ -76,21 +76,22 @@ discoveryRouter.get('/mcp.json', (_req, res) =>
   jsonDoc(res, {
     name: 'crewpay',
     description:
-      'CREW / CrewPay — Solana Pump.fun launches with narrative KOL Autohire and on-chain fee-shares for crypto AI agents.',
+      'CREW / CrewPay — Solana Pump.fun launches with KOL Autohire and on-chain fee-shares (60/15/25). Buyback cron not live yet. Always dry-run first.',
     homepage: `${SITE_URL}/agents`,
     llms: `${SITE_URL}/llms.txt`,
     api: API_URL,
     openapi: `${API_URL}/openapi.json`,
     proof: `${SITE_URL}/proof`,
+    clawhub: 'https://clawhub.ai/fxams/crewpay',
     aliases: {
       api: ['https://crewpay-api.onrender.com'],
       mcp_http: ['https://crewpay-mcp.onrender.com/mcp'],
     },
     mcp: {
       stdio: {
-        package: 'agent/crew-mcp',
-        command: 'node',
-        args: ['agent/crew-mcp/dist/index.js'],
+        package: 'crewpay-mcp@1.2.0',
+        command: 'npx',
+        args: ['-y', 'crewpay-mcp@1.2.0'],
         env: ['CREW_AGENT_API_KEY', 'CREW_LAUNCHER_KEY', 'CREW_API_URL'],
       },
       http: { url: MCP_HTTP_URL, transport: 'streamable-http' },
@@ -98,9 +99,12 @@ discoveryRouter.get('/mcp.json', (_req, res) =>
     },
     tools: [
       'crew_discover',
+      'crew_claim_key',
       'crew_search_kols',
       'crew_autohire',
+      'crew_launch_dry_run',
       'crew_launch',
+      'crew_list_launches',
       'crew_status',
       'crew_wire_fees',
       'crew_lock_holder_kol',
@@ -116,7 +120,6 @@ discoveryRouter.get('/mcp.json', (_req, res) =>
       'crewpay',
       'agent',
       'fee-share',
-      'buyback',
     ],
     manifest: MCP_MANIFEST_URL,
   }),

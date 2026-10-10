@@ -82,7 +82,12 @@ describe('agent discovery docs', () => {
     expect(llmsTxt()).toContain('≤204')
     expect(llmsFullTxt()).toContain('Never put Solana secrets')
     expect(llmsFullTxt()).toContain('Launched from CrewPay.dev platform')
-    expect(llmsFullTxt()).toContain('npx -y crewpay-mcp')
+    expect(llmsFullTxt()).toContain('npx -y crewpay-mcp@1.2.0')
+    expect(llmsTxt()).toContain('npx -y crewpay-mcp@1.2.0')
+    expect(llmsTxt()).toContain('openclaw skills install @fxams/crewpay')
+    expect(llmsTxt()).toContain('/api/agent/crank')
+    expect(llmsTxt()).toContain('60%')
+    expect(llmsTxt()).toContain('not live yet')
     expect(openApiSpec().components.schemas.LaunchRequest.properties.description.maxLength).toBe(
       204,
     )

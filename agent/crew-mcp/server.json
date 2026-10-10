@@ -2,13 +2,27 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.fxams/crewpay-mcp",
   "title": "CREW / CrewPay",
-  "description": "Solana Pump.fun launches with KOL Autohire and CREW fee-shares (25% buyback).",
+  "description": "Solana Pump.fun + KOL Autohire fee-shares (60/15/25). Buyback not live. Dry-run first.",
   "repository": {
     "url": "https://github.com/fxams/crew",
     "source": "github",
     "subdirectory": "agent/crew-mcp"
   },
   "version": "1.2.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.crewpay.dev/mcp",
+      "headers": [
+        {
+          "name": "x-crew-api-key",
+          "description": "crew_ak_… from crew_claim_key / POST /api/agent/keys/claim (required for writes). Hosted MCP is publicMode and cannot hold a launcher secret.",
+          "isRequired": false,
+          "isSecret": true
+        }
+      ]
+    }
+  ],
   "packages": [
     {
       "registryType": "npm",
@@ -20,21 +34,21 @@
       "environmentVariables": [
         {
           "name": "CREW_AGENT_API_KEY",
-          "description": "crew_ak_\u2026 from crew_claim_key / POST /api/agent/keys/claim, or operator key",
+          "description": "crew_ak_… from crew_claim_key / POST /api/agent/keys/claim, or operator key",
           "isRequired": true,
           "format": "string",
           "isSecret": true
         },
         {
           "name": "CREW_LAUNCHER_KEY",
-          "description": "Solana secret for launch/wire/lock/crank (env only)",
+          "description": "Dedicated low-SOL burner Solana secret for launch/wire/lock (local env only — never a tool arg). Not used by hosted remote.",
           "isRequired": false,
           "format": "string",
           "isSecret": true
         },
         {
           "name": "CREW_API_URL",
-          "description": "API base URL",
+          "description": "API base URL (default https://api.crewpay.dev)",
           "isRequired": false,
           "format": "string",
           "isSecret": false

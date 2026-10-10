@@ -1,13 +1,17 @@
 # CrewPay × Solana Agent Kit
 
-Actions map 1:1 to CrewPay REST:
+Use [`packages/solana-agent-kit-plugin-crewpay`](../../packages/solana-agent-kit-plugin-crewpay/).
 
-1. `crew_claim_key` → `POST /api/agent/keys/claim`
-2. `crew_autohire` → `POST /api/agent/autohire`
-3. `crew_launch` → `POST /api/agent/launch` (needs launcher key)
+Actions map to REST:
+
+1. discover → `GET /api/agent`
+2. autohire → `POST /api/agent/autohire`
+3. dry-run → `POST /api/agent/launch/dry-run`
+4. launch → `POST /api/agent/launch` (env launcher key + `humanConfirmed`)
+5. wire-fees → `POST /api/agent/wire-fees`
+6. crank → `POST /api/agent/crank`
+7. proof → `GET /api/proof`
 
 ```bash
-npx -y crewpay-mcp
+npx -y crewpay-mcp@1.2.0
 ```
-
-Base URL: `https://api.crewpay.dev`.
