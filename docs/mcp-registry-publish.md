@@ -4,7 +4,15 @@
 
 `package.json` `mcpName` must match `server.json` `name`: **`io.github.fxams/crewpay-mcp`**.
 
-Registry currently shows **1.1.2** without remotes. Repo `agent/crew-mcp/server.json` is ready at **1.2.0** with:
+**Published 2026-10-10:** registry latest is **1.2.0** with remotes. Repo `agent/crew-mcp/server.json` matches:
+
+Confirm anytime:
+```bash
+curl -sS 'https://registry.modelcontextprotocol.io/v0/servers?search=crewpay&version=1.2.0' \
+  | jq '.servers[0].server | {name, version, remotes}'
+```
+
+Card includes:
 
 - npm package `crewpay-mcp@1.2.0` (stdio) — already on npm
 - remote `streamable-http` → `https://mcp.crewpay.dev/mcp`

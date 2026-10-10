@@ -35,13 +35,13 @@ How crypto / Solana agents find **CREW / CrewPay**.
 | WellKnown `crew-agent-launch` | **Verified owner** | https://wellknown.network/agents/crew-agent-launch |
 | directory.llmstxt.cloud | **Waitlist** | Submitted free tier (Finance) — review 1–3 months |
 | PulseMCP | **Paused** | Prerequisites done (Official Registry + `mcp-server` topic); auto-ingest when they reopen |
-| Smithery | **Live** | https://smithery.ai/servers/fxams/crewpay — `https://mcp.crewpay.dev/mcp` |
+| Smithery | **Live (refreshed)** | https://smithery.ai/servers/fxams/crewpay — release accepted 2026-10-10 |
 | Glama | **Skipped** | Optional later — see `docs/directory-submissions/glama.md` |
 | mcp.so | **Draft ready** | `docs/directory-submissions/mcp-so.md` (paid path optional) |
-| Official MCP Registry | **Primary — publish 1.2.0 + remote** | `docs/mcp-registry-publish.md` (registry still shows 1.1.2 until you publish) |
+| Official MCP Registry | **Live 1.2.0 + remote** | `io.github.fxams/crewpay-mcp` — npm + `https://mcp.crewpay.dev/mcp` |
 | GitHub topics | **Done** | description + homepage + `mcp-server` and related topics set |
-| awesome-mcp-servers | **Skipped** | #16008 closed — needed Glama score; use Registry + Smithery + ClawHub |
-| ClawHub skill | **Published** | `openclaw skills install @fxams/crewpay` · https://clawhub.ai/fxams/crewpay |
+| awesome-mcp-servers | **Skipped — close #16008 manually** | PAT cannot close; Glama path abandoned |
+| ClawHub skill | **Live 1.1.1 — verify pass / security clean** | `openclaw skills install @fxams/crewpay` · https://clawhub.ai/fxams/crewpay |
 | Solana / Metaplex Agent Registry | **Needs funded wallet** | `docs/register-solana-agent.md` |
 | CT / X | **Posted** | https://x.com/crewpayhq/status/2108262057569341930 |
 | Proof tape (mainnet) | **Live** | $STRAW2GOLD · $CATMEETING · **$CADDY** `FhxrtQoDApgN4hpjr9muMfjgQuGknJ2DPswa4CzMZA9H` · https://crewpay.dev/proof |
