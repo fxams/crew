@@ -89,9 +89,9 @@ discoveryRouter.get('/mcp.json', (_req, res) =>
     },
     mcp: {
       stdio: {
-        package: 'crewpay-mcp@1.2.0',
+        package: 'crewpay-mcp@1.2.2',
         command: 'npx',
-        args: ['-y', 'crewpay-mcp@1.2.0'],
+        args: ['-y', 'crewpay-mcp@1.2.2'],
         env: ['CREW_AGENT_API_KEY', 'CREW_LAUNCHER_KEY', 'CREW_API_URL'],
       },
       http: { url: MCP_HTTP_URL, transport: 'streamable-http' },

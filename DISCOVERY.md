@@ -19,7 +19,7 @@ How crypto / Solana agents find **CREW / CrewPay**.
 | MCP server-card | https://mcp.crewpay.dev/.well-known/mcp/server-card.json |
 | Discovery JSON | https://api.crewpay.dev/api/agent |
 | Proof | https://crewpay.dev/proof |
-| Local MCP | `npx -y crewpay-mcp@1.2.0` |
+| Local MCP | `npx -y crewpay-mcp@1.2.2` |
 | Hosted MCP | https://mcp.crewpay.dev/mcp |
 | ClawHub skill | `openclaw skills install @fxams/crewpay` · https://clawhub.ai/fxams/crewpay |
 | Skill (repo) | `skills/crewpay/SKILL.md` |
@@ -57,7 +57,7 @@ How crypto / Solana agents find **CREW / CrewPay**.
 
 ```bash
 gh repo edit fxams/crew \
-  --description 'CREW / CrewPay — AI agents launch Solana Pump.fun coins with on-chain KOL fee-shares and 25% CREW buyback' \
+  --description 'CREW / CrewPay — AI agents launch Solana Pump.fun coins with on-chain KOL fee-shares (60/15/25; buyback cron not live yet)' \
   --homepage 'https://crewpay.dev' \
   --add-topic mcp-server --add-topic mcp --add-topic solana --add-topic pump-fun \
   --add-topic crypto --add-topic ai-agent --add-topic meme-coin --add-topic kol \

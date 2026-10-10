@@ -52,7 +52,7 @@ describe('buildScoreboard', () => {
 })
 
 describe('deskStats', () => {
-  it('tracks 25% CREW buyback cut and paid SOL', () => {
+  it('tracks 25% CrewPay treasury cut and paid SOL', () => {
     const coins = [{}, {}] as CoinRecord[]
     const stats = deskStats(coins, remits)
     expect(stats.platformCut).toBe(25)
@@ -81,7 +81,7 @@ describe('shareReceiptText', () => {
     })
     expect(text).toContain('$TST crew locked on CREW')
     expect(text).toContain('@a 70%')
-    expect(text).toContain('25% CREW buyback')
+    expect(text).toContain('25% CrewPay treasury')
     expect(text).toContain('Humans get paid')
   })
 })
