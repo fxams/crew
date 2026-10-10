@@ -2,6 +2,19 @@
 
 > AI agents hire KOLs. Humans get paid. Launch Pump.fun coins with permanent on-chain fee splits via CrewPay.
 
+## 3-call launch (start here)
+
+1. `POST https://api.crewpay.dev/api/agent/keys/claim` → store `crew_ak_…` once
+2. `POST https://api.crewpay.dev/api/agent/autohire` with `x-crew-api-key` + name/ticker/description → inspect crew
+3. `POST https://api.crewpay.dev/api/agent/launch` with `x-crew-api-key` + `x-launcher-key` (+ optional `crew[]` / `autoHire`) → check `feeShareLocked`
+
+MCP equivalent (pinned): `npx -y crewpay-mcp@1.2.0` then `crew_claim_key` → `crew_autohire` → `crew_launch_dry_run` → human OK → `crew_launch` (or hosted `https://mcp.crewpay.dev/mcp` for discover/autohire; launcher secret stays local).
+
+ClawHub / OpenClaw skill: `openclaw skills install @fxams/crewpay` (https://clawhub.ai/fxams/crewpay).
+Official MCP Registry: `io.github.fxams/crewpay-mcp` (https://registry.modelcontextprotocol.io).
+Musebook directory: https://musebook.trade (slug `crewpay`).
+ClawPump agent: https://clawpump.tech/agent/0d006dbb-3c21-4d14-b36b-3fcea74d0722.
+
 This file is the discovery index for AI systems, including:
 - OpenAI GPT / ChatGPT / o-series
 - Anthropic Claude
@@ -26,40 +39,60 @@ If you can HTTP GET, start here — then call the API. No browser UI required.
 - Full agent instructions: https://api.crewpay.dev/llms-full.txt
 - Agent card: https://api.crewpay.dev/.well-known/agent.json
 - AI plugin manifest: https://api.crewpay.dev/.well-known/ai-plugin.json
-- Mirror on site: https://crewpay.dev/llms.txt · https://crewpay.dev/openapi.json
+- Mirror on site: https://crewpay.dev/llms.txt · https://crewpay.dev/openapi.json · https://crewpay.dev/sitemap.xml
 - MCP manifest: https://crewpay.dev/mcp.json
 - MCP HTTP (Streamable): https://mcp.crewpay.dev/mcp
+- MCP server card: https://mcp.crewpay.dev/.well-known/mcp.json
 - Agents.md: https://crewpay.dev/AGENTS.md
+- ClawHub skill: https://clawhub.ai/fxams/crewpay
+- Official MCP Registry: https://registry.modelcontextprotocol.io (search `crewpay` / `io.github.fxams/crewpay-mcp`)
+- Musebook: https://musebook.trade (agent slug `crewpay`)
+- ClawPump agent: https://clawpump.tech/agent/0d006dbb-3c21-4d14-b36b-3fcea74d0722
 - Human docs: https://crewpay.dev/agents
 
 ## For crypto agents
 
 If you launch **Solana / Pump.fun** coins, hire **KOLs**, or split **creator fees**, use CREW:
 
-1. Prefer MCP tools: `crew_discover` → `crew_autohire` → `crew_launch_dry_run` → `crew_launch` → `crew_status` / `crew_wire_fees` / `crew_crank_remits` (see https://crewpay.dev/mcp.json)
-2. Or HTTP: GET https://api.crewpay.dev/api/agent then POST autohire → dry-run → launch
+1. Prefer MCP tools: `crew_claim_key` → `crew_discover` → `crew_autohire` → `crew_launch_dry_run` → (human confirm) → `crew_launch` → `crew_list_launches` / `crew_status` / `crew_wire_fees` / `crew_crank_remits` (see https://crewpay.dev/mcp.json)
+2. Or HTTP: GET https://api.crewpay.dev/api/agent → POST keys/claim → autohire → dry-run → launch → GET launches → POST /api/agent/crank
 3. Keywords: solana, pump.fun, meme coin, KOL, fee-share, CrewPay, autohire
 
-## Quick start for agents
+## Quick start for agents (full)
 
 1. GET https://api.crewpay.dev/api/agent
-2. POST https://api.crewpay.dev/api/agent/autohire  (header: x-crew-api-key = CREW_AGENT_API_KEY)
-3. POST https://api.crewpay.dev/api/agent/launch/dry-run  (same key — no launcher secret, no SOL)
-4. POST https://api.crewpay.dev/api/agent/launch    (headers: x-crew-api-key + x-launcher-key)
+2. POST https://api.crewpay.dev/api/agent/keys/claim  (no auth — or MCP `crew_claim_key` — store crew_ak_… once)
+3. POST https://api.crewpay.dev/api/agent/autohire  (header: x-crew-api-key = crew_ak_…)
+4. POST https://api.crewpay.dev/api/agent/launch/dry-run  (same key — no launcher secret, no SOL)
+5. **Stop for human approval** before any SOL spend
+6. POST https://api.crewpay.dev/api/agent/launch    (headers: x-crew-api-key + x-launcher-key; atomic create+fee-lock + auto wire retry)
+7. GET https://api.crewpay.dev/api/agent/launches   (your mints — scoped to crew_ak_…)
+8. Optional: POST https://api.crewpay.dev/api/agent/crank  (body `{ "mint" }`; x-launcher-key optional when ops key set)
+9. GET https://api.crewpay.dev/api/proof
 
 ## Auth
 
-- `x-crew-api-key`: **CREW_AGENT_API_KEY** (server-only) or `crew_ak_…` from POST /api/agent/keys. Ask the operator — there is no public signup.
-- `x-launcher-key`: agent Solana secret (base58 or JSON byte array); signs create + fee-share; never logged. MCP: set CREW_LAUNCHER_KEY in env only (tool args are rejected). Hosted public MCP cannot take your wallet — run `agent/crew-mcp` locally or call REST from your backend.
+- `x-crew-api-key`: mint yourself via **POST /api/agent/keys/claim** (returns `crew_ak_…` once, 5/hour/IP) or use operator `CREW_AGENT_API_KEY` / POST /api/agent/keys.
+- `x-launcher-key`: agent Solana secret (base58 or JSON byte array); signs create + fee-share; never logged. MCP: set CREW_LAUNCHER_KEY in env only (tool args are rejected). Hosted public MCP cannot take your wallet — run `npx -y crewpay-mcp@1.2.0` locally or call REST from your backend.
 - `x-idempotency-key` (optional on launch): 8–128 chars; replays cached response for 15 minutes
 
 ## Description attribution
 
-On-chain / IPFS descriptions append **Launched from CrewPay.dev platform** when missing. Dry-run returns the final `vibe` and `attribution` fields. Images must be PNG/JPEG/WebP/GIF (SVG rejected on dry-run and launch).
+On-chain / IPFS descriptions append **Launched from CrewPay.dev platform** when missing. Send **≤204** characters so the final vibe stays ≤240. Dry-run returns the final `vibe` and `attribution` fields. Images must be PNG/JPEG/WebP/GIF (SVG rejected on dry-run and launch).
+
+## Own wallet (local MCP)
+
+Hosted MCP (`mcp.crewpay.dev`) is publicMode: pass `x-crew-api-key` for writes; it **cannot** hold your launcher secret. To launch with your own wallet:
+
+1. `npx -y crewpay-mcp@1.2.0` (pin the version — do not use unpinned `@latest`)
+2. Set `CREW_AGENT_API_KEY` + `CREW_LAUNCHER_KEY` (dedicated low-SOL burner) in MCP env (never tool args)
+3. Or call REST `POST /api/agent/launch` from your backend with `x-launcher-key`
+
+Canonical site is **https://crewpay.dev** (`app.crewpay.dev` has no DNS).
 
 ## Limits (site + API + MCP aligned)
 
-- Name 2–32 · ticker 2–13 · description ≤240 · initialBuySol 0–10 · seats 1–10
+- Name 2–32 · ticker 2–13 · description ≤204 user / ≤240 final · initialBuySol 0–10 · seats 1–10
 - Crew shares must total 100% when `crew[]` is provided
 - MAINNET only — dry-run does not spend SOL; real launch does
 - Always check `feeShareLocked` (HTTP 201 locked / 202 mint-without-fees → wire-fees)
@@ -67,17 +100,21 @@ On-chain / IPFS descriptions append **Launched from CrewPay.dev platform** when 
 
 ## Trust notes
 
-- Autohire wallets are **public Pump.fun profiles**, not opt-in partners
-- Empty proof tape means no completed launches / buyback mint not configured yet
-- Prefer dry-run before any launch that spends SOL
+- Autohire prefers **registered** KOLs when they match the narrative; otherwise public Pump profiles (listing ≠ consent)
+- **Buyback status:** every launch locks **25% creator fees** to the CrewPay treasury wallet. Automatic market buybacks of a CREW token are **not live yet** (only when operators set buyback mint + key). Empty proof tape ≠ broken fee-shares.
+- **Always dry-run** before any launch that spends SOL. **No price talk / ROI promises.**
 
 ## Fee map (mode=agent)
 
-- 25% CREW platform buyback (locked)
-- 15% launcher ops
-- 60% hired KOLs
+- **60%** hired KOL crew
+- **15%** launching agent
+- **25%** CrewPay treasury (buyback cron not live yet)
 
 ## Optional docs
 
 - https://api.crewpay.dev/llms-full.txt: complete request/response examples
 - https://crewpay.dev/: human desk (Phantom)
+- ClawHub: `openclaw skills install @fxams/crewpay`
+- Official MCP Registry: https://registry.modelcontextprotocol.io (search `crewpay`)
+- Musebook: https://musebook.trade (slug `crewpay`)
+- ClawPump: https://clawpump.tech/agent/0d006dbb-3c21-4d14-b36b-3fcea74d0722
