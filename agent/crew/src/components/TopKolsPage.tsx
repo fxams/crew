@@ -32,17 +32,17 @@ export function TopKolsPage() {
             </Link>
             <p className="section-label">Directory · v{CREW_VERSION}</p>
           </div>
-          <h1 className="section-title">Top 20 KOLs.</h1>
+          <h1 className="section-title">Autohire directory.</h1>
           <p className="section-sub">
-            Highest-reach wallets in the CREW 1500 list — ranked by followers. Hire them from
-            the launch desk with narrative matching.
+            Public Pump reach list Autohire uses until enough KOLs register. Opt-in crew lives on
+            Register — that board becomes the hire preference later.
           </p>
           <div className="register-actions">
             <Link className="btn btn-primary btn-sm" to="/register">
-              Register as a KOL
+              Join as crew
             </Link>
             <Link className="btn btn-ghost btn-sm" to="/launch">
-              Open launch desk
+              Launch with Autohire
             </Link>
           </div>
         </div>

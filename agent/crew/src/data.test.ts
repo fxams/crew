@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
+  DEFAULT_DRAFT,
   DESK_MODES,
+  LAUNCH_DESK_MODES,
   equalShares,
   resizeCrew,
   totalShare,
@@ -13,6 +15,11 @@ describe('DESK_MODES copy', () => {
     for (const mode of DESK_MODES) {
       expect(mode.blurb).toMatch(/25% CREW buyback/)
     }
+  })
+
+  it('offers agent / split / buyback on the launch desk, not raid', () => {
+    expect(LAUNCH_DESK_MODES.map((m) => m.id)).toEqual(['agent', 'split', 'buyback'])
+    expect(DEFAULT_DRAFT.mode).toBe('agent')
   })
 })
 

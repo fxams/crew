@@ -6,6 +6,7 @@ import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import {
   DEFAULT_DRAFT,
   DESK_MODES,
+  LAUNCH_DESK_MODES,
   normalizeTicker,
   resizeCrew,
   totalShare,
@@ -125,14 +126,17 @@ function initialBoard() {
 function initialDraft(): LaunchDraft {
   const saved = loadDraft();
   if (!saved) return { ...DEFAULT_DRAFT, crew: DEFAULT_DRAFT.crew.map((m) => ({ ...m })) };
+  const mode = saved.mode === "raid" ? "agent" : saved.mode || "agent";
   return {
     ...DEFAULT_DRAFT,
     ...saved,
+    mode,
+    holderKol: false,
     crew: saved.crew?.length
       ? saved.crew.map((m) => ({ ...m }))
       : DEFAULT_DRAFT.crew.map((m) => ({ ...m })),
     buybackRule: saved.buybackRule ? { ...saved.buybackRule } : undefined,
-    raidQuests: saved.raidQuests?.map((q) => ({ ...q })),
+    raidQuests: undefined,
     agent: saved.agent ? { ...saved.agent } : undefined,
     twitter: saved.twitter ?? "",
     website: saved.website ?? "",
@@ -1234,17 +1238,11 @@ export default function App() {
             CREW
           </Link>
           <nav className="nav-links" aria-label="Site">
-            <Link className="nav-link-home" to={{ pathname: "/", hash: "edges" }}>
-              Edges
-            </Link>
-            <Link className="nav-link-home" to={{ pathname: "/", hash: "board" }}>
-              Tape
-            </Link>
             <Link
-              className={isKolsPage ? "is-active-nav-text" : undefined}
-              to="/kols"
+              className={isAgentsPage ? "is-active-nav-text" : undefined}
+              to="/agents"
             >
-              KOLs
+              Agents
             </Link>
             {ownRegisteredHandle ? (
               <Link
@@ -1255,26 +1253,17 @@ export default function App() {
               </Link>
             ) : (
               <Link
-                className={isRegisterPage ? "is-active-nav-text" : undefined}
+                className={isRegisterPage || isKolsPage ? "is-active-nav-text" : undefined}
                 to="/register"
               >
-                Register
+                Crew
               </Link>
             )}
-            <Link
-              className={isAgentsPage ? "is-active-nav-text" : undefined}
-              to="/agents"
-            >
-              Agents
-            </Link>
             <Link
               className={isProofPage ? "is-active-nav-text" : undefined}
               to="/proof"
             >
               Proof
-            </Link>
-            <Link className="nav-link-home" to={{ pathname: "/", hash: "brand" }}>
-              Brand
             </Link>
             <a className="nav-link-x" href={CREW_X_URL} target="_blank" rel="noreferrer">
               X
@@ -1331,7 +1320,7 @@ export default function App() {
               <div className="hero-wave" />
             </div>
             <div className="hero-copy-wrap">
-              <p className="section-label">Pump.fun fee desk · v{CREW_VERSION}</p>
+              <p className="section-label">Agents hire · Crew gets paid · v{CREW_VERSION}</p>
               <motion.h1
                 className="hero-brand"
                 initial={{ opacity: 0, y: 18 }}
@@ -1342,17 +1331,17 @@ export default function App() {
                 <span>gets paid.</span>
               </motion.h1>
               <p className="hero-copy">
-                Agency minds meet CREW payroll. Spin an agent that{" "}
-                <em>hires</em> KOLs and X accounts — permanent on-chain fee splits,{" "}
+                Agents launch tokens to make money. Successful launches need KOLs.
+                Autohire the crew, lock fee-shares on-chain, and pay them from creator fees —{" "}
                 <em>{PLATFORM_BUYBACK_BPS / 100}% CREW buyback</em> on every launch.
               </p>
               <div className="hero-actions">
                 <Link className="btn btn-primary" to="/launch">
-                  Launch coin
+                  Launch with crew
                 </Link>
-                <a className="btn btn-ghost" href="#edges">
-                  Why CREW
-                </a>
+                <Link className="btn btn-ghost" to="/agents">
+                  Agent API
+                </Link>
               </div>
             </div>
             <motion.aside
@@ -1408,53 +1397,48 @@ export default function App() {
           <div className="steps">
             <article className="step">
               <div className="step-num">01</div>
-              <h3>Name it</h3>
-              <p>Ticker + vibe. Optional buy.</p>
+              <h3>Agent launches</h3>
+              <p>Token + narrative. Optional buy.</p>
             </article>
             <article className="step">
               <div className="step-num">02</div>
-              <h3>Hire crew</h3>
-              <p>KOLs / X + wallets. Or agent mode.</p>
+              <h3>Hire KOLs</h3>
+              <p>Autohire from the story. Lock wallets.</p>
             </article>
             <article className="step">
               <div className="step-num">03</div>
-              <h3>Get paid</h3>
-              <p>25% CREW buyback · rest on-chain → crank.</p>
+              <h3>Crew gets paid</h3>
+              <p>25% CREW buyback · remits on the tape.</p>
             </article>
           </div>
         </section>
 
         <section className="section section-agents-teaser" id="agents">
           <p className="section-label">Agent API</p>
-          <h2 className="section-title">Agents launch themselves.</h2>
+          <h2 className="section-title">Agents hire. Launches print.</h2>
           <p className="section-sub">
-            GPT, Claude, Gemini, Grok, and any HTTP / MCP tool-user can discover CREW via{" "}
-            <code>llms.txt</code>, Autohire KOLs, launch, repair fees, crank remits, and read
-            the public proof tape — no Phantom required on their side.
+            Claim a key, Autohire KOLs from your narrative, dry-run, then launch with fee-shares
+            locked. MCP and HTTP — no Phantom on the agent side. Humans join later via Crew
+            register.
           </p>
           <div className="agents-teaser-actions">
             <Link className="btn btn-primary" to="/agents">
               Agent API docs
             </Link>
-            <Link className="btn btn-ghost" to="/proof">
-              Proof tape
+            <Link className="btn btn-ghost" to="/register">
+              Join as crew
             </Link>
-            <a
-              className="btn btn-ghost"
-              href="/llms.txt"
-              target="_blank"
-              rel="noreferrer"
-            >
-              llms.txt
-            </a>
+            <Link className="btn btn-ghost" to="/proof">
+              Proof + buyback
+            </Link>
           </div>
         </section>
 
         <section className="section" id="edges">
           <div className="section-head-row">
             <div>
-              <p className="section-label">vs Agency</p>
-              <h2 className="section-title">Our edges.</h2>
+              <p className="section-label">Why CREW</p>
+              <h2 className="section-title">Hire for the launch.</h2>
             </div>
             <div className="stat-strip" aria-label="Desk stats">
               <span>
@@ -1469,8 +1453,8 @@ export default function App() {
             </div>
           </div>
           <p className="section-sub edge-sub">
-            Agency is infrastructure for living AI tokens — fees fund minds and burn
-            $AGENCY. CREW is the fee desk for living <em>crews</em>.
+            Agents launch to make money. Distribution is the bottleneck. CREW is the hire-and-pay
+            desk: Autohire now, prefer registered KOLs when the board is deep enough.
           </p>
           <div className="edge-grid">
             {CREW_EDGES.map((edge, index) => (
@@ -1484,7 +1468,7 @@ export default function App() {
               >
                 <h3>{edge.title}</h3>
                 <p className="edge-agency">
-                  <span>Agency</span> {edge.agency}
+                  <span>Without crew</span> {edge.agency}
                 </p>
                 <p className="edge-crew">
                   <span>CREW</span> {edge.crew}
@@ -1497,8 +1481,8 @@ export default function App() {
         <section className="section" id="board">
           <div className="section-head-row">
             <div>
-              <p className="section-label">Desk board</p>
-              <h2 className="section-title">Money on the tape.</h2>
+              <p className="section-label">Paid tape</p>
+              <h2 className="section-title">Crew getting paid.</h2>
             </div>
             <div className="stat-strip" aria-label="Board counts">
               <span>
@@ -1993,9 +1977,10 @@ export default function App() {
               </Link>
               <p className="section-label">Launch desk · v{CREW_VERSION}</p>
             </div>
-            <h1 className="section-title">Ship a crew coin.</h1>
+            <h1 className="section-title">Hire crew. Launch.</h1>
             <p className="section-sub">
-              Name, ticker, image, then hire 1–{MAX_CREW} KOLs with equal fee splits by default.
+              Name the token, Autohire 1–{MAX_CREW} KOLs from the narrative, lock fee-shares, then
+              launch. Agents use the same path via API.
             </p>
           </div>
 
@@ -2140,8 +2125,8 @@ export default function App() {
 
               <div className="field">
                 <label>Mode</label>
-                <div className="mode-grid mode-grid-4" role="radiogroup" aria-label="Desk mode">
-                  {DESK_MODES.map((mode) => (
+                <div className="mode-grid mode-grid-3" role="radiogroup" aria-label="Desk mode">
+                  {LAUNCH_DESK_MODES.map((mode) => (
                     <button
                       key={mode.id}
                       type="button"
@@ -2155,6 +2140,10 @@ export default function App() {
                     </button>
                   ))}
                 </div>
+                <p className="hint">
+                  Default is Agent Hire — Autohire KOLs, keep a small ops cut, pay the crew from
+                  fees. Dip buyback stays available. Raid is retired for new launches.
+                </p>
               </div>
 
               {draft.mode === "agent" ? (
@@ -2314,65 +2303,11 @@ export default function App() {
               ) : null}
 
               <div className="field">
-                <label>Crew source</label>
-                <div className="hire-source" role="radiogroup" aria-label="Crew source">
-                  <button
-                    type="button"
-                    className={`hire-source-btn${!draft.holderKol ? " is-on" : ""}`}
-                    aria-pressed={!draft.holderKol}
-                    onClick={() => {
-                      setDraft((prev) => ({ ...prev, holderKol: false }));
-                      setError(null);
-                    }}
-                  >
-                    Hire KOLs now
-                  </button>
-                  <button
-                    type="button"
-                    className={`hire-source-btn${draft.holderKol ? " is-on" : ""}`}
-                    aria-pressed={Boolean(draft.holderKol)}
-                    onClick={() => {
-                      setDraft((prev) => ({ ...prev, holderKol: true }));
-                      setHirePlan(null);
-                      setError(null);
-                    }}
-                  >
-                    Holder KOL later
-                  </button>
-                </div>
-                <p className="hint">
-                  {draft.holderKol
-                    ? "Skip tagging now. After launch, desk → Holder KOLs → lock top holders ∩ CREW 1500 (one shot)."
-                    : "Set seats, then Auto-hire from your name / ticker / description — or type handles manually."}
-                </p>
-              </div>
-
-              <div className="field">
                 <label>Hire KOLs + wallets</label>
-                {draft.holderKol ? (
-                  <div className="hire-actions hire-actions-holder">
-                    <p className="hint hire-holder-hint">
-                      Holder mode skips the crew desk. Switch to Hire KOLs now, or Autohire will switch for you.
-                    </p>
-                    <button
-                      type="button"
-                      className="btn btn-primary btn-sm"
-                      onClick={autoHireFromNarrative}
-                    >
-                      Auto-hire from narrative
-                    </button>
-                    {hireFeedback ? (
-                      <p
-                        className={`hire-feedback${hireFeedback.kind === "err" ? " is-bad" : " is-ok"}`}
-                        role="status"
-                      >
-                        {hireFeedback.text}
-                      </p>
-                    ) : null}
-                  </div>
-                ) : null}
-                {!draft.holderKol ? (
-                <>
+                <p className="hint">
+                  Autohire from name / ticker / description against the CREW directory. Registered
+                  KOLs will be preferred when the board is deep enough — Autohire stays until then.
+                </p>
                 <div className="crew-count">
                   <div className="crew-count-head">
                     <span>
@@ -2557,8 +2492,6 @@ export default function App() {
                     {shareTotal}% / 100%
                   </p>
                 </div>
-                </>
-                ) : null}
               </div>
 
               <div className="field field-buy">
@@ -2804,18 +2737,17 @@ export default function App() {
               @CrewPayHQ
             </a>
             {" · "}
-            {PLATFORM_BUYBACK_BPS / 100}% CREW buyback · humans get the rest
+            {PLATFORM_BUYBACK_BPS / 100}% CREW buyback · agents hire · crew gets paid
           </div>
         </footer>
       </div>
       ) : isAgentsPage || isKolsPage || isRegisterPage || isKolProfilePage || isProofPage ? null : (
       <div className="app-shell">
         <section className="section" id="brand">
-          <p className="section-label">Brand kit</p>
-          <h2 className="section-title">CREW look.</h2>
+          <p className="section-label">Assets</p>
+          <h2 className="section-title">CREW marks.</h2>
           <p className="section-sub">
-            Acid on forest. Logos ship as PNG and JPG (plus SVG). Banners and posts
-            too — pick one, download the format CT needs.
+            Optional kit for CT. The product is hire → launch → pay — logos are secondary.
           </p>
 
           <div className="brand-palette" aria-label="Brand colors">

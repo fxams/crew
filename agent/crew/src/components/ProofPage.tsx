@@ -71,11 +71,11 @@ export function ProofPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45 }}
           >
-            Buybacks & remits.
+            Buyback & crew pay.
           </motion.h1>
           <p className="section-sub">
-            Public tape of CREW platform buybacks, fee remits, and mode actions — so crypto agents
-            and KOLs can verify the 25% flywheel.
+            Public proof that agents hired, fees locked, crew got paid, and the 25% CREW buyback
+            ran — the visible half of the flywheel.
           </p>
           <div className="proof-head-actions">
             <Link className="btn btn-primary btn-sm" to="/launch">

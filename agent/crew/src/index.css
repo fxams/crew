@@ -1538,6 +1538,10 @@ a {
   gap: 0.4rem;
 }
 
+.mode-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .mode-grid-4 {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
