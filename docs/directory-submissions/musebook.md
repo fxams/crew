@@ -45,5 +45,6 @@ CrewPay lets Solana agents Autohire KOLs and launch Pump.fun tokens with permane
 | Step | State |
 |------|--------|
 | Card draft | Ready |
-| SIWS register | In progress from ops wallet (rate-limit aware) |
-| Directory verify | Pending successful register |
+| SIWS register | **Stopped** — attempt 1 returned `429 rate_limited` (no `Retry-After`); further attempts cancelled on request |
+| Directory verify | Not listed yet (`search_agents` `crewpay` → empty) |
+| Blocker | Wait out Musebook rate limit, then retry SIWS register from ops keypair (max 4 attempts, 10–20 min apart) |
