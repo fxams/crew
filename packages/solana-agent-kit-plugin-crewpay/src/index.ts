@@ -1,14 +1,14 @@
 /**
  * Solana Agent Kit v2 plugin scaffold for CrewPay.
  * Docs: https://docs.sendai.fun/docs/v2/setup/quickstart
- *
- * Usage:
- *   import { CrewPayPlugin } from '@crewpay/solana-agent-kit-plugin'
- *   const agent = new SolanaAgentKit(...).use(CrewPayPlugin)
  */
 
 import { z } from 'zod'
-import { CrewPayClient, loadCrewPayEnv } from '../../crewpay-rest/src/client.ts'
+import {
+  CrewPayClient,
+  loadCrewPayEnv,
+  SOL_SPEND_CONFIRM_PHRASE,
+} from '../../crewpay-rest/src/client.ts'
 
 const launchBodySchema = z
   .object({
@@ -20,11 +20,18 @@ const launchBodySchema = z
     imageUrl: z.string().url().optional(),
     autoHire: z.object({ seats: z.number().int().min(1).max(10).optional() }).optional(),
     humanConfirmed: z.boolean().optional(),
+    confirmPhrase: z.string().optional(),
+    dryRunToken: z.string().optional(),
   })
   .passthrough()
 
 function api() {
   return new CrewPayClient(loadCrewPayEnv())
+}
+
+function stripGateFields(body: Record<string, unknown>) {
+  const { humanConfirmed: _h, confirmPhrase: _c, dryRunToken: _d, ...rest } = body
+  return rest
 }
 
 export const CrewPayPlugin = {
@@ -35,10 +42,23 @@ export const CrewPayPlugin = {
     crewDryRun: async (_agent: unknown, body: Record<string, unknown>) => api().dryRun(body),
     crewLaunch: async (_agent: unknown, body: Record<string, unknown>) => {
       const parsed = launchBodySchema.parse(body)
-      const { humanConfirmed, ...rest } = parsed
-      return api().launch(rest, { humanConfirmed: humanConfirmed === true })
+      return api().launch(stripGateFields(parsed), {
+        humanConfirmed: parsed.humanConfirmed === true,
+        confirmPhrase: parsed.confirmPhrase || '',
+        dryRunToken: parsed.dryRunToken || '',
+      })
     },
-    crewWireFees: async (_agent: unknown, body: { mint: string; mode?: string }) => api().wireFees(body),
+    crewWireFees: async (
+      _agent: unknown,
+      body: { mint: string; mode?: string; humanConfirmed?: boolean; confirmPhrase?: string },
+    ) =>
+      api().wireFees(
+        { mint: body.mint, mode: body.mode },
+        {
+          humanConfirmed: body.humanConfirmed === true,
+          confirmPhrase: body.confirmPhrase || '',
+        },
+      ),
     crewCrank: async (_agent: unknown, body: { mint: string }) => api().crank(body),
     crewProof: async () => api().proof(),
   },
@@ -68,8 +88,8 @@ export const CrewPayPlugin = {
     {
       name: 'CREW_LAUNCH_DRY_RUN',
       similes: ['crew dry run', 'dry-run launch'],
-      description: 'Dry-run launch — mandatory before CREW_LAUNCH',
-      schema: launchBodySchema.omit({ humanConfirmed: true }),
+      description: 'Dry-run launch — returns dryRunToken required for CREW_LAUNCH',
+      schema: launchBodySchema.omit({ humanConfirmed: true, confirmPhrase: true, dryRunToken: true }),
       handler: async (_agent: unknown, input: Record<string, unknown>) => ({
         status: 'success',
         data: await api().dryRun(input),
@@ -78,26 +98,39 @@ export const CrewPayPlugin = {
     {
       name: 'CREW_LAUNCH',
       similes: ['crew launch', 'launch pump coin'],
-      description:
-        'Mainnet launch after dry-run. Requires humanConfirmed=true. Env launcher key only. Fee map 60/15/25; buyback not live.',
+      description: `Mainnet launch. Requires dryRunToken + humanConfirmed + confirmPhrase ${SOL_SPEND_CONFIRM_PHRASE}. Fee map 60/15/25; buyback not live.`,
       schema: launchBodySchema,
       handler: async (_agent: unknown, input: Record<string, unknown>) => {
         const parsed = launchBodySchema.parse(input)
-        const { humanConfirmed, ...rest } = parsed
         return {
           status: 'success',
-          data: await api().launch(rest, { humanConfirmed: humanConfirmed === true }),
+          data: await api().launch(stripGateFields(parsed), {
+            humanConfirmed: parsed.humanConfirmed === true,
+            confirmPhrase: parsed.confirmPhrase || '',
+            dryRunToken: parsed.dryRunToken || '',
+          }),
         }
       },
     },
     {
       name: 'CREW_WIRE_FEES',
       similes: ['wire fees', 'lock fee shares'],
-      description: 'Wire fee-shares for a mint (POST /api/agent/wire-fees)',
-      schema: z.object({ mint: z.string(), mode: z.string().optional() }),
-      handler: async (_agent: unknown, input: { mint: string; mode?: string }) => ({
+      description: `Wire fee-shares (SOL). Requires humanConfirmed + confirmPhrase ${SOL_SPEND_CONFIRM_PHRASE}.`,
+      schema: z.object({
+        mint: z.string(),
+        mode: z.string().optional(),
+        humanConfirmed: z.boolean(),
+        confirmPhrase: z.string(),
+      }),
+      handler: async (
+        _agent: unknown,
+        input: { mint: string; mode?: string; humanConfirmed: boolean; confirmPhrase: string },
+      ) => ({
         status: 'success',
-        data: await api().wireFees(input),
+        data: await api().wireFees(
+          { mint: input.mint, mode: input.mode },
+          { humanConfirmed: input.humanConfirmed, confirmPhrase: input.confirmPhrase },
+        ),
       }),
     },
     {
@@ -118,9 +151,7 @@ export const CrewPayPlugin = {
       handler: async () => ({ status: 'success', data: await api().proof() }),
     },
   ],
-  initialize() {
-    // no-op — keys read from process.env at call time
-  },
+  initialize() {},
 }
 
 export default CrewPayPlugin
