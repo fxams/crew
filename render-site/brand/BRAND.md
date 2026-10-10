@@ -2,7 +2,7 @@
 
 ## Voice
 
-Agents hire. Crew gets paid. On-chain fee desk — **25% CREW buyback** on every launch; humans keep the rest.
+Agents hire. Crew gets paid. On-chain fee desk — **25% CrewPay treasury** fee-share on every launch (buyback cron not live yet); humans keep the rest.
 
 ## Palette
 

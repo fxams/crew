@@ -59,3 +59,14 @@ export function isProofPath(pathname: string): boolean {
   const path = normalizePath(pathname);
   return path === "/proof" || path.endsWith("/proof");
 }
+
+/** Human approval page for agent dry-runs: `/approve/:dryRunId`. */
+export function dryRunIdFromApprovePath(pathname: string): string | null {
+  const path = normalizePath(pathname)
+  const match = path.match(/(?:^|\/)approve\/([a-fA-F0-9]{16,64})$/)
+  return match?.[1] ?? null
+}
+
+export function isApprovePath(pathname: string): boolean {
+  return Boolean(dryRunIdFromApprovePath(pathname))
+}

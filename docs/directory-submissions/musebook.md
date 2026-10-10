@@ -20,7 +20,7 @@ CrewPay lets Solana agents Autohire KOLs and launch Pump.fun tokens with permane
 - llms.txt: https://crewpay.dev/llms.txt  
 - OpenAPI: https://api.crewpay.dev/openapi.json  
 - Hosted MCP: https://mcp.crewpay.dev/mcp  
-- Local MCP: `npx -y crewpay-mcp@1.2.1`  
+- Local MCP: `npx -y crewpay-mcp@1.2.2`  
 - ClawHub: `openclaw skills install @fxams/crewpay`  
 - Official MCP Registry: `io.github.fxams/crewpay-mcp`  
 - ClawPump agent: https://clawpump.tech/agent/0d006dbb-3c21-4d14-b36b-3fcea74d0722  

@@ -1,13 +1,9 @@
 /**
  * GOAT SDK plugin scaffold for CrewPay.
- * Prefer MCP: npx -y crewpay-mcp@1.2.1 or https://mcp.crewpay.dev/mcp
+ * Prefer MCP: npx -y crewpay-mcp@1.2.2 or https://mcp.crewpay.dev/mcp
  */
 
-import {
-  CrewPayClient,
-  loadCrewPayEnv,
-  SOL_SPEND_CONFIRM_PHRASE,
-} from './client.js'
+import { CrewPayClient, loadCrewPayEnv } from './client.js'
 
 export type CrewPayGoatOptions = {
   apiUrl?: string
@@ -34,37 +30,21 @@ export class CrewPayGoatService {
   }
 
   /**
-   * Spends SOL. Requires dryRunToken from dry-run + confirmPhrase APPROVE_SOL_SPEND + humanConfirmed.
+   * Spends SOL. Requires dryRunId from dry-run after human approval on approvalUrl.
    */
   async crewpay_launch(
     params: Record<string, unknown> & {
-      humanConfirmed?: boolean
-      confirmPhrase?: string
-      dryRunToken?: string
+      dryRunId?: string
     },
   ) {
-    const { humanConfirmed, confirmPhrase, dryRunToken, ...rest } = params
+    const { dryRunId, humanConfirmed: _h, confirmPhrase: _c, dryRunToken: _t, ...rest } = params
     return api(this.opts).launch(rest, {
-      humanConfirmed: humanConfirmed === true,
-      confirmPhrase: confirmPhrase || '',
-      dryRunToken: dryRunToken || '',
+      dryRunId: dryRunId || '',
     })
   }
 
-  async crewpay_wire_fees(params: {
-    mint: string
-    mode?: string
-    humanConfirmed?: boolean
-    confirmPhrase?: string
-  }) {
-    const { humanConfirmed, confirmPhrase, mint, mode } = params
-    return api(this.opts).wireFees(
-      { mint, mode },
-      {
-        humanConfirmed: humanConfirmed === true,
-        confirmPhrase: confirmPhrase || '',
-      },
-    )
+  async crewpay_wire_fees(params: { mint: string; mode?: string }) {
+    return api(this.opts).wireFees({ mint: params.mint, mode: params.mode })
   }
 
   async crewpay_crank(params: { mint: string }) {
@@ -79,8 +59,9 @@ export class CrewPayGoatService {
 export function crewpay(options: CrewPayGoatOptions = {}) {
   return {
     name: 'crewpay',
-    description: `CrewPay — Pump.fun KOL Autohire + fee-shares (60/15/25). Buyback not live. Dry-run token + ${SOL_SPEND_CONFIRM_PHRASE} before launch.`,
-    service: new CrewPayGoatService(options),
+    description:
+      'CrewPay — Pump.fun KOL Autohire + fee-shares (60/15/25). Buyback not live. Dry-run → approvalUrl → launch with dryRunId.',
+    tools: new CrewPayGoatService(options),
   }
 }
 

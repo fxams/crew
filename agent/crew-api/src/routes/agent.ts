@@ -14,6 +14,13 @@ import { planNarrativeHires } from '../lib/agent/narrative.js'
 import { awardReferralHirePointsForCrew } from '../lib/kol-register.js'
 import { listRegisteredHireBoosts } from '../lib/registered-hires.js'
 import {
+  approveDryRun,
+  createDryRun,
+  getDryRun,
+  consumeApprovedDryRun,
+  publicDryRunView,
+} from '../lib/agent/dry-run-store.js'
+import {
   dryRunLaunchForAgent,
   launchForAgent,
   launchNextSteps,
@@ -138,6 +145,11 @@ const launchBodySchema = z
     atomicRequired: z.boolean().optional().default(false),
     /** Optional public launcher address for dry-run balance checks only. */
     launcherPubkey: solanaAddress.optional(),
+    /**
+     * Required for real launches: id from POST /api/agent/launch/dry-run after
+     * human approval on the approvalUrl page.
+     */
+    dryRunId: z.string().min(16).max(64).optional(),
   })
   .superRefine(refineLaunchBody)
 
@@ -280,11 +292,64 @@ agentRouter.post('/agent/launch/dry-run', requireAgentApiKey, async (req, res) =
     const result = await dryRunLaunchForAgent(bodyToLaunchInput(body), {
       launcherPubkey: body.launcherPubkey,
     })
-    res.json(result)
+    const rec = createDryRun({
+      apiKeyFp: fp,
+      body: body as unknown as Record<string, unknown>,
+      plan: result,
+    })
+    const site = (process.env.CREW_SITE_URL || 'https://crewpay.dev').replace(/\/$/, '')
+    const approvalUrl = `${site}/approve/${rec.id}?t=${encodeURIComponent(rec.approveToken)}`
+    res.json({
+      ...result,
+      dryRunId: rec.id,
+      approvalUrl,
+      expiresAt: new Date(rec.expiresAt).toISOString(),
+      tip: 'Open approvalUrl in a browser and confirm before calling POST /api/agent/launch with the same body + dryRunId.',
+    })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'dry-run failed'
     const status = /unauthorized|api key/i.test(msg) ? 401 : 400
     res.status(status).json({ ok: false, error: msg })
+  }
+})
+
+/** Public read of a dry-run plan (for the human approval page). */
+agentRouter.get('/agent/launch/dry-run/:id', async (req, res) => {
+  const rec = getDryRun(String(req.params.id || ''))
+  if (!rec) {
+    res.status(404).json({ ok: false, error: 'Unknown or expired dryRunId' })
+    return
+  }
+  res.json({ ok: true, ...publicDryRunView(rec) })
+})
+
+/** Human approval — requires the one-time approve token from dry-run (query or body). */
+agentRouter.post('/agent/launch/dry-run/:id/approve', async (req, res) => {
+  try {
+    const id = String(req.params.id || '')
+    const token = String(
+      (req.body && typeof req.body === 'object' && 'token' in req.body
+        ? (req.body as { token?: string }).token
+        : '') ||
+        req.query.t ||
+        req.query.token ||
+        '',
+    ).trim()
+    if (!token) {
+      res.status(400).json({ ok: false, error: 'Missing approval token' })
+      return
+    }
+    const rec = approveDryRun(id, token)
+    res.json({
+      ok: true,
+      dryRunId: rec.id,
+      approved: true,
+      approvedAt: new Date(rec.approvedAt!).toISOString(),
+      tip: 'Dry-run approved. Call POST /api/agent/launch with the same launch body + dryRunId.',
+    })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'approve failed'
+    res.status(400).json({ ok: false, error: msg })
   }
 })
 
@@ -313,6 +378,27 @@ agentRouter.post('/agent/launch', requireAgentApiKey, async (req, res) => {
     }
 
     const body = launchBodySchema.parse(req.body)
+    if (!body.dryRunId) {
+      res.status(400).json({
+        ok: false,
+        error:
+          'dryRunId required — call POST /api/agent/launch/dry-run, open approvalUrl to confirm, then launch with dryRunId',
+      })
+      return
+    }
+    try {
+      consumeApprovedDryRun({
+        dryRunId: body.dryRunId,
+        apiKeyFp: fp,
+        body: body as unknown as Record<string, unknown>,
+      })
+    } catch (err) {
+      res.status(400).json({
+        ok: false,
+        error: err instanceof Error ? err.message : 'dry-run gate failed',
+      })
+      return
+    }
     const launcher = parseLauncherKey(resolveLauncherKey(req))
     let result = await launchForAgent(bodyToLaunchInput(body), launcher)
     if (!result.ok) {

@@ -51,7 +51,7 @@ Legacy alias: https://crewpay-api.onrender.com (see `agent/crew/DOMAINS.md` for 
 
 ## Agent launch API
 
-AI agents can launch Pump coins with CREW fee-shares (25% CREW buyback + hired KOL wallets) without the browser desk.
+AI agents can launch Pump coins with CREW fee-shares (25% CrewPay treasury + hired KOL wallets; buyback cron not live yet) without the browser desk.
 
 ### Auth
 

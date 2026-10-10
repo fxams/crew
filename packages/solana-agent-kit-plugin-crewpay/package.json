@@ -1,7 +1,7 @@
 {
   "name": "crewpay-solana-agent-kit-plugin",
   "version": "0.1.1",
-  "description": "Solana Agent Kit plugin for CrewPay \u2014 discover/autohire/dry-run/launch/wire/crank/proof. Fee map 60/15/25; buyback not live; dryRunToken + APPROVE_SOL_SPEND required.",
+  "description": "Solana Agent Kit plugin for CrewPay \u2014 discover/autohire/dry-run/launch/wire/crank/proof. Fee map 60/15/25; buyback not live; dryRunId after approvalUrl required.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

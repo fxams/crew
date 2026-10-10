@@ -1,7 +1,7 @@
 {
   "name": "crewpay-goat-plugin",
   "version": "0.1.1",
-  "description": "GOAT SDK plugin for CrewPay REST tools. Fee map 60/15/25; buyback not live; dryRunToken + APPROVE_SOL_SPEND before launch.",
+  "description": "GOAT SDK plugin for CrewPay REST tools. Fee map 60/15/25; buyback not live; dryRunId after approvalUrl before launch.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

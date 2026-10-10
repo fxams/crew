@@ -33,7 +33,7 @@ export function ReceiptCard({ coin, onCopy, copied }: Props) {
         ))}
       </div>
       <div className="receipt-foot">
-        <span>{PLATFORM_BUYBACK_BPS / 100}% CREW buyback</span>
+        <span>{PLATFORM_BUYBACK_BPS / 100}% CrewPay treasury</span>
         <span>mainnet</span>
       </div>
       <button className="btn btn-ghost btn-sm receipt-copy" type="button" onClick={onCopy}>

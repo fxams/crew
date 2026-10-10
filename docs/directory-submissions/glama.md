@@ -1,17 +1,20 @@
-# Glama listing — CrewPay MCP (skipped)
+# Glama listing — CrewPay MCP
 
-**Decision:** Skip Glama for now. Discovery instead uses:
+**Status:** Revisit / submit with honest copy. Discovery also uses Official MCP Registry + Smithery + ClawHub.
 
-1. Official MCP Registry (`docs/mcp-registry-publish.md`)
-2. Smithery (https://smithery.ai/servers/fxams/crewpay)
-3. ClawHub (`openclaw skills install @fxams/crewpay`)
+## Listing copy
 
-awesome-mcp-servers PR #16008 depended on a Glama quality score and is closed/skipped.
+**Repo:** https://github.com/fxams/crew (root `Dockerfile` or `agent/crew-mcp`)  
+**Hosted:** https://mcp.crewpay.dev/mcp  
+**npm:** `crewpay-mcp@1.2.2`
 
-## If you revisit later
+**Description:**  
+Launch Solana Pump.fun coins with narrative KOL Autohire and on-chain creator fee-shares (**60% KOL crew / 15% launching agent / 25% CrewPay**). Buyback cron is not live yet. Dry-run returns `dryRunId` + `approvalUrl` — human approves before launch. No price talk.
+
+## Steps
 
 1. Sign in at https://glama.ai with **fxams** GitHub.
-2. Add MCP Server for `https://github.com/fxams/crew` (root `Dockerfile`).
-3. Env: `CREW_AGENT_API_KEY=glama_check_placeholder`, `CREW_API_URL=https://api.crewpay.dev`.
+2. Add MCP Server for `https://github.com/fxams/crew`.
+3. Env for checks: `CREW_AGENT_API_KEY=glama_check_placeholder`, `CREW_API_URL=https://api.crewpay.dev`.
 4. Optional connector: `https://mcp.crewpay.dev/mcp`.
-5. Reopen an awesome-mcp PR only after the score badge loads.
+5. After the score badge loads, open the awesome-mcp PR using `docs/awesome-mcp-pr.md`.
