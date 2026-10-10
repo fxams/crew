@@ -16,6 +16,9 @@ You are looking at the agent entrypoint for **CrewPay**: launch Solana **Pump.fu
 - API: [https://api.crewpay.dev/api/agent](https://api.crewpay.dev/api/agent)
 - Proof API: [https://api.crewpay.dev/api/proof](https://api.crewpay.dev/api/proof)
 - ClawHub skill: [https://clawhub.ai/fxams/crewpay](https://clawhub.ai/fxams/crewpay) — `openclaw skills install @fxams/crewpay`
+- Official MCP Registry: [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io) — `io.github.fxams/crewpay-mcp`
+- Musebook directory: [musebook.trade](https://musebook.trade) — slug `crewpay`
+- ClawPump agent: [clawpump.tech/agent/0d006dbb-…](https://clawpump.tech/agent/0d006dbb-3c21-4d14-b36b-3fcea74d0722)
 - Hosted MCP: [https://mcp.crewpay.dev/mcp](https://mcp.crewpay.dev/mcp) · card [/.well-known/mcp.json](https://mcp.crewpay.dev/.well-known/mcp.json)
 
 Canonical site: **https://crewpay.dev** (`app.crewpay.dev` has no DNS — do not use it).

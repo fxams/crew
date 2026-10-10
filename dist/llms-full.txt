@@ -4,7 +4,7 @@ For: OpenAI GPT / ChatGPT / o-series; Anthropic Claude; Google Gemini; xAI Grok;
 
 ## What this is
 
-CrewPay lets an AI agent launch a Solana Pump.fun coin and permanently split creator fees to hired KOL wallets + a 25% CREW buyback cut — without using the browser desk.
+CrewPay lets an AI agent launch a Solana Pump.fun coin and permanently split creator fees (**60% KOL crew / 15% launching agent / 25% CrewPay**) — without using the browser desk. Buyback cron is not live yet. Always dry-run first; no price talk.
 
 Base URL: https://api.crewpay.dev
 Human site: https://crewpay.dev
@@ -36,11 +36,32 @@ GET https://crewpay.dev/robots.txt
 
 | Header | Required | Purpose |
 |--------|----------|---------|
-| x-crew-api-key | yes | CREW_AGENT_API_KEY (not the browser board key) |
-| x-launcher-key | launch | Agent wallet secret (base58 or JSON byte array) |
+| x-crew-api-key | yes (writes) | `crew_ak_…` from POST /api/agent/keys/claim (self-serve) or operator CREW_AGENT_API_KEY |
+| x-launcher-key | launch / wire / lock (optional on crank) | Agent wallet secret (base58 or JSON byte array). Crank is permissionless — omit and server uses CREW_OPS_KEY when set. |
 | x-idempotency-key | optional | Prevents duplicate launches on retry |
 
-Never echo or log x-launcher-key. Check `feeShareLocked` on every launch response.
+Self-serve key mint (no operator):
+
+```http
+POST https://api.crewpay.dev/api/agent/keys/claim
+Content-Type: application/json
+
+{ "label": "agent", "agentName": "DeskBot", "model": "claude" }
+```
+
+Returns `crew_ak_…` once (5 claims/hour/IP, default 5 launches/hour). Never echo or log x-launcher-key. Check `feeShareLocked` on every launch response. Launch prefers atomic create+fee-lock + auto wire retry; HTTP 202 → `crew_wire_fees({ mint })` (crew optional). List your mints via GET /api/agent/launches or MCP `crew_list_launches`.
+
+## Description attribution
+
+Every launch appends **Launched from CrewPay.dev platform** when missing. Keep the user `description` ≤**204** characters so the final on-chain vibe is ≤240. Dry-run returns `vibe` (final) and `attribution`.
+
+## Own wallet / local MCP
+
+- Hosted MCP `https://mcp.crewpay.dev/mcp` is **publicMode**: pass `x-crew-api-key`; it cannot use your launcher secret.
+- Local package (pinned): `npx -y crewpay-mcp@1.2.0` with env `CREW_AGENT_API_KEY` + `CREW_LAUNCHER_KEY` (never tool args).
+- ClawHub skill: `openclaw skills install @fxams/crewpay`
+- Or REST from your backend with `x-launcher-key`. Site: **https://crewpay.dev** only (`app.crewpay.dev` has no DNS).
+- Crank remits: `POST /api/agent/crank` with body `{ "mint" }` (MCP tool name remains `crew_crank_remits`).
 
 ## 1) Preview Autohire
 
@@ -86,7 +107,7 @@ x-idempotency-key: unique-client-retry-key
 
 `agent.model` is a free-form label — use values like `gpt`, `claude`, `gemini`, `grok`, `llama`, `deepseek`, `mistral`, `cursor`, etc.
 
-Success: HTTP 201 with `mint`, `signature`, `feeShareSignature`, `pumpUrl`, `crew`, `hirePlan`.
+Success: HTTP 201 with `mint`, `signature`, `feeShareSignature`, `pumpUrl`, `crew` (with `effectiveBps`), `shareholders`, `hirePlan` (null when explicit crew[]), `lockPath`, `createSlot`/`lockSlot`, `preLockCreatorFeesLamports` (sequential only). Optional body `atomicRequired: true` refuses sequential fallback. `GET /api/agent` exposes `build.commit` so clients can confirm the deploy.
 
 ## 0) Dry-run (recommended)
 
@@ -102,15 +123,17 @@ Returns planned crew, fee map, SOL estimate, warnings — **no mint, no secret r
 
 ## Rules agents must follow
 
-- Provide `imageUrl` or `imageBase64`
+- Provide `imageUrl` or `imageBase64` (PNG/JPEG/WebP/GIF magic bytes; SVG rejected)
 - Provide `crew[]` or `autoHire` (or `holderKol: true`)
 - When `crew[]` is set, shares must total **100%**
+- Keep `description` ≤204 chars (attribution makes final ≤240)
 - Launcher wallet pays Pump create fees and is the on-chain creator
 - Prefer `autoHire` unless the user named specific wallets — Autohire ≠ consent
-- Do not invent keys — the operator must supply CREW_AGENT_API_KEY (or mint via POST /api/agent/keys)
-- Never put Solana secrets in tool arguments / prompts — MCP env only
+- Mint a key via crew_claim_key or POST /api/agent/keys/claim (do not invent keys)
+- Never put Solana secrets in tool arguments / prompts — MCP env only (`launcherKey`/`privateKey`/`secretKey` args are rejected)
 - Prefer dry-run before launch; cluster is **mainnet-beta** only
 - Treat HTTP 202 / feeShareLocked=false as incomplete — follow `nextSteps` / wire fees before celebrating
+- Prefer atomic create+fee-lock; if a warning says follow-up fee lock, snipers may have skimmed early fees
 
 ## Related human product
 
