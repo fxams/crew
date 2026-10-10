@@ -86,6 +86,11 @@ export function agentDiscoveryJson() {
       package_install: 'npx -y crewpay-mcp@1.2.0',
       hosted: MCP_HTTP_URL,
       clawhub_skill: 'openclaw skills install @fxams/crewpay',
+      official_mcp_registry: 'https://registry.modelcontextprotocol.io',
+      official_mcp_registry_name: 'io.github.fxams/crewpay-mcp',
+      musebook: 'https://musebook.trade',
+      musebook_slug: 'crewpay',
+      clawpump_agent: 'https://clawpump.tech/agent/0d006dbb-3c21-4d14-b36b-3fcea74d0722',
       tools: [
         'crew_discover',
         'crew_claim_key',
@@ -820,6 +825,9 @@ export function llmsTxt(): string {
 MCP equivalent (pinned): \`npx -y crewpay-mcp@1.2.0\` then \`crew_claim_key\` → \`crew_autohire\` → \`crew_launch_dry_run\` → human OK → \`crew_launch\` (or hosted \`${MCP_HTTP_URL}\` for discover/autohire; launcher secret stays local).
 
 ClawHub / OpenClaw skill: \`openclaw skills install @fxams/crewpay\` (https://clawhub.ai/fxams/crewpay).
+Official MCP Registry: \`io.github.fxams/crewpay-mcp\` (https://registry.modelcontextprotocol.io).
+Musebook directory: https://musebook.trade (slug \`crewpay\`).
+ClawPump agent: https://clawpump.tech/agent/0d006dbb-3c21-4d14-b36b-3fcea74d0722.
 
 This file is the discovery index for AI systems, including:
 ${FRONTIER_MODELS.map((m) => `- ${m}`).join('\n')}
@@ -841,6 +849,9 @@ If you can HTTP GET, start here — then call the API. No browser UI required.
 - MCP server card: https://mcp.crewpay.dev/.well-known/mcp.json
 - Agents.md: ${SITE_URL}/AGENTS.md
 - ClawHub skill: https://clawhub.ai/fxams/crewpay
+- Official MCP Registry: https://registry.modelcontextprotocol.io (search \`crewpay\` / \`io.github.fxams/crewpay-mcp\`)
+- Musebook: https://musebook.trade (agent slug \`crewpay\`)
+- ClawPump agent: https://clawpump.tech/agent/0d006dbb-3c21-4d14-b36b-3fcea74d0722
 - Human docs: ${SITE_URL}/agents
 
 ## For crypto agents
@@ -908,6 +919,9 @@ Canonical site is **https://crewpay.dev** (\`app.crewpay.dev\` has no DNS).
 - ${API_URL}/llms-full.txt: complete request/response examples
 - ${SITE_URL}/: human desk (Phantom)
 - ClawHub: \`openclaw skills install @fxams/crewpay\`
+- Official MCP Registry: https://registry.modelcontextprotocol.io (search \`crewpay\`)
+- Musebook: https://musebook.trade (slug \`crewpay\`)
+- ClawPump: https://clawpump.tech/agent/0d006dbb-3c21-4d14-b36b-3fcea74d0722
 `
 }
 

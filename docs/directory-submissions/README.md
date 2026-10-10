@@ -9,8 +9,8 @@ Glama + awesome-mcp-servers are **skipped** (Glama scoring is optional and block
 | Smithery | Live — refresh anytime | [smithery.md](./smithery.md) |
 | ClawHub skill | Published `@fxams/crewpay` | repo `skills/crewpay/` |
 | mcp.so | Optional paid draft | [mcp-so.md](./mcp-so.md) |
-| Musebook | Draft ready — **wallet SIWS blocked here** | [musebook.md](./musebook.md) |
-| ClawPump | Draft ready — **API token blocked here** | [clawpump.md](./clawpump.md) |
+| Musebook | SIWS register via ops wallet (`slug=crewpay`) | [musebook.md](./musebook.md) |
+| ClawPump | **Live agent** — marketplace listing optional | [clawpump.md](./clawpump.md) |
 | Glama | **Skipped** | [glama.md](./glama.md) (kept for later) |
 | awesome-mcp-servers | **Closed / skipped** | Was #16008 — required Glama score |
 

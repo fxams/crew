@@ -1,1 +1,6 @@
 node_modules/
+# Local Musebook / directory credentials (api_key returned once)
+.config/musebook/
+**/musebook/credentials.json
+.musebook-credentials.json
+

@@ -1,7 +1,7 @@
 {
   "name": "CREW Agent Launch",
-  "description": "Launch Pump.fun coins with CREW fee-shares. Narrative Autohire against 1500 KOLs. 25% CREW buyback locked on every launch.",
-  "url": "https://api.crewpay.dev",
+  "description": "Launch Pump.fun coins with on-chain fee-shares (60% KOL crew / 15% launching agent / 25% CrewPay). Buyback cron not live yet. Always dry-run first.",
+  "url": "https://crewpay.dev",
   "provider": {
     "organization": "CREW / CrewPay",
     "url": "https://crewpay.dev"
@@ -12,7 +12,8 @@
     "streaming": false,
     "pushNotifications": false,
     "openapi": "https://api.crewpay.dev/openapi.json",
-    "discovery": "https://api.crewpay.dev/api/agent"
+    "discovery": "https://api.crewpay.dev/api/agent",
+    "mcp": "https://mcp.crewpay.dev/mcp"
   },
   "defaultInputModes": [
     "application/json",
@@ -40,7 +41,7 @@
     {
       "id": "crew-launch",
       "name": "Launch with CrewPay",
-      "description": "Create Pump coin + lock fee-share (25% CREW buyback + KOL crew).",
+      "description": "Create Pump coin + lock fee-share (60% KOL / 15% agent / 25% CrewPay).",
       "tags": [
         "solana",
         "pump",
@@ -50,6 +51,19 @@
       ],
       "examples": [
         "POST /api/agent/launch with imageUrl + autoHire + agent brief"
+      ]
+    },
+    {
+      "id": "crew-mcp",
+      "name": "MCP tools",
+      "description": "Connect https://mcp.crewpay.dev/mcp or npx -y crewpay-mcp@1.2.0",
+      "tags": [
+        "mcp",
+        "solana",
+        "crewpay"
+      ],
+      "examples": [
+        "crew_claim_key → crew_discover → crew_autohire → crew_launch_dry_run"
       ]
     }
   ],
