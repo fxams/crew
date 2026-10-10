@@ -26,6 +26,17 @@ export function kolProfilePath(username: string): string {
   return `/kol/${encodeURIComponent(handle)}`
 }
 
+/** Claim pitch for a paid KOL: `/claim/:handle`. */
+export function claimHandleFromPath(pathname: string): string | null {
+  const path = normalizePath(pathname)
+  const match = path.match(/(?:^|\/)claim\/([A-Za-z0-9_]{1,15})$/)
+  return match?.[1] ?? null
+}
+
+export function isClaimPath(pathname: string): boolean {
+  return Boolean(claimHandleFromPath(pathname))
+}
+
 /** Opt-in KOL registration portal (X + Solana). */
 export function isRegisterPath(pathname: string): boolean {
   const path = normalizePath(pathname);

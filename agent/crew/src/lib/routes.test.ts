@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { isAgentsPath, isKolsPath, isLaunchPath, isProofPath, isRegisterPath } from "./routes";
+import {
+  claimHandleFromPath,
+  isAgentsPath,
+  isClaimPath,
+  isKolsPath,
+  isLaunchPath,
+  isProofPath,
+  isRegisterPath,
+} from "./routes";
 
 describe("isLaunchPath", () => {
   it("keeps the launch desk off the home page", () => {
@@ -56,5 +64,14 @@ describe("isProofPath", () => {
     expect(isProofPath("/crew/proof")).toBe(true);
     expect(isProofPath("/")).toBe(false);
     expect(isProofPath("/agents")).toBe(false);
+  });
+});
+
+describe("claim paths", () => {
+  it("matches /claim/:handle", () => {
+    expect(isClaimPath("/claim/CrewPayHQ")).toBe(true);
+    expect(claimHandleFromPath("/claim/CrewPayHQ")).toBe("CrewPayHQ");
+    expect(isClaimPath("/claim/")).toBe(false);
+    expect(isClaimPath("/kol/CrewPayHQ")).toBe(false);
   });
 });

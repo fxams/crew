@@ -3008,6 +3008,63 @@ a {
   padding-bottom: max(4.5rem, calc(var(--cta-h) + 1.25rem));
 }
 
+.kol-verified {
+  color: var(--acid);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.claim-card,
+.desk-share-card {
+  display: grid;
+  gap: 0.65rem;
+  padding: 1.15rem 1.2rem;
+  margin: 0.85rem 0 1.25rem;
+  border: 1px solid rgba(200, 255, 61, 0.28);
+  background:
+    radial-gradient(380px 160px at 100% 0%, rgba(200, 255, 61, 0.14), transparent 55%),
+    linear-gradient(180deg, rgba(200, 255, 61, 0.06), rgba(8, 16, 12, 0.25));
+}
+
+.claim-sol {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 8vw, 3.4rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.claim-sol span {
+  font-size: 0.45em;
+  color: var(--muted);
+  letter-spacing: 0;
+}
+
+.desk-share-body {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.desk-share-body strong {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+}
+
+.desk-share-body span {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.desk-share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
 .desk-hero {
   display: grid;
   grid-template-columns: 112px minmax(0, 1fr) auto;

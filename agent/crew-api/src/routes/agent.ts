@@ -11,6 +11,7 @@ import {
   setIdempotent,
 } from '../lib/agent/idempotency.js'
 import { planNarrativeHires } from '../lib/agent/narrative.js'
+import { listRegisteredHireBoosts } from '../lib/registered-hires.js'
 import {
   dryRunLaunchForAgent,
   launchForAgent,
@@ -28,6 +29,7 @@ import {
 import { assertSafeHttpUrl } from '../lib/agent/safe-url.js'
 import { parseLauncherKey, resolveOpsPayer } from '../lib/agent/send.js'
 import { solanaAddress } from '../lib/agent/solana-address.js'
+import { draftMentionFromRemit } from '../lib/kol-mentions.js'
 import { emitWebhookEvent } from '../lib/webhooks.js'
 
 export const agentRouter = Router()
@@ -190,14 +192,16 @@ agentRouter.post('/agent/autohire', requireAgentApiKey, async (req, res) => {
       })
       return
     }
+    const registered = await listRegisteredHireBoosts()
     const plan = planNarrativeHires(
       { name: body.name, ticker: body.ticker, vibe: body.description },
-      { limit: body.seats },
+      { limit: body.seats, registered },
     )
     res.json({
       ok: true,
       seats: body.seats,
       match: plan.match,
+      registeredPreferred: registered.length,
       hires: plan.hires.map((h) => ({
         rank: h.hireRank,
         handle: `@${h.kol.x || h.kol.pump}`,
@@ -210,10 +214,11 @@ agentRouter.post('/agent/autohire', requireAgentApiKey, async (req, res) => {
         role: h.role,
         reasons: h.reasons,
         score: h.score,
+        registered: h.reasons.some((r) => /registered crew/i.test(r)),
       })),
       crew: plan.crew,
       disclaimer: AUTOHIRE_DISCLAIMER,
-      tip: 'Inspect hires/reasons, optionally remix via crew[] on launch, or keep autoHire. Listing ≠ consent.',
+      tip: 'Registered KOLs are preferred when they match the narrative. Inspect hires/reasons, remix via crew[], or keep autoHire. Listing ≠ consent.',
     })
   } catch (err) {
     res.status(400).json({ error: err instanceof Error ? err.message : 'autohire failed' })
@@ -516,6 +521,11 @@ agentRouter.post('/agent/crank', requireAgentApiKey, async (req, res) => {
       mint: result.mint,
       signature: result.signature,
     })
+    // Draft a @CrewPayHQ tag for operator approval — never auto-posts.
+    void draftMentionFromRemit({
+      mint: result.mint,
+      signature: result.signature,
+    }).catch(() => undefined)
     res.json(result)
   } catch (err) {
     res.status(400).json({ ok: false, error: err instanceof Error ? err.message : 'crank failed' })

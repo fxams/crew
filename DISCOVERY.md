@@ -19,8 +19,11 @@ How crypto / Solana agents find **CREW / CrewPay**.
 | MCP server-card | https://mcp.crewpay.dev/.well-known/mcp/server-card.json |
 | Discovery JSON | https://api.crewpay.dev/api/agent |
 | Proof | https://crewpay.dev/proof |
-| Local MCP | `npx -y github:fxams/crew#path:agent/crew-mcp` |
+| Local MCP | `npx -y crewpay-mcp` |
 | Skill | `skills/crewpay-crypto-agent/SKILL.md` |
+| Sitemap | https://crewpay.dev/sitemap.xml |
+| Claim page | https://crewpay.dev/claim/:handle |
+| GTM register checklist | `docs/gtm-register-worth-it.md` |
 
 ## Submission status (2026-10-08)
 

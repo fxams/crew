@@ -320,13 +320,20 @@ function scoreKolForLaunch(
   return { score, reasons, narrativeHits }
 }
 
+export type RegisteredHireBoost = { handle: string; wallet: string }
+
 /**
  * Rank KOLs for a launch narrative — primary-tag fit first, then pack correlation,
  * role diversity, and follower reach. Returns up to `limit` hires with equal shares.
+ * Registered crew get priority and their linked wallet replaces the scraped one.
  */
 export function planNarrativeHires(
   input: { name?: string; ticker?: string; vibe?: string },
-  opts?: { limit?: number; minFollowers?: number },
+  opts?: {
+    limit?: number
+    minFollowers?: number
+    registered?: RegisteredHireBoost[]
+  },
 ): NarrativeHirePlan {
   const limit = Math.max(1, Math.min(MAX_CREW, opts?.limit ?? 3))
   const minFollowers = opts?.minFollowers ?? 5_000
@@ -335,6 +342,12 @@ export function planNarrativeHires(
   const blob = [input.name, input.ticker, input.vibe].filter(Boolean).join(' ')
   const inputTokens = new Set(tokenize(blob))
   const ticker = (input.ticker || '').toUpperCase()
+  const registeredByHandle = new Map(
+    (opts?.registered || [])
+      .filter((r) => r.handle && r.wallet.length >= 32)
+      .map((r) => [normHandle(r.handle), r.wallet] as const),
+  )
+  const preferRegistered = registeredByHandle.size >= 1
 
   type Scored = {
     kol: KolRecord
@@ -342,6 +355,7 @@ export function planNarrativeHires(
     reasons: string[]
     narrativeHits: number
     primaryHit: boolean
+    registered: boolean
   }
 
   const scored: Scored[] = KOL_DB.filter(
@@ -352,18 +366,37 @@ export function planNarrativeHires(
   )
     .map((kol) => {
       const s = scoreKolForLaunch(kol, match, inputTokens, ticker)
+      let score = s.score
+      const reasons = [...s.reasons]
+      let hireWallet = kol.wallet
+      let registered = false
+      const handles = [kol.pump, kol.x, ...(kol.aliases || [])]
+        .filter(Boolean)
+        .map((h) => normHandle(String(h)))
+      for (const h of handles) {
+        const regWallet = registeredByHandle.get(h)
+        if (regWallet) {
+          registered = true
+          hireWallet = regWallet
+          score += preferRegistered ? 48 : 24
+          reasons.unshift('registered crew')
+          break
+        }
+      }
       return {
-        kol,
-        score: s.score,
-        reasons: s.reasons,
+        kol: registered && hireWallet !== kol.wallet ? { ...kol, wallet: hireWallet } : kol,
+        score,
+        reasons,
         narrativeHits: s.narrativeHits,
         primaryHit: primary ? kol.narratives.includes(primary) : false,
+        registered,
       }
     })
-    .filter((s) => s.narrativeHits > 0 || s.score >= 12)
+    .filter((s) => s.narrativeHits > 0 || s.score >= 12 || s.registered)
 
   scored.sort(
     (a, b) =>
+      Number(b.registered) - Number(a.registered) ||
       Number(b.primaryHit) - Number(a.primaryHit) ||
       b.score - a.score ||
       a.kol.rank - b.kol.rank,
@@ -441,7 +474,7 @@ export function planNarrativeHires(
 /** Apply hire plan onto a launch draft (replaces crew). */
 export function applyNarrativeHire(
   draft: LaunchDraft,
-  opts?: { limit?: number },
+  opts?: { limit?: number; registered?: RegisteredHireBoost[] },
 ): { draft: LaunchDraft; plan: NarrativeHirePlan } {
   const plan = planNarrativeHires(
     { name: draft.name, ticker: draft.ticker, vibe: draft.vibe },

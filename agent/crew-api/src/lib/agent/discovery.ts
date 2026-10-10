@@ -83,7 +83,7 @@ export function agentDiscoveryJson() {
       manifest: MCP_MANIFEST_URL,
       package: 'crewpay-mcp',
       package_install:
-        'npx -y github:fxams/crew#path:agent/crew-mcp  (or clone repo → agent/crew-mcp)',
+        'npx -y crewpay-mcp',
       tools: [
         'crew_discover',
         'crew_claim_key',
@@ -795,7 +795,7 @@ export function agentCard(origin: 'site' | 'api' = 'api') {
         id: 'crew-mcp',
         name: 'MCP tools',
         description:
-          'Connect https://mcp.crewpay.dev/mcp or npx github:fxams/crew#path:agent/crew-mcp',
+          'Connect https://mcp.crewpay.dev/mcp or npx -y crewpay-mcp',
         tags: ['mcp', 'solana', 'crewpay'],
         examples: ['crew_claim_key → crew_discover → crew_autohire → crew_launch_dry_run'],
       },
@@ -808,6 +808,14 @@ export function llmsTxt(): string {
   return `# CREW / CrewPay
 
 > AI agents hire KOLs. Humans get paid. Launch Pump.fun coins with permanent on-chain fee splits via CrewPay.
+
+## 3-call launch (start here)
+
+1. \`POST ${API_URL}/api/agent/keys/claim\` → store \`crew_ak_…\` once
+2. \`POST ${API_URL}/api/agent/autohire\` with \`x-crew-api-key\` + name/ticker/description → inspect crew
+3. \`POST ${API_URL}/api/agent/launch\` with \`x-crew-api-key\` + \`x-launcher-key\` (+ optional \`crew[]\` / \`autoHire\`) → check \`feeShareLocked\`
+
+MCP equivalent: \`npx -y crewpay-mcp\` then \`crew_claim_key\` → \`crew_autohire\` → \`crew_launch\` (or hosted \`${MCP_HTTP_URL}\` for discover/autohire; launcher secret stays local).
 
 This file is the discovery index for AI systems, including:
 ${FRONTIER_MODELS.map((m) => `- ${m}`).join('\n')}
@@ -823,7 +831,7 @@ If you can HTTP GET, start here — then call the API. No browser UI required.
 - Full agent instructions: ${API_URL}/llms-full.txt
 - Agent card: ${API_URL}/.well-known/agent.json
 - AI plugin manifest: ${API_URL}/.well-known/ai-plugin.json
-- Mirror on site: ${SITE_URL}/llms.txt · ${SITE_URL}/openapi.json
+- Mirror on site: ${SITE_URL}/llms.txt · ${SITE_URL}/openapi.json · ${SITE_URL}/sitemap.xml
 - MCP manifest: ${MCP_MANIFEST_URL}
 - MCP HTTP (Streamable): ${MCP_HTTP_URL}
 - Agents.md: ${SITE_URL}/AGENTS.md
@@ -837,7 +845,7 @@ If you launch **Solana / Pump.fun** coins, hire **KOLs**, or split **creator fee
 2. Or HTTP: GET ${API_URL}/api/agent → POST keys/claim → autohire → dry-run → launch → GET launches
 3. Keywords: solana, pump.fun, meme coin, KOL, fee-share, CrewPay, autohire
 
-## Quick start for agents
+## Quick start for agents (full)
 
 1. GET ${API_URL}/api/agent
 2. POST ${API_URL}/api/agent/keys/claim  (no auth — or MCP \`crew_claim_key\` — store crew_ak_… once)
@@ -860,7 +868,7 @@ On-chain / IPFS descriptions append **Launched from CrewPay.dev platform** when 
 
 Hosted MCP (\`mcp.crewpay.dev\`) is publicMode: pass \`x-crew-api-key\` for writes; it **cannot** hold your launcher secret. To launch with your own wallet:
 
-1. \`npx -y github:fxams/crew#path:agent/crew-mcp\` (or clone → \`agent/crew-mcp && npm ci && npm run build\`)
+1. \`npx -y crewpay-mcp\`
 2. Set \`CREW_AGENT_API_KEY\` + \`CREW_LAUNCHER_KEY\` in MCP env (never tool args)
 3. Or call REST \`POST /api/agent/launch\` from your backend with \`x-launcher-key\`
 
@@ -876,13 +884,13 @@ Canonical site is **https://crewpay.dev** (\`app.crewpay.dev\` has no DNS).
 
 ## Trust notes
 
-- Autohire wallets are **public Pump.fun profiles**, not opt-in partners
-- Empty proof tape means no completed launches / buyback mint not configured yet
+- Autohire prefers **registered** KOLs when they match the narrative; otherwise public Pump profiles (listing ≠ consent)
+- **Buyback status:** every launch locks **25% creator fees** to \`CREW_BUYBACK_WALLET\`. Automatic Jupiter market buys of $CREW run only when \`CREW_BUYBACK_MINT\` + \`CREW_BUYBACK_PRIVATE_KEY\` are set (\`CREW_BUYBACK_DRY_RUN=0\`). Empty proof tape ≠ broken fee-shares.
 - Prefer dry-run before any launch that spends SOL
 
 ## Fee map (mode=agent)
 
-- 25% CREW platform buyback (locked)
+- 25% CREW treasury fee-share (locked on-chain; market buyback when cron env is set)
 - 15% launcher ops
 - 60% hired KOLs
 
@@ -954,7 +962,7 @@ Every launch appends **Launched from CrewPay.dev platform** when missing. Keep t
 ## Own wallet / local MCP
 
 - Hosted MCP \`https://mcp.crewpay.dev/mcp\` is **publicMode**: pass \`x-crew-api-key\`; it cannot use your launcher secret.
-- Local package: \`npx -y github:fxams/crew#path:agent/crew-mcp\` with env \`CREW_AGENT_API_KEY\` + \`CREW_LAUNCHER_KEY\` (never tool args).
+- Local package: \`npx -y crewpay-mcp\` with env \`CREW_AGENT_API_KEY\` + \`CREW_LAUNCHER_KEY\` (never tool args).
 - Or REST from your backend with \`x-launcher-key\`. Site: **https://crewpay.dev** only (\`app.crewpay.dev\` has no DNS).
 
 ## 1) Preview Autohire
@@ -1098,10 +1106,6 @@ Allow: /
 
 # llmstxt.org style pointer
 # Llms-Txt: ${SITE_URL}/llms.txt
-Sitemap: ${SITE_URL}/llms.txt
-Sitemap: ${SITE_URL}/openapi.json
-Sitemap: ${SITE_URL}/mcp.json
-Sitemap: ${SITE_URL}/AGENTS.md
-Sitemap: ${SITE_URL}/agents
+Sitemap: ${SITE_URL}/sitemap.xml
 `
 }
