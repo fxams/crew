@@ -3004,7 +3004,8 @@ a {
 }
 
 .page-desk {
-  padding-bottom: 5rem;
+  /* Keep clearance above the sticky mobile Launch bar (--cta-h) without hiding it */
+  padding-bottom: max(4.5rem, calc(var(--cta-h) + 1.25rem));
 }
 
 .desk-hero {
