@@ -1369,7 +1369,10 @@ export default function App() {
                 every launch; market buybacks run when the treasury mint + key are configured.
               </p>
               <div className="hero-actions">
-                <Link className="btn btn-primary" to="/launch">
+                <Link className="btn btn-primary hero-cta-register" to="/register">
+                  Register as Crew to get Paid
+                </Link>
+                <Link className="btn btn-ghost" to="/launch">
                   Launch with crew
                 </Link>
                 <Link className="btn btn-ghost" to="/agents">
