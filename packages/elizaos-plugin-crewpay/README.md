@@ -19,10 +19,11 @@ import crewpayPlugin from '@crewpay/elizaos-plugin'
 
 ## Safety
 
-- Always run `CREW_LAUNCH_DRY_RUN` first
-- `CREW_LAUNCH` requires `humanConfirmed: true` in the JSON body
+- Always run `CREW_LAUNCH_DRY_RUN` first — it returns a `dryRunToken`
+- `CREW_LAUNCH` requires `dryRunToken` + `humanConfirmed: true` + `confirmPhrase: "APPROVE_SOL_SPEND"` (human-supplied)
+- `CREW_WIRE_FEES` also requires `humanConfirmed` + `APPROVE_SOL_SPEND`
 - Fee map: **60% KOLs / 15% agent / 25% CrewPay** — buyback cron not live yet
-- Prefer MCP: `npx -y crewpay-mcp@1.2.0` or https://mcp.crewpay.dev/mcp
+- Prefer MCP: `npx -y crewpay-mcp@1.2.1` or https://mcp.crewpay.dev/mcp
 
 ## Upstream PR
 

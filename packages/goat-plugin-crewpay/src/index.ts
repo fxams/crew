@@ -1,16 +1,16 @@
 /**
  * GOAT SDK plugin scaffold for CrewPay.
- * Pattern inspired by @goat-sdk plugins (PluginBase + tool methods).
- *
- * Prefer MCP for production agents: npx -y crewpay-mcp@1.2.0
- * or https://mcp.crewpay.dev/mcp (no launcher secret on hosted).
+ * Prefer MCP: npx -y crewpay-mcp@1.2.1 or https://mcp.crewpay.dev/mcp
  */
 
-import { CrewPayClient, loadCrewPayEnv } from '../../crewpay-rest/src/client.ts'
+import {
+  CrewPayClient,
+  loadCrewPayEnv,
+  SOL_SPEND_CONFIRM_PHRASE,
+} from '../../crewpay-rest/src/client.ts'
 
 export type CrewPayGoatOptions = {
   apiUrl?: string
-  /** If omitted, read CREWPAY_API_KEY / CREW_AGENT_API_KEY from env */
   apiKey?: string
 }
 
@@ -18,7 +18,6 @@ function api(opts: CrewPayGoatOptions = {}) {
   return new CrewPayClient(loadCrewPayEnv(opts))
 }
 
-/** Tool surface for GOAT agents — wrap with your ToolBase/decorators as needed. */
 export class CrewPayGoatService {
   constructor(private readonly opts: CrewPayGoatOptions = {}) {}
 
@@ -35,15 +34,37 @@ export class CrewPayGoatService {
   }
 
   /**
-   * Spends SOL. Requires params.humanConfirmed === true after dry-run + human OK.
+   * Spends SOL. Requires dryRunToken from dry-run + confirmPhrase APPROVE_SOL_SPEND + humanConfirmed.
    */
-  async crewpay_launch(params: Record<string, unknown> & { humanConfirmed?: boolean }) {
-    const { humanConfirmed, ...rest } = params
-    return api(this.opts).launch(rest, { humanConfirmed: humanConfirmed === true })
+  async crewpay_launch(
+    params: Record<string, unknown> & {
+      humanConfirmed?: boolean
+      confirmPhrase?: string
+      dryRunToken?: string
+    },
+  ) {
+    const { humanConfirmed, confirmPhrase, dryRunToken, ...rest } = params
+    return api(this.opts).launch(rest, {
+      humanConfirmed: humanConfirmed === true,
+      confirmPhrase: confirmPhrase || '',
+      dryRunToken: dryRunToken || '',
+    })
   }
 
-  async crewpay_wire_fees(params: { mint: string; mode?: string }) {
-    return api(this.opts).wireFees(params)
+  async crewpay_wire_fees(params: {
+    mint: string
+    mode?: string
+    humanConfirmed?: boolean
+    confirmPhrase?: string
+  }) {
+    const { humanConfirmed, confirmPhrase, mint, mode } = params
+    return api(this.opts).wireFees(
+      { mint, mode },
+      {
+        humanConfirmed: humanConfirmed === true,
+        confirmPhrase: confirmPhrase || '',
+      },
+    )
   }
 
   async crewpay_crank(params: { mint: string }) {
@@ -55,15 +76,10 @@ export class CrewPayGoatService {
   }
 }
 
-/**
- * Lightweight plugin factory (does not hard-depend on @goat-sdk/core at compile time).
- * When wiring into GOAT, wrap CrewPayGoatService with PluginBase/ToolBase as in upstream plugins.
- */
 export function crewpay(options: CrewPayGoatOptions = {}) {
   return {
     name: 'crewpay',
-    description:
-      'CrewPay — Solana Pump.fun KOL Autohire + fee-shares (60/15/25). Buyback not live. Dry-run + human confirm before launch.',
+    description: `CrewPay — Pump.fun KOL Autohire + fee-shares (60/15/25). Buyback not live. Dry-run token + ${SOL_SPEND_CONFIRM_PHRASE} before launch.`,
     service: new CrewPayGoatService(options),
   }
 }

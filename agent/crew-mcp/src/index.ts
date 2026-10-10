@@ -19,7 +19,7 @@ import { DEFAULT_API_URL, DEFAULT_SITE_URL } from './client.js'
 const MCP_WELL_KNOWN = {
   name: 'crewpay',
   description:
-    'CREW / CrewPay — Solana Pump.fun launches with narrative KOL Autohire and on-chain fee-shares for crypto AI agents.',
+    'CREW / CrewPay — Solana Pump.fun + KOL Autohire fee-shares (60/15/25). Buyback not live. Dry-run first.',
   websiteUrl: DEFAULT_SITE_URL,
   homepage: `${DEFAULT_SITE_URL}/agents`,
   llms: `${DEFAULT_SITE_URL}/llms.txt`,
@@ -86,7 +86,7 @@ async function main() {
     app.get('/', (_req, res) => {
       res.json({
         name: 'crewpay-mcp',
-        version: '1.2.0',
+        version: '1.2.1',
         transport: 'streamable-http',
         mcp: '/mcp',
         wellKnown: '/.well-known/mcp.json',
@@ -114,7 +114,7 @@ async function main() {
     app.get('/.well-known/mcp/server-card.json', (_req, res) => {
       res.setHeader('Cache-Control', 'public, max-age=300')
       res.json({
-        serverInfo: { name: 'crewpay', version: '1.2.0', websiteUrl: DEFAULT_SITE_URL },
+        serverInfo: { name: 'crewpay', version: '1.2.1', websiteUrl: DEFAULT_SITE_URL },
         authentication: {
           required: true,
           schemes: ['api_key'],
