@@ -4,6 +4,7 @@ import nacl from 'tweetnacl'
 import { describe, expect, it } from 'vitest'
 import {
   codeChallengeS256,
+  isDefaultXProfileImage,
   registrationMessage,
   verifyWalletLink,
   xAvatarLarge,
@@ -24,6 +25,19 @@ describe('KOL registration wallet link', () => {
     const message = registrationMessage(other, 'cd'.repeat(16))
     const sig = nacl.sign.detached(new TextEncoder().encode(message), signer.secretKey)
     expect(verifyWalletLink(other, message, bs58.encode(sig))).toBe(false)
+  })
+
+  it('detects X default profile images', () => {
+    expect(
+      isDefaultXProfileImage(
+        'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png',
+      ),
+    ).toBe(true)
+    expect(
+      isDefaultXProfileImage(
+        'https://pbs.twimg.com/profile_images/2108774391135772672/ns7zqcTn_400x400.jpg',
+      ),
+    ).toBe(false)
   })
 
   it('upgrades an X avatar to the large size', () => {

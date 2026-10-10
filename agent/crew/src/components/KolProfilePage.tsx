@@ -78,6 +78,12 @@ function formatSol(n: number) {
   return text.replace(/0+$/, '').replace(/\.$/, '')
 }
 
+function deskAvatarSrc(profile: Profile): string | null {
+  const url = profile.profileImageUrl?.trim()
+  if (url && !/default_profile_images|\/sticky\/default/i.test(url)) return url
+  return `https://unavatar.io/x/${encodeURIComponent(profile.xUsername)}`
+}
+
 function formatWhen(iso: string) {
   const t = Date.parse(iso)
   if (!Number.isFinite(t)) return ''
@@ -99,6 +105,7 @@ export function KolProfilePage() {
   const [missing, setMissing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [avatarSrc, setAvatarSrc] = useState<string | null>(null)
   const justRegistered = params.get('registered') === '1'
   const viewingOwnDesk =
     Boolean(ownHandle) && ownHandle!.toLowerCase() === handle.toLowerCase()
@@ -129,6 +136,14 @@ export function KolProfilePage() {
       cancelled = true
     }
   }, [handle])
+
+  useEffect(() => {
+    if (!desk?.profile) {
+      setAvatarSrc(null)
+      return
+    }
+    setAvatarSrc(deskAvatarSrc(desk.profile))
+  }, [desk])
 
   const connected = wallet.publicKey?.toBase58() || ''
   const isOwner = Boolean(desk && connected && desk.profile.wallet === connected)
@@ -178,13 +193,18 @@ export function KolProfilePage() {
         {desk ? (
           <>
             <header className="desk-hero">
-              {desk.profile.profileImageUrl ? (
+              {avatarSrc ? (
                 <img
                   className="desk-avatar"
-                  src={desk.profile.profileImageUrl}
+                  src={avatarSrc}
                   alt=""
                   width={112}
                   height={112}
+                  referrerPolicy="no-referrer"
+                  onError={() => {
+                    const fallback = `https://unavatar.io/x/${encodeURIComponent(desk.profile.xUsername)}`
+                    if (avatarSrc !== fallback) setAvatarSrc(fallback)
+                  }}
                 />
               ) : (
                 <div className="desk-avatar desk-avatar-fallback" aria-hidden>
