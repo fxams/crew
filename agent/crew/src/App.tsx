@@ -1470,7 +1470,7 @@ export default function App() {
               <div>
                 <strong>{PLATFORM_BUYBACK_BPS / 100}%</strong>
                 <span>CREW treasury</span>
-                <em>Platform fee-share · buybacks when configured</em>
+                <em>Platform fee-share · buyback cron not live</em>
               </div>
               <div>
                 <strong>{MODE_DESK_BPS.agent / 100}%</strong>
