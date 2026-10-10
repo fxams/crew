@@ -7,7 +7,9 @@ import {
   isDefaultXProfileImage,
   normalizeReferralCode,
   REFERRAL_POINTS_HIRE,
+  REFERRAL_POINTS_MIN_FOLLOWERS,
   REFERRAL_POINTS_REGISTER,
+  REFERRAL_POINTS_REGISTER_DAILY_CAP,
   referralCodeFromUsername,
   registrationMessage,
   verifyWalletLink,
@@ -64,8 +66,10 @@ describe('KOL registration wallet link', () => {
     expect(referralCodeFromUsername('a')).toMatch(/^crew[a-f0-9]{6}$/)
   })
 
-  it('defines positive airdrop point weights', () => {
+  it('defines positive airdrop point weights and sybil brakes', () => {
     expect(REFERRAL_POINTS_REGISTER).toBe(100)
     expect(REFERRAL_POINTS_HIRE).toBe(250)
+    expect(REFERRAL_POINTS_MIN_FOLLOWERS).toBe(50)
+    expect(REFERRAL_POINTS_REGISTER_DAILY_CAP).toBe(10)
   })
 })

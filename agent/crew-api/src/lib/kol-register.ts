@@ -17,9 +17,12 @@ export const KOL_REFERRAL_CUT_PCT = 5
 export const REFERRAL_POINTS_REGISTER = 100
 /** Points awarded when a referred KOL is hired and fee-shares lock. */
 export const REFERRAL_POINTS_HIRE = 250
+/** Referred account must have at least this many X followers to earn register points. */
+export const REFERRAL_POINTS_MIN_FOLLOWERS = 50
+/** Max register-point awards credited to one referrer code per UTC day (sybil brake). */
+export const REFERRAL_POINTS_REGISTER_DAILY_CAP = 10
 
 export type KolRegistration = {
-  xUserId: string
   xUsername: string
   xName: string
   xVerified: boolean
@@ -122,8 +125,10 @@ async function ensureDeskAvatar(profile: KolRegistration): Promise<KolRegistrati
   const resolved = await fetchPublicXAvatarUrl(profile.xUsername)
   if (resolved) {
     await query(
-      `UPDATE kol_registrations SET profile_image_url = $1, updated_at = now() WHERE x_user_id = $2`,
-      [resolved, profile.xUserId],
+      `UPDATE kol_registrations
+       SET profile_image_url = $1, updated_at = now()
+       WHERE lower(x_username) = lower($2)`,
+      [resolved, profile.xUsername],
     )
     url = resolved
   }
@@ -377,15 +382,26 @@ export async function completeXCallback(code: string, state: string): Promise<Ko
   if (!referredBy && row.referral_code) {
     const ref = normalizeReferralCode(row.referral_code)
     if (ref && ref !== normalizeReferralCode(ownCode)) {
-      const ok = await query(
-        `SELECT referral_code FROM kol_registrations WHERE lower(referral_code) = $1 LIMIT 1`,
+      const ok = await query<{ referral_code: string; wallet: string; x_user_id: string }>(
+        `SELECT referral_code, wallet, x_user_id FROM kol_registrations
+         WHERE lower(referral_code) = $1 LIMIT 1`,
         [ref],
       )
-      if (ok.rows[0]) referredBy = String(ok.rows[0].referral_code)
+      const referrer = ok.rows[0]
+      // Block same-wallet / same-X self-referral; alt-identity sybil is capped via points rules.
+      if (
+        referrer &&
+        referrer.x_user_id !== user.id &&
+        referrer.wallet !== row.wallet &&
+        !prior.has(referrer.wallet)
+      ) {
+        referredBy = String(referrer.referral_code)
+      }
     }
   }
 
   const firstReferral = !prev?.referred_by_code && Boolean(referredBy)
+  const referredFollowers = Number(metrics.followers_count || 0)
   await query(
     `INSERT INTO kol_registrations (
        x_user_id, x_username, x_name, x_verified, followers, following, tweet_count,
@@ -433,6 +449,7 @@ export async function completeXCallback(code: string, state: string): Promise<Ko
         referrerCode: referredBy,
         referredHandle: user.username,
         referredXUserId: user.id,
+        referredFollowers,
       })
     } catch (err) {
       console.warn(
@@ -449,7 +466,6 @@ export async function completeXCallback(code: string, state: string): Promise<Ko
 
 function mapReg(r: Record<string, unknown>, rank: number): KolRegistration {
   return {
-    xUserId: String(r.x_user_id),
     xUsername: String(r.x_username),
     xName: String(r.x_name || ''),
     xVerified: Boolean(r.x_verified),
@@ -531,11 +547,26 @@ export async function awardReferralRegisterPoints(opts: {
   referrerCode: string
   referredHandle: string
   referredXUserId: string
+  referredFollowers: number
 }): Promise<boolean> {
   const referrerCode = normalizeReferralCode(opts.referrerCode)
   const handle = opts.referredHandle.replace(/^@+/, '').toLowerCase()
   const xUserId = opts.referredXUserId.trim()
   if (!referrerCode || !handle || !xUserId) return false
+  // Sybil brake: tiny / brand-new X accounts do not mint airdrop weight.
+  if (Number(opts.referredFollowers || 0) < REFERRAL_POINTS_MIN_FOLLOWERS) return false
+
+  const dayCount = await query<{ n: string }>(
+    `SELECT COUNT(*)::text AS n FROM kol_referral_events
+     WHERE event_type = 'register'
+       AND lower(referrer_code) = $1
+       AND created_at >= date_trunc('day', now() AT TIME ZONE 'UTC')`,
+    [referrerCode],
+  )
+  if (Number(dayCount.rows[0]?.n || 0) >= REFERRAL_POINTS_REGISTER_DAILY_CAP) {
+    return false
+  }
+
   const { rows } = await query(
     `INSERT INTO kol_referral_events (
        id, event_type, referrer_code, referred_handle, referred_x_user_id, points

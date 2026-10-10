@@ -5,7 +5,9 @@ import {
   CREW_VERSION,
   KOL_REFERRAL_CUT_PCT,
   REFERRAL_POINTS_HIRE,
+  REFERRAL_POINTS_MIN_FOLLOWERS,
   REFERRAL_POINTS_REGISTER,
+  REFERRAL_POINTS_REGISTER_DAILY_CAP,
 } from '../lib/config'
 import { useOwnRegisteredHandle } from '../lib/registered-kol'
 import { kolHandleFromPath } from '../lib/routes'
@@ -386,8 +388,10 @@ export function KolProfilePage() {
                   </span>
                 </p>
                 <p className="desk-referral-points">
-                  Earn {REFERRAL_POINTS_REGISTER} pts when someone registers with your link, +
-                  {REFERRAL_POINTS_HIRE} pts when they get hired — for a future CREW airdrop.
+                  Earn {REFERRAL_POINTS_REGISTER} pts when someone with ≥
+                  {REFERRAL_POINTS_MIN_FOLLOWERS} followers registers with your link (max{' '}
+                  {REFERRAL_POINTS_REGISTER_DAILY_CAP}/day), +{REFERRAL_POINTS_HIRE} pts when they
+                  get hired — for a future CREW airdrop.
                 </p>
                 <p className="desk-referral-link" title={referralLink}>
                   {referralLink}
