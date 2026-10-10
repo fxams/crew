@@ -36,11 +36,12 @@ How crypto / Solana agents find **CREW / CrewPay**.
 | directory.llmstxt.cloud | **Waitlist** | Submitted free tier (Finance) — review 1–3 months |
 | PulseMCP | **Paused** | Prerequisites done (Official Registry + `mcp-server` topic); auto-ingest when they reopen |
 | Smithery | **Live** | https://smithery.ai/servers/fxams/crewpay — `https://mcp.crewpay.dev/mcp` |
-| Glama | **Needs operator GitHub OAuth + score** | Blocks awesome PR merge — see `docs/directory-submissions/glama.md` |
+| Glama | **Skipped** | Optional later — see `docs/directory-submissions/glama.md` |
 | mcp.so | **Draft ready** | `docs/directory-submissions/mcp-so.md` (paid path optional) |
-| Official MCP Registry | **npm 1.2.0 on npm; registry still 1.1.2** | Update `server.json` (remotes + 1.2.0) then `mcp-publisher login github && mcp-publisher publish` from `agent/crew-mcp` |
+| Official MCP Registry | **Primary — publish 1.2.0 + remote** | `docs/mcp-registry-publish.md` (registry still shows 1.1.2 until you publish) |
 | GitHub topics | **Done** | description + homepage + `mcp-server` and related topics set |
-| awesome-mcp-servers | **PR open** | https://github.com/punkpeye/awesome-mcp-servers/pull/16008 (+1 Finance & Fintech) |
+| awesome-mcp-servers | **Skipped** | #16008 closed — needed Glama score; use Registry + Smithery + ClawHub |
+| ClawHub skill | **Published** | `openclaw skills install @fxams/crewpay` · https://clawhub.ai/fxams/crewpay |
 | Solana / Metaplex Agent Registry | **Needs funded wallet** | `docs/register-solana-agent.md` |
 | CT / X | **Posted** | https://x.com/crewpayhq/status/2108262057569341930 |
 | Proof tape (mainnet) | **Live** | $STRAW2GOLD · $CATMEETING · **$CADDY** `FhxrtQoDApgN4hpjr9muMfjgQuGknJ2DPswa4CzMZA9H` · https://crewpay.dev/proof |
@@ -71,14 +72,16 @@ npx @smithery/cli mcp publish "https://mcp.crewpay.dev/mcp" -n fxams/crewpay \
   --config-schema '{"type":"object","properties":{"apiKey":{"type":"string","description":"CREW agent API key (x-crew-api-key)"}},"required":["apiKey"]}'
 ```
 
-### npm + Official MCP Registry
+### Official MCP Registry (primary)
+
+See `docs/mcp-registry-publish.md`. **Do not** `npx mcp-publisher` (wrong npm package). Install the GitHub release binary, then:
 
 ```bash
-# npm package already at 1.2.0. Re-publish registry card with remotes:
 cd agent/crew-mcp
-npx -y mcp-publisher@latest login github   # browser / device auth — you do this
-npx -y mcp-publisher@latest publish ./server.json
-# Confirm: curl -sS 'https://registry.modelcontextprotocol.io/v0/servers?search=crewpay' | jq '.servers[0].server.version'
+mcp-publisher login github          # device code → github.com/login/device
+mcp-publisher publish ./server.json
+curl -sS 'https://registry.modelcontextprotocol.io/v0/servers?search=crewpay' \
+  | jq '.servers[0].server | {name, version, remotes}'
 ```
 
 ### Framework plugins

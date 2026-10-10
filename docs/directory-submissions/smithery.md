@@ -1,6 +1,8 @@
 # Smithery — CrewPay
 
-**Status:** Live at https://smithery.ai/servers/fxams/crewpay
+**Status:** Live at https://smithery.ai/servers/fxams/crewpay  
+
+Part of the **primary** discovery trio (Official Registry + Smithery + ClawHub).
 
 ## Re-publish / refresh (operator)
 
