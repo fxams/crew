@@ -1,0 +1,14 @@
+{
+  "name": "@crewpay/solana-agent-kit-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "description": "Solana Agent Kit plugin for CrewPay REST (discover → proof).",
+  "license": "MIT",
+  "peerDependencies": {
+    "solana-agent-kit": "*",
+    "zod": "*"
+  },
+  "keywords": ["solana-agent-kit", "crewpay", "solana", "pump.fun"]
+}

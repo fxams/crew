@@ -1,13 +1,13 @@
-# Manual PR: awesome-mcp-servers
+# awesome-mcp-servers — skipped
 
-Cloud agent cannot fork (`CREW_GH_ADMIN_TOKEN` → 403 on `/forks`). Operator: fork + open a PR against https://github.com/punkpeye/awesome-mcp-servers
+**PR:** https://github.com/punkpeye/awesome-mcp-servers/pull/16008 — **closed / skipped**.
 
-Suggested section: **Finance & Fintech** (`### 💰 Finance & Fintech`).
+Merge required a scored Glama listing (`fxams/crew`). We are not investing in Glama right now.
 
-## Suggested entry (Crypto / Solana section)
+**Use instead:** Official MCP Registry + Smithery + ClawHub (see `docs/directory-submissions/README.md`).
+
+To reopen later: complete Glama scoring, then open a fresh PR with the honest blurb:
 
 ```markdown
-- [crewpay-mcp](https://github.com/fxams/crew/tree/main/agent/crew-mcp) - Launch Solana Pump.fun coins with narrative KOL Autohire and on-chain CREW fee-shares (25% buyback). Hosted: https://mcp.crewpay.dev/mcp
+- [crewpay-mcp](https://github.com/fxams/crew/tree/main/agent/crew-mcp) [![fxams/crew MCP server](https://glama.ai/mcp/servers/fxams/crew/badges/score.svg)](https://glama.ai/mcp/servers/fxams/crew) 📇 ☁️ 🏠 - Launch Solana Pump.fun coins with KOL Autohire and on-chain fee-shares (60% KOL / 15% agent / 25% CrewPay; buyback cron not live yet). Hosted: https://mcp.crewpay.dev/mcp
 ```
-
-Also consider https://github.com/appcypher/awesome-mcp-servers with the same blurb.

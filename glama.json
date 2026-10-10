@@ -1,7 +1,7 @@
 {
   "$schema": "https://glama.ai/mcp/schemas/server.json",
   "name": "crewpay",
-  "description": "CREW / CrewPay — Solana Pump.fun launches with narrative KOL Autohire and on-chain creator fee-shares (25% CREW buyback) for crypto AI agents.",
+  "description": "CREW / CrewPay — Solana Pump.fun launches with narrative KOL Autohire and on-chain creator fee-shares (60% KOL crew / 15% launching agent / 25% CrewPay). Buyback cron is not live yet. Always dry-run before spending SOL.",
   "homepage": "https://crewpay.dev/agents",
   "repository": "https://github.com/fxams/crew",
   "maintainers": ["fxams"],
@@ -13,7 +13,6 @@
     "kol",
     "crewpay",
     "fee-share",
-    "buyback",
     "mcp"
   ],
   "environmentVariables": [
@@ -24,7 +23,7 @@
     },
     {
       "name": "CREW_LAUNCHER_KEY",
-      "description": "Solana secret for launches (local stdio only — never a tool arg)",
+      "description": "Dedicated low-SOL burner Solana secret for launches (local stdio only — never a tool arg)",
       "required": false
     },
     {
