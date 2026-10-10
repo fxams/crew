@@ -10,6 +10,7 @@ import { MODE_DESK_BPS, PUMP_COIN_URL, type DeskMode } from './constants.js'
 import { proposeHolderKolFromChain } from './holders.js'
 import { OnlinePumpSdk, PumpSdk } from './pump.js'
 import { getConnection, sendInstructions } from './send.js'
+import { awardReferralHirePointsForCrew, lookupReferralCuts } from '../kol-register.js'
 import { buildCrewShareholders, normalizeCrew, type Shareholder } from './shareholders.js'
 import type { CrewMember } from './narrative.js'
 
@@ -105,8 +106,19 @@ export async function wireFeesForAgent(opts: {
     )
   }
   const crew = normalizeCrew(crewSource, opts.mode)
+  let referralCuts: { handle: string; referrerWallet: string; referrerHandle?: string }[] = []
+  try {
+    referralCuts = (await lookupReferralCuts(crew.map((m) => m.handle))).map((c) => ({
+      handle: c.handle,
+      referrerWallet: c.referrerWallet,
+      referrerHandle: c.referrerHandle,
+    }))
+  } catch {
+    referralCuts = []
+  }
   const shareholders = buildCrewShareholders(crew, opts.mode, {
     deskWallet: launcher.publicKey.toBase58(),
+    referralCuts,
   })
 
   const connection = getConnection()
@@ -180,6 +192,17 @@ export async function wireFeesForAgent(opts: {
     holderKol: false,
   }
   await upsertCoin(coin)
+  try {
+    await awardReferralHirePointsForCrew(
+      mintStr,
+      crew.map((m) => m.handle),
+    )
+  } catch (err) {
+    console.warn(
+      'referral hire points failed',
+      err instanceof Error ? err.message : err,
+    )
+  }
   return { ok: true, feeShareSignature, feeShareLocked: true, mint: mintStr, coin }
 }
 

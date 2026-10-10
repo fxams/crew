@@ -11,6 +11,7 @@ import {
   setIdempotent,
 } from '../lib/agent/idempotency.js'
 import { planNarrativeHires } from '../lib/agent/narrative.js'
+import { awardReferralHirePointsForCrew } from '../lib/kol-register.js'
 import { listRegisteredHireBoosts } from '../lib/registered-hires.js'
 import {
   dryRunLaunchForAgent,
@@ -367,6 +368,20 @@ agentRouter.post('/agent/launch', requireAgentApiKey, async (req, res) => {
             .filter(Boolean)
             .join(' '),
         }
+      }
+    }
+
+    if (result.feeShareLocked && result.crew?.length) {
+      try {
+        await awardReferralHirePointsForCrew(
+          result.mint,
+          result.crew.map((m) => m.handle),
+        )
+      } catch (pointsErr) {
+        console.warn(
+          'referral hire points failed',
+          pointsErr instanceof Error ? pointsErr.message : pointsErr,
+        )
       }
     }
 

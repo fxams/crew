@@ -2,9 +2,32 @@ import { PublicKey } from '@solana/web3.js'
 import { NATIVE_MINT, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { feeSharingConfigPda, isSharingConfigEditable } from '@pump-fun/pump-sdk'
 import type { WalletContextState } from '@solana/wallet-adapter-react'
-import { PUMP_COIN_URL } from '../config'
+import { CREW_AGENT_API_URL, PUMP_COIN_URL } from '../config'
 import type { CoinRecord, CrewMember, DeskMode } from '../types'
-import { buildCrewShareholders } from '../validation'
+import { buildCrewShareholders, type ReferralCutInput } from '../validation'
+
+async function fetchReferralCuts(crew: CrewMember[]): Promise<ReferralCutInput[]> {
+  const handles = crew
+    .map((m) => m.handle.replace(/^@+/, '').toLowerCase())
+    .filter(Boolean)
+  if (!handles.length) return []
+  try {
+    const res = await fetch(
+      `${CREW_AGENT_API_URL}/api/kols/referral-cuts?handles=${encodeURIComponent(handles.join(','))}`,
+    )
+    if (!res.ok) return []
+    const body = (await res.json()) as {
+      cuts?: { handle: string; referrerWallet: string; referrerHandle?: string }[]
+    }
+    return (body.cuts || []).map((c) => ({
+      handle: c.handle,
+      referrerWallet: c.referrerWallet,
+      referrerHandle: c.referrerHandle,
+    }))
+  } catch {
+    return []
+  }
+}
 import { formatRpcError, getConnection, getLatestBlockhashSafe, getPumpSdk } from './connection'
 import { sendInstructions } from './send'
 
@@ -68,7 +91,7 @@ export type LockHolderKolOpts = {
     wallet: string
     bps: number
     handle: string
-    role: 'crew' | 'desk' | 'platform'
+    role: 'crew' | 'desk' | 'platform' | 'referral'
   }[]
   crew: CrewMember[]
   coin?: Partial<CoinRecord> & Pick<CoinRecord, 'name' | 'ticker'>
@@ -200,7 +223,11 @@ export async function wireCrewFeeShares(opts: WireFeesOpts): Promise<WireFeesRes
   }
 
   const launcher = wallet.publicKey
-  const shareholders = buildCrewShareholders(opts.crew, opts.mode, launcher.toBase58())
+  const referralCuts = await fetchReferralCuts(opts.crew)
+  const shareholders = buildCrewShareholders(opts.crew, opts.mode, {
+    deskWallet: launcher.toBase58(),
+    referralCuts,
+  })
 
   await getLatestBlockhashSafe('confirmed')
   const sdk = getPumpSdk()

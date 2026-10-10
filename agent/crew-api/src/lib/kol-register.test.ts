@@ -5,6 +5,10 @@ import { describe, expect, it } from 'vitest'
 import {
   codeChallengeS256,
   isDefaultXProfileImage,
+  normalizeReferralCode,
+  REFERRAL_POINTS_HIRE,
+  REFERRAL_POINTS_REGISTER,
+  referralCodeFromUsername,
   registrationMessage,
   verifyWalletLink,
   xAvatarLarge,
@@ -51,5 +55,17 @@ describe('KOL registration wallet link', () => {
     const challenge = codeChallengeS256('crew-pay-verifier-example')
     expect(challenge).toMatch(/^[A-Za-z0-9_-]+$/)
     expect(challenge.includes('=')).toBe(false)
+  })
+
+  it('normalizes referral codes from handles', () => {
+    expect(normalizeReferralCode('@CrewPayHQ')).toBe('crewpayhq')
+    expect(normalizeReferralCode('  Foo-Bar!! ')).toBe('foobar')
+    expect(referralCodeFromUsername('alice')).toBe('alice')
+    expect(referralCodeFromUsername('a')).toMatch(/^crew[a-f0-9]{6}$/)
+  })
+
+  it('defines positive airdrop point weights', () => {
+    expect(REFERRAL_POINTS_REGISTER).toBe(100)
+    expect(REFERRAL_POINTS_HIRE).toBe(250)
   })
 })

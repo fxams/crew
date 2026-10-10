@@ -25,8 +25,23 @@ import {
   sendInstructions,
   sendJitoBundle,
 } from './send.js'
+import { lookupReferralCuts } from '../kol-register.js'
 import { buildCrewShareholders, normalizeCrew } from './shareholders.js'
 import { assertSafeHttpUrl } from './safe-url.js'
+
+async function referralCutsForCrew(crew: { handle: string }[]) {
+  try {
+    const cuts = await lookupReferralCuts(crew.map((m) => m.handle))
+    return cuts.map((c) => ({
+      handle: c.handle,
+      referrerWallet: c.referrerWallet,
+      referrerHandle: c.referrerHandle,
+    }))
+  } catch {
+    // Dry-run / offline — skip referral cuts rather than aborting the fee map.
+    return []
+  }
+}
 
 export type AgentLaunchInput = {
   name: string
@@ -227,15 +242,22 @@ export async function dryRunLaunchForAgent(
     warnings.push('holderKol=true leaves fee-shares unlocked until crew_lock_holder_kol.')
   }
 
-  let shareholders: { wallet: string; bps: number }[] | undefined
+  let shareholders: { wallet: string; bps: number; role?: string; handle?: string }[] | undefined
   if (!input.holderKol) {
     const deskWallet =
       opts?.launcherPubkey?.trim() ||
       '11111111111111111111111111111111'
     try {
+      const referralCuts = await referralCutsForCrew(crew)
       shareholders = buildCrewShareholders(crew, mode, {
         deskWallet: new PublicKey(deskWallet).toBase58(),
+        referralCuts,
       })
+      if (referralCuts.length) {
+        warnings.push(
+          `Direct referral: ${referralCuts.length} hired KOL(s) route 5% of their seat to their referrer.`,
+        )
+      }
     } catch (err) {
       warnings.push(
         `Shareholder preview skipped: ${err instanceof Error ? err.message : 'invalid desk wallet'}`,
@@ -266,11 +288,15 @@ export async function dryRunLaunchForAgent(
       })
   const shareholderTable = shareholders?.map((s) => {
     const role =
-      s.wallet === deskWalletPreview
-        ? 'launcher-ops'
-        : crew.some((c) => c.wallet === s.wallet)
-          ? 'kol'
-          : 'buyback'
+      s.role === 'referral'
+        ? 'referral'
+        : s.role === 'platform'
+          ? 'buyback'
+          : s.wallet === deskWalletPreview || s.role === 'desk'
+            ? 'launcher-ops'
+            : crew.some((c) => c.wallet === s.wallet)
+              ? 'kol'
+              : 'buyback'
     return { ...s, role }
   })
   warnings.push(
@@ -392,9 +418,10 @@ export async function launchForAgent(
       ? [{ handle: '@holder', wallet: deskWallet, share: 100, hireRole: 'kol' as HireRole }]
       : crew
 
+    const referralCuts = input.holderKol ? [] : await referralCutsForCrew(effectiveCrew)
     const shareholders = input.holderKol
       ? null
-      : buildCrewShareholders(effectiveCrew, mode, { deskWallet })
+      : buildCrewShareholders(effectiveCrew, mode, { deskWallet, referralCuts })
 
     const crewWithBps = effectiveCrew.map((m) => {
       const hit = shareholders?.find((s) => s.wallet === m.wallet)
@@ -402,11 +429,15 @@ export async function launchForAgent(
     })
     const shareholderTable = shareholders?.map((s) => {
       const role =
-        s.wallet === deskWallet
-          ? 'launcher-ops'
-          : effectiveCrew.some((c) => c.wallet === s.wallet)
-            ? 'kol'
-            : 'buyback'
+        s.role === 'referral'
+          ? 'referral'
+          : s.role === 'platform'
+            ? 'buyback'
+            : s.wallet === deskWallet || s.role === 'desk'
+              ? 'launcher-ops'
+              : effectiveCrew.some((c) => c.wallet === s.wallet)
+                ? 'kol'
+                : 'buyback'
       return { ...s, role }
     })
     /** Always present — null when explicit crew[] (not Autohire). */

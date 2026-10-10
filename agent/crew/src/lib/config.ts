@@ -135,6 +135,17 @@ export const MODE_DESK_BPS = {
  */
 export const PLATFORM_BUYBACK_BPS = 2500
 
+/** Direct referral cut: 5% of the referred KOL's seat (not of total fees). */
+export const REFERRAL_CUT_BPS = 500
+/** Pump fee-share configs allow at most this many unique wallets. */
+export const PUMP_MAX_SHAREHOLDERS = 10
+/** Advertised direct-referral cut for registered KOLs. */
+export const KOL_REFERRAL_CUT_PCT = 5
+/** Points for a future CREW airdrop when someone registers with your code. */
+export const REFERRAL_POINTS_REGISTER = 100
+/** Points when a referred KOL is hired and fee-shares lock. */
+export const REFERRAL_POINTS_HIRE = 250
+
 /**
  * On-chain fee-share recipient for the 25% CREW buyback cut.
  * Set `VITE_CREW_BUYBACK_WALLET` in Render / .env (must be a valid Solana address).
