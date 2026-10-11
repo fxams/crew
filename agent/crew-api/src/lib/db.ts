@@ -198,6 +198,7 @@ export async function migrate(): Promise<void> {
       intent TEXT NOT NULL CHECK (intent IN ('launch', 'wire-fees')),
       body_hash TEXT NOT NULL,
       image_sha256 TEXT,
+      launcher_pubkey TEXT,
       plan JSONB NOT NULL DEFAULT '{}'::jsonb,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       expires_at TIMESTAMPTZ NOT NULL,
@@ -215,5 +216,22 @@ export async function migrate(): Promise<void> {
   await query(
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['006_agent_dry_runs'],
+  )
+  // Approver allowlist support: owner wallet on keys + launcher pubkey on dry-runs.
+  await query(`
+    DO $mig$
+    BEGIN
+      IF to_regclass('public.agent_keys') IS NOT NULL THEN
+        ALTER TABLE agent_keys ADD COLUMN IF NOT EXISTS owner_wallet TEXT;
+      END IF;
+      IF to_regclass('public.agent_dry_runs') IS NOT NULL THEN
+        ALTER TABLE agent_dry_runs ADD COLUMN IF NOT EXISTS launcher_pubkey TEXT;
+      END IF;
+    END
+    $mig$;
+  `)
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['007_approver_allowlist'],
   )
 }
