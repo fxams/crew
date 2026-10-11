@@ -341,4 +341,36 @@ export async function migrate(): Promise<void> {
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['012_board_nonces'],
   )
+  // Webhooks scoping to agent keys
+  await query(`
+    DO $mig$
+    BEGIN
+      IF to_regclass('public.webhooks') IS NOT NULL THEN
+        ALTER TABLE webhooks ADD COLUMN IF NOT EXISTS agent_key_id TEXT;
+      END IF;
+    END
+    $mig$;
+  `)
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['013_webhooks_agent_key_id'],
+  )
+  // KOL OAuth CSRF cookie binding + pending wallet change fields
+  await query(`
+    DO $mig$
+    BEGIN
+      IF to_regclass('public.kol_oauth_states') IS NOT NULL THEN
+        ALTER TABLE kol_oauth_states ADD COLUMN IF NOT EXISTS cookie_sha256 TEXT;
+      END IF;
+      IF to_regclass('public.kol_registrations') IS NOT NULL THEN
+        ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS pending_wallet TEXT;
+        ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS pending_until TIMESTAMPTZ;
+      END IF;
+    END
+    $mig$;
+  `)
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['014_kol_csrf_cookie_pending_wallet'],
+  )
 }

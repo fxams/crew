@@ -8,6 +8,7 @@ import bs58 from 'bs58'
 import nacl from 'tweetnacl'
 import { KOL_DB } from './agent/narrative.js'
 import { query } from './db.js'
+import { verifyWalletSignature } from './wallet-auth.js'
 
 export const REGISTER_MESSAGE_PREFIX = 'CrewPay KOL registration'
 
@@ -215,6 +216,8 @@ export async function beginXAuth(opts: {
   referralCode?: string
   /** Client IP at /register/start — stored for claim-time self-referral checks. */
   ip?: string
+  /** CSRF cookie value from /start; hashed into state row. */
+  regCookie?: string
 }): Promise<{ authorizeUrl: string }> {
   if (!xOAuthConfigured()) {
     throw new Error('X sign-in is not configured. Set X_CLIENT_ID and X_CLIENT_SECRET on crewpay-api.')
@@ -256,9 +259,10 @@ export async function beginXAuth(opts: {
   const state = randomBytes(16).toString('hex')
   const codeVerifier = b64url(randomBytes(32))
   const ip = (opts.ip || '').trim().slice(0, 64) || null
+  const cookieSha = opts.regCookie ? createHash('sha256').update(opts.regCookie).digest('hex') : null
   await query(
-    `INSERT INTO kol_oauth_states (state, code_verifier, wallet, referral_code, ip) VALUES ($1, $2, $3, $4, $5)`,
-    [state, codeVerifier, wallet, referralCode, ip],
+    `INSERT INTO kol_oauth_states (state, code_verifier, wallet, referral_code, cookie_sha256, ip) VALUES ($1, $2, $3, $4, $5, $6)`,
+    [state, codeVerifier, wallet, referralCode, cookieSha, ip],
   )
   return { authorizeUrl: buildXAuthorizeUrl({ state, codeVerifier }) }
 }
@@ -332,19 +336,33 @@ async function allocateReferralCode(username: string, xUserId: string): Promise<
   return `${base}${randomBytes(2).toString('hex')}`
 }
 
-export async function completeXCallback(code: string, state: string): Promise<KolRegistration> {
+export async function completeXCallback(
+  code: string,
+  state: string,
+  opts?: { regCookie?: string; headers?: Record<string, unknown> },
+): Promise<KolRegistration> {
   const { rows } = await query(
-    `DELETE FROM kol_oauth_states WHERE state = $1 RETURNING code_verifier, wallet, referral_code, ip`,
+    `DELETE FROM kol_oauth_states WHERE state = $1 RETURNING code_verifier, wallet, referral_code, cookie_sha256, ip`,
     [state],
   )
   const row = rows[0] as {
     code_verifier?: string
     wallet?: string
     referral_code?: string | null
+    cookie_sha256?: string | null
     ip?: string | null
   } | undefined
   if (!row?.code_verifier || !row.wallet) {
     throw new Error('Sign-in session expired. Connect your wallet and try again.')
+  }
+  const wantCookie = (row.cookie_sha256 || '').trim()
+  const gotCookie = (opts?.regCookie || '').trim()
+  if (!wantCookie || !gotCookie) {
+    throw new Error('Missing registration cookie. Start again and allow cookies for crewpay.dev.')
+  }
+  const gotHash = createHash('sha256').update(gotCookie).digest('hex')
+  if (gotHash !== wantCookie) {
+    throw new Error('Registration cookie mismatch — refresh and start again.')
   }
   const registerIp = (row.ip || '').trim().slice(0, 64) || null
 
@@ -356,6 +374,7 @@ export async function completeXCallback(code: string, state: string): Promise<Ko
   }
   const metrics = user.public_metrics || {}
 
+  // Prevent linking conflicts across accounts (same wallet used elsewhere).
   const conflict = await query(
     `SELECT x_user_id FROM kol_registrations WHERE wallet = $1 AND x_user_id <> $2 LIMIT 1`,
     [row.wallet, user.id],
@@ -410,13 +429,38 @@ export async function completeXCallback(code: string, state: string): Promise<Ko
 
   const firstReferral = !prev?.referred_by_code && Boolean(referredBy)
   const referredFollowers = Number(metrics.followers_count || 0)
+  // Wallet change handling: if existing row has a different wallet, do not overwrite
+  // unless the current wallet signed an approval (crew-kol-wallet-change:{newWallet}:{ts}).
+  let applyWallet = row.wallet
+  let pendingWallet: string | null = null
+  let pendingUntil: Date | null = null
+  if (prev?.wallet && prev.wallet !== row.wallet) {
+    const tsHeader = (opts?.headers?.['x-crew-timestamp'] as string | undefined)?.trim() || ''
+    const sigHeader = (opts?.headers?.['x-crew-signature'] as string | undefined)?.trim() || ''
+    const approveMsg = `crew-kol-wallet-change:${row.wallet}:${tsHeader}`
+    const ts = Number(tsHeader)
+    const fresh = Number.isFinite(ts) && Math.abs(Date.now() - ts) <= 10 * 60_000
+    const okSig =
+      fresh &&
+      verifyWalletSignature({
+        wallet: String(prev.wallet),
+        message: approveMsg,
+        signatureBase58: sigHeader,
+      })
+    if (!okSig) {
+      applyWallet = prev.wallet
+      pendingWallet = row.wallet
+      pendingUntil = new Date(Date.now() + 48 * 60 * 60_000)
+    }
+  }
+
   await query(
     `INSERT INTO kol_registrations (
        x_user_id, x_username, x_name, x_verified, followers, following, tweet_count,
        listed_count, profile_image_url, description, wallet, prior_wallets,
-       referral_code, referred_by_code, register_ip,
+       referral_code, referred_by_code, register_ip, pending_wallet, pending_until,
        stats_refreshed_at, updated_at
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, now(), now())
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17, now(), now())
      ON CONFLICT (x_user_id) DO UPDATE SET
        x_username = EXCLUDED.x_username,
        x_name = EXCLUDED.x_name,
@@ -432,6 +476,8 @@ export async function completeXCallback(code: string, state: string): Promise<Ko
        referral_code = COALESCE(kol_registrations.referral_code, EXCLUDED.referral_code),
        referred_by_code = COALESCE(kol_registrations.referred_by_code, EXCLUDED.referred_by_code),
        register_ip = COALESCE(kol_registrations.register_ip, EXCLUDED.register_ip),
+       pending_wallet = EXCLUDED.pending_wallet,
+       pending_until = EXCLUDED.pending_until,
        stats_refreshed_at = now(),
        updated_at = now()`,
     [
@@ -445,11 +491,13 @@ export async function completeXCallback(code: string, state: string): Promise<Ko
       Number(metrics.listed_count || 0),
       profileImageUrl,
       (user.description || '').slice(0, 280),
-      row.wallet,
+      applyWallet,
       priorWallets,
       ownCode,
       referredBy,
       registerIp,
+      pendingWallet,
+      pendingUntil,
     ],
   )
 

@@ -59,10 +59,7 @@ export function parseLauncherKey(raw: string): Keypair {
 
 /** Ops / crank payer: CREW_OPS_KEY, else buyback key, else launcher. */
 export function resolveOpsPayer(preferred?: Keypair): Keypair {
-  const raw =
-    process.env.CREW_OPS_KEY?.trim() ||
-    process.env.CREW_BUYBACK_PRIVATE_KEY?.trim() ||
-    ''
+  const raw = process.env.CREW_OPS_KEY?.trim() || ''
   if (raw) {
     try {
       return parseLauncherKey(raw)
@@ -71,9 +68,7 @@ export function resolveOpsPayer(preferred?: Keypair): Keypair {
     }
   }
   if (preferred) return preferred
-  throw new Error(
-    'No crank payer — set CREW_OPS_KEY (or CREW_BUYBACK_PRIVATE_KEY), or pass x-launcher-key.',
-  )
+  throw new Error('No crank payer — set CREW_OPS_KEY, or pass x-launcher-key.')
 }
 
 export function getConnection(): Connection {

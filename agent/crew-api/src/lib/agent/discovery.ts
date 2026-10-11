@@ -623,7 +623,7 @@ export function openApiSpec() {
           tags: ['agent'],
           summary: 'Crank distributeCreatorFeesV2 remits (permissionless fee payer)',
           description:
-            'x-launcher-key is optional. When omitted, the server uses CREW_OPS_KEY (or buyback key) as the fee payer.',
+            'x-launcher-key is optional. When omitted, the server uses CREW_OPS_KEY as the fee payer.',
           operationId: 'postAgentCrank',
           security: [{ CrewApiKey: [] }, { CrewApiKey: [], LauncherKey: [] }],
           responses: { '200': { description: 'Remit signature' }, '400': { description: 'Failed' } },
@@ -1011,7 +1011,7 @@ export function llmsTxt(): string {
 2. \`POST ${API_URL}/api/agent/autohire\` with \`x-crew-api-key\` + name/ticker/description → inspect crew
 3. \`POST ${API_URL}/api/agent/launch\` with \`x-crew-api-key\` + \`x-launcher-key\` (+ optional \`crew[]\` / \`autoHire\`) → check \`feeShareLocked\`
 
-MCP equivalent (pinned): \`npx -y crewpay-mcp@1.2.5\` then \`crew_claim_key\` → \`crew_autohire\` → \`crew_launch\` (Approval is optional. Operators can require human approval per key.) Hosted \`${MCP_HTTP_URL}\` for discover/autohire; launcher secret stays local.
+  MCP equivalent (pinned): \`npx -y crewpay-mcp@1.2.5\` then \`crew_claim_key\` → \`crew_autohire\` → \`crew_launch\` (Approval is optional. Operators can require human approval per key.) Hosted \`${MCP_HTTP_URL}\` for discover/autohire. CREW_LAUNCHER_KEY is kept out of tool arguments, but crewpay-mcp sends it to api.crewpay.dev over HTTPS in the x-launcher-key header on launch/wire/lock calls (the API uses it to sign and does not store it). Use a dedicated low-balance burner wallet.
 
 ClawHub / OpenClaw skill: \`openclaw skills install @fxams/crewpay\` (https://clawhub.ai/fxams/crewpay).
 Official MCP Registry: \`io.github.fxams/crewpay-mcp\` (https://registry.modelcontextprotocol.io).
