@@ -19,8 +19,8 @@ function syncCoinRemote(coin: CoinRecord) {
 }
 
 function syncRemitsRemote(remits: RemitRecord[]) {
-  if (!apiConfigured() || !remits.length) return
-  void pushRemits(remits).catch((err) => console.warn('API remit sync failed', err))
+  // No-op: server persists chain-synced remits; keep UI responsive without network writes.
+  return
 }
 
 export type Board = {

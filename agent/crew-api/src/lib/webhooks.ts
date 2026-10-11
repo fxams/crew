@@ -170,8 +170,14 @@ export async function emitWebhookEvent(
 }
 
 /** Verify inbound webhook signature (for consumers / tests). */
-export function verifyWebhookSignature(secret: string, body: string, signature: string): boolean {
-  const expected = Buffer.from(signBody(secret, body))
+export function verifyWebhookSignature(
+  secret: string,
+  body: string,
+  signature: string,
+  timestamp?: string,
+): boolean {
+  const expectedHex = timestamp ? hmacSignature(secret, timestamp, body) : legacySignature(secret, body)
+  const expected = Buffer.from(expectedHex)
   const got = Buffer.from(signature)
   if (expected.length !== got.length) return false
   return timingSafeEqual(expected, got)

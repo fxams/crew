@@ -95,7 +95,14 @@ export async function assertPublicHostname(hostname: string, label = 'url'): Pro
  */
 export async function fetchPublicUrl(
   raw: string,
-  opts?: { label?: string; maxRedirects?: number; timeoutMs?: number; headers?: Record<string, string> },
+  opts?: {
+    label?: string
+    maxRedirects?: number
+    timeoutMs?: number
+    headers?: Record<string, string>
+    method?: string
+    body?: Parameters<typeof fetch>[1] extends { body?: infer B } ? B : unknown
+  },
 ): Promise<Response> {
   const label = opts?.label || 'url'
   const maxRedirects = opts?.maxRedirects ?? 3
@@ -112,6 +119,8 @@ export async function fetchPublicUrl(
         redirect: 'manual',
         signal: ac.signal,
         headers: opts?.headers,
+        method: opts?.method || 'GET',
+        body: opts?.body as never,
       })
     } catch (err) {
       clearTimeout(timer)
