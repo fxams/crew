@@ -1,12 +1,19 @@
 import { buybackStats, listBuybackRuns } from './buyback-exec.js'
-import { listCoins, listRemits, type ApiCoin, type ApiRemit } from './coins.js'
+import {
+  listCoins,
+  listRemitsWithRole,
+  type ApiCoin,
+  type ApiRemit,
+  type ApiRemitWithRole,
+} from './coins.js'
 import { query } from './db.js'
 import { countKols } from './kols.js'
 import { readPlatformBuybackWallet } from './agent/constants.js'
 
 /** Aggregate stats independent of list `limit` (avoids undercount when limit is small). */
 async function proofAggregates() {
-  const [{ rows: coinRows }, { rows: remitRows }, { rows: modeRows }] = await Promise.all([
+  const [{ rows: coinRows }, { rows: remitRows }, { rows: modeRows }, { rows: roleRows }] =
+    await Promise.all([
     query<{ n: number; locked: number }>(
       `SELECT COUNT(*)::int AS n,
               COUNT(fee_share_signature)::int AS locked
@@ -17,14 +24,33 @@ async function proofAggregates() {
               COALESCE(SUM(amount_sol), 0)::float8 AS sol
        FROM remits`,
     ),
-    query<{ n: number }>(`SELECT COUNT(*)::int AS n FROM mode_actions`),
-  ])
+      query<{ n: number }>(`SELECT COUNT(*)::int AS n FROM mode_actions`),
+      query<{ role: string | null; n: number; sol: number }>(`
+        SELECT COALESCE(cs.role, 'unknown') AS role,
+               COUNT(*)::int AS n,
+               COALESCE(SUM(r.amount_sol), 0)::float8 AS sol
+        FROM remits r
+        LEFT JOIN coin_shareholders cs
+          ON cs.mint = r.mint AND cs.wallet = r.wallet
+        GROUP BY COALESCE(cs.role, 'unknown')
+      `),
+    ])
+  const byRole = Object.fromEntries(
+    roleRows.map((r) => [
+      String(r.role || 'unknown'),
+      { count: Number(r.n || 0), sol: Number(Number(r.sol || 0).toFixed(6)) },
+    ]),
+  ) as Record<string, { count: number; sol: number }>
+  const humansPaidSol =
+    (byRole['crew']?.sol || 0) + (byRole['kol']?.sol || 0) // 'kol' kept for older rows
   return {
     coins: Number(coinRows[0]?.n || 0),
     feeShareLocked: Number(coinRows[0]?.locked || 0),
     remitRows: Number(remitRows[0]?.n || 0),
     remitSolTotal: Number(Number(remitRows[0]?.sol || 0).toFixed(6)),
     modeActions: Number(modeRows[0]?.n || 0),
+    byRole,
+    humansPaidSol: Number(humansPaidSol.toFixed(6)),
   }
 }
 
@@ -65,7 +91,7 @@ export async function getProofBundle(limit = 40) {
       listBuybackRuns(safeLimit),
       buybackStats(),
       listCoins(Math.min(50, safeLimit)),
-      listRemits(safeLimit),
+      listRemitsWithRole(safeLimit),
       countKols(),
       listModeActions(safeLimit),
       proofAggregates(),
@@ -94,12 +120,18 @@ export async function getProofBundle(limit = 40) {
       buybackOkRuns: buybackSummary.okRuns,
       buybackSolSpent: buybackSummary.solSpentOk,
       modeActions: aggregates.modeActions,
+      // Extended stats (non-breaking in JSON): by-role and KOL-only human-pay total.
+      byRole: aggregates.byRole,
+      humansPaidSol: aggregates.humansPaidSol,
     },
     buybacks,
-    remits: remits.slice(0, safeLimit).map((r) => ({
-      ...r,
-      handle: enrichRemitHandle(r, coinsByMint.get(r.mint), buybackWallet),
-    })),
+    remits: (remits as ApiRemitWithRole[]).slice(0, safeLimit).map((r) => {
+      const base: ApiRemit & { role?: string | null } = r
+      return {
+        ...base,
+        handle: enrichRemitHandle(base, coinsByMint.get(base.mint), buybackWallet),
+      }
+    }),
     coins: coins.slice(0, 20).map((c) => ({
       mint: c.mint,
       ticker: c.ticker,

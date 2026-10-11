@@ -4,7 +4,7 @@ import { requireApiKey } from '../lib/auth.js'
 import {
   getCoin,
   listCoins,
-  listRemits,
+  listRemitsWithRole,
   upsertCoin,
   upsertRemits,
   type ApiCoin,
@@ -102,7 +102,7 @@ coinsRouter.get('/remits', async (req, res) => {
       typeof req.query.mint === 'string' && req.query.mint.trim().length >= 32
         ? req.query.mint.trim()
         : undefined
-    const remits = await listRemits(Number(req.query.limit || 200), { mint })
+    const remits = await listRemitsWithRole(Number(req.query.limit || 200), { mint })
     const buybackWallet = readPlatformBuybackWallet() || null
     // Enrich handles the same way /api/proof does (crew / buyback / launcher labels).
     const coinsNeeded = [...new Set(remits.map((r) => r.mint))]
@@ -137,7 +137,7 @@ coinsRouter.post('/remits', writeAuth, async (req, res) => {
 
 coinsRouter.get('/board', async (_req, res) => {
   try {
-    const [coins, remits] = await Promise.all([listCoins(100), listRemits(200)])
+    const [coins, remits] = await Promise.all([listCoins(100), listRemitsWithRole(200)])
     res.json({ coins, remits })
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : 'board failed' })

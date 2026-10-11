@@ -42,6 +42,11 @@ export type ApiRemit = {
   source?: string
 }
 
+export type ApiRemitWithRole = ApiRemit & {
+  /** Canonical shareholder role for attribution when known (crew/desk/platform/agent-referral). */
+  role?: string | null
+}
+
 function rowToCoin(row: Record<string, unknown>, crew: ApiCrewMember[]): ApiCoin {
   return {
     id: String(row.id),
@@ -207,6 +212,71 @@ export async function listRemits(
     at: new Date(String(r.at)).getTime(),
     signature: r.signature ? String(r.signature) : undefined,
     source: r.source ? String(r.source) : undefined,
+  }))
+}
+
+/**
+ * Recent remits with shareholder role attribution when available.
+ * Uses a lateral join to pick a single best-match role per (mint,wallet),
+ * preferring crew > agent-referral > desk > platform.
+ */
+export async function listRemitsWithRole(
+  limit = 200,
+  opts?: { mint?: string },
+): Promise<ApiRemitWithRole[]> {
+  const safeLimit = Math.min(500, Math.max(1, limit))
+  const mint = opts?.mint?.trim()
+  const roleOrder = `
+    CASE
+      WHEN role IN ('crew','kol') THEN 1
+      WHEN role = 'agent-referral' THEN 2
+      WHEN role = 'desk' THEN 3
+      WHEN role = 'platform' THEN 4
+      ELSE 5
+    END
+  `
+  const sql = mint
+    ? `
+      SELECT r.*, cs.role AS shareholder_role
+      FROM remits r
+      LEFT JOIN LATERAL (
+        SELECT role
+        FROM coin_shareholders cs
+        WHERE cs.mint = r.mint AND cs.wallet = r.wallet
+        ORDER BY ${roleOrder}, role
+        LIMIT 1
+      ) cs ON true
+      WHERE r.mint = $1
+      ORDER BY r.at DESC
+      LIMIT $2
+    `
+    : `
+      SELECT r.*, cs.role AS shareholder_role
+      FROM remits r
+      LEFT JOIN LATERAL (
+        SELECT role
+        FROM coin_shareholders cs
+        WHERE cs.mint = r.mint AND cs.wallet = r.wallet
+        ORDER BY ${roleOrder}, role
+        LIMIT 1
+      ) cs ON true
+      ORDER BY r.at DESC
+      LIMIT $1
+    `
+  const params = mint ? [mint, safeLimit] : [safeLimit]
+  const { rows } = await query(sql, params)
+  return rows.map((r) => ({
+    id: String(r.id),
+    mint: String(r.mint),
+    ticker: String(r.ticker),
+    handle: String(r.handle),
+    wallet: String(r.wallet || ''),
+    amountSol: Number(r.amount_sol),
+    mode: String(r.mode),
+    at: new Date(String(r.at)).getTime(),
+    signature: r.signature ? String(r.signature) : undefined,
+    source: r.source ? String(r.source) : undefined,
+    role: r.shareholder_role ? String(r.shareholder_role) : null,
   }))
 }
 

@@ -93,6 +93,8 @@ export type RemitRecord = {
   signature?: string
   /** chain = distributeCreatorFees; dip_fire / raid_claim = mode desk executions. */
   source?: 'chain' | 'dip_fire' | 'raid_claim'
+  /** Canonical shareholder role when attributed by the server (crew/desk/platform/agent-referral). */
+  role?: string | null
 }
 
 export type LaunchOk = {
