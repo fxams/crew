@@ -8,6 +8,8 @@ export type AgentKeyRow = {
   launchesPerHour: number
   active: boolean
   ownerWallet: string | null
+  /** When true, launch/wire-fees require an approved dryRunId. Default false. */
+  requireApproval: boolean
   createdAt: number
   lastUsedAt: number | null
 }
@@ -32,8 +34,9 @@ export async function createAgentKey(opts: {
   const launchesPerHour = Math.min(100, Math.max(1, opts.launchesPerHour ?? 5))
   const ownerWallet = opts.ownerWallet?.trim() || null
   await query(
-    `INSERT INTO agent_keys (id, label, key_hash, fingerprint, launches_per_hour, active, owner_wallet)
-     VALUES ($1,$2,$3,$4,$5, true, $6)`,
+    `INSERT INTO agent_keys (
+      id, label, key_hash, fingerprint, launches_per_hour, active, owner_wallet, require_approval
+    ) VALUES ($1,$2,$3,$4,$5, true, $6, false)`,
     [id, opts.label.slice(0, 64), keyHash, fp, launchesPerHour, ownerWallet],
   )
   return {
@@ -45,6 +48,7 @@ export async function createAgentKey(opts: {
       launchesPerHour,
       active: true,
       ownerWallet,
+      requireApproval: false,
       createdAt: Date.now(),
       lastUsedAt: null,
     },
@@ -57,12 +61,14 @@ export async function listAgentKeys(opts?: {
 }): Promise<AgentKeyRow[]> {
   const { rows } = opts?.keyId
     ? await query(
-        `SELECT id, label, fingerprint, launches_per_hour, active, owner_wallet, created_at, last_used_at
+        `SELECT id, label, fingerprint, launches_per_hour, active, owner_wallet, require_approval,
+                created_at, last_used_at
          FROM agent_keys WHERE id = $1 LIMIT 1`,
         [opts.keyId],
       )
     : await query(
-        `SELECT id, label, fingerprint, launches_per_hour, active, owner_wallet, created_at, last_used_at
+        `SELECT id, label, fingerprint, launches_per_hour, active, owner_wallet, require_approval,
+                created_at, last_used_at
          FROM agent_keys ORDER BY created_at DESC LIMIT 100`,
       )
   return rows.map((r) => ({
@@ -72,6 +78,7 @@ export async function listAgentKeys(opts?: {
     launchesPerHour: Number(r.launches_per_hour),
     active: Boolean(r.active),
     ownerWallet: r.owner_wallet ? String(r.owner_wallet) : null,
+    requireApproval: Boolean(r.require_approval),
     createdAt: new Date(String(r.created_at)).getTime(),
     lastUsedAt: r.last_used_at ? new Date(String(r.last_used_at)).getTime() : null,
   }))
@@ -90,7 +97,7 @@ export async function getOwnerWalletByFingerprint(fingerprint: string): Promise<
   return w ? String(w) : null
 }
 
-/** Bind / update the human owner wallet for a DB-backed API key. */
+/** Bind / update the human owner wallet for a DB-backed API key (operator only). */
 export async function setAgentKeyOwnerWallet(opts: {
   keyId: string
   ownerWallet: string
@@ -99,6 +106,19 @@ export async function setAgentKeyOwnerWallet(opts: {
     `UPDATE agent_keys SET owner_wallet = $2, updated_at = now()
      WHERE id = $1 AND active = true`,
     [opts.keyId, opts.ownerWallet],
+  )
+  return (rowCount || 0) > 0
+}
+
+/** Set require_approval for a DB-backed API key. */
+export async function setAgentKeyRequireApproval(opts: {
+  keyId: string
+  requireApproval: boolean
+}): Promise<boolean> {
+  const { rowCount } = await query(
+    `UPDATE agent_keys SET require_approval = $2, updated_at = now()
+     WHERE id = $1 AND active = true`,
+    [opts.keyId, opts.requireApproval],
   )
   return (rowCount || 0) > 0
 }
@@ -119,11 +139,17 @@ export async function revokeAgentKey(id: string, opts?: { keyId?: string }): Pro
 
 export async function matchAgentKey(
   raw: string,
-): Promise<{ id: string; fingerprint: string; launchesPerHour: number } | null> {
+): Promise<{
+  id: string
+  fingerprint: string
+  launchesPerHour: number
+  requireApproval: boolean
+} | null> {
   if (!raw || raw.length < 16) return null
   const keyHash = hashKey(raw)
   const { rows } = await query(
-    `SELECT id, fingerprint, launches_per_hour FROM agent_keys
+    `SELECT id, fingerprint, launches_per_hour, COALESCE(require_approval, false) AS require_approval
+     FROM agent_keys
      WHERE active = true AND key_hash = $1 LIMIT 1`,
     [keyHash],
   )
@@ -134,6 +160,7 @@ export async function matchAgentKey(
     id: String(row.id),
     fingerprint: String(row.fingerprint),
     launchesPerHour: Number(row.launches_per_hour),
+    requireApproval: Boolean(row.require_approval),
   }
 }
 

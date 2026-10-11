@@ -2,9 +2,9 @@
  * Minimal CrewPay REST client for framework plugins.
  * Keys from env only — never accept private keys as function arguments.
  *
- * Spend gate: POST /api/agent/launch/dry-run returns dryRunId + approvalUrl
- * (no approve secret). Operator opens approvalUrl and wallet-signs.
- * Launch/wire require dryRunId after approval. Image content is bound by sha256.
+ * Approval is optional. Operators can require human approval per key.
+ * When requireApproval is off (default), launch/wire work with the API key alone.
+ * dryRunId is optional; when sent it is validated. Image content is bound by sha256 when dry-running.
  */
 
 export const DEFAULT_API_URL = 'https://api.crewpay.dev'
@@ -98,33 +98,28 @@ export class CrewPayClient {
     })
   }
 
-  launch(body: Record<string, unknown>, opts: { dryRunId: string }) {
-    const dryRunId = String(opts.dryRunId || '').trim()
-    if (!dryRunId) {
-      throw new Error(
-        'Launch blocked: dryRunId required — dry-run, operator wallet-approves on approvalUrl, then launch',
-      )
-    }
+  launch(body: Record<string, unknown>, opts?: { dryRunId?: string }) {
+    const dryRunId = String(opts?.dryRunId || '').trim()
+    const payload = dryRunId ? { ...body, dryRunId } : { ...body }
     return this.fetch('/api/agent/launch', {
       method: 'POST',
       auth: true,
       launcher: true,
-      body: JSON.stringify({ ...body, dryRunId }),
+      body: JSON.stringify(payload),
     })
   }
 
-  wireFees(body: { mint: string; mode?: string; crew?: unknown[]; name?: string; ticker?: string }, opts: { dryRunId: string }) {
-    const dryRunId = String(opts.dryRunId || '').trim()
-    if (!dryRunId) {
-      throw new Error(
-        'Wire-fees blocked: dryRunId required — dry-run with intent=wire-fees, wallet-approve, then wire',
-      )
-    }
+  wireFees(
+    body: { mint: string; mode?: string; crew?: unknown[]; name?: string; ticker?: string },
+    opts?: { dryRunId?: string },
+  ) {
+    const dryRunId = String(opts?.dryRunId || '').trim()
+    const payload = dryRunId ? { ...body, dryRunId } : { ...body }
     return this.fetch('/api/agent/wire-fees', {
       method: 'POST',
       auth: true,
       launcher: true,
-      body: JSON.stringify({ ...body, dryRunId }),
+      body: JSON.stringify(payload),
     })
   }
 

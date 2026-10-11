@@ -204,7 +204,7 @@ describe('dry-run-store', () => {
     ).rejects.toThrow(/Approvals disabled/)
   })
 
-  it('rejects a dry-run with no launcherPubkey', async () => {
+  it('rejects a dry-run with no launcherPubkey when requireApproval', async () => {
     await expect(
       createDryRun({
         apiKeyFp: 'fp1',
@@ -213,8 +213,32 @@ describe('dry-run-store', () => {
         imageSha256: imageSha,
         plan: { ok: true },
         launcherPubkey: '',
+        requireLauncher: true,
       }),
     ).rejects.toThrow(/launcherPubkey is required/)
+  })
+
+  it('allows consume without prior approval when requireApproval=false', async () => {
+    const bodyHash = hashLaunchBody(launchBody, imageSha)
+    const rec = await createDryRun({
+      apiKeyFp: 'fp1',
+      intent: 'launch',
+      bodyHash,
+      imageSha256: imageSha,
+      launcherPubkey: LAUNCHER,
+      plan: { ok: true },
+    })
+    const used = await consumeApprovedDryRun({
+      dryRunId: rec.id,
+      apiKeyFp: 'fp1',
+      intent: 'launch',
+      bodyHash,
+      imageSha256: imageSha,
+      launcherPubkey: LAUNCHER,
+      requireApproval: false,
+    })
+    expect(used.consumedAt).toBeTruthy()
+    expect(used.approvedAt).toBeNull()
   })
 
   it('rejects launch with a different launcher than the dry-run', async () => {

@@ -18,6 +18,38 @@ export function buildApproveDryRunMessage(dryRunId: string, timestamp: number): 
   return `crew-approve-dry-run:${dryRunId}:${timestamp}`
 }
 
+export function buildRequireApprovalMessage(
+  keyId: string,
+  requireApproval: boolean,
+  timestamp: number,
+): string {
+  return `crew-require-approval:${keyId}:${requireApproval ? '1' : '0'}:${timestamp}`
+}
+
+/** Operator wallet signature to toggle requireApproval (CREWPAY_APPROVER_WALLETS). */
+export function requireApprovalWalletFresh(req: {
+  header(name: string): string | undefined
+  body?: unknown
+}): { wallet: string; keyId: string; requireApproval: boolean } | null {
+  const wallet = (req.header('x-crew-wallet') || '').trim()
+  const tsRaw = (req.header('x-crew-timestamp') || '').trim()
+  const signature = (req.header('x-crew-signature') || '').trim()
+  const body = (req.body && typeof req.body === 'object' ? req.body : {}) as {
+    keyId?: string
+    requireApproval?: boolean
+  }
+  const keyId = (req.header('x-crew-key-id') || '').trim() || String(body.keyId || '')
+  if (!wallet || !tsRaw || !signature || !keyId || typeof body.requireApproval !== 'boolean') {
+    return null
+  }
+  const timestamp = Number(tsRaw)
+  if (!Number.isFinite(timestamp)) return null
+  if (Math.abs(Date.now() - timestamp) > 10 * 60_000) return null
+  const message = buildRequireApprovalMessage(keyId, body.requireApproval, timestamp)
+  if (!verifyWalletSignature({ wallet, message, signatureBase58: signature })) return null
+  return { wallet, keyId, requireApproval: body.requireApproval }
+}
+
 /** Verify Phantom-signed dry-run approval headers (no mint). */
 export function approveDryRunWalletFresh(req: {
   header(name: string): string | undefined

@@ -135,14 +135,19 @@ export async function createDryRun(opts: {
   bodyHash: string
   imageSha256: string | null
   plan: unknown
-  /** Required — burner that will sign the eventual spend; cannot approve. */
-  launcherPubkey: string
+  /**
+   * Burner that will sign the eventual spend; cannot approve.
+   * Required when the issuing key has requireApproval=true.
+   */
+  launcherPubkey?: string | null
+  /** When true, refuse create without a valid launcherPubkey. */
+  requireLauncher?: boolean
 }): Promise<DryRunRecord> {
   const now = Date.now()
   const id = randomBytes(16).toString('hex')
-  const launcherPubkey = normalizeWallet(opts.launcherPubkey || '')
-  if (!launcherPubkey) {
-    throw new Error('launcherPubkey is required on every dry-run (launch and wire-fees)')
+  const launcherPubkey = opts.launcherPubkey ? normalizeWallet(opts.launcherPubkey) : null
+  if (opts.requireLauncher && !launcherPubkey) {
+    throw new Error('launcherPubkey is required on dry-runs when requireApproval is true')
   }
   const rec: DryRunRecord = {
     id,
@@ -262,7 +267,12 @@ export async function approveDryRunWithWallet(
   return updated
 }
 
-/** Validate spend against an approved dry-run; marks it consumed. */
+/**
+ * Validate spend against a dry-run; marks it consumed.
+ * When requireApproval=true, the dry-run must already be wallet-approved and must
+ * bind launcherPubkey. When false, approval is not required; launcher is checked
+ * only if the dry-run recorded one.
+ */
 export async function consumeApprovedDryRun(opts: {
   dryRunId: string
   apiKeyFp: string
@@ -271,7 +281,10 @@ export async function consumeApprovedDryRun(opts: {
   imageSha256?: string | null
   /** Pubkey of the Keypair that will sign the spend (from x-launcher-key). */
   launcherPubkey: string
+  /** When true, insist on prior human approval + launcher bind. */
+  requireApproval?: boolean
 }): Promise<DryRunRecord> {
+  const requireApproval = opts.requireApproval !== false
   const rec = await getDryRun(opts.dryRunId)
   if (!rec) throw new Error('Unknown or expired dryRunId — call POST /api/agent/launch/dry-run first')
   if (rec.apiKeyFp !== opts.apiKeyFp) {
@@ -283,22 +296,25 @@ export async function consumeApprovedDryRun(opts: {
   if (rec.bodyHash !== opts.bodyHash) {
     throw new Error('Request body does not match the dry-run that issued dryRunId')
   }
-  if (!rec.launcherPubkey) {
-    throw new Error('Approved dry-run is missing launcherPubkey — create a new dry-run')
-  }
   const signing = normalizeWallet(opts.launcherPubkey || '')
-  const expected = normalizeWallet(rec.launcherPubkey || '')
-  if (!signing || !expected || signing !== expected) {
-    throw new Error(
-      'Signing launcher/burner pubkey does not match the approved dry-run launcherPubkey',
-    )
+  if (!signing) throw new Error('Invalid signing launcher pubkey')
+  if (requireApproval || rec.launcherPubkey) {
+    if (!rec.launcherPubkey) {
+      throw new Error('Dry-run is missing launcherPubkey — create a new dry-run with launcherPubkey')
+    }
+    const expected = normalizeWallet(rec.launcherPubkey)
+    if (!expected || signing !== expected) {
+      throw new Error(
+        'Signing launcher/burner pubkey does not match the approved dry-run launcherPubkey',
+      )
+    }
   }
   if (opts.intent === 'launch') {
     if (!opts.imageSha256 || !rec.imageSha256 || opts.imageSha256 !== rec.imageSha256) {
       throw new Error('Image content does not match the approved dry-run (sha256 mismatch)')
     }
   }
-  if (!rec.approvedAt) {
+  if (requireApproval && !rec.approvedAt) {
     throw new Error(
       'Dry-run not approved yet — open the approvalUrl, connect a wallet, and confirm before spending SOL',
     )
@@ -311,13 +327,24 @@ export async function consumeApprovedDryRun(opts: {
     memory.set(rec.id, rec)
     return rec
   }
-  const { rowCount } = await query(
-    `UPDATE agent_dry_runs
-     SET consumed_at = to_timestamp($2 / 1000.0)
-     WHERE id = $1 AND consumed_at IS NULL AND approved_at IS NOT NULL`,
-    [opts.dryRunId, consumedAt],
-  )
-  if (!rowCount) throw new Error('dryRunId already used or not approved')
+  const { rowCount } = requireApproval
+    ? await query(
+        `UPDATE agent_dry_runs
+         SET consumed_at = to_timestamp($2 / 1000.0)
+         WHERE id = $1 AND consumed_at IS NULL AND approved_at IS NOT NULL`,
+        [opts.dryRunId, consumedAt],
+      )
+    : await query(
+        `UPDATE agent_dry_runs
+         SET consumed_at = to_timestamp($2 / 1000.0)
+         WHERE id = $1 AND consumed_at IS NULL`,
+        [opts.dryRunId, consumedAt],
+      )
+  if (!rowCount) {
+    throw new Error(
+      requireApproval ? 'dryRunId already used or not approved' : 'dryRunId already used',
+    )
+  }
   const updated = await getDryRun(opts.dryRunId)
   if (!updated) throw new Error('dryRunId disappeared after consume')
   return updated
