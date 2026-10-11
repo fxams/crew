@@ -9,10 +9,16 @@ import {
   resetDryRunStore,
 } from './dry-run-store.js'
 
+/** Well-known valid Solana addresses for allowlist tests. */
+const OPERATOR = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
+const UNKNOWN = 'So11111111111111111111111111111111111111112'
+const LAUNCHER = '11111111111111111111111111111111'
+
 describe('dry-run-store', () => {
   beforeEach(() => {
     resetDryRunStore()
     delete process.env.DATABASE_URL
+    process.env.CREWPAY_APPROVER_WALLETS = OPERATOR
   })
 
   const launchBody = {
@@ -45,6 +51,7 @@ describe('dry-run-store', () => {
       bodyHash,
       imageSha256: imageSha,
       plan: { ok: true },
+      launcherPubkey: LAUNCHER,
     })
     expect((await getDryRun(rec.id))?.approvedAt).toBeNull()
     await expect(
@@ -57,7 +64,7 @@ describe('dry-run-store', () => {
       }),
     ).rejects.toThrow(/not approved/)
 
-    await approveDryRunWithWallet(rec.id, 'Wallet111')
+    await approveDryRunWithWallet(rec.id, OPERATOR)
     await expect(
       consumeApprovedDryRun({
         dryRunId: rec.id,
@@ -76,7 +83,7 @@ describe('dry-run-store', () => {
       imageSha256: imageSha,
     })
     expect(used.consumedAt).toBeTruthy()
-    expect(used.approvedByWallet).toBe('Wallet111')
+    expect(used.approvedByWallet).toBe(OPERATOR)
   })
 
   it('gates wire-fees intent separately', async () => {
@@ -89,7 +96,7 @@ describe('dry-run-store', () => {
       imageSha256: null,
       plan: { mint: 'MintWire1' },
     })
-    await approveDryRunWithWallet(rec.id, 'Wallet222')
+    await approveDryRunWithWallet(rec.id, OPERATOR)
     await expect(
       consumeApprovedDryRun({
         dryRunId: rec.id,
@@ -105,5 +112,70 @@ describe('dry-run-store', () => {
       bodyHash,
     })
     expect(used.intent).toBe('wire-fees')
+  })
+
+  it('rejects self-approval by the launcher/burner wallet', async () => {
+    const bodyHash = hashLaunchBody(launchBody, imageSha)
+    const rec = await createDryRun({
+      apiKeyFp: 'fp1',
+      intent: 'launch',
+      bodyHash,
+      imageSha256: imageSha,
+      launcherPubkey: LAUNCHER,
+      plan: { ok: true },
+    })
+    // Even if somehow listed, launcher is always rejected — also not in allowlist here.
+    await expect(approveDryRunWithWallet(rec.id, LAUNCHER)).rejects.toThrow(
+      /Launcher\/burner wallet cannot approve/,
+    )
+    expect((await getDryRun(rec.id))?.approvedAt).toBeNull()
+  })
+
+  it('rejects an unknown (non-allowlisted) wallet', async () => {
+    const bodyHash = hashLaunchBody(launchBody, imageSha)
+    const rec = await createDryRun({
+      apiKeyFp: 'fp1',
+      intent: 'launch',
+      bodyHash,
+      imageSha256: imageSha,
+      launcherPubkey: LAUNCHER,
+      plan: { ok: true },
+    })
+    await expect(approveDryRunWithWallet(rec.id, UNKNOWN)).rejects.toThrow(
+      /not on the approver allowlist/,
+    )
+    expect((await getDryRun(rec.id))?.approvedAt).toBeNull()
+  })
+
+  it('accepts an allowlisted operator wallet', async () => {
+    const bodyHash = hashLaunchBody(launchBody, imageSha)
+    const rec = await createDryRun({
+      apiKeyFp: 'fp1',
+      intent: 'launch',
+      bodyHash,
+      imageSha256: imageSha,
+      launcherPubkey: LAUNCHER,
+      plan: { ok: true },
+    })
+    const approved = await approveDryRunWithWallet(rec.id, OPERATOR)
+    expect(approved.approvedAt).toBeTruthy()
+    expect(approved.approvedByWallet).toBe(OPERATOR)
+  })
+
+  it('refuses all approvals when the allowlist is empty', async () => {
+    delete process.env.CREWPAY_APPROVER_WALLETS
+    delete process.env.CREW_APPROVER_WALLETS
+    const bodyHash = hashLaunchBody(launchBody, imageSha)
+    const rec = await createDryRun({
+      apiKeyFp: 'fp1',
+      intent: 'launch',
+      bodyHash,
+      imageSha256: imageSha,
+      launcherPubkey: LAUNCHER,
+      plan: { ok: true },
+    })
+    await expect(
+      approveDryRunWithWallet(rec.id, OPERATOR, { allowlist: [] }),
+    ).rejects.toThrow(/Approvals disabled/)
   })
 })

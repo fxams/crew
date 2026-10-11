@@ -151,7 +151,7 @@ export function getLaunchBlockers(draft: LaunchDraft): string[] {
 
   const buybackWallet = readPlatformBuybackWallet()
   if (!buybackWallet || buybackWallet.length < 32) {
-    blockers.push('CREW buyback wallet (set VITE_CREW_BUYBACK_WALLET)')
+    blockers.push('Platform fee-share wallet (set VITE_CREW_BUYBACK_WALLET)')
   }
 
   // Holder KOL launches finalize crew from top holders later — skip crew form checks.

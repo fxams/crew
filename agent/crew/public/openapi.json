@@ -128,7 +128,8 @@
         "tags": [
           "agent"
         ],
-        "summary": "Dry-run launch plan (no on-chain tx, mainnet costs estimated)",
+        "summary": "Create a dry-run plan + dryRunId (no on-chain spend). Human must approve via approvalUrl before launch/wire-fees.",
+        "description": "Returns `dryRunId`, `approvalUrl` (site `/approve/{dryRunId}`), plan, and `expiresAt`. Approve tokens are never returned. Approval requires an allowlisted operator wallet (`CREWPAY_APPROVER_WALLETS`) or the API key `ownerWallet` — never the launcher/burner keypair. Pass `intent: \"wire-fees\"` for fee-share wiring dry-runs.",
         "operationId": "postAgentLaunchDryRun",
         "security": [
           {
@@ -147,7 +148,14 @@
         },
         "responses": {
           "200": {
-            "description": "Validated plan + fee map + warnings"
+            "description": "Validated plan + dryRunId + approvalUrl",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DryRunResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Validation error"
@@ -158,12 +166,84 @@
         }
       }
     },
+    "/api/agent/launch/dry-run/{id}": {
+      "get": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Read a dry-run plan (public; used by the human approval page)",
+        "description": "Returns plan status: approved, consumed, expiresAt, imageSha256, and plan details. No secrets.",
+        "operationId": "getAgentLaunchDryRun",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "dryRunId from POST /api/agent/launch/dry-run"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dry-run public view",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DryRunPublicView"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or expired dryRunId"
+          }
+        }
+      }
+    },
+    "/api/agent/launch/dry-run/{id}/approve": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Human-approve a dry-run with an allowlisted wallet signature",
+        "description": "Wallet SIWS-style headers: `x-crew-wallet`, `x-crew-timestamp`, `x-crew-signature`, `x-crew-dry-run-id` (message `crew-approve-dry-run:{id}:{ts}`). Rejects agent API keys, approve tokens, the launcher/burner pubkey on the dry-run, unknown wallets, and empty allowlists. Allowlist = `CREWPAY_APPROVER_WALLETS` ∪ API key `ownerWallet`.",
+        "operationId": "postAgentLaunchDryRunApprove",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "dryRunId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Approved — proceed to launch or wire-fees with same body + dryRunId"
+          },
+          "400": {
+            "description": "Unknown/expired dryRunId or already consumed"
+          },
+          "401": {
+            "description": "Missing/invalid wallet signature"
+          },
+          "403": {
+            "description": "Wallet not allowlisted, launcher/burner self-approval, empty allowlist, or agent API key used"
+          }
+        }
+      }
+    },
     "/api/agent/launch": {
       "post": {
         "tags": [
           "agent"
         ],
         "summary": "Launch Pump coin with CREW fee-shares (mainnet)",
+        "description": "Requires a prior approved `dryRunId` whose body hash and image sha256 match. Create the dry-run, open `approvalUrl`, then call this endpoint with the same body + dryRunId.",
         "operationId": "postAgentLaunch",
         "security": [
           {
@@ -827,6 +907,107 @@
             "type": "boolean",
             "default": false,
             "description": "When true, refuse sequential create→lock fallback (same as CREW_ATOMIC_REQUIRED=1)."
+          },
+          "launcherPubkey": {
+            "type": "string",
+            "description": "Optional launcher public address for balance checks. This wallet cannot approve the dry-run."
+          },
+          "dryRunId": {
+            "type": "string",
+            "description": "Required on spend endpoints — id from POST /api/agent/launch/dry-run after human approval."
+          },
+          "intent": {
+            "type": "string",
+            "enum": [
+              "launch",
+              "wire-fees"
+            ],
+            "description": "Dry-run intent (default launch). Use wire-fees for fee-share wiring."
+          }
+        }
+      },
+      "DryRunResponse": {
+        "type": "object",
+        "required": [
+          "dryRunId",
+          "approvalUrl",
+          "expiresAt"
+        ],
+        "properties": {
+          "dryRunId": {
+            "type": "string",
+            "description": "Opaque id — pass to launch/wire-fees after wallet approval."
+          },
+          "approvalUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "Human approval page on the site. Connect an allowlisted wallet and sign; agents cannot self-approve."
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "imageSha256": {
+            "type": "string",
+            "description": "Bound image content hash (launch intent)."
+          },
+          "tip": {
+            "type": "string"
+          }
+        }
+      },
+      "DryRunPublicView": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "dryRunId": {
+            "type": "string"
+          },
+          "intent": {
+            "type": "string",
+            "enum": [
+              "launch",
+              "wire-fees"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "approved": {
+            "type": "boolean"
+          },
+          "approvedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "approvedByWallet": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "consumed": {
+            "type": "boolean"
+          },
+          "imageSha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "plan": {
+            "type": "object",
+            "additionalProperties": true
           }
         }
       }

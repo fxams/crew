@@ -7,6 +7,7 @@ export type AgentKeyRow = {
   fingerprint: string
   launchesPerHour: number
   active: boolean
+  ownerWallet: string | null
   createdAt: number
   lastUsedAt: number | null
 }
@@ -22,16 +23,18 @@ function fingerprint(raw: string): string {
 export async function createAgentKey(opts: {
   label: string
   launchesPerHour?: number
+  ownerWallet?: string | null
 }): Promise<{ key: string; row: AgentKeyRow }> {
   const id = `ak_${randomBytes(6).toString('hex')}`
   const key = `crew_ak_${randomBytes(24).toString('hex')}`
   const keyHash = hashKey(key)
   const fp = fingerprint(key)
   const launchesPerHour = Math.min(100, Math.max(1, opts.launchesPerHour ?? 5))
+  const ownerWallet = opts.ownerWallet?.trim() || null
   await query(
-    `INSERT INTO agent_keys (id, label, key_hash, fingerprint, launches_per_hour, active)
-     VALUES ($1,$2,$3,$4,$5, true)`,
-    [id, opts.label.slice(0, 64), keyHash, fp, launchesPerHour],
+    `INSERT INTO agent_keys (id, label, key_hash, fingerprint, launches_per_hour, active, owner_wallet)
+     VALUES ($1,$2,$3,$4,$5, true, $6)`,
+    [id, opts.label.slice(0, 64), keyHash, fp, launchesPerHour, ownerWallet],
   )
   return {
     key,
@@ -41,6 +44,7 @@ export async function createAgentKey(opts: {
       fingerprint: fp,
       launchesPerHour,
       active: true,
+      ownerWallet,
       createdAt: Date.now(),
       lastUsedAt: null,
     },
@@ -53,12 +57,12 @@ export async function listAgentKeys(opts?: {
 }): Promise<AgentKeyRow[]> {
   const { rows } = opts?.keyId
     ? await query(
-        `SELECT id, label, fingerprint, launches_per_hour, active, created_at, last_used_at
+        `SELECT id, label, fingerprint, launches_per_hour, active, owner_wallet, created_at, last_used_at
          FROM agent_keys WHERE id = $1 LIMIT 1`,
         [opts.keyId],
       )
     : await query(
-        `SELECT id, label, fingerprint, launches_per_hour, active, created_at, last_used_at
+        `SELECT id, label, fingerprint, launches_per_hour, active, owner_wallet, created_at, last_used_at
          FROM agent_keys ORDER BY created_at DESC LIMIT 100`,
       )
   return rows.map((r) => ({
@@ -67,9 +71,36 @@ export async function listAgentKeys(opts?: {
     fingerprint: String(r.fingerprint),
     launchesPerHour: Number(r.launches_per_hour),
     active: Boolean(r.active),
+    ownerWallet: r.owner_wallet ? String(r.owner_wallet) : null,
     createdAt: new Date(String(r.created_at)).getTime(),
     lastUsedAt: r.last_used_at ? new Date(String(r.last_used_at)).getTime() : null,
   }))
+}
+
+/** Owner wallet registered for an API key fingerprint (approver allowlist). */
+export async function getOwnerWalletByFingerprint(fingerprint: string): Promise<string | null> {
+  if (!fingerprint) return null
+  const { rows } = await query(
+    `SELECT owner_wallet FROM agent_keys
+     WHERE active = true AND fingerprint = $1 AND owner_wallet IS NOT NULL
+     LIMIT 1`,
+    [fingerprint],
+  )
+  const w = rows[0]?.owner_wallet
+  return w ? String(w) : null
+}
+
+/** Bind / update the human owner wallet for a DB-backed API key. */
+export async function setAgentKeyOwnerWallet(opts: {
+  keyId: string
+  ownerWallet: string
+}): Promise<boolean> {
+  const { rowCount } = await query(
+    `UPDATE agent_keys SET owner_wallet = $2, updated_at = now()
+     WHERE id = $1 AND active = true`,
+    [opts.keyId, opts.ownerWallet],
+  )
+  return (rowCount || 0) > 0
 }
 
 export async function revokeAgentKey(id: string, opts?: { keyId?: string }): Promise<boolean> {
