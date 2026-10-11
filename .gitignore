@@ -4,3 +4,4 @@ node_modules/
 **/musebook/credentials.json
 .musebook-credentials.json
 
+packages/*/dist/
