@@ -1,0 +1,6 @@
+node_modules/
+venue-data/
+*.log
+# Local signing keys (Technocore did:key seeds etc.) — never commit
+secrets/
+*.seed
