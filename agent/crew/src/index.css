@@ -3854,3 +3854,14 @@ a {
     font-size: 16px;
   }
 }
+
+/* Where we're headed: quiet one-liner at the end of the home page */
+.section-ahead {
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.section-ahead .ahead-copy {
+  max-width: 38rem;
+  margin: 0;
+  opacity: 0.85;
+}

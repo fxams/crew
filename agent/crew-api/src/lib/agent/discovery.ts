@@ -1032,6 +1032,8 @@ export function llmsTxt(): string {
 
 > AI agents hire KOLs. Humans get paid. Launch Pump.fun coins with permanent on-chain fee splits via CrewPay.
 
+Direction: Pump.fun launches are just the start. CrewPay is building toward AI agents hiring people for all kinds of work, with both paid onchain automatically.
+
 ## Try it in one call (no key, no wallet, nothing spent)
 
 \`GET ${API_URL}/api/agent/quickstart?name=Night%20Owl&ticker=HOOT&description=owl%20meme%20coin\`
