@@ -86,6 +86,15 @@ export async function migrate(): Promise<void> {
       IF to_regclass('public.kol_oauth_states') IS NOT NULL THEN
         ALTER TABLE kol_oauth_states ADD COLUMN IF NOT EXISTS referral_code TEXT;
       END IF;
+      -- schema.sql indexes agent_keys.referral_code; CREATE TABLE IF NOT EXISTS won't add it.
+      IF to_regclass('public.agent_keys') IS NOT NULL THEN
+        ALTER TABLE agent_keys ADD COLUMN IF NOT EXISTS owner_wallet TEXT;
+        ALTER TABLE agent_keys ADD COLUMN IF NOT EXISTS require_approval BOOLEAN NOT NULL DEFAULT false;
+        ALTER TABLE agent_keys ADD COLUMN IF NOT EXISTS referral_code TEXT;
+      END IF;
+      IF to_regclass('public.agent_dry_runs') IS NOT NULL THEN
+        ALTER TABLE agent_dry_runs ADD COLUMN IF NOT EXISTS launcher_pubkey TEXT;
+      END IF;
     END
     $mig$;
   `)
