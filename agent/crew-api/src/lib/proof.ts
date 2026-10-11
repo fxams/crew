@@ -1,11 +1,5 @@
 import { buybackStats, listBuybackRuns } from './buyback-exec.js'
-import {
-  listCoins,
-  listRemitsWithRole,
-  type ApiCoin,
-  type ApiRemit,
-  type ApiRemitWithRole,
-} from './coins.js'
+import { listCoins, listRemits, type ApiCoin, type ApiRemit } from './coins.js'
 import { query } from './db.js'
 import { countKols } from './kols.js'
 import { readPlatformBuybackWallet } from './agent/constants.js'
@@ -84,6 +78,63 @@ export function enrichRemitHandle(remit: ApiRemit, coin: ApiCoin | undefined, bu
   return h || (remit.wallet.length >= 8 ? `@${remit.wallet.slice(0, 4)}…${remit.wallet.slice(-4)}` : h)
 }
 
+export type RoleTotals = {
+  role: 'crew' | 'platform' | 'desk' | 'agent-referral' | 'referral' | 'unknown'
+  remits: number
+  sol: number
+}
+
+/** Filter to crew-only and build a scoreboard compatible with the site UI. */
+export function buildCrewLeaderboardFromRemits(
+  remits: Array<ApiRemit & { role?: string }>,
+  limit = 8,
+): { handle: string; totalSol: number; remits: number; tickers: string[] }[] {
+  const map = new Map<string, { handle: string; totalSol: number; remits: number; tickers: string[] }>()
+  for (const r of remits) {
+    const role = (r.role || '').toLowerCase()
+    if (role !== 'crew' && role !== 'kol') continue
+    if (!r.handle) continue
+    const key = r.handle.toLowerCase()
+    const row =
+      map.get(key) ??
+      {
+        handle: r.handle,
+        totalSol: 0,
+        remits: 0,
+        tickers: [],
+      }
+    row.totalSol += r.amountSol || 0
+    row.remits += 1
+    if (r.ticker && !row.tickers.includes(r.ticker)) row.tickers.push(r.ticker)
+    map.set(key, row)
+  }
+  return [...map.values()]
+    .sort((a, b) => b.totalSol - a.totalSol || b.remits - a.remits)
+    .slice(0, Math.max(1, Math.min(32, limit)))
+}
+
+function sumByRole(remits: Array<ApiRemit & { role?: string }>): RoleTotals[] {
+  const sums = new Map<RoleTotals['role'], RoleTotals>()
+  function add(role: RoleTotals['role'], amount: number) {
+    const e = sums.get(role) ?? { role, remits: 0, sol: 0 }
+    e.remits += 1
+    e.sol += amount
+    sums.set(role, e)
+  }
+  for (const r of remits) {
+    const role = (r.role || 'unknown').toLowerCase() as RoleTotals['role']
+    if (role === 'crew' || role === 'platform' || role === 'desk' || role === 'agent-referral' || role === 'referral') {
+      add(role, r.amountSol || 0)
+    } else {
+      add('unknown', r.amountSol || 0)
+    }
+  }
+  // Return in a stable order.
+  const order: RoleTotals['role'][] = ['crew', 'desk', 'platform', 'agent-referral', 'referral', 'unknown']
+  return order
+    .map((k) => sums.get(k) ?? { role: k, remits: 0, sol: 0 })
+}
+
 export async function getProofBundle(limit = 40) {
   const safeLimit = Math.min(200, Math.max(1, limit))
   const [buybacks, buybackSummary, coins, remits, kolCount, modeActions, aggregates] =
@@ -91,14 +142,31 @@ export async function getProofBundle(limit = 40) {
       listBuybackRuns(safeLimit),
       buybackStats(),
       listCoins(Math.min(50, safeLimit)),
-      listRemitsWithRole(safeLimit),
+      listRemits(safeLimit),
       countKols(),
       listModeActions(safeLimit),
       proofAggregates(),
     ])
 
-  const buybackWallet = readPlatformBuybackWallet() || null
-  const coinsByMint = new Map(coins.map((c) => [c.mint, c]))
+const buybackWallet = readPlatformBuybackWallet() || null
+const coinsByMint = new Map(coins.map((c) => [c.mint, c]))
+const classified = remits.map((r) => {
+  const coin = coinsByMint.get(r.mint)
+  let role = (r.role || '').toLowerCase() || null
+  if (role === 'kol') role = 'crew'
+  if (!role) {
+    if (buybackWallet && r.wallet === buybackWallet) role = 'platform'
+    else if (coin?.crew.some((c) => c.wallet === r.wallet)) role = 'crew'
+    else if (coin && coin.launcher === r.wallet) role = 'desk'
+  }
+  if (buybackWallet && r.wallet === buybackWallet) role = 'platform'
+  return {
+    ...r,
+    role: role ?? undefined,
+    handle: enrichRemitHandle(r, coin, buybackWallet),
+  }
+})
+const roleTotals = sumByRole(classified)
 
   return {
     ok: true,
@@ -120,18 +188,13 @@ export async function getProofBundle(limit = 40) {
       buybackOkRuns: buybackSummary.okRuns,
       buybackSolSpent: buybackSummary.solSpentOk,
       modeActions: aggregates.modeActions,
-      // Extended stats (non-breaking in JSON): by-role and KOL-only human-pay total.
-      byRole: aggregates.byRole,
-      humansPaidSol: aggregates.humansPaidSol,
+      byRole: roleTotals,
+      humansPaidSol: Number((roleTotals.find((r) => r.role === 'crew')?.sol ?? 0).toFixed(9)),
+      humansPaidRemits: roleTotals.find((r) => r.role === 'crew')?.remits ?? 0,
     },
     buybacks,
-    remits: (remits as ApiRemitWithRole[]).slice(0, safeLimit).map((r) => {
-      const base: ApiRemit & { role?: string | null } = r
-      return {
-        ...base,
-        handle: enrichRemitHandle(base, coinsByMint.get(base.mint), buybackWallet),
-      }
-    }),
+    remits: classified.slice(0, safeLimit),
+    leaderboard: buildCrewLeaderboardFromRemits(classified, 8),
     coins: coins.slice(0, 20).map((c) => ({
       mint: c.mint,
       ticker: c.ticker,
