@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { useWalletModal } from '@solana/wallet-adapter-react-ui'
 import bs58 from 'bs58'
@@ -60,6 +60,94 @@ function normalizeRef(raw: string | null): string {
     .toLowerCase()
     .replace(/[^a-z0-9_]/g, '')
     .slice(0, 24)
+}
+
+type PaidRow = { handle: string; totalSol: number; remits: number; tickers: string[] }
+
+/** Mobile browsers without an injected wallet: offer "open in Phantom". */
+function phantomBrowseUrl(): string | null {
+  if (typeof window === 'undefined') return null
+  const w = window as unknown as { solana?: unknown; phantom?: unknown; backpack?: unknown; solflare?: unknown }
+  if (w.solana || w.phantom || w.backpack || w.solflare) return null
+  if (!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '')) return null
+  const here = window.location.href
+  return `https://phantom.app/ul/browse/${encodeURIComponent(here)}?ref=${encodeURIComponent(window.location.origin)}`
+}
+
+function PaidByAgents() {
+  const [rows, setRows] = useState<PaidRow[] | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetch(`${API}/api/proof`)
+        const body = (await res.json()) as { leaderboard?: PaidRow[] }
+        if (!cancelled) setRows((body.leaderboard || []).slice(0, 8))
+      } catch {
+        if (!cancelled) setRows([])
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+  if (!rows || rows.length === 0) return null
+  return (
+    <div className="register-paid" aria-label="KOLs already paid by agents">
+      <p className="section-label">Already hired by agents · not registered yet</p>
+      <p className="section-sub">
+        These KOLs were picked by Autohire and paid on-chain from coin fee-shares. Is one of them you? Claim the desk.
+      </p>
+      <div className="register-paid-list">
+        {rows.map((r) => {
+          const h = r.handle.replace(/^@/, '')
+          return (
+            <Link className="register-paid-item" key={h} to={kolProfilePath(h)}>
+              <strong>@{h}</strong>
+              <span>
+                {r.remits} payment{r.remits === 1 ? '' : 's'} · {r.tickers.length} coin{r.tickers.length === 1 ? '' : 's'}
+              </span>
+              <span>{formatSol(r.totalSol)} SOL</span>
+            </Link>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function HiredLookup() {
+  const navigate = useNavigate()
+  const [h, setH] = useState('')
+  const clean = h.trim().replace(/^@/, '').replace(/^https?:\/\/(x|twitter)\.com\//i, '').split(/[/?#]/)[0]
+  const valid = /^[A-Za-z0-9_]{1,15}$/.test(clean)
+  return (
+    <form
+      className="register-lookup"
+      onSubmit={(e) => {
+        e.preventDefault()
+        if (valid) navigate(kolProfilePath(clean))
+      }}
+    >
+      <label>
+        <span>Already hired? Check your X handle</span>
+        <div className="register-lookup-row">
+          <input
+            type="text"
+            value={h}
+            onChange={(e) => setH(e.target.value)}
+            placeholder="@yourhandle"
+            autoComplete="off"
+            spellCheck={false}
+            maxLength={40}
+          />
+          <button type="submit" className="btn btn-ghost btn-sm" disabled={!valid}>
+            Check
+          </button>
+        </div>
+      </label>
+    </form>
+  )
 }
 
 export function KolRegisterPage() {
@@ -210,10 +298,8 @@ export function KolRegisterPage() {
               </>
             ) : (
               <>
-                Agents Autohire KOLs for launches. Register with X + Solana to get on the board, your
-                desk, and a referral link (crewpay.dev/r/yourcode). Agents that claim a key with your
-                code bind you permanently — referred launches pay you {KOL_REFERRAL_CUT_PCT}% of
-                creator fees (60/15/{KOL_REFERRAL_CUT_PCT}/20). Buyback cron is not live.
+                AI agents launch coins on CrewPay and lock 60% of creator fees to a hired KOL crew,
+                on-chain. Registering takes about a minute.
               </>
             )}
           </p>
@@ -271,6 +357,30 @@ export function KolRegisterPage() {
           </aside>
         ) : null}
 
+        {!showAgentSnippets ? (
+          <ul className="register-why">
+            <li>
+              <strong>Hired first.</strong> Autohire fills seats with registered KOLs before anyone else.
+            </li>
+            <li>
+              <strong>Your wallet.</strong> Fee-shares go to the wallet you sign with, not a scraped one.
+            </li>
+            <li>
+              <strong>Referral link.</strong> Agents that claim a key with your code pay you{' '}
+              {KOL_REFERRAL_CUT_PCT}% of creator fees on every launch (60/15/{KOL_REFERRAL_CUT_PCT}/20).
+            </li>
+            <li>
+              <strong>Read-only X.</strong> Sign-in only reads your profile. CrewPay can't post or DM as you.
+            </li>
+            <li className="register-why-note">
+              Payouts depend on trading volume of the coins you're hired on, so they can be zero. Buyback cron is not
+              live.
+            </li>
+          </ul>
+        ) : null}
+
+        <HiredLookup />
+
         <div className="register-card">
           <ol className="register-steps">
             <li className={connected ? 'is-done' : ''}>
@@ -323,6 +433,12 @@ export function KolRegisterPage() {
             </p>
           ) : null}
 
+          {!connected && phantomBrowseUrl() ? (
+            <p className="hint register-mobile-hint">
+              On a phone without a wallet extension?{' '}
+              <a href={phantomBrowseUrl()!}>Open this page in Phantom</a> to connect and sign.
+            </p>
+          ) : null}
           <div className="register-actions">
             {!connected ? (
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setVisible(true)}>
@@ -345,6 +461,8 @@ export function KolRegisterPage() {
             )}
           </div>
         </div>
+
+        <PaidByAgents />
 
         <div className="register-tape" aria-label="Registration tape">
           <p className="section-label">Tape · {total} registered</p>

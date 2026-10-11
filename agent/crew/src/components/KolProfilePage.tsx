@@ -111,6 +111,14 @@ function formatWhen(iso: string) {
   })
 }
 
+type PaidPitch = {
+  handle: string
+  solEarned: number
+  remitCount: number
+  directoryWallet?: string | null
+  registered: boolean
+}
+
 export function KolProfilePage() {
   const { pathname } = useLocation()
   const handle = kolHandleFromPath(pathname) || ''
@@ -119,6 +127,7 @@ export function KolProfilePage() {
   const ownHandle = useOwnRegisteredHandle(wallet.publicKey?.toBase58())
   const [desk, setDesk] = useState<Desk | null>(null)
   const [missing, setMissing] = useState(false)
+  const [paidPitch, setPaidPitch] = useState<PaidPitch | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
@@ -135,6 +144,7 @@ export function KolProfilePage() {
     let cancelled = false
     setDesk(null)
     setMissing(false)
+    setPaidPitch(null)
     setError(null)
     void (async () => {
       try {
@@ -143,6 +153,16 @@ export function KolProfilePage() {
         if (cancelled) return
         if (res.status === 404) {
           setMissing(true)
+          // Unregistered but already paid by agents? Show that instead of a dead end.
+          try {
+            const pr = await fetch(`${API}/api/kols/claim/${encodeURIComponent(handle)}`)
+            if (pr.ok) {
+              const pb = (await pr.json()) as PaidPitch
+              if (!cancelled && pb && Number(pb.solEarned) > 0) setPaidPitch(pb)
+            }
+          } catch {
+            /* optional */
+          }
           return
         }
         if (!res.ok || !body.profile) {
@@ -279,8 +299,55 @@ export function KolProfilePage() {
 
         {!desk && !missing && !error ? <p className="section-sub">Loading desk…</p> : null}
 
-        {missing ? (
-          <div className="desk-hero">
+        {missing && paidPitch ? (
+          <div className="desk-hero desk-hero-unclaimed">
+            <div className="desk-unclaimed">
+              <p className="desk-kicker">Unclaimed desk</p>
+              <h1 className="section-title">AI agents already hired @{paidPitch.handle}.</h1>
+              <p className="claim-sol">
+                {formatSol(paidPitch.solEarned)}
+                <span> SOL sent on-chain</span>
+              </p>
+              <p className="section-sub">
+                {paidPitch.remitCount} payment{paidPitch.remitCount === 1 ? '' : 's'} from coin fee-shares went to
+                the public Pump.fun wallet{' '}
+                {paidPitch.directoryWallet ? (
+                  <a
+                    href={`https://solscan.io/account/${paidPitch.directoryWallet}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {paidPitch.directoryWallet.slice(0, 4)}…{paidPitch.directoryWallet.slice(-4)}
+                  </a>
+                ) : (
+                  'linked to this handle'
+                )}
+                . Nothing to withdraw here — it is already in that wallet.
+              </p>
+              <ul className="desk-why">
+                <li>Claim it: registered KOLs fill Autohire seats first.</li>
+                <li>Choose the wallet future fee-shares go to.</li>
+                <li>Get a referral link: 5% of creator fees on launches by agents you refer.</li>
+                <li>Read-only X sign-in. CrewPay can't post for you.</li>
+              </ul>
+              <div className="register-actions">
+                <Link className="btn btn-primary" to="/register">
+                  Claim this desk
+                </Link>
+                <Link className="btn btn-ghost" to="/proof">
+                  See the proof tape
+                </Link>
+              </div>
+              <p className="hint">
+                Autohire picks public Pump.fun profiles by narrative. A listing is not an endorsement. Not you, or want
+                out? Message @CrewPayHQ on X.
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        {missing && !paidPitch ? (
+          <div className="desk-hero desk-hero-unclaimed">
             <div>
               <h1 className="section-title">No desk for @{handle}.</h1>
               <p className="section-sub">This X account is not on the CrewPay register yet.</p>

@@ -82,11 +82,11 @@ export function ClaimPage() {
 
         {pitch ? (
           <div className="claim-card">
-            <p className="desk-kicker">{pitch.registered ? 'Your desk' : 'Unclaimed earnings'}</p>
+            <p className="desk-kicker">{pitch.registered ? 'Your desk' : 'Already paid on-chain'}</p>
             <h2 className="desk-name">@{pitch.handle}</h2>
             <p className="claim-sol">
               {formatSol(pitch.solEarned)}
-              <span> SOL earned</span>
+              <span> SOL sent on-chain</span>
             </p>
             <p className="section-sub">{pitch.pitch}</p>
             <p className="hint">{pitch.remitCount} recorded payment{pitch.remitCount === 1 ? '' : 's'}.</p>
