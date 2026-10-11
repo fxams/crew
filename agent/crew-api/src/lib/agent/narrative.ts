@@ -48,6 +48,8 @@ export type NarrativeHirePlan = {
   match: { tags: NarrativeTag[]; weights: number[]; reasons: string[] }
   hires: HiredKol[]
   crew: CrewMember[]
+  /** How seats were selected. 'registered-first' prefers kol_registrations up to limit; 'score' is the legacy single-tier scorer. */
+  policy?: 'registered-first' | 'score'
 }
 
 /** Opt-in registered crew — Autohire prefers these wallets over scraped Pump ones. */
@@ -55,6 +57,14 @@ export type RegisteredHireBoost = {
   /** lowercase handle without @ */
   handle: string
   wallet: string
+  /** Optional extra ordering signal from registration. */
+  followers?: number
+  /** Optional ISO timestamp from registration. */
+  registeredAt?: string
+  /** Optional preferred roles from registration (fallback to ['kol']). */
+  roles?: HireRole[]
+  /** Optional preferred narratives from registration (fallback to ['general']). */
+  narratives?: NarrativeTag[]
 }
 
 const TAG_KEYWORDS: Record<NarrativeTag, string[]> = {
@@ -200,6 +210,8 @@ export function planNarrativeHires(
     registered?: RegisteredHireBoost[]
   },
 ): NarrativeHirePlan {
+  const registeredFirst =
+    (process.env.AUTOHIRE_REGISTERED_FIRST || 'true').toLowerCase() === 'true'
   const limit = Math.max(1, Math.min(MAX_CREW, opts?.limit ?? 5))
   const minFollowers = opts?.minFollowers ?? 5_000
   const match = detectNarratives(input)
@@ -221,6 +233,9 @@ export function planNarrativeHires(
     narrativeHits: number
     primaryHit: boolean
     registered: boolean
+    /** Hints for registered ordering when scores tie. */
+    regFollowers?: number
+    regRegisteredAtMs?: number | null
   }
 
   const scored: Scored[] = KOL_DB.filter(
@@ -276,6 +291,8 @@ export function planNarrativeHires(
 
       let hireWallet = kol.wallet
       let registered = false
+      let regFollowers: number | undefined
+      let regRegisteredAtMs: number | null | undefined
       for (const h of handles) {
         const regWallet = registeredByHandle.get(h)
         if (regWallet) {
@@ -283,6 +300,11 @@ export function planNarrativeHires(
           hireWallet = regWallet
           score += preferRegistered ? 48 : 24
           reasons.unshift('registered crew')
+          const regRow = (opts?.registered || []).find(
+            (r) => r.handle.replace(/^@+/, '').toLowerCase() === h,
+          )
+          regFollowers = Number(regRow?.followers || 0)
+          regRegisteredAtMs = regRow?.registeredAt ? Date.parse(regRow.registeredAt) || null : null
           break
         }
       }
@@ -294,6 +316,8 @@ export function planNarrativeHires(
         narrativeHits,
         primaryHit: primary ? kol.narratives.includes(primary) : false,
         registered,
+        regFollowers,
+        regRegisteredAtMs,
       }
     })
     .filter((s) => s.narrativeHits > 0 || s.score >= 12 || s.registered)
@@ -306,44 +330,159 @@ export function planNarrativeHires(
       a.kol.rank - b.kol.rank,
   )
 
-  const picked: Scored[] = []
-  const remaining = [...scored]
-  const usedRoles = new Set<HireRole>()
-
-  while (picked.length < limit && remaining.length) {
-    let bestIdx = 0
-    let bestScore = -Infinity
-    for (let i = 0; i < remaining.length; i += 1) {
-      const candidate = remaining[i]!
-      let score = candidate.score
-      const reasons = [...candidate.reasons]
-      if (picked.length < Math.ceil(limit / 2) && candidate.primaryHit) score += 10
-      for (const p of picked) {
-        const c = correlationScore(p.kol.id, candidate.kol.id)
-        if (c > 0) {
-          score += c * 7
-          reasons.push(`pack w/ @${p.kol.pump}`)
+  function greedyPick(pool: Scored[], take: number, usedWallets: Set<string>): Scored[] {
+    const picked: Scored[] = []
+    const remaining = [...pool]
+    const usedRoles = new Set<HireRole>()
+    while (picked.length < take && remaining.length) {
+      let bestIdx = 0
+      let bestScore = -Infinity
+      for (let i = 0; i < remaining.length; i += 1) {
+        const candidate = remaining[i]!
+        let score = candidate.score
+        const reasons = [...candidate.reasons]
+        if (picked.length < Math.ceil(take / 2) && candidate.primaryHit) score += 10
+        for (const p of picked) {
+          const c = correlationScore(p.kol.id, candidate.kol.id)
+          if (c > 0) {
+            score += c * 7
+            reasons.push(`pack w/ @${p.kol.pump}`)
+          }
+        }
+        const nextRole = roleFor(candidate.kol, picked.length, new Set(usedRoles))
+        if (!usedRoles.has(nextRole)) {
+          score += 3
+          reasons.push(`role ${nextRole}`)
+        }
+        if (score > bestScore) {
+          bestScore = score
+          bestIdx = i
+          remaining[i] = { ...candidate, score, reasons }
         }
       }
-      const nextRole = roleFor(candidate.kol, picked.length, new Set(usedRoles))
-      if (!usedRoles.has(nextRole)) {
-        score += 3
-        reasons.push(`role ${nextRole}`)
+      const [next] = remaining.splice(bestIdx, 1)
+      if (!next) break
+      if (usedWallets.has(next.kol.wallet) || picked.some((p) => p.kol.wallet === next.kol.wallet)) {
+        continue
       }
-      if (score > bestScore) {
-        bestScore = score
-        bestIdx = i
-        remaining[i] = { ...candidate, score, reasons }
-      }
+      // Lock role assignment for diversity credit only — final role assigned later.
+      void roleFor(next.kol, picked.length, usedRoles)
+      picked.push(next)
+      usedWallets.add(next.kol.wallet)
     }
-    const [next] = remaining.splice(bestIdx, 1)
-    if (!next) break
-    if (picked.some((p) => p.kol.wallet === next.kol.wallet)) continue
-    const role = roleFor(next.kol, picked.length, usedRoles)
-    picked.push(next)
-    void role
+    return picked
   }
 
+  // Legacy single-tier when flag is off.
+  if (!registeredFirst) {
+    const usedWallets = new Set<string>()
+    const picked = greedyPick(scored, limit, usedWallets)
+    const finalRoles = new Set<HireRole>()
+    const shares = equalShares(picked.length)
+    const hires: HiredKol[] = picked.map((p, i) => ({
+      kol: p.kol,
+      score: p.score,
+      role: roleFor(p.kol, i, finalRoles),
+      share: shares[i] ?? 0,
+      hireRank: i + 1,
+      reasons: p.reasons.slice(0, 4),
+    }))
+    const crew: CrewMember[] = hires.map((h) => ({
+      handle: `@${(h.kol.x || h.kol.pump).replace(/^@+/, '')}`,
+      wallet: h.kol.wallet,
+      share: h.share,
+      hireRole: h.role,
+    }))
+    return { match, hires, crew, policy: 'score' }
+  }
+
+  // Registered-first policy: build a registered pool (including synthetic rows not in kol-db).
+  const knownHandles = new Set(
+    scored.flatMap((s) =>
+      [s.kol.pump, s.kol.x, ...(s.kol.aliases || [])]
+        .filter(Boolean)
+        .map((h) => String(h).replace(/^@+/, '').toLowerCase()),
+    ),
+  )
+  const registeredPool: Scored[] = []
+  // Include matching kol-db rows marked as registered.
+  for (const s of scored) {
+    if (s.registered) registeredPool.push(s)
+  }
+  // Add synthetic candidates for registered handles that are not in kol-db (or were filtered out).
+  for (const r of opts?.registered || []) {
+    const handle = r.handle.replace(/^@+/, '').toLowerCase()
+    if (!handle || knownHandles.has(handle)) continue
+    if (!r.wallet || r.wallet.length < 32) continue
+    const id = `reg:${handle}`
+    const kol: KolRecord = {
+      id,
+      rank: 1_000_000,
+      pump: handle,
+      x: handle,
+      followers: Math.max(0, Number(r.followers || 0)),
+      wallet: r.wallet,
+      aliases: [],
+      narratives: (r.narratives && r.narratives.length ? r.narratives : (['general'] as NarrativeTag[])),
+      correlated: [],
+      roles: (r.roles && r.roles.length ? r.roles : (['kol'] as HireRole[])),
+    }
+    let score = 0
+    let narrativeHits = 0
+    for (const t of kol.narratives) {
+      const w = tagWeight(match, t)
+      if (w > 0) {
+        score += w
+        narrativeHits += 1
+      }
+    }
+    // Name/ticker token hits against handle
+    const h = handle
+    const reasons: string[] = ['registered crew']
+    if (inputTokens.has(h)) {
+      score += 16
+      reasons.push(`named @${h}`)
+    }
+    if (ticker && h.includes(ticker.toLowerCase()) && ticker.length >= 3) {
+      score += 8
+      reasons.push(`ticker in @${h}`)
+    }
+    // Registration follower hint (optional)
+    if (kol.followers > 0) {
+      score += Math.log10(kol.followers + 10) * 2 // softer than Pump follower weight
+      reasons.push(`xFollowers ${kol.followers}`)
+    }
+    // Ensure a base boost so pure 'general' still competes within the registered tier.
+    score += preferRegistered ? 32 : 16
+    const regRegisteredAtMs = r.registeredAt ? Date.parse(r.registeredAt) || null : null
+    registeredPool.push({
+      kol,
+      score,
+      reasons,
+      narrativeHits,
+      primaryHit: primary ? kol.narratives.includes(primary) : false,
+      registered: true,
+      regFollowers: kol.followers,
+      regRegisteredAtMs,
+    })
+  }
+  // Order registered tier by fit score, then registration recency (newer first), then followers.
+  registeredPool.sort((a, b) => {
+    const byScore = b.score - a.score
+    if (byScore !== 0) return byScore
+    const aMs = a.regRegisteredAtMs ?? -Infinity
+    const bMs = b.regRegisteredAtMs ?? -Infinity
+    if (aMs !== bMs) return bMs - aMs
+    return (b.regFollowers || 0) - (a.regFollowers || 0)
+  })
+  const usedWallets = new Set<string>()
+  const takeRegistered = Math.min(limit, registeredPool.length)
+  const pickedReg = greedyPick(registeredPool, takeRegistered, usedWallets)
+  // Remaining seats: normal non-registered pool (exclude any wallets already picked).
+  const nonRegisteredPool = scored.filter((s) => !s.registered && !usedWallets.has(s.kol.wallet))
+  const takeNormal = Math.max(0, limit - pickedReg.length)
+  const pickedNorm = takeNormal > 0 ? greedyPick(nonRegisteredPool, takeNormal, usedWallets) : []
+  const picked = [...pickedReg, ...pickedNorm]
   const finalRoles = new Set<HireRole>()
   const shares = equalShares(picked.length)
   const hires: HiredKol[] = picked.map((p, i) => ({
@@ -354,7 +493,6 @@ export function planNarrativeHires(
     hireRank: i + 1,
     reasons: p.reasons.slice(0, 4),
   }))
-
   const crew: CrewMember[] = hires.map((h) => ({
     handle: `@${(h.kol.x || h.kol.pump).replace(/^@+/, '')}`,
     wallet: h.kol.wallet,
@@ -362,5 +500,5 @@ export function planNarrativeHires(
     hireRole: h.role,
   }))
 
-  return { match, hires, crew }
+  return { match, hires, crew, policy: 'registered-first' }
 }

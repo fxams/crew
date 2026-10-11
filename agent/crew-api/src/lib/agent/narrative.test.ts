@@ -68,6 +68,116 @@ describe('agent narrative autohire', () => {
     expect(hit!.kol.wallet).toBe(regWallet)
     expect(hit!.hireRank).toBe(1)
   })
+
+  it('registered not in kol-db gets picked (registered-first)', () => {
+    const prev = process.env.AUTOHIRE_REGISTERED_FIRST
+    process.env.AUTOHIRE_REGISTERED_FIRST = 'true'
+    try {
+      const handle = 'newacct_zz'
+      const regWallet = 'So11111111111111111111111111111111111111112'
+      const plan = planNarrativeHires(
+        { name: 'Agent Frog', ticker: 'FROG', vibe: 'ai trench meme' },
+        { limit: 3, registered: [{ handle, wallet: regWallet, followers: 123 }] },
+      )
+      expect(plan.hires.length).toBeGreaterThan(0)
+      expect(plan.policy).toBe('registered-first')
+      const top = plan.hires[0]!
+      expect(top.kol.wallet).toBe(regWallet)
+      expect(top.kol.pump.toLowerCase()).toBe(handle)
+      expect(top.hireRank).toBe(1)
+    } finally {
+      process.env.AUTOHIRE_REGISTERED_FIRST = prev
+    }
+  })
+
+  it('with 3 registered and 5 seats, registered take seats 1–3', () => {
+    const prev = process.env.AUTOHIRE_REGISTERED_FIRST
+    process.env.AUTOHIRE_REGISTERED_FIRST = 'true'
+    try {
+      const regs = Array.from({ length: 3 }).map((_, i) => ({
+        handle: `reguser_${i + 1}`,
+        wallet:
+          i === 0
+            ? 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
+            : `So1111111111111111111111111111111111111111${i}`,
+        followers: 100 + i * 10,
+      }))
+      const plan = planNarrativeHires(
+        { name: 'Meme Pack', ticker: 'MEME', vibe: 'degen meme trench' },
+        { limit: 5, registered: regs },
+      )
+      expect(plan.hires.length).toBe(5)
+      expect(plan.policy).toBe('registered-first')
+      for (let i = 0; i < 3; i += 1) {
+        expect(plan.hires[i]!.reasons.some((r) => /registered crew/i.test(r))).toBe(true)
+      }
+    } finally {
+      process.env.AUTOHIRE_REGISTERED_FIRST = prev
+    }
+  })
+
+  it('with 7 registered and 5 seats, all 5 seats are registered', () => {
+    const prev = process.env.AUTOHIRE_REGISTERED_FIRST
+    process.env.AUTOHIRE_REGISTERED_FIRST = 'true'
+    try {
+      const regs = Array.from({ length: 7 }).map((_, i) => ({
+        handle: `bulkreg_${i + 1}`,
+        wallet: `1111111111111111111111111111111111111111${(i + 3) % 9}`,
+        followers: 50 + i,
+      }))
+      const plan = planNarrativeHires(
+        { name: 'Agent Coin', ticker: 'AGT', vibe: 'ai agent' },
+        { limit: 5, registered: regs },
+      )
+      expect(plan.hires.length).toBe(5)
+      expect(plan.policy).toBe('registered-first')
+      expect(plan.hires.every((h) => h.reasons.some((r) => /registered crew/i.test(r)))).toBe(true)
+    } finally {
+      process.env.AUTOHIRE_REGISTERED_FIRST = prev
+    }
+  })
+
+  it('with the flag off, current behaviour holds (no synthetic registered)', () => {
+    const prev = process.env.AUTOHIRE_REGISTERED_FIRST
+    process.env.AUTOHIRE_REGISTERED_FIRST = 'false'
+    try {
+      const handle = 'ghost_reg_user'
+      const regWallet = 'SysvarRent111111111111111111111111111111111'
+      const plan = planNarrativeHires(
+        { name: 'CT Meme', ticker: 'CT', vibe: 'meme culture' },
+        { limit: 5, registered: [{ handle, wallet: regWallet }] },
+      )
+      expect(plan.policy).toBe('score')
+      const found = plan.hires.find(
+        (h) => h.kol.wallet === regWallet || h.kol.pump.toLowerCase() === handle,
+      )
+      expect(found).toBeFalsy()
+    } finally {
+      process.env.AUTOHIRE_REGISTERED_FIRST = prev
+    }
+  })
+
+  it('no duplicate wallets across picks', () => {
+    const prev = process.env.AUTOHIRE_REGISTERED_FIRST
+    process.env.AUTOHIRE_REGISTERED_FIRST = 'true'
+    try {
+      const dupWallet = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr'
+      const regs = [
+        { handle: 'dup_a', wallet: dupWallet },
+        { handle: 'dup_b', wallet: dupWallet },
+      ]
+      const plan = planNarrativeHires(
+        { name: 'Trench Dog', ticker: 'DOG', vibe: 'trench degen' },
+        { limit: 2, registered: regs },
+      )
+      expect(plan.hires.length).toBe(2)
+      const wallets = plan.hires.map((h) => h.kol.wallet)
+      const uniq = new Set(wallets)
+      expect(uniq.size).toBe(wallets.length)
+    } finally {
+      process.env.AUTOHIRE_REGISTERED_FIRST = prev
+    }
+  })
 })
 
 describe('shareholders', () => {
