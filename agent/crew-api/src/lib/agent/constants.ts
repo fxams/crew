@@ -68,6 +68,38 @@ export function readPlatformBuybackWallet(): string {
   )
 }
 
+/** Hard-coded legacy treasury addresses (rotated off, still classified as platform). */
+const DEFAULT_LEGACY_TREASURY = [
+  // DKqEbHvb7KHSdChzF54KTdj6io4dVZvbieFEMcS1C5cw (prior CrewPay treasury)
+  'DKqEbHvb7KHSdChzF54KTdj6io4dVZvbieFEMcS1C5cw',
+] as const
+
+export function readLegacyPlatformBuybackWallets(): string[] {
+  const fromEnv =
+    process.env.CREW_LEGACY_BUYBACK_WALLETS?.trim() ||
+    process.env.VITE_CREW_LEGACY_BUYBACK_WALLETS?.trim() ||
+    ''
+  const envList = fromEnv
+    ? fromEnv
+        .split(/[,\s]+/)
+        .map((s) => s.trim())
+        .filter((s) => s.length >= 32)
+    : []
+  const all = new Set<string>([...DEFAULT_LEGACY_TREASURY, ...envList])
+  const current = readPlatformBuybackWallet()
+  if (current) all.delete(current)
+  return [...all]
+}
+
+/** True when addr is the current or a known legacy CrewPay treasury wallet. */
+export function isPlatformTreasury(addr: string | null | undefined): boolean {
+  const a = (addr || '').trim()
+  if (!a) return false
+  const current = readPlatformBuybackWallet()
+  if (current && a === current) return true
+  return readLegacyPlatformBuybackWallets().includes(a)
+}
+
 export function getPlatformBuybackWallet(): string {
   const w = readPlatformBuybackWallet()
   if (!w || w.length < 32) {
