@@ -329,4 +329,16 @@ export async function migrate(): Promise<void> {
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['011_shareholder_role_ip'],
   )
+  // Board nonces for wallet-signed board writes
+  await query(`
+    CREATE TABLE IF NOT EXISTS board_nonces (
+      nonce TEXT PRIMARY KEY,
+      wallet TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['012_board_nonces'],
+  )
 }

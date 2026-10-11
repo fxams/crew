@@ -12,11 +12,29 @@ import {
 } from '../lib/coins.js'
 import { enrichRemitHandle } from '../lib/proof.js'
 import { readPlatformBuybackWallet } from '../lib/agent/constants.js'
-import { requireApiKeyOrWallet } from '../lib/wallet-auth.js'
+import { requireApiKeyOrWallet, requireWalletSignatureOnly } from '../lib/wallet-auth.js'
+import { issueBoardNonce } from '../lib/board-nonces.js'
+import { assertSafeHttpUrl } from '../lib/agent/safe-url.js'
 
 const writeAuth = requireApiKeyOrWallet(requireApiKey)
+const walletOnly = requireWalletSignatureOnly()
 
 export const coinsRouter = Router()
+
+/** Single-use nonce for wallet-signed board writes (10-minute TTL, consumed on use). */
+coinsRouter.post('/board/nonce', async (req, res) => {
+  try {
+    const wallet = (req.header('x-crew-wallet') || '').trim()
+    if (!wallet) {
+      res.status(400).json({ error: 'x-crew-wallet required' })
+      return
+    }
+    const out = await issueBoardNonce(wallet)
+    res.json({ ok: true, nonce: out.nonce, expiresAt: new Date(out.expiresAt).toISOString() })
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : 'nonce failed' })
+  }
+})
 
 const crewSchema = z.object({
   handle: z.string().min(1).max(32),
@@ -80,13 +98,36 @@ coinsRouter.get('/coins/:mint', async (req, res) => {
   }
 })
 
-coinsRouter.put('/coins', writeAuth, async (req, res) => {
+coinsRouter.put('/coins', walletOnly, async (req, res) => {
   try {
     const parsed = coinSchema.parse(req.body)
     const wallet = (req as typeof req & { crewWallet?: string }).crewWallet
     if (wallet && wallet !== parsed.launcher) {
       res.status(403).json({ error: 'Wallet signature must match coin launcher' })
       return
+    }
+    // Existing coin: signer must equal stored launcher; ignore any launcher change.
+    const existing = await getCoin(parsed.mint)
+    if (existing) {
+      if (existing.launcher !== (wallet || '')) {
+        res.status(403).json({ error: 'Only the launcher wallet may update this coin' })
+        return
+      }
+      parsed.launcher = existing.launcher
+    } else {
+      // New coin: pumpUrl must be HTTPS on pump.fun domain.
+      try {
+        const u = assertSafeHttpUrl(parsed.pumpUrl, 'pumpUrl')
+        const host = u.hostname.toLowerCase()
+        if (!(host === 'pump.fun' || host === 'www.pump.fun')) {
+          throw new Error('pumpUrl must be on pump.fun')
+        }
+      } catch (err) {
+        res.status(400).json({ error: err instanceof Error ? err.message : 'Invalid pumpUrl' })
+        return
+      }
+      // Note: verifying on-chain bonding-curve creator == signer requires RPC;
+      // basic enforcement here ensures launcher === signer.
     }
     const coin = await upsertCoin(parsed as ApiCoin)
     res.json({ coin })
@@ -124,9 +165,19 @@ coinsRouter.get('/remits', async (req, res) => {
   }
 })
 
-coinsRouter.post('/remits', writeAuth, async (req, res) => {
+coinsRouter.post('/remits', walletOnly, async (req, res) => {
   try {
     const body = z.object({ remits: z.array(remitSchema).max(200) }).parse(req.body)
+    const wallet = (req as typeof req & { crewWallet?: string }).crewWallet || ''
+    // Only allow remits for mints launched by this wallet.
+    const mints = [...new Set(body.remits.map((r) => r.mint))]
+    for (const m of mints) {
+      const coin = await getCoin(m)
+      if (!coin || coin.launcher !== wallet) {
+        res.status(403).json({ error: 'Cannot submit remits for a mint you did not launch' })
+        return
+      }
+    }
     const saved = await upsertRemits(body.remits as ApiRemit[])
     res.json({ saved })
   } catch (err) {

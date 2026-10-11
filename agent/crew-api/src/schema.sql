@@ -237,6 +237,13 @@ CREATE TABLE IF NOT EXISTS kol_mention_drafts (
 
 CREATE INDEX IF NOT EXISTS kol_mention_drafts_status_idx ON kol_mention_drafts (status, created_at DESC);
 
+-- Single-use nonces for wallet-signed board writes (10-minute TTL; deleted on use).
+CREATE TABLE IF NOT EXISTS board_nonces (
+  nonce TEXT PRIMARY KEY,
+  wallet TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS kol_oauth_nonces (
   nonce TEXT PRIMARY KEY,
   wallet TEXT NOT NULL,

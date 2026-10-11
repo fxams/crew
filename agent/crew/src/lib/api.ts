@@ -43,7 +43,7 @@ export async function pushCoin(
   if (opts?.wallet?.publicKey && opts.wallet.signMessage) {
     Object.assign(
       headers,
-      await boardWriteHeaders({ mint: coin.mint, wallet: opts.wallet }),
+      await boardWriteHeaders({ mint: coin.mint, wallet: opts.wallet, body: coin }),
     )
   }
   const { coin: saved } = await apiFetch<{ coin: CoinRecord }>('/api/coins', {
@@ -175,17 +175,43 @@ export async function pushModeAction(action: {
 export async function boardWriteHeaders(opts: {
   mint: string
   wallet: { publicKey: { toBase58(): string }; signMessage?: (msg: Uint8Array) => Promise<Uint8Array> }
+  body: unknown
 }): Promise<Record<string, string>> {
   const signMessage = opts.wallet.signMessage
   if (!signMessage) return {}
+  // Canonical JSON: stable key order, deterministic stringify
+  function sortKeys(value: any): any {
+    if (Array.isArray(value)) return value.map(sortKeys)
+    if (value && typeof value === 'object') {
+      const out: Record<string, unknown> = {}
+      for (const k of Object.keys(value).sort()) out[k] = sortKeys((value as any)[k])
+      return out
+    }
+    return value
+  }
+  async function sha256Hex(text: string): Promise<string> {
+    const enc = new TextEncoder().encode(text)
+    const digest = await crypto.subtle.digest('SHA-256', enc)
+    const arr = Array.from(new Uint8Array(digest))
+    return arr.map((b) => b.toString(16).padStart(2, '0')).join('')
+  }
+  const canonical = JSON.stringify(sortKeys(opts.body))
+  const bodyHash = await sha256Hex(canonical)
+  // Fetch a single-use nonce tied to the wallet
+  const wallet58 = opts.wallet.publicKey.toBase58()
+  const { nonce } = await apiFetch<{ ok: boolean; nonce: string; expiresAt: string }>(
+    '/api/board/nonce',
+    { method: 'POST', headers: { 'x-crew-wallet': wallet58 } },
+  )
   const timestamp = Date.now()
-  const message = `crew-board:${opts.mint}:${timestamp}`
+  const message = `crew-board:${opts.mint}:${bodyHash}:${nonce}:${timestamp}`
   const sig = await signMessage(new TextEncoder().encode(message))
   const { default: bs58 } = await import('bs58')
   return {
-    'x-crew-wallet': opts.wallet.publicKey.toBase58(),
+    'x-crew-wallet': wallet58,
     'x-crew-timestamp': String(timestamp),
     'x-crew-signature': bs58.encode(sig),
     'x-crew-mint': opts.mint,
+    'x-crew-nonce': nonce,
   }
 }
