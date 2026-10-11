@@ -4,7 +4,7 @@ import { query } from '../lib/db.js'
 
 export const healthRouter = Router()
 
-healthRouter.get('/healthz', async (_req, res) => {
+healthRouter.get(['/healthz', '/health'], async (_req, res) => {
   try {
     await query('SELECT 1')
     const kols = await countKols()
