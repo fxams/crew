@@ -13,7 +13,7 @@
  *                        x-crew-api-key on MCP HTTP requests for writes
  */
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
-import { createCrewMcpServer } from './server.js'
+import { createCrewMcpServer, packageVersion } from './server.js'
 import { DEFAULT_API_URL, DEFAULT_SITE_URL } from './client.js'
 
 const MCP_WELL_KNOWN = {
@@ -86,7 +86,7 @@ async function main() {
     app.get('/', (_req, res) => {
       res.json({
         name: 'crewpay-mcp',
-        version: '1.2.1',
+        version: packageVersion(),
         transport: 'streamable-http',
         mcp: '/mcp',
         wellKnown: '/.well-known/mcp.json',
@@ -114,7 +114,7 @@ async function main() {
     app.get('/.well-known/mcp/server-card.json', (_req, res) => {
       res.setHeader('Cache-Control', 'public, max-age=300')
       res.json({
-        serverInfo: { name: 'crewpay', version: '1.2.1', websiteUrl: DEFAULT_SITE_URL },
+        serverInfo: { name: 'crewpay', version: packageVersion(), websiteUrl: DEFAULT_SITE_URL },
         authentication: {
           required: true,
           schemes: ['api_key'],

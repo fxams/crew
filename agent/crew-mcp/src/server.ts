@@ -13,7 +13,7 @@ import {
 } from './client.js'
 import { assertNoSecretToolArgs } from './secrets.js'
 
-function packageVersion(): string {
+export function packageVersion(): string {
   try {
     const here = dirname(fileURLToPath(import.meta.url))
     const pkg = JSON.parse(readFileSync(join(here, '../package.json'), 'utf8')) as { version?: string }

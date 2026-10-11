@@ -543,7 +543,7 @@ agentRouter.post('/agent/launch', requireAgentApiKey, async (req, res) => {
     const fp = apiKeyFingerprint(req)
     const ip = clientIp(req)
     const launchLimit = req.crewAgentAuth?.launchesPerHour ?? 5
-    if (!applyRateLimit(res, `launch:key:${fp}`, launchLimit, 60_000)) return
+    if (!applyRateLimit(res, `launch:key:${fp}`, launchLimit, 3_600_000)) return
     if (!applyRateLimit(res, `launch:ip:${ip}`, 10, 60_000)) return
 
     let idem: string | null = null
@@ -863,18 +863,28 @@ agentRouter.post('/agent/crank', requireAgentApiKey, async (req, res) => {
     const fp = apiKeyFingerprint(req)
     if (!applyRateLimit(res, `crank:key:${fp}`, 20, 60_000)) return
     const mint = z.object({ mint: solanaAddress }).parse(req.body).mint
-    // distributeCreatorFeesV2 is permissionless — prefer x-launcher-key, else CREW_OPS_KEY / buyback key.
+  // Require x-launcher-key unless board fee-share is locked.
     let payer
     try {
-      const fromHeader = (req.header('x-launcher-key') || '').trim()
-      payer = fromHeader ? parseLauncherKey(fromHeader) : resolveOpsPayer()
+    const fromHeader = (req.header('x-launcher-key') || '').trim()
+    if (fromHeader) {
+      payer = parseLauncherKey(fromHeader)
+    } else {
+      const status = await getAgentMintStatus(mint)
+      if (!status.feeShareLocked) {
+        throw new Error(
+          'x-launcher-key required — fee-share not locked on board; server ops payer disabled',
+        )
+      }
+      payer = resolveOpsPayer()
+    }
     } catch (keyErr) {
       res.status(400).json({
         ok: false,
         error:
           keyErr instanceof Error
             ? keyErr.message
-            : 'Provide x-launcher-key or set CREW_OPS_KEY for permissionless crank.',
+          : 'Provide x-launcher-key (or lock fee-shares to allow server ops payer).',
       })
       return
     }
@@ -1059,6 +1069,10 @@ agentRouter.post('/agent/keys/claim', async (req, res) => {
 
 agentRouter.post('/agent/keys', requireAgentApiKey, async (req, res) => {
   try {
+    if (req.crewAgentAuth?.source !== 'env') {
+      res.status(403).json({ error: 'Operator env key required to create agent keys' })
+      return
+    }
     if (
       req.body &&
       typeof req.body === 'object' &&

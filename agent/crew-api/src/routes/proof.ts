@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { buybackStats, listBuybackRuns, runCrewBuyback } from '../lib/buyback-exec.js'
-import { requireApiKey } from '../lib/auth.js'
+import { requireAgentApiKey } from '../lib/auth.js'
 import { getProofBundle, recordModeAction } from '../lib/proof.js'
 import { emitWebhookEvent } from '../lib/webhooks.js'
 import { z } from 'zod'
@@ -29,7 +29,7 @@ proofRouter.get('/buybacks', async (req, res) => {
 })
 
 /** Manual buyback trigger (board key) — cron still runs hourly. */
-proofRouter.post('/buybacks/run', requireApiKey, async (req, res) => {
+proofRouter.post('/buybacks/run', requireAgentApiKey, async (req, res) => {
   try {
     const dry = Boolean(req.body?.dryRun)
     const result = await runCrewBuyback({ forceDryRun: dry || undefined })
@@ -60,7 +60,7 @@ const modeActionSchema = z.object({
 })
 
 /** Record a real Dip fire / Raid claim from the desk (wallet-signed on client). */
-proofRouter.post('/mode-actions', requireApiKey, async (req, res) => {
+proofRouter.post('/mode-actions', requireAgentApiKey, async (req, res) => {
   try {
     const body = modeActionSchema.parse(req.body)
     await recordModeAction(body)

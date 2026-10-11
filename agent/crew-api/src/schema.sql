@@ -102,6 +102,7 @@ CREATE TABLE IF NOT EXISTS webhooks (
   secret TEXT NOT NULL,
   events TEXT[] NOT NULL DEFAULT '{}',
   label TEXT,
+  agent_key_id TEXT,
   active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -198,6 +199,8 @@ CREATE TABLE IF NOT EXISTS kol_registrations (
   profile_image_url TEXT,
   description TEXT NOT NULL DEFAULT '',
   wallet TEXT NOT NULL,
+  pending_wallet TEXT,
+  pending_until TIMESTAMPTZ,
   -- Scraped Pump wallets + previous linked wallets; desk earnings sum across these.
   prior_wallets TEXT[] NOT NULL DEFAULT '{}',
   -- Direct referral program: every KOL has a code; referred_by_code is set once at first register.
@@ -237,6 +240,13 @@ CREATE TABLE IF NOT EXISTS kol_mention_drafts (
 
 CREATE INDEX IF NOT EXISTS kol_mention_drafts_status_idx ON kol_mention_drafts (status, created_at DESC);
 
+-- Single-use nonces for wallet-signed board writes (10-minute TTL; deleted on use).
+CREATE TABLE IF NOT EXISTS board_nonces (
+  nonce TEXT PRIMARY KEY,
+  wallet TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS kol_oauth_nonces (
   nonce TEXT PRIMARY KEY,
   wallet TEXT NOT NULL,
@@ -248,6 +258,7 @@ CREATE TABLE IF NOT EXISTS kol_oauth_states (
   code_verifier TEXT NOT NULL,
   wallet TEXT NOT NULL,
   referral_code TEXT,
+  cookie_sha256 TEXT,
   ip TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
