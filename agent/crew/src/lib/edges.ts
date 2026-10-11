@@ -1,4 +1,4 @@
-import { PLATFORM_BUYBACK_BPS, readPlatformBuybackWallet } from './config'
+import { PLATFORM_BUYBACK_BPS, isPlatformTreasury, readPlatformBuybackWallet } from './config'
 import { formatSolSigned } from './format-sol'
 import type {
   BuybackRule,
@@ -185,7 +185,8 @@ export type ScoreRow = {
 
 export function buildScoreboard(remits: RemitRecord[], limit = 8): ScoreRow[] {
   const map = new Map<string, ScoreRow>()
-  const platformWallet = readPlatformBuybackWallet()
+  // Intentionally read at top for consistency; actual exclusions use isPlatformTreasury
+  void readPlatformBuybackWallet()
   for (const r of remits) {
     // Prefer explicit role attribution when present on the remit object.
     if ('role' in r) {
@@ -201,7 +202,7 @@ export function buildScoreboard(remits: RemitRecord[], limit = 8): ScoreRow[] {
     ) {
       continue
     }
-    if (platformWallet && r.wallet && r.wallet === platformWallet) continue
+    if (isPlatformTreasury(r.wallet)) continue
     const key = r.handle.toLowerCase()
     const row = map.get(key) ?? {
       handle: r.handle,
@@ -232,20 +233,20 @@ export function isKolRemit(remit: RemitRecord, coin?: CoinRecord): boolean {
   if (role) return role === 'crew' || role === 'kol'
   const platformWallet = readPlatformBuybackWallet()
   if (platformWallet && remit.wallet && remit.wallet === platformWallet) return false
+  if (isPlatformTreasury(remit.wallet)) return false
   if (coin?.crew.some((m) => m.wallet === remit.wallet)) return true
   if (coin && coin.launcher === remit.wallet) return false
   return isHumanHandle(remit.handle)
 }
 
 export function deskStats(coins: CoinRecord[], remits: RemitRecord[]) {
-  const platformWallet = readPlatformBuybackWallet()
   const human = remits.filter((r) => {
     if ('role' in r) {
       const role = (r.role || '').toLowerCase()
       return role === 'crew' || role === 'kol'
     }
     if (!isHumanHandle(r.handle)) return false
-    if (platformWallet && r.wallet && r.wallet === platformWallet) return false
+    if (isPlatformTreasury(r.wallet)) return false
     return true
   })
   const paidSol = human.reduce((s, r) => s + (r.amountSol || 0), 0)

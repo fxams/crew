@@ -2,7 +2,7 @@ import { buybackStats, listBuybackRuns } from './buyback-exec.js'
 import { listCoins, listRemits, type ApiCoin, type ApiRemit } from './coins.js'
 import { query } from './db.js'
 import { countKols } from './kols.js'
-import { readPlatformBuybackWallet } from './agent/constants.js'
+import { isPlatformTreasury, readPlatformBuybackWallet } from './agent/constants.js'
 
 /** Aggregate stats independent of list `limit` (avoids undercount when limit is small). */
 async function proofAggregates() {
@@ -65,7 +65,7 @@ export function enrichRemitHandle(remit: ApiRemit, coin: ApiCoin | undefined, bu
     if (crewHit?.handle) return crewHit.handle
     if (coin.launcher === remit.wallet) return agentDisplayHandle(coin)
   }
-  if (buybackWallet && remit.wallet === buybackWallet) return '@crew-buyback'
+  if (isPlatformTreasury(remit.wallet)) return '@crew-buyback'
   const h = (remit.handle || '').trim()
   if (h === '@agent' || h === '@desk') {
     return coin?.launcher === remit.wallet ? agentDisplayHandle(coin) : h
@@ -155,11 +155,11 @@ const classified = remits.map((r) => {
   let role = (r.role || '').toLowerCase() || null
   if (role === 'kol') role = 'crew'
   if (!role) {
-    if (buybackWallet && r.wallet === buybackWallet) role = 'platform'
+    if (isPlatformTreasury(r.wallet)) role = 'platform'
     else if (coin?.crew.some((c) => c.wallet === r.wallet)) role = 'crew'
     else if (coin && coin.launcher === r.wallet) role = 'desk'
   }
-  if (buybackWallet && r.wallet === buybackWallet) role = 'platform'
+  if (isPlatformTreasury(r.wallet)) role = 'platform'
   return {
     ...r,
     role: role ?? undefined,
