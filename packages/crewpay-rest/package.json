@@ -1,12 +1,34 @@
 {
-  "name": "@crewpay/rest",
-  "version": "0.1.0",
-  "private": true,
+  "name": "crewpay-rest",
+  "version": "0.2.0",
+  "description": "Shared CrewPay REST client — dry-run + wallet-approved dryRunId for launch/wire. Env keys only.",
   "type": "module",
-  "main": "./src/client.ts",
+  "main": "./dist/client.js",
+  "types": "./dist/client.d.ts",
   "exports": {
-    ".": "./src/client.ts"
+    ".": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js"
+    }
   },
-  "description": "Shared CrewPay REST helpers for framework plugins (env keys only).",
-  "license": "MIT"
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fxams/crew.git",
+    "directory": "packages/crewpay-rest"
+  },
+  "homepage": "https://crewpay.dev/agents",
+  "publishConfig": { "access": "public" },
+  "engines": { "node": ">=20" },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "vitest": "^5.0.3"
+  }
 }

@@ -1,7 +1,7 @@
 # CrewPay framework plugins
 
 Lightweight adapters that call the CrewPay REST API (`https://api.crewpay.dev`).  
-**Primary surface for agents remains MCP:** `npx -y crewpay-mcp@1.2.2` or `https://mcp.crewpay.dev/mcp`.
+**Primary surface for agents remains MCP:** `npx -y crewpay-mcp@1.2.3` or `https://mcp.crewpay.dev/mcp`.
 
 | Package (monorepo) | npm (published) | Framework | Upstream |
 |--------------------|-----------------|-----------|----------|

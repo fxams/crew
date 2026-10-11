@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { PUMP_IPFS_URL } from './constants.js'
 import { fetchPublicUrl } from './safe-url.js'
 
@@ -19,15 +20,10 @@ function sniffImageType(buf: Buffer): string | null {
   return null
 }
 
-/** Fetch/decode and magic-byte check — same rules as a real launch (PNG/JPEG/WebP/GIF only). */
-export async function validateAgentImage(
+/** Fetch/decode image bytes with magic-byte check (PNG/JPEG/WebP/GIF only). */
+export async function loadAgentImageBytes(
   image: AgentImageInput,
-): Promise<{ contentType: string; bytes: number; filename: string }> {
-  const { blob, filename } = await toBlob(image)
-  return { contentType: blob.type, bytes: blob.size, filename }
-}
-
-async function toBlob(image: AgentImageInput): Promise<{ blob: Blob; filename: string }> {
+): Promise<{ buf: Buffer; contentType: string; filename: string }> {
   if (image.kind === 'url') {
     const res = await fetchPublicUrl(image.url, { label: 'imageUrl', maxRedirects: 3, timeoutMs: 12_000 })
     if (!res.ok) throw new Error(`Failed to fetch imageUrl (${res.status})`)
@@ -45,7 +41,7 @@ async function toBlob(image: AgentImageInput): Promise<{ blob: Blob; filename: s
     }
     const type = sniffed
     const ext = type.includes('jpeg') ? 'jpg' : type.includes('webp') ? 'webp' : type.includes('gif') ? 'gif' : 'png'
-    return { blob: new Blob([buf], { type }), filename: `crew-agent.${ext}` }
+    return { buf, contentType: type, filename: `crew-agent.${ext}` }
   }
 
   let raw = image.data.trim()
@@ -63,9 +59,27 @@ async function toBlob(image: AgentImageInput): Promise<{ blob: Blob; filename: s
   const type = sniffed || contentType
   const ext = type.includes('jpeg') ? 'jpg' : type.includes('webp') ? 'webp' : type.includes('gif') ? 'gif' : 'png'
   return {
-    blob: new Blob([buf], { type }),
+    buf,
+    contentType: type,
     filename: image.filename || `crew-agent.${ext}`,
   }
+}
+
+export function sha256ImageBytes(buf: Buffer): string {
+  return createHash('sha256').update(buf).digest('hex')
+}
+
+/** Fetch/decode and magic-byte check — same rules as a real launch (PNG/JPEG/WebP/GIF only). */
+export async function validateAgentImage(
+  image: AgentImageInput,
+): Promise<{ contentType: string; bytes: number; filename: string }> {
+  const { buf, contentType, filename } = await loadAgentImageBytes(image)
+  return { contentType, bytes: buf.byteLength, filename }
+}
+
+async function toBlob(image: AgentImageInput): Promise<{ blob: Blob; filename: string }> {
+  const { buf, contentType, filename } = await loadAgentImageBytes(image)
+  return { blob: new Blob([buf], { type: contentType }), filename }
 }
 
 export async function uploadPumpMetadata(input: {

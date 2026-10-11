@@ -52,7 +52,7 @@ export function readPlatformBuybackWallet(): string {
 export function getPlatformBuybackWallet(): string {
   const w = readPlatformBuybackWallet()
   if (!w || w.length < 32) {
-    throw new Error('Set CREW_BUYBACK_WALLET (Solana address for the 25% CREW buyback cut).')
+    throw new Error('Set CREW_BUYBACK_WALLET (Solana address for the 25% CrewPay treasury fee-share).')
   }
   return w
 }

@@ -36,7 +36,7 @@ startCommand:
   commandFunction: |
     (config) => ({
       command: 'npx',
-      args: ['-y', 'crewpay-mcp@1.2.2'],
+      args: ['-y', 'crewpay-mcp@1.2.3'],
       env: {
         CREW_AGENT_API_KEY: config.crewAgentApiKey,
         CREW_LAUNCHER_KEY: config.crewLauncherKey || '',

@@ -166,7 +166,7 @@ export function getPlatformBuybackWallet(): string {
   const w = readPlatformBuybackWallet()
   if (!w || w.length < 32) {
     throw new Error(
-      'Set VITE_CREW_BUYBACK_WALLET to the Solana treasury that receives 25% CREW buyback fees.',
+      'Set VITE_CREW_BUYBACK_WALLET to the Solana treasury that receives the 25% CrewPay platform fee-share.',
     )
   }
   return w
