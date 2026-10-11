@@ -11,11 +11,13 @@ import {
 import {
   agentReferralLink,
   assertReferralClaimAllowed,
+  getAgentKeyReferral,
   isSelfReferral,
   logReferralKeyClaim,
   resolveAgentReferrer,
   upsertCoinShareholders,
 } from '../lib/agent-referral.js'
+import { maxCrewSeats } from '../lib/agent/shareholders.js'
 import { normalizeWallet, parseApproverAllowlist } from '../lib/agent/approver.js'
 import {
   assertMaySetRequireApproval,
@@ -232,14 +234,31 @@ agentRouter.post('/agent/autohire', requireAgentApiKey, async (req, res) => {
       })
       return
     }
+    const keyId = req.crewAgentAuth?.keyId
+    const boundRef = keyId ? await getAgentKeyReferral(keyId) : null
+    const maxSeats = maxCrewSeats({ hasAgentReferrer: Boolean(boundRef) })
+    const requested = body.seats
+    const seats = Math.min(maxSeats, requested)
+    const seatsDropped = requested > seats ? requested - seats : 0
     const registered = await listRegisteredHireBoosts()
     const plan = planNarrativeHires(
       { name: body.name, ticker: body.ticker, vibe: body.description },
-      { limit: body.seats, registered },
+      { limit: seats, registered },
     )
+    const warnings: string[] = []
+    if (seatsDropped > 0) {
+      warnings.push(
+        `Requested ${requested} seats; capped to ${seats} for this key (` +
+          `${boundRef ? 'referred max 7' : `max ${maxSeats}`}). Dropped ${seatsDropped}.`,
+      )
+    }
     res.json({
       ok: true,
-      seats: body.seats,
+      seats,
+      seatsRequested: requested,
+      seatsMax: maxSeats,
+      seatsDropped,
+      warnings,
       match: plan.match,
       registeredPreferred: registered.length,
       hires: plan.hires.map((h) => ({
@@ -984,7 +1003,7 @@ agentRouter.post('/agent/keys/claim', async (req, res) => {
           })
           return
         }
-        await assertReferralClaimAllowed(referrer)
+        await assertReferralClaimAllowed(referrer, { claimIp: ip })
         referralCode = referrer.code
       } catch (err) {
         res.status(400).json({

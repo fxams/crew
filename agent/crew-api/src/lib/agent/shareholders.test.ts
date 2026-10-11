@@ -11,6 +11,7 @@ import {
   buildCrewShareholders,
   maxCrewSeats,
   normalizeCrew,
+  normalizeShareholderRole,
 } from './shareholders.js'
 import type { CrewMember } from './narrative.js'
 
@@ -34,6 +35,16 @@ function equalCrew(wallets: string[]): CrewMember[] {
     hireRole: 'kol' as const,
   }))
 }
+
+describe('normalizeShareholderRole', () => {
+  it('maps kol display alias to crew for earnings attribution', () => {
+    expect(normalizeShareholderRole('kol')).toBe('crew')
+    expect(normalizeShareholderRole('crew')).toBe('crew')
+    expect(normalizeShareholderRole('agent-referral')).toBe('agent-referral')
+    expect(normalizeShareholderRole('buyback')).toBe('platform')
+    expect(normalizeShareholderRole('launcher-ops')).toBe('desk')
+  })
+})
 
 describe('agent referral fee map', () => {
   it('non-referred agent mode sums to 10000 with 60/15/25', () => {
@@ -78,7 +89,7 @@ describe('agent referral fee map', () => {
     expect(shares.filter((s) => s.role === 'crew').reduce((s, r) => s + r.bps, 0)).toBe(6000)
   })
 
-  it('skips referral bps when referrer is also in crew (crew seat only)', () => {
+  it('dual-role large seat: keeps crew seat (>= 5% referral floor)', () => {
     const crew = normalizeCrew(
       [{ handle: '@refkol', wallet: referrer, share: 100, hireRole: 'kol' }],
       'agent',
@@ -90,16 +101,41 @@ describe('agent referral fee map', () => {
       agentReferrer: { wallet: referrer, handle: '@refkol', code: 'refkol' },
     })
     expect(shares.some((s) => s.role === 'agent-referral')).toBe(false)
+    expect(shares.find((s) => s.wallet === referrer)?.role).toBe('crew')
     expect(shares.find((s) => s.wallet === referrer)?.bps).toBe(6000)
     expect(shares.find((s) => s.wallet === platform)?.bps).toBe(PLATFORM_BUYBACK_BPS)
+    expect(shares.reduce((s, r) => s + r.bps, 0)).toBe(10_000)
+  })
+
+  it('dual-role tiny seat: tops up to 5% referral floor from treasury', () => {
+    const crew = normalizeCrew(
+      [
+        { handle: '@refkol', wallet: referrer, share: 1, hireRole: 'kol' },
+        { handle: '@a', wallet: kolA, share: 99, hireRole: 'caller' },
+      ],
+      'agent',
+    )
+    const shares = buildCrewShareholders(crew, 'agent', {
+      deskWallet: desk,
+      platformWallet: platform,
+      agentReferrer: { wallet: referrer, handle: '@refkol', code: 'refkol' },
+    })
+    const ref = shares.find((s) => s.wallet === referrer)
+    expect(ref?.bps).toBe(AGENT_REFERRAL_BPS)
+    expect(ref?.role).toBe('agent-referral')
+    // Floor top-up comes from platform (2500 - (500 - tinySeat)).
+    expect(shares.find((s) => s.wallet === platform)?.bps).toBeLessThan(PLATFORM_BUYBACK_BPS)
     expect(shares.reduce((s, r) => s + r.bps, 0)).toBe(10_000)
   })
 })
 
 describe('seat caps (Pump 10-wallet)', () => {
-  it('maxCrewSeats is 7 referred / 8 unreferred', () => {
+  it('maxCrewSeats is 7 referred / 8 unreferred / 8 dual-role', () => {
     expect(maxCrewSeats({ hasAgentReferrer: true })).toBe(MAX_CREW_REFERRED)
     expect(maxCrewSeats({ hasAgentReferrer: false })).toBe(MAX_CREW_UNREFERRED)
+    expect(maxCrewSeats({ hasAgentReferrer: true, referrerInCrew: true })).toBe(
+      MAX_CREW_UNREFERRED,
+    )
   })
 
   it('referred launch accepts 7 crew (10 wallets)', () => {

@@ -213,6 +213,8 @@ export async function beginXAuth(opts: {
   message: string
   signature: string
   referralCode?: string
+  /** Client IP at /register/start — stored for claim-time self-referral checks. */
+  ip?: string
 }): Promise<{ authorizeUrl: string }> {
   if (!xOAuthConfigured()) {
     throw new Error('X sign-in is not configured. Set X_CLIENT_ID and X_CLIENT_SECRET on crewpay-api.')
@@ -253,9 +255,10 @@ export async function beginXAuth(opts: {
   await query(`DELETE FROM kol_oauth_states WHERE created_at < now() - interval '15 minutes'`)
   const state = randomBytes(16).toString('hex')
   const codeVerifier = b64url(randomBytes(32))
+  const ip = (opts.ip || '').trim().slice(0, 64) || null
   await query(
-    `INSERT INTO kol_oauth_states (state, code_verifier, wallet, referral_code) VALUES ($1, $2, $3, $4)`,
-    [state, codeVerifier, wallet, referralCode],
+    `INSERT INTO kol_oauth_states (state, code_verifier, wallet, referral_code, ip) VALUES ($1, $2, $3, $4, $5)`,
+    [state, codeVerifier, wallet, referralCode, ip],
   )
   return { authorizeUrl: buildXAuthorizeUrl({ state, codeVerifier }) }
 }
@@ -331,17 +334,19 @@ async function allocateReferralCode(username: string, xUserId: string): Promise<
 
 export async function completeXCallback(code: string, state: string): Promise<KolRegistration> {
   const { rows } = await query(
-    `DELETE FROM kol_oauth_states WHERE state = $1 RETURNING code_verifier, wallet, referral_code`,
+    `DELETE FROM kol_oauth_states WHERE state = $1 RETURNING code_verifier, wallet, referral_code, ip`,
     [state],
   )
   const row = rows[0] as {
     code_verifier?: string
     wallet?: string
     referral_code?: string | null
+    ip?: string | null
   } | undefined
   if (!row?.code_verifier || !row.wallet) {
     throw new Error('Sign-in session expired. Connect your wallet and try again.')
   }
+  const registerIp = (row.ip || '').trim().slice(0, 64) || null
 
   const accessToken = await exchangeCode(code, row.code_verifier)
   const user = await fetchXMe(accessToken)
@@ -409,9 +414,9 @@ export async function completeXCallback(code: string, state: string): Promise<Ko
     `INSERT INTO kol_registrations (
        x_user_id, x_username, x_name, x_verified, followers, following, tweet_count,
        listed_count, profile_image_url, description, wallet, prior_wallets,
-       referral_code, referred_by_code,
+       referral_code, referred_by_code, register_ip,
        stats_refreshed_at, updated_at
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14, now(), now())
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, now(), now())
      ON CONFLICT (x_user_id) DO UPDATE SET
        x_username = EXCLUDED.x_username,
        x_name = EXCLUDED.x_name,
@@ -426,6 +431,7 @@ export async function completeXCallback(code: string, state: string): Promise<Ko
        prior_wallets = EXCLUDED.prior_wallets,
        referral_code = COALESCE(kol_registrations.referral_code, EXCLUDED.referral_code),
        referred_by_code = COALESCE(kol_registrations.referred_by_code, EXCLUDED.referred_by_code),
+       register_ip = COALESCE(kol_registrations.register_ip, EXCLUDED.register_ip),
        stats_refreshed_at = now(),
        updated_at = now()`,
     [
@@ -443,6 +449,7 @@ export async function completeXCallback(code: string, state: string): Promise<Ko
       priorWallets,
       ownCode,
       referredBy,
+      registerIp,
     ],
   )
 

@@ -116,6 +116,10 @@ export async function resolveCrew(
 ): Promise<{
   crew: CrewMember[]
   hirePlan?: NarrativeHirePlan
+  /** When autoHire seats were clamped to the Pump/referral cap. */
+  seatsDropped?: number
+  seatsRequested?: number
+  seatsMax?: number
 }> {
   const mode = input.mode || 'agent'
   const maxSeats = maxCrewSeats({
@@ -128,7 +132,9 @@ export async function resolveCrew(
   if (input.crew?.length) {
     return { crew: normalizeCrew(input.crew, mode, { maxSeats }) }
   }
-  const seats = Math.min(maxSeats, Math.max(1, Math.floor(input.autoHire?.seats ?? 5)))
+  const requested = Math.max(1, Math.floor(input.autoHire?.seats ?? 5))
+  const seats = Math.min(maxSeats, requested)
+  const seatsDropped = requested > seats ? requested - seats : 0
   const registered = await listRegisteredHireBoosts()
   const hirePlan = planNarrativeHires(
     {
@@ -141,7 +147,13 @@ export async function resolveCrew(
   if (!hirePlan.crew.length) {
     throw new Error('Auto-hire found no KOLs — provide crew[] or richer narrative.')
   }
-  return { crew: normalizeCrew(hirePlan.crew, mode, { maxSeats }), hirePlan }
+  return {
+    crew: normalizeCrew(hirePlan.crew, mode, { maxSeats }),
+    hirePlan,
+    seatsDropped: seatsDropped || undefined,
+    seatsRequested: seatsDropped ? requested : undefined,
+    seatsMax: seatsDropped ? maxSeats : undefined,
+  }
 }
 
 export type AgentDryRunResult = {
@@ -240,7 +252,7 @@ export async function dryRunLaunchForAgent(
 
   const launcherPreview = opts?.launcherPubkey?.trim() || null
   const boundRef = opts?.agentKeyId ? await getAgentKeyReferral(opts.agentKeyId) : null
-  const { crew, hirePlan } = await resolveCrew(
+  const { crew, hirePlan, seatsDropped, seatsRequested, seatsMax } = await resolveCrew(
     { ...input, mode },
     { hasAgentReferrer: Boolean(boundRef) },
   )
@@ -252,9 +264,10 @@ export async function dryRunLaunchForAgent(
     crewWallets: crew.map((m) => m.wallet),
   })
   const hasAgentReferrer = Boolean(agentRef.referrer)
+  const separateReferrer = hasAgentReferrer && !agentRef.dualRoleInCrew
   const deskBps = MODE_DESK_BPS[mode]
-  const platformBps = platformBuybackBps(hasAgentReferrer)
-  const referrerBps = hasAgentReferrer ? AGENT_REFERRAL_BPS : 0
+  const platformBps = platformBuybackBps(separateReferrer)
+  const referrerBps = separateReferrer ? AGENT_REFERRAL_BPS : 0
   const crewPoolBps = 10_000 - platformBps - referrerBps - deskBps
   const needSol = initialBuySol + MIN_LAUNCH_FEE_SOL
   const warnings: string[] = [
@@ -264,11 +277,20 @@ export async function dryRunLaunchForAgent(
     `Description will include attribution: "${CREW_LAUNCH_ATTRIBUTION}" (appended if missing).`,
   ]
   if (agentRef.warning) warnings.push(agentRef.warning)
-  if (hasAgentReferrer && agentRef.referrer) {
+  if (seatsDropped && seatsRequested && seatsMax) {
+    warnings.push(
+      `Autohire seats cut from ${seatsRequested} to ${seatsMax} (dropped ${seatsDropped}) for this key's fee-map cap.`,
+    )
+  }
+  if (separateReferrer && agentRef.referrer) {
     warnings.push(
       `Agent referral: ${agentRef.referrer.handle} (${agentRef.referrer.code}) receives ${AGENT_REFERRAL_BPS} bps — fee map 60/15/5/20. Max ${maxCrewSeats({ hasAgentReferrer: true })} crew seats.`,
     )
-  } else if (!agentRef.skippedInCrew) {
+  } else if (agentRef.dualRoleInCrew && agentRef.referrer) {
+    warnings.push(
+      `Agent referral dual-role: ${agentRef.referrer.handle} paid max(crew seat, ${AGENT_REFERRAL_BPS} bps).`,
+    )
+  } else if (!agentRef.dualRoleInCrew) {
     warnings.push(
       `Non-referred agent — fee map 60/15/25 (crew/agent/treasury). Max ${maxCrewSeats({ hasAgentReferrer: false })} crew seats.`,
     )
@@ -323,8 +345,8 @@ export async function dryRunLaunchForAgent(
             ? 'buyback'
             : s.wallet === deskWalletPreview || s.role === 'desk'
               ? 'launcher-ops'
-              : crew.some((c) => c.wallet === s.wallet)
-                ? 'kol'
+              : crew.some((c) => c.wallet === s.wallet) || s.role === 'crew'
+                ? 'crew'
                 : 'buyback'
     return { ...s, role }
   })
@@ -495,8 +517,8 @@ export async function launchForAgent(
             ? 'buyback'
             : s.wallet === deskWallet || s.role === 'desk'
               ? 'launcher-ops'
-              : effectiveCrew.some((c) => c.wallet === s.wallet)
-                ? 'kol'
+              : effectiveCrew.some((c) => c.wallet === s.wallet) || s.role === 'crew'
+                ? 'crew'
                 : 'buyback'
       return { ...s, role }
     })

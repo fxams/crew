@@ -265,7 +265,7 @@ kolRegisterRouter.post('/kols/register/start', async (req, res) => {
         referralCode: z.string().min(2).max(32).optional(),
       })
       .parse(req.body)
-    const out = await beginXAuth(body)
+    const out = await beginXAuth({ ...body, ip })
     res.json({ ok: true, authorizeUrl: out.authorizeUrl })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'start failed'
