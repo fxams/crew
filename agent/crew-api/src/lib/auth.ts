@@ -14,6 +14,8 @@ export type AgentAuthContext = {
   fingerprint: string
   launchesPerHour?: number
   keyId?: string
+  /** Per-key human-approval gate (DB keys). Env keys default false. */
+  requireApproval?: boolean
 }
 
 declare global {
@@ -70,6 +72,7 @@ export async function requireAgentApiKey(req: Request, res: Response, next: Next
           fingerprint: dbKey.fingerprint,
           launchesPerHour: dbKey.launchesPerHour,
           keyId: dbKey.id,
+          requireApproval: dbKey.requireApproval,
         }
         next()
         return
@@ -103,6 +106,9 @@ export async function requireAgentApiKey(req: Request, res: Response, next: Next
   req.crewAgentAuth = {
     source: 'env',
     fingerprint: createHash('sha256').update(got).digest('hex').slice(0, 16),
+    // Env bootstrap key: optional CREW_REQUIRE_APPROVAL=1, else off by default.
+    requireApproval:
+      process.env.CREW_REQUIRE_APPROVAL === '1' || process.env.CREW_REQUIRE_APPROVAL === 'true',
   }
   next()
 }

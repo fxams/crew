@@ -234,4 +234,19 @@ export async function migrate(): Promise<void> {
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['007_approver_allowlist'],
   )
+  // Optional human approval per API key (default off — like other launchpads).
+  await query(`
+    DO $mig$
+    BEGIN
+      IF to_regclass('public.agent_keys') IS NOT NULL THEN
+        ALTER TABLE agent_keys ADD COLUMN IF NOT EXISTS require_approval BOOLEAN NOT NULL DEFAULT false;
+        UPDATE agent_keys SET require_approval = false WHERE require_approval IS DISTINCT FROM false;
+      END IF;
+    END
+    $mig$;
+  `)
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['008_require_approval'],
+  )
 }
