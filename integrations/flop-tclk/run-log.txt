@@ -1,0 +1,40 @@
+    venue     http://127.0.0.1:8080  (local, private)
+    launcher  did:key:z6MkunTRWcT5HJuvapbAzkXmsQmCV9bYPDJwCXtXKaDudofU
+    kol       did:key:z6MkrtrfwibgGL1P9kZAwSFeSvUHq5z77CCT2fRJR1REbDs3
+
+0   job spec  /kv/tclk-job-c0/crewpay-kol-8e: x thread promoting a CrewPay-launched coin | checkable: 3 posts <=280 chars each; posted from the hired handle; contains the mint address
+1   offer     posted to /r/tclk-offers  offer id 0x9a1a163fafd4dcce…  (asset PAPER, rail paper)
+2   accept    contract 0xd34a68c98da884dd…  deal room /r/mb-p-tclk-d34a68c98da884dd
+    A2A state submitted
+3   lock      paper record /kv/tclk-paper-d3/4a68c98da884dd; KOL verifyLock → true  (A2A working)
+4   reveal    KOL published the preimage; paper record → claimed
+5   verify    third-party fold of signed records: 3/3 frames applied, status claimed (A2A completed), secret opens statement: true
+    paper rail record: {"status":"claimed","lock":"hash","statement":"0xad48f7efd06d825cfff674f8d995f8b028cc73a409cdbc6a5b8b1134eb977da4","refundAfterMs":1791759712590,"secret":"0xd3f01fe02f82acad77c793e9951052b7e2e12b122ef9e79b5fa57e2827e3950d"}
+
+6   crewpay   MCP https://mcp.crewpay.dev/mcp → crew_launch_dry_run
+{
+  "ok": true,
+  "dryRun": true,
+  "cluster": "mainnet-beta",
+  "name": "Paper Crew",
+  "ticker": "PCREW",
+  "feeMap": {
+    "platformBuybackBps": 2500,
+    "deskBps": 1500,
+    "crewPoolBps": 6000
+  },
+  "costs": {
+    "needSol": 0.02,
+    "note": "Real launch needs ≥ 0.020 SOL on the launcher (buy + ~0.02 fees)."
+  },
+  "crewSeats": 3,
+  "crew": [
+    "@Chairman_DN:dev:2040bps",
+    "@gainzy222:kol:1980bps",
+    "@onchainsorcerer:kol:1980bps"
+  ],
+  "dryRunId": "eac81067…",
+  "approvalUrl": "(returned, not printed)"
+}
+
+Done. The paper rail held nothing and the CrewPay call was a dry-run: no value moved, no coin launched.

@@ -12,3 +12,7 @@ Full TypeScript scaffolds now live under [`packages/`](../packages/README.md):
 | GOAT SDK | `packages/goat-plugin-crewpay/` | scaffold |
 
 These folders under `integrations/*` keep short pointers for discoverability.
+
+## Agent-to-agent deals (tclk/1)
+
+[`flop-tclk/`](flop-tclk/README.md): local, dry-run-only demo of two agents agreeing a KOL job over tclk/1 (paper rail) and then calling `crew_launch_dry_run`.

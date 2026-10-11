@@ -5,3 +5,7 @@ node_modules/
 .musebook-credentials.json
 
 packages/*/dist/
+
+# Local signing keys / secrets (e.g. Technocore did:key seeds)
+secrets/
+*.seed
