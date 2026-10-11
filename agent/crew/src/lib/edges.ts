@@ -1,4 +1,5 @@
 import { PLATFORM_BUYBACK_BPS } from './config'
+import { formatSolSigned } from './format-sol'
 import type {
   BuybackRule,
   CoinRecord,
@@ -279,7 +280,7 @@ export function buildDeskPulse(
       time: rel(r.at, now),
       title: r.amountSol > 0 ? `${r.handle} paid` : `${r.handle} fee-locked`,
       detail: `$${r.ticker} · ${r.mode}`,
-      amount: r.amountSol > 0 ? `+${r.amountSol.toFixed(4)}` : 'LOCK',
+      amount: r.amountSol > 0 ? formatSolSigned(r.amountSol) : 'LOCK',
     })
   }
 

@@ -63,6 +63,7 @@ import {
   shareReceiptText,
   type LaunchTemplate,
 } from "./lib/edges";
+import { formatSol, formatSolSigned } from "./lib/format-sol";
 import type { HireRole } from "./lib/types";
 import { launchCrew } from "./lib/launch";
 import { useOwnRegisteredHandle } from "./lib/registered-kol";
@@ -478,7 +479,7 @@ export default function App() {
       id: r.id,
       text:
         r.amountSol > 0
-          ? `paid ${r.handle} · ${r.amountSol.toFixed(4)} SOL · $${r.ticker}`
+          ? `paid ${r.handle} · ${formatSol(r.amountSol)} SOL · $${r.ticker}`
           : `locked ${r.handle} · $${r.ticker} fee share`,
     }));
     if (fromRemits.length) return fromRemits;
@@ -503,7 +504,7 @@ export default function App() {
         time: relativeTime(r.at, boardTick),
         title: `${r.handle} remit`,
         detail: `$${r.ticker} · ${r.mode}${r.wallet ? ` · ${shortAddr(r.wallet)}` : ""}`,
-        amount: `+${r.amountSol.toFixed(4)}`,
+        amount: formatSolSigned(r.amountSol),
         mint: r.mint,
         coin: coins.find((c) => c.mint === r.mint) ?? null,
       }));
@@ -1004,7 +1005,7 @@ export default function App() {
       const total = preview.reduce((sum, row) => sum + row.amountSol, 0);
       setDeskMessage({
         kind: "info",
-        text: `Preview only · ${total.toFixed(4)} SOL split — use Distribute for on-chain tape.`,
+        text: `Preview only · ${formatSol(total)} SOL split — use Distribute for on-chain tape.`,
       });
     } catch (err) {
       setDeskMessage({
@@ -1024,7 +1025,7 @@ export default function App() {
       const row = simulateBuybackFire(selectedCoin);
       setDeskMessage({
         kind: "info",
-        text: `Preview only · buyback ${row.amountSol.toFixed(4)} SOL — use Execute to swap on-chain.`,
+        text: `Preview only · buyback ${formatSol(row.amountSol)} SOL — use Execute to swap on-chain.`,
       });
     } catch (err) {
       setDeskMessage({
@@ -1090,7 +1091,7 @@ export default function App() {
       }
       setDeskMessage({
         kind: "info",
-        text: `Dip fire on-chain · ${row.amountSol.toFixed(4)} SOL → $${selectedCoin.ticker}${
+        text: `Dip fire on-chain · ${formatSol(row.amountSol)} SOL → $${selectedCoin.ticker}${
           row.dropPct != null ? ` · −${row.dropPct}%` : ""
         } · ${shortAddr(row.signature)}`,
       });
@@ -1112,7 +1113,7 @@ export default function App() {
       const row = simulateRaidClaim(selectedCoin, questId);
       setDeskMessage({
         kind: "info",
-        text: `Preview only · ${row.handle} ${row.amountSol.toFixed(4)} SOL — use Claim to pay on-chain.`,
+        text: `Preview only · ${row.handle} ${formatSol(row.amountSol)} SOL — use Claim to pay on-chain.`,
       });
     } catch (err) {
       setDeskMessage({
@@ -1177,7 +1178,7 @@ export default function App() {
       }
       setDeskMessage({
         kind: "info",
-        text: `Raid claim on-chain · ${row.handle} ${row.amountSol.toFixed(4)} SOL · ${shortAddr(row.signature)}`,
+        text: `Raid claim on-chain · ${row.handle} ${formatSol(row.amountSol)} SOL · ${shortAddr(row.signature)}`,
       });
     } catch (err) {
       setDeskMessage({
@@ -1691,7 +1692,7 @@ export default function App() {
                           {row.remits} remits · {row.tickers.map((t) => `$${t}`).join(" ")}
                         </p>
                       </div>
-                      <div className="score-amt">{row.totalSol.toFixed(4)}</div>
+                      <div className="score-amt">{formatSol(row.totalSol)}</div>
                     </div>
                   ))
                 )}
@@ -1874,10 +1875,7 @@ export default function App() {
                           {holderScan.matches.map((m) => (
                             <div className="split-bar" key={m.wallet}>
                               <div className="split-meta">
-                                <span>
-                                  {m.handle}{" "}
-                                  <span className="hint">#{m.rank}</span>
-                                </span>
+                                <span>{m.handle}</span>
                                 <span>
                                   {m.share}% · {m.uiAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })} tok
                                 </span>
@@ -2498,11 +2496,9 @@ export default function App() {
                     <ul className="hire-plan-list">
                       {hirePlan.hires.map((h) => (
                         <li key={h.kol.id}>
-                          <strong>
-                            #{h.hireRank} @{h.kol.x || h.kol.pump}
-                          </strong>
+                          <strong>@{h.kol.x || h.kol.pump}</strong>
                           {" · "}
-                          db#{h.kol.rank} · {h.share}% · {h.role}
+                          {h.share}% · {h.role}
                           {h.reasons[0] ? ` · ${h.reasons[0]}` : ""}
                         </li>
                       ))}
@@ -2514,16 +2510,13 @@ export default function App() {
                     <div className="crew-block has-wallet" key={`crew-${index}`}>
                       <div className="crew-row">
                         <div className="crew-rank-controls">
-                          <span className="crew-seat" aria-label={`Hire rank ${index + 1}`}>
-                            {index + 1}
-                          </span>
                           <div className="crew-rank-arrows">
                             <button
                               type="button"
                               className="crew-rank-btn"
                               disabled={index === 0}
                               onClick={() => moveCrewSeat(index, -1)}
-                              aria-label={`Move ${member.handle || `seat ${index + 1}`} up`}
+                              aria-label={`Move ${member.handle || "crew seat"} up`}
                               title="Move up"
                             >
                               ▲
@@ -2533,7 +2526,7 @@ export default function App() {
                               className="crew-rank-btn"
                               disabled={index >= draft.crew.length - 1}
                               onClick={() => moveCrewSeat(index, 1)}
-                              aria-label={`Move ${member.handle || `seat ${index + 1}`} down`}
+                              aria-label={`Move ${member.handle || "crew seat"} down`}
                               title="Move down"
                             >
                               ▼

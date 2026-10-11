@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { CREW_VERSION } from '../lib/config'
+import { formatSol } from '../lib/format-sol'
 import { claimHandleFromPath, kolProfilePath } from '../lib/routes'
 
 const API = (
@@ -16,12 +17,6 @@ type ClaimPitch = {
   deskPath: string | null
   registerPath: string
   pitch: string
-}
-
-function formatSol(n: number) {
-  if (!Number.isFinite(n) || n === 0) return '0'
-  if (n >= 1) return n.toFixed(3)
-  return n.toFixed(4).replace(/0+$/, '').replace(/\.$/, '')
 }
 
 export function ClaimPage() {

@@ -10,6 +10,7 @@ import {
   REFERRAL_POINTS_REGISTER,
   REFERRAL_POINTS_REGISTER_DAILY_CAP,
 } from '../lib/config'
+import { formatSol } from '../lib/format-sol'
 import { useOwnRegisteredHandle } from '../lib/registered-kol'
 import { kolHandleFromPath, referralInvitePath } from '../lib/routes'
 
@@ -91,14 +92,6 @@ function formatCount(n: number) {
   if (n >= 10_000) return `${Math.round(n / 1000)}k`
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
   return String(n)
-}
-
-function formatSol(n: number) {
-  if (!Number.isFinite(n) || n === 0) return '0'
-  if (n >= 100) return n.toFixed(2)
-  if (n >= 1) return n.toFixed(3)
-  const text = n.toFixed(4)
-  return text.replace(/0+$/, '').replace(/\.$/, '')
 }
 
 function deskAvatarSrc(profile: Profile): string | null {
