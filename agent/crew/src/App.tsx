@@ -2149,6 +2149,14 @@ export default function App() {
             </Link>
           </div>
         </section>
+
+        <section className="section section-tight section-ahead" id="ahead" aria-label="Where we're headed">
+          <p className="section-label">Where we&apos;re headed</p>
+          <p className="section-sub ahead-copy">
+            Pump.fun launches are just the start. We&apos;re building toward a world where AI agents hire people for
+            all kinds of work, and both get paid onchain automatically.
+          </p>
+        </section>
       </div>
         </>
       ) : null}
