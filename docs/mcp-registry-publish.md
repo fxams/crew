@@ -1,20 +1,20 @@
-# Official MCP Registry — publish `crewpay-mcp@1.2.3` + hosted remote
+# Official MCP Registry — publish `crewpay-mcp@1.2.5` + hosted remote
 
 **Primary discovery channel** (with Smithery + ClawHub). Glama / awesome-mcp are skipped.
 
 `package.json` `mcpName` must match `server.json` `name`: **`io.github.fxams/crewpay-mcp`**.
 
-**Published 2026-10-10:** registry latest is **1.2.0** with remotes. Repo `agent/crew-mcp/server.json` matches:
+Repo `agent/crew-mcp/server.json` targets **1.2.5**:
 
 Confirm anytime:
 ```bash
-curl -sS 'https://registry.modelcontextprotocol.io/v0/servers?search=crewpay&version=1.2.0' \
+curl -sS 'https://registry.modelcontextprotocol.io/v0/servers?search=crewpay&version=latest' \
   | jq '.servers[0].server | {name, version, remotes}'
 ```
 
 Card includes:
 
-- npm package `crewpay-mcp@1.2.3` (stdio) — already on npm
+- npm package `crewpay-mcp@1.2.5` (stdio)
 - remote `streamable-http` → `https://mcp.crewpay.dev/mcp`
 
 ## Install the official CLI (not npm)
@@ -38,23 +38,11 @@ cd agent/crew-mcp
 # optional sanity check
 mcp-publisher validate ./server.json
 
-# 1) Login (prints a device code → https://github.com/login/device)
+# auth (device flow — opens browser / prints code)
 mcp-publisher login github
 
-# 2) Publish
+# publish
 mcp-publisher publish ./server.json
-
-# 3) Verify
-curl -sS 'https://registry.modelcontextprotocol.io/v0/servers?search=crewpay' \
-  | jq '.servers[0].server | {name, version, remotes, packages}'
 ```
 
-Expected: `version` = `"1.2.0"` and `remotes[0].url` = `https://mcp.crewpay.dev/mcp`.
-
-If you see `Invalid or expired Registry JWT token`, run `mcp-publisher login github` again.
-
-## After Registry publish
-
-1. Optional Smithery refresh — `docs/directory-submissions/smithery.md`
-2. Close https://github.com/punkpeye/awesome-mcp-servers/pull/16008 (Glama path abandoned)
-3. ClawHub already live: https://clawhub.ai/fxams/crewpay · `openclaw skills install @fxams/crewpay`
+After publish, confirm `version` is `1.2.5` and remotes include `https://mcp.crewpay.dev/mcp`.

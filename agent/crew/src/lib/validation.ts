@@ -4,7 +4,6 @@ import {
   MODE_DESK_BPS,
   PLATFORM_BUYBACK_BPS,
   PUMP_MAX_SHAREHOLDERS,
-  REFERRAL_CUT_BPS,
   USER_DESCRIPTION_MAX,
   getPlatformBuybackWallet,
   readPlatformBuybackWallet,
@@ -13,12 +12,6 @@ import {
 import type { AgentBrief, CrewMember, DeskMode, HireRole, LaunchDraft } from './types'
 
 export type ShareholderRole = 'crew' | 'desk' | 'platform' | 'referral'
-
-export type ReferralCutInput = {
-  handle: string
-  referrerWallet: string
-  referrerHandle?: string
-}
 
 const HANDLE_RE = /^@[a-z0-9_]{1,15}$/i
 const HIRE_ROLES = new Set<HireRole>(['caller', 'chart', 'raid', 'kol', 'dev', 'agent'])
@@ -201,7 +194,6 @@ export function validateDraft(
   opts?: {
     deskWallet?: string
     platformWallet?: string
-    referralCuts?: ReferralCutInput[]
   },
 ): NormalizedLaunch {
   const name = draft.name.trim()
@@ -287,7 +279,6 @@ export function validateDraft(
     shareholders: buildCrewShareholders(crew, draft.mode, {
       deskWallet: opts?.deskWallet,
       platformWallet: opts?.platformWallet,
-      referralCuts: opts?.referralCuts,
     }),
   }
 }
@@ -314,47 +305,17 @@ function mergeShareRow(
   out.push({ wallet, bps, handle, role })
 }
 
-function foldReferralOverflow(
-  shares: NormalizedLaunch['shareholders'],
-): NormalizedLaunch['shareholders'] {
-  const out = shares.map((s) => ({ ...s }))
-  const uniqueCount = () => new Set(out.map((s) => s.wallet)).size
-  while (uniqueCount() > PUMP_MAX_SHAREHOLDERS) {
-    let smallestIdx = -1
-    let smallestBps = Infinity
-    for (let i = 0; i < out.length; i += 1) {
-      const row = out[i]!
-      if (row.role !== 'referral') continue
-      if (row.bps < smallestBps) {
-        smallestBps = row.bps
-        smallestIdx = i
-      }
-    }
-    if (smallestIdx < 0) break
-    const ref = out[smallestIdx]!
-    out.splice(smallestIdx, 1)
-    const kol =
-      (ref.foldToWallet &&
-        out.find((s) => s.wallet === ref.foldToWallet && s.role === 'crew')) ||
-      out.find((s) => s.role === 'crew') ||
-      out[0]
-    if (kol) kol.bps += ref.bps
-  }
-  const merged: NormalizedLaunch['shareholders'] = []
-  for (const row of out) {
-    mergeShareRow(merged, row.wallet, row.bps, row.role, row.handle)
-  }
-  return merged
-}
-
-/** Map platform buyback + crew % + desk mode reserve into on-chain shareholder bps (must total 10000). */
+/**
+ * Map platform buyback + crew % + desk mode reserve into on-chain shareholder bps (must total 10000).
+ * Desk launches do not apply agent-key referral (that is claim-key + agent API only).
+ * The old KOL-seat carve-out (5% of a referred hired KOL's seat) is removed.
+ */
 export function buildCrewShareholders(
   crew: CrewMember[],
   mode: DeskMode,
   opts?: {
     deskWallet?: string
     platformWallet?: string
-    referralCuts?: ReferralCutInput[]
   } | string,
 ): NormalizedLaunch['shareholders'] {
   // Back-compat: third arg used to be deskWallet string.
@@ -362,7 +323,6 @@ export function buildCrewShareholders(
   const platformWallet =
     (typeof opts === 'string' ? undefined : opts?.platformWallet)?.trim() ||
     getPlatformBuybackWallet()
-  const referralCuts = typeof opts === 'string' ? [] : opts?.referralCuts || []
   const platformBps = PLATFORM_BUYBACK_BPS
   const deskBps = MODE_DESK_BPS[mode]
   const crewPoolBps = 10_000 - platformBps - deskBps
@@ -385,57 +345,16 @@ export function buildCrewShareholders(
     raw.sort((a, b) => b.bps - a.bps)[0].bps += crewPoolBps - allocated
   }
 
-  const byHandle = new Map(
-    referralCuts.map((c) => [c.handle.replace(/^@+/, '').toLowerCase(), c] as const),
-  )
-
   for (const row of raw) {
     if (row.bps <= 0) continue
     if (!row.member.wallet) {
       throw new Error(`Wallet required for ${row.member.handle}.`)
     }
-    const handleKey = row.member.handle.replace(/^@+/, '').toLowerCase()
-    const cut = byHandle.get(handleKey)
-    let refWallet = ''
-    try {
-      if (cut?.referrerWallet) refWallet = new PublicKey(cut.referrerWallet.trim()).toBase58()
-    } catch {
-      refWallet = ''
-    }
-    if (!refWallet || refWallet === row.member.wallet) {
-      staged.push({
-        wallet: row.member.wallet,
-        bps: row.bps,
-        handle: row.member.handle,
-        role: 'crew',
-      })
-      continue
-    }
-    const refBps = Math.max(1, Math.floor((row.bps * REFERRAL_CUT_BPS) / 10_000))
-    const kolBps = row.bps - refBps
-    if (kolBps <= 0) {
-      staged.push({
-        wallet: row.member.wallet,
-        bps: row.bps,
-        handle: row.member.handle,
-        role: 'crew',
-      })
-      continue
-    }
     staged.push({
       wallet: row.member.wallet,
-      bps: kolBps,
+      bps: row.bps,
       handle: row.member.handle,
       role: 'crew',
-    })
-    staged.push({
-      wallet: refWallet,
-      bps: refBps,
-      handle: cut?.referrerHandle
-        ? `@${cut.referrerHandle.replace(/^@+/, '')}`
-        : '@referral',
-      role: 'referral',
-      foldToWallet: row.member.wallet,
     })
   }
 
@@ -447,18 +366,18 @@ export function buildCrewShareholders(
 
   mergeShareRow(staged, platformWallet, platformBps, 'platform', '@crew-buyback')
 
-  const out = foldReferralOverflow(staged)
-  if (out.length > PUMP_MAX_SHAREHOLDERS) {
+  const uniqueWallets = new Set(staged.map((s) => s.wallet)).size
+  if (uniqueWallets > PUMP_MAX_SHAREHOLDERS) {
     throw new Error(
-      `Fee-share has ${out.length} wallets — Pump allows ${PUMP_MAX_SHAREHOLDERS}. Reduce crew seats.`,
+      `Fee-share has ${uniqueWallets} wallets — Pump allows ${PUMP_MAX_SHAREHOLDERS}. Reduce crew seats.`,
     )
   }
 
-  const total = out.reduce((s, r) => s + r.bps, 0)
+  const total = staged.reduce((s, r) => s + r.bps, 0)
   if (total !== 10_000) {
     throw new Error(`Internal share map must total 10000 bps (got ${total}).`)
   }
-  return out
+  return staged
 }
 
 export function isHandle(value: string): boolean {

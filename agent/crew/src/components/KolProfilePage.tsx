@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { useWallet } from '@solana/wallet-adapter-react'
+import bs58 from 'bs58'
 import {
   CREW_VERSION,
   KOL_REFERRAL_CUT_PCT,
@@ -71,6 +72,15 @@ type Desk = {
   }
 }
 
+type ReferralEarnings = {
+  referralFeesEarnedSol: number
+  referralRemitCount: number
+  crewFeesEarnedSol: number
+  crewRemitCount: number
+  agents: unknown[]
+  launches: unknown[]
+}
+
 function shortAddr(addr: string) {
   if (!addr || addr.length < 10) return addr || '—'
   return `${addr.slice(0, 4)}…${addr.slice(-4)}`
@@ -121,6 +131,9 @@ export function KolProfilePage() {
   const [shareCopied, setShareCopied] = useState(false)
   const [refCopied, setRefCopied] = useState(false)
   const [avatarSrc, setAvatarSrc] = useState<string | null>(null)
+  const [refEarnings, setRefEarnings] = useState<ReferralEarnings | null>(null)
+  const [refEarningsBusy, setRefEarningsBusy] = useState(false)
+  const [refEarningsError, setRefEarningsError] = useState<string | null>(null)
   const justRegistered = params.get('registered') === '1'
   const viewingOwnDesk =
     Boolean(ownHandle) && ownHandle!.toLowerCase() === handle.toLowerCase()
@@ -162,6 +175,39 @@ export function KolProfilePage() {
 
   const connected = wallet.publicKey?.toBase58() || ''
   const isOwner = Boolean(desk && connected && desk.profile.wallet === connected)
+
+  async function loadReferralEarnings() {
+    if (!wallet.publicKey || !wallet.signMessage || !desk) return
+    setRefEarningsBusy(true)
+    setRefEarningsError(null)
+    try {
+      const ts = Math.floor(Date.now() / 1000)
+      const w = wallet.publicKey.toBase58()
+      const message = `crew-kol-referrals:${w}:${ts}`
+      const sig = await wallet.signMessage(new TextEncoder().encode(message))
+      const res = await fetch(`${API}/api/kol/referrals`, {
+        headers: {
+          'x-crew-wallet': w,
+          'x-crew-timestamp': String(ts),
+          'x-crew-signature': bs58.encode(sig),
+        },
+      })
+      const body = (await res.json()) as ReferralEarnings & { error?: string; ok?: boolean }
+      if (!res.ok) throw new Error(body.error || 'Could not load referral earnings.')
+      setRefEarnings({
+        referralFeesEarnedSol: Number(body.referralFeesEarnedSol || 0),
+        referralRemitCount: Number(body.referralRemitCount || 0),
+        crewFeesEarnedSol: Number(body.crewFeesEarnedSol || 0),
+        crewRemitCount: Number(body.crewRemitCount || 0),
+        agents: body.agents || [],
+        launches: body.launches || [],
+      })
+    } catch (err) {
+      setRefEarningsError(err instanceof Error ? err.message : 'Could not load referral earnings.')
+    } finally {
+      setRefEarningsBusy(false)
+    }
+  }
 
   async function copyWallet() {
     if (!desk) return
@@ -389,8 +435,9 @@ export function KolProfilePage() {
                 </p>
                 <p className="desk-referral-points">
                   Share crewpay.dev/r/{referralCode}. Agents that claim a key with your code bind
-                  you permanently — referred launches are 60/15/{KOL_REFERRAL_CUT_PCT}/20 on-chain.
-                  Also earn {REFERRAL_POINTS_REGISTER} pts when someone with ≥
+                  you permanently — referred launches are 60/15/{KOL_REFERRAL_CUT_PCT}/20 on-chain
+                  (5% creator-fee share from treasury; not a KOL-seat carve). Also earn{' '}
+                  {REFERRAL_POINTS_REGISTER} pts when someone with ≥
                   {REFERRAL_POINTS_MIN_FOLLOWERS} followers registers (max{' '}
                   {REFERRAL_POINTS_REGISTER_DAILY_CAP}/day), +{REFERRAL_POINTS_HIRE} on hire.
                   Buyback cron is not live.
@@ -398,6 +445,35 @@ export function KolProfilePage() {
                 <p className="desk-referral-link" title={referralLink}>
                   {referralLink}
                 </p>
+                {(isOwner || viewingOwnDesk) && wallet.publicKey ? (
+                  <div className="desk-referral-earnings">
+                    {refEarnings ? (
+                      <>
+                        <p className="desk-pnl-sub">
+                          Referral fees (agent-referral role):{' '}
+                          <strong>{formatSol(refEarnings.referralFeesEarnedSol)} SOL</strong> ·{' '}
+                          {refEarnings.referralRemitCount} remits · {refEarnings.agents.length}{' '}
+                          agents · {refEarnings.launches.length} launches
+                        </p>
+                        <p className="desk-pnl-sub">
+                          Crew-seat fees (hired as KOL):{' '}
+                          <strong>{formatSol(refEarnings.crewFeesEarnedSol)} SOL</strong> ·{' '}
+                          {refEarnings.crewRemitCount} remits
+                        </p>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        disabled={refEarningsBusy || !wallet.signMessage}
+                        onClick={() => void loadReferralEarnings()}
+                      >
+                        {refEarningsBusy ? 'Signing…' : 'Load referral vs crew earnings'}
+                      </button>
+                    )}
+                    {refEarningsError ? <p className="register-err">{refEarningsError}</p> : null}
+                  </div>
+                ) : null}
                 <div className="desk-share-actions">
                   <button
                     type="button"

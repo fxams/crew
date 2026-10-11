@@ -11,11 +11,14 @@ import { query } from './db.js'
 
 export const REGISTER_MESSAGE_PREFIX = 'CrewPay KOL registration'
 
-/** Direct referral cut advertised on site / locked into fee-shares when referred KOLs are hired. */
+/**
+ * Agent-key referral: % of total creator fees (from treasury) when agents claim with your code.
+ * Not a KOL-seat carve — that program was removed.
+ */
 export const KOL_REFERRAL_CUT_PCT = 5
 /** Points awarded when someone registers with your code (future CREW airdrop weight). */
 export const REFERRAL_POINTS_REGISTER = 100
-/** Points awarded when a referred KOL is hired and fee-shares lock. */
+/** Points when a KOL who registered with your code is hired (airdrop weight — not a fee cut). */
 export const REFERRAL_POINTS_HIRE = 250
 /** Referred account must have at least this many X followers to earn register points. */
 export const REFERRAL_POINTS_MIN_FOLLOWERS = 50

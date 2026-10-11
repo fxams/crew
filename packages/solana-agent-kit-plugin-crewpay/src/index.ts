@@ -14,7 +14,7 @@ const launchBodySchema = z
     mode: z.enum(['split', 'buyback', 'raid', 'agent']).optional(),
     initialBuySol: z.number().min(0).max(10).optional(),
     imageUrl: z.string().url().optional(),
-    autoHire: z.object({ seats: z.number().int().min(1).max(10).optional() }).optional(),
+    autoHire: z.object({ seats: z.number().int().min(1).max(8).optional() }).optional(),
     dryRunId: z.string().optional(),
   })
   .passthrough()
@@ -63,7 +63,7 @@ export const CrewPayPlugin = {
         name: z.string(),
         ticker: z.string(),
         description: z.string().optional(),
-        seats: z.number().int().min(1).max(10).optional(),
+        seats: z.number().int().min(1).max(8).optional(),
       }),
       handler: async (_agent: unknown, input: Record<string, unknown>) => ({
         status: 'success',

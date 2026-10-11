@@ -26,28 +26,17 @@ import {
   sendInstructions,
   sendJitoBundle,
 } from './send.js'
-import { resolveLaunchAgentReferrer } from '../agent-referral.js'
-import { lookupReferralCuts } from '../kol-register.js'
 import {
-  agentReferrerDualRoleHandles,
+  getAgentKeyReferral,
+  resolveLaunchAgentReferrer,
+  upsertCoinShareholders,
+} from '../agent-referral.js'
+import {
   buildCrewShareholders,
+  maxCrewSeats,
   normalizeCrew,
 } from './shareholders.js'
 import { assertSafeHttpUrl } from './safe-url.js'
-
-async function referralCutsForCrew(crew: { handle: string }[]) {
-  try {
-    const cuts = await lookupReferralCuts(crew.map((m) => m.handle))
-    return cuts.map((c) => ({
-      handle: c.handle,
-      referrerWallet: c.referrerWallet,
-      referrerHandle: c.referrerHandle,
-    }))
-  } catch {
-    // Dry-run / offline — skip referral cuts rather than aborting the fee map.
-    return []
-  }
-}
 
 export type AgentLaunchInput = {
   name: string
@@ -121,18 +110,25 @@ function id(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`
 }
 
-export async function resolveCrew(input: AgentLaunchInput): Promise<{
+export async function resolveCrew(
+  input: AgentLaunchInput,
+  opts?: { hasAgentReferrer?: boolean },
+): Promise<{
   crew: CrewMember[]
   hirePlan?: NarrativeHirePlan
 }> {
   const mode = input.mode || 'agent'
+  const maxSeats = maxCrewSeats({
+    hasAgentReferrer: Boolean(opts?.hasAgentReferrer),
+    mode,
+  })
   if (input.holderKol) {
     return { crew: [] }
   }
   if (input.crew?.length) {
-    return { crew: normalizeCrew(input.crew, mode) }
+    return { crew: normalizeCrew(input.crew, mode, { maxSeats }) }
   }
-  const seats = Math.min(10, Math.max(1, Math.floor(input.autoHire?.seats ?? 5)))
+  const seats = Math.min(maxSeats, Math.max(1, Math.floor(input.autoHire?.seats ?? 5)))
   const registered = await listRegisteredHireBoosts()
   const hirePlan = planNarrativeHires(
     {
@@ -145,7 +141,7 @@ export async function resolveCrew(input: AgentLaunchInput): Promise<{
   if (!hirePlan.crew.length) {
     throw new Error('Auto-hire found no KOLs — provide crew[] or richer narrative.')
   }
-  return { crew: normalizeCrew(hirePlan.crew, mode), hirePlan }
+  return { crew: normalizeCrew(hirePlan.crew, mode, { maxSeats }), hirePlan }
 }
 
 export type AgentDryRunResult = {
@@ -242,17 +238,19 @@ export async function dryRunLaunchForAgent(
     }
   }
 
-  const { crew, hirePlan } = await resolveCrew({ ...input, mode })
-  const vibe = withCrewLaunchDescription(vibeRaw)
   const launcherPreview = opts?.launcherPubkey?.trim() || null
+  const boundRef = opts?.agentKeyId ? await getAgentKeyReferral(opts.agentKeyId) : null
+  const { crew, hirePlan } = await resolveCrew(
+    { ...input, mode },
+    { hasAgentReferrer: Boolean(boundRef) },
+  )
+  const vibe = withCrewLaunchDescription(vibeRaw)
   const agentRef = await resolveLaunchAgentReferrer({
     keyId: opts?.agentKeyId,
     ownerWallet: opts?.ownerWallet,
     launcherWallet: launcherPreview,
+    crewWallets: crew.map((m) => m.wallet),
   })
-  if (agentRef.warning) {
-    /* collected below */
-  }
   const hasAgentReferrer = Boolean(agentRef.referrer)
   const deskBps = MODE_DESK_BPS[mode]
   const platformBps = platformBuybackBps(hasAgentReferrer)
@@ -268,23 +266,12 @@ export async function dryRunLaunchForAgent(
   if (agentRef.warning) warnings.push(agentRef.warning)
   if (hasAgentReferrer && agentRef.referrer) {
     warnings.push(
-      `Agent referral: ${agentRef.referrer.handle} (${agentRef.referrer.code}) receives ${AGENT_REFERRAL_BPS} bps — fee map 60/15/5/20.`,
+      `Agent referral: ${agentRef.referrer.handle} (${agentRef.referrer.code}) receives ${AGENT_REFERRAL_BPS} bps — fee map 60/15/5/20. Max ${maxCrewSeats({ hasAgentReferrer: true })} crew seats.`,
     )
-    const dual = agentReferrerDualRoleHandles(crew, agentRef.referrer.wallet)
-    if (dual.length) {
-      warnings.push(
-        `Referrer also in crew (${dual.join(', ')}) — receives crew seat + referral cut (on-chain merged).`,
-      )
-      console.info(
-        JSON.stringify({
-          event: 'agent_referral_dual_role',
-          code: agentRef.referrer.code,
-          handles: dual,
-        }),
-      )
-    }
-  } else {
-    warnings.push('Non-referred agent — fee map 60/15/25 (crew/agent/treasury).')
+  } else if (!agentRef.skippedInCrew) {
+    warnings.push(
+      `Non-referred agent — fee map 60/15/25 (crew/agent/treasury). Max ${maxCrewSeats({ hasAgentReferrer: false })} crew seats.`,
+    )
   }
   if (input.holderKol) {
     warnings.push('holderKol=true leaves fee-shares unlocked until crew_lock_holder_kol.')
@@ -293,29 +280,17 @@ export async function dryRunLaunchForAgent(
   let shareholders: { wallet: string; bps: number; role?: string; handle?: string }[] | undefined
   if (!input.holderKol) {
     const deskWallet = launcherPreview || '11111111111111111111111111111111'
-    try {
-      const referralCuts = await referralCutsForCrew(crew)
-      shareholders = buildCrewShareholders(crew, mode, {
-        deskWallet: new PublicKey(deskWallet).toBase58(),
-        referralCuts,
-        agentReferrer: agentRef.referrer
-          ? {
-              wallet: agentRef.referrer.wallet,
-              handle: agentRef.referrer.handle,
-              code: agentRef.referrer.code,
-            }
-          : null,
-      })
-      if (referralCuts.length) {
-        warnings.push(
-          `Direct KOL-seat referral: ${referralCuts.length} hired KOL(s) route 5% of their seat to their referrer.`,
-        )
-      }
-    } catch (err) {
-      warnings.push(
-        `Shareholder preview skipped: ${err instanceof Error ? err.message : 'invalid desk wallet'}`,
-      )
-    }
+    // Hard-fail (400) when recipients exceed Pump's 10-wallet cap — never soft-warn.
+    shareholders = buildCrewShareholders(crew, mode, {
+      deskWallet: new PublicKey(deskWallet).toBase58(),
+      agentReferrer: agentRef.referrer
+        ? {
+            wallet: agentRef.referrer.wallet,
+            handle: agentRef.referrer.handle,
+            code: agentRef.referrer.code,
+          }
+        : null,
+    })
   }
 
   let balance: AgentDryRunResult['balance']
@@ -473,29 +448,21 @@ export async function launchForAgent(
       }
     }
 
-    const { crew, hirePlan } = await resolveCrew({ ...input, mode })
-    const vibe = withCrewLaunchDescription(vibeRaw)
     const deskWallet = launcher.publicKey.toBase58()
+    const boundRef = opts?.agentKeyId ? await getAgentKeyReferral(opts.agentKeyId) : null
+    const { crew, hirePlan } = await resolveCrew(
+      { ...input, mode },
+      { hasAgentReferrer: Boolean(boundRef) },
+    )
+    const vibe = withCrewLaunchDescription(vibeRaw)
     const agentRef = await resolveLaunchAgentReferrer({
       keyId: opts?.agentKeyId,
       ownerWallet: opts?.ownerWallet,
       launcherWallet: deskWallet,
+      crewWallets: crew.map((m) => m.wallet),
     })
     if (agentRef.warning) {
       console.warn(agentRef.warning)
-    }
-    if (agentRef.referrer) {
-      const dual = agentReferrerDualRoleHandles(crew, agentRef.referrer.wallet)
-      if (dual.length) {
-        console.info(
-          JSON.stringify({
-            event: 'agent_referral_dual_role',
-            code: agentRef.referrer.code,
-            handles: dual,
-            mintHint: ticker,
-          }),
-        )
-      }
     }
 
     // Holder KOL: placeholder crew is the launcher until later lock.
@@ -503,12 +470,10 @@ export async function launchForAgent(
       ? [{ handle: '@holder', wallet: deskWallet, share: 100, hireRole: 'kol' as HireRole }]
       : crew
 
-    const referralCuts = input.holderKol ? [] : await referralCutsForCrew(effectiveCrew)
     const shareholders = input.holderKol
       ? null
       : buildCrewShareholders(effectiveCrew, mode, {
           deskWallet,
-          referralCuts,
           agentReferrer: agentRef.referrer
             ? {
                 wallet: agentRef.referrer.wallet,
@@ -526,15 +491,13 @@ export async function launchForAgent(
       const role =
         s.role === 'agent-referral'
           ? 'agent-referral'
-          : s.role === 'referral'
-            ? 'referral'
-            : s.role === 'platform'
-              ? 'buyback'
-              : s.wallet === deskWallet || s.role === 'desk'
-                ? 'launcher-ops'
-                : effectiveCrew.some((c) => c.wallet === s.wallet)
-                  ? 'kol'
-                  : 'buyback'
+          : s.role === 'platform'
+            ? 'buyback'
+            : s.wallet === deskWallet || s.role === 'desk'
+              ? 'launcher-ops'
+              : effectiveCrew.some((c) => c.wallet === s.wallet)
+                ? 'kol'
+                : 'buyback'
       return { ...s, role }
     })
     /** Always present — null when explicit crew[] (not Autohire). */

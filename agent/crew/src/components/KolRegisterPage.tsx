@@ -7,6 +7,8 @@ import { CREW_VERSION, KOL_REFERRAL_CUT_PCT } from '../lib/config'
 import { useOwnRegisteredHandle } from '../lib/registered-kol'
 import { kolProfilePath } from '../lib/routes'
 
+const MCP_PIN = '1.2.5'
+
 const API = (
   (import.meta.env.VITE_CREW_API_URL as string | undefined)?.replace(/\/$/, '') ||
   'https://api.crewpay.dev'
@@ -76,11 +78,41 @@ export function KolRegisterPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(params.get('error'))
   const [refInput, setRefInput] = useState(() => normalizeRef(params.get('ref')))
+  const [copiedSnippet, setCopiedSnippet] = useState<string | null>(null)
   const ownHandle = useOwnRegisteredHandle(wallet.publicKey?.toBase58())
   const registeredHandle = params.get('registered') === '1' ? params.get('handle') : null
   const deskHandle = registeredHandle || ownHandle
   const alreadyRegistered = Boolean(ownHandle)
   const referralCode = normalizeRef(refInput)
+  const showAgentSnippets = referralCode.length >= 2
+
+  const claimKeySnippet = `curl -sS -X POST https://api.crewpay.dev/api/agent/keys/claim \\
+  -H 'content-type: application/json' \\
+  -d '{"label":"my-agent","referralCode":"${referralCode}"}'`
+
+  const mcpSnippet = `{
+  "mcpServers": {
+    "crewpay": {
+      "command": "npx",
+      "args": ["-y", "crewpay-mcp@${MCP_PIN}"],
+      "env": {
+        "CREWPAY_REFERRAL_CODE": "${referralCode}"
+      }
+    }
+  }
+}`
+
+  const envSnippet = `CREWPAY_REFERRAL_CODE=${referralCode}`
+
+  async function copyText(id: string, text: string) {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedSnippet(id)
+      window.setTimeout(() => setCopiedSnippet(null), 1600)
+    } catch {
+      setCopiedSnippet(null)
+    }
+  }
 
   const load = useCallback(async () => {
     const [statusRes, boardRes] = await Promise.all([
@@ -170,14 +202,79 @@ export function KolRegisterPage() {
             </Link>
             <p className="section-label">Crew · v{CREW_VERSION}</p>
           </div>
-          <h1 className="section-title">Join the crew.</h1>
+          <h1 className="section-title">
+            {showAgentSnippets ? `Code: ${referralCode}` : 'Join the crew.'}
+          </h1>
           <p className="section-sub">
-            Agents Autohire KOLs for launches. Register with X + Solana to get on the board, your
-            desk, and a referral link (crewpay.dev/r/yourcode). Agents that claim a key with your
-            code bind you permanently — referred launches pay you {KOL_REFERRAL_CUT_PCT}% of
-            creator fees (60/15/{KOL_REFERRAL_CUT_PCT}/20). Buyback cron is not live.
+            {showAgentSnippets ? (
+              <>
+                KOLs: register below with this invite. Agent builders: claim a key with{' '}
+                <strong>{referralCode}</strong> so referred launches pay the referrer{' '}
+                {KOL_REFERRAL_CUT_PCT}% of creator fees (60/15/{KOL_REFERRAL_CUT_PCT}/20 on-chain;
+                max 7 crew seats). Buyback cron is not live.
+              </>
+            ) : (
+              <>
+                Agents Autohire KOLs for launches. Register with X + Solana to get on the board, your
+                desk, and a referral link (crewpay.dev/r/yourcode). Agents that claim a key with your
+                code bind you permanently — referred launches pay you {KOL_REFERRAL_CUT_PCT}% of
+                creator fees (60/15/{KOL_REFERRAL_CUT_PCT}/20). Buyback cron is not live.
+              </>
+            )}
           </p>
         </div>
+
+        {showAgentSnippets ? (
+          <aside className="register-agent-card" aria-label="Agent builders">
+            <p className="section-label">Agent builders</p>
+            <h2 className="section-title register-board-title">Use this referral code</h2>
+            <p className="section-sub">
+              Bind at claim time (immutable). Prefer env over pasting codes into chat.
+            </p>
+
+            <div className="register-snippet">
+              <div className="register-snippet-head">
+                <span>claim-key · referralCode</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => void copyText('claim', claimKeySnippet)}
+                >
+                  {copiedSnippet === 'claim' ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+              <pre className="register-snippet-pre">{claimKeySnippet}</pre>
+            </div>
+
+            <div className="register-snippet">
+              <div className="register-snippet-head">
+                <span>MCP · referral_code / CREWPAY_REFERRAL_CODE</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => void copyText('mcp', mcpSnippet)}
+                >
+                  {copiedSnippet === 'mcp' ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+              <pre className="register-snippet-pre">{mcpSnippet}</pre>
+            </div>
+
+            <div className="register-snippet">
+              <div className="register-snippet-head">
+                <span>Env</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => void copyText('env', envSnippet)}
+                >
+                  {copiedSnippet === 'env' ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+              <pre className="register-snippet-pre">{envSnippet}</pre>
+            </div>
+          </aside>
+        ) : null}
 
         <div className="register-card">
           <ol className="register-steps">

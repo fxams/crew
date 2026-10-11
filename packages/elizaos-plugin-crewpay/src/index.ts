@@ -1,6 +1,6 @@
 /**
  * ElizaOS plugin scaffold for CrewPay.
- * Prefer MCP: npx -y crewpay-mcp@1.2.4 or https://mcp.crewpay.dev/mcp
+ * Prefer MCP: npx -y crewpay-mcp@1.2.5 or https://mcp.crewpay.dev/mcp
  *
  * Launch requires dryRunId from CREW_LAUNCH_DRY_RUN after human approval
  * on the approvalUrl page (no confirm phrase).

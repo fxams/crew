@@ -1,29 +1,54 @@
 import { describe, expect, it } from 'vitest'
-import { isSelfReferral, agentReferralLink } from './agent-referral.js'
+import { isSelfReferral } from './agent-referral.js'
 
-describe('agent referral anti-abuse', () => {
-  const ref = 'Stake11111111111111111111111111111111111111'
-  const other = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
+const refWallet = 'Stake11111111111111111111111111111111111111'
+const other = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
 
-  it('rejects self-referral when launcher matches referrer', () => {
+describe('isSelfReferral', () => {
+  it('blocks matching owner or launcher wallet', () => {
     expect(
-      isSelfReferral({ referrerWallet: ref, launcherWallet: ref }),
+      isSelfReferral({
+        referrerWallet: refWallet,
+        ownerWallet: refWallet,
+      }),
     ).toBe(true)
-  })
-
-  it('rejects self-referral when ownerWallet matches referrer', () => {
     expect(
-      isSelfReferral({ referrerWallet: ref, ownerWallet: ref, launcherWallet: other }),
+      isSelfReferral({
+        referrerWallet: refWallet,
+        launcherWallet: refWallet,
+      }),
     ).toBe(true)
-  })
-
-  it('allows distinct launcher/owner', () => {
     expect(
-      isSelfReferral({ referrerWallet: ref, ownerWallet: other, launcherWallet: other }),
+      isSelfReferral({
+        referrerWallet: refWallet,
+        ownerWallet: other,
+        launcherWallet: other,
+      }),
     ).toBe(false)
   })
 
-  it('builds /r/<code> invite links', () => {
-    expect(agentReferralLink('CoolKOL')).toMatch(/\/r\/coolkol$/)
+  it('blocks matching X username or agent label', () => {
+    expect(
+      isSelfReferral({
+        referrerWallet: refWallet,
+        referrerXUsername: 'coolkol',
+        ownerXUsername: 'CoolKOL',
+      }),
+    ).toBe(true)
+    expect(
+      isSelfReferral({
+        referrerWallet: refWallet,
+        referrerXUsername: 'coolkol',
+        agentLabel: 'bot:coolkol:gpt',
+      }),
+    ).toBe(true)
+    expect(
+      isSelfReferral({
+        referrerWallet: refWallet,
+        referrerXUsername: 'coolkol',
+        agentLabel: 'other-agent',
+        ownerXUsername: 'someoneelse',
+      }),
+    ).toBe(false)
   })
 })

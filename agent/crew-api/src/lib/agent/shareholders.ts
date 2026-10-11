@@ -2,10 +2,11 @@ import { PublicKey } from '@solana/web3.js'
 import {
   AGENT_REFERRAL_BPS,
   getPlatformBuybackWallet,
+  MAX_CREW_REFERRED,
+  MAX_CREW_UNREFERRED,
   MODE_DESK_BPS,
   platformBuybackBps,
   PUMP_MAX_SHAREHOLDERS,
-  REFERRAL_CUT_BPS,
   type DeskMode,
 } from './constants.js'
 import type { CrewMember } from './narrative.js'
@@ -15,8 +16,6 @@ export type Shareholder = {
   bps: number
   role?: string
   handle?: string
-  /** When role=referral, fold bps back to this KOL wallet if over Pump's cap. */
-  foldToWallet?: string
 }
 
 export type AgentReferrerInput = {
@@ -42,10 +41,14 @@ export function normalizeHandle(raw: string): string {
   return `@${h}`
 }
 
-export type ReferralCutInput = {
-  handle: string
-  referrerWallet: string
-  referrerHandle?: string
+/**
+ * Max hired-KOL seats for agent-mode fee maps.
+ * Pump allows 10 wallets: treasury + agent (+ referrer) + crew.
+ */
+export function maxCrewSeats(opts: { hasAgentReferrer: boolean; mode?: DeskMode }): number {
+  const mode = opts.mode || 'agent'
+  if (mode !== 'agent') return MAX_CREW_UNREFERRED
+  return opts.hasAgentReferrer ? MAX_CREW_REFERRED : MAX_CREW_UNREFERRED
 }
 
 function mergeShare(
@@ -59,7 +62,6 @@ function mergeShare(
   if (existing) {
     existing.bps += bps
     if (role === 'platform' || role === 'desk' || role === 'agent-referral') {
-      // Keep primary fee-map roles visible when a wallet wears two hats.
       if (existing.role !== 'platform') {
         existing.role = role
         if (handle) existing.handle = handle
@@ -78,98 +80,27 @@ function mergeShare(
   out.push({ wallet, bps, role, handle })
 }
 
-/**
- * Apply direct-only referral cuts: 5% of each referred KOL's seat to their referrer.
- * Referral rows stay unmerged (foldToWallet tracked) so the Pump wallet cap can
- * fold each cut back into the correct KOL.
- */
-export function applyDirectReferralSplits(
-  crewRows: { handle: string; wallet: string; bps: number }[],
-  cuts: ReferralCutInput[],
-): Shareholder[] {
-  const byHandle = new Map(
-    cuts.map((c) => [c.handle.replace(/^@+/, '').toLowerCase(), c] as const),
-  )
-  const out: Shareholder[] = []
-
-  for (const row of crewRows) {
-    if (row.bps <= 0) continue
-    const handle = row.handle.replace(/^@+/, '').toLowerCase()
-    const cut = byHandle.get(handle)
-    const kolWallet = assertWallet(row.wallet)
-    if (!cut?.referrerWallet) {
-      mergeShare(out, kolWallet, row.bps, 'crew', row.handle)
-      continue
-    }
-    let refWallet: string
-    try {
-      refWallet = assertWallet(cut.referrerWallet)
-    } catch {
-      mergeShare(out, kolWallet, row.bps, 'crew', row.handle)
-      continue
-    }
-    if (refWallet === kolWallet) {
-      mergeShare(out, kolWallet, row.bps, 'crew', row.handle)
-      continue
-    }
-    const refBps = Math.max(1, Math.floor((row.bps * REFERRAL_CUT_BPS) / 10_000))
-    const kolBps = row.bps - refBps
-    if (kolBps <= 0) {
-      mergeShare(out, kolWallet, row.bps, 'crew', row.handle)
-      continue
-    }
-    mergeShare(out, kolWallet, kolBps, 'crew', row.handle)
-    // Keep separate referral rows so fold-back targets the right KOL.
-    out.push({
-      wallet: refWallet,
-      bps: refBps,
-      role: 'referral',
-      handle: cut.referrerHandle
-        ? `@${cut.referrerHandle.replace(/^@+/, '')}`
-        : '@referral',
-      foldToWallet: kolWallet,
-    })
+/** Handles in crew that match the agent referrer wallet. */
+export function agentReferrerDualRoleHandles(
+  crew: CrewMember[],
+  agentReferrerWallet: string | null | undefined,
+): string[] {
+  if (!agentReferrerWallet) return []
+  let ref: string
+  try {
+    ref = assertWallet(agentReferrerWallet)
+  } catch {
+    return []
   }
-
-  return out
-}
-
-/** Fold smallest referral seats back into their source KOL until ≤ max unique wallets. */
-export function foldReferralOverflow(
-  shares: Shareholder[],
-  maxWallets = PUMP_MAX_SHAREHOLDERS,
-): Shareholder[] {
-  const out = shares.map((s) => ({ ...s }))
-  const uniqueCount = () => new Set(out.map((s) => s.wallet)).size
-
-  while (uniqueCount() > maxWallets) {
-    let smallestIdx = -1
-    let smallestBps = Infinity
-    for (let i = 0; i < out.length; i += 1) {
-      const row = out[i]!
-      if (row.role !== 'referral') continue
-      if (row.bps < smallestBps) {
-        smallestBps = row.bps
-        smallestIdx = i
+  return crew
+    .filter((m) => {
+      try {
+        return assertWallet(m.wallet) === ref
+      } catch {
+        return false
       }
-    }
-    if (smallestIdx < 0) break
-    const ref = out[smallestIdx]!
-    out.splice(smallestIdx, 1)
-    const targetWallet = ref.foldToWallet
-    const kol =
-      (targetWallet && out.find((s) => s.wallet === targetWallet && s.role === 'crew')) ||
-      out.find((s) => s.role === 'crew') ||
-      out[0]
-    if (kol) kol.bps += ref.bps
-  }
-
-  // Merge duplicate wallets after folds.
-  const merged: Shareholder[] = []
-  for (const row of out) {
-    mergeShare(merged, row.wallet, row.bps, row.role, row.handle)
-  }
-  return merged
+    })
+    .map((m) => m.handle)
 }
 
 export function buildCrewShareholders(
@@ -178,14 +109,13 @@ export function buildCrewShareholders(
   opts: {
     deskWallet: string
     platformWallet?: string
-    /** Legacy KOL→KOL seat carve (5% of hired KOL seat). */
-    referralCuts?: ReferralCutInput[]
-    /** Agent-key referrer — 5% of total fees (from treasury). */
+    /** Agent-key referrer — 5% of total fees (from treasury). Skipped if also in crew. */
     agentReferrer?: AgentReferrerInput | null
   },
 ): Shareholder[] {
   const deskWallet = assertWallet(opts.deskWallet)
   const platformWallet = assertWallet(opts.platformWallet || getPlatformBuybackWallet())
+
   let agentReferrerWallet: string | null = null
   let agentReferrerHandle = '@referrer'
   if (opts.agentReferrer?.wallet) {
@@ -197,8 +127,21 @@ export function buildCrewShareholders(
     }
   }
 
-  const platformBps = platformBuybackBps(Boolean(agentReferrerWallet))
-  const agentReferralBps = agentReferrerWallet ? AGENT_REFERRAL_BPS : 0
+  // Referrer also in crew → no referral cut (crew seat only).
+  const dualHandles = agentReferrerDualRoleHandles(crew, agentReferrerWallet)
+  const applyReferrer = Boolean(agentReferrerWallet) && dualHandles.length === 0
+
+  const maxSeats = maxCrewSeats({ hasAgentReferrer: applyReferrer, mode })
+  if (crew.length > maxSeats) {
+    throw new Error(
+      applyReferrer
+        ? `Crew has ${crew.length} seats — referred launches allow at most ${maxSeats} (Pump cap ${PUMP_MAX_SHAREHOLDERS}: crew + agent + referrer + treasury).`
+        : `Crew has ${crew.length} seats — max ${maxSeats} for this fee map (Pump cap ${PUMP_MAX_SHAREHOLDERS} wallets).`,
+    )
+  }
+
+  const platformBps = platformBuybackBps(applyReferrer)
+  const agentReferralBps = applyReferrer ? AGENT_REFERRAL_BPS : 0
   const deskBps = MODE_DESK_BPS[mode]
   const crewPoolBps = 10_000 - platformBps - agentReferralBps - deskBps
   if (crewPoolBps < 0) throw new Error('Platform + desk + referral reserves exceed 100% of fees.')
@@ -219,64 +162,45 @@ export function buildCrewShareholders(
     remainder -= 1
   }
 
-  const crewShares = applyDirectReferralSplits(raw, opts.referralCuts || [])
-
   const staged: Shareholder[] = []
-  staged.push({ wallet: platformWallet, bps: platformBps, role: 'platform', handle: '@crew-buyback' })
-  if (agentReferrerWallet && agentReferralBps > 0) {
-    // Keep as its own recipient; mergeShare if same wallet as desk/crew (dual role OK).
+  staged.push({
+    wallet: platformWallet,
+    bps: platformBps,
+    role: 'platform',
+    handle: '@crew-buyback',
+  })
+  if (applyReferrer && agentReferrerWallet && agentReferralBps > 0) {
     mergeShare(staged, agentReferrerWallet, agentReferralBps, 'agent-referral', agentReferrerHandle)
   }
   if (deskBps > 0) {
     mergeShare(staged, deskWallet, deskBps, 'desk', mode === 'agent' ? '@agent' : '@desk')
   }
-  for (const row of crewShares) {
-    if (row.role === 'referral') {
-      staged.push({ ...row })
-    } else {
-      mergeShare(staged, row.wallet, row.bps, row.role, row.handle)
-    }
+  for (const row of raw) {
+    if (row.bps <= 0) continue
+    mergeShare(staged, assertWallet(row.wallet), row.bps, 'crew', row.handle)
   }
 
-  const out = foldReferralOverflow(staged, PUMP_MAX_SHAREHOLDERS)
-  if (out.length > PUMP_MAX_SHAREHOLDERS) {
+  const uniqueWallets = new Set(staged.map((s) => s.wallet)).size
+  if (uniqueWallets > PUMP_MAX_SHAREHOLDERS) {
     throw new Error(
-      `Fee-share has ${out.length} wallets — Pump allows ${PUMP_MAX_SHAREHOLDERS}. Reduce crew seats.`,
+      `Fee-share has ${uniqueWallets} wallets — Pump allows ${PUMP_MAX_SHAREHOLDERS}. Reduce crew seats` +
+        (applyReferrer ? ' (referred max 7).' : '.'),
     )
   }
 
-  const total = out.reduce((s, r) => s + r.bps, 0)
+  const total = staged.reduce((s, r) => s + r.bps, 0)
   if (total !== 10_000) throw new Error(`Shareholder bps must total 10000 (got ${total}).`)
-  return out
-}
-
-/** Handles in crew that also match the agent referrer wallet (dual-role log). */
-export function agentReferrerDualRoleHandles(
-  crew: CrewMember[],
-  agentReferrerWallet: string | null | undefined,
-): string[] {
-  if (!agentReferrerWallet) return []
-  let ref: string
-  try {
-    ref = assertWallet(agentReferrerWallet)
-  } catch {
-    return []
-  }
-  return crew.filter((m) => {
-    try {
-      return assertWallet(m.wallet) === ref
-    } catch {
-      return false
-    }
-  }).map((m) => m.handle)
+  return staged
 }
 
 export function normalizeCrew(
   crew: CrewMember[],
   mode: DeskMode,
+  opts?: { maxSeats?: number },
 ): CrewMember[] {
-  if (crew.length < 1 || crew.length > 10) {
-    throw new Error('Crew must have 1–10 members.')
+  const maxSeats = opts?.maxSeats ?? MAX_CREW_UNREFERRED
+  if (crew.length < 1 || crew.length > maxSeats) {
+    throw new Error(`Crew must have 1–${maxSeats} members.`)
   }
   const seenHandles = new Set<string>()
   const seenWallets = new Set<string>()

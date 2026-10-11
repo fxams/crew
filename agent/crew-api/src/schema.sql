@@ -141,6 +141,35 @@ CREATE INDEX IF NOT EXISTS agent_keys_active_idx ON agent_keys (active);
 CREATE INDEX IF NOT EXISTS agent_keys_referral_code_idx
   ON agent_keys (lower(referral_code)) WHERE referral_code IS NOT NULL;
 
+-- Fee-share recipients per mint (for referral vs crew earnings attribution).
+CREATE TABLE IF NOT EXISTS coin_shareholders (
+  mint TEXT NOT NULL REFERENCES coins (mint) ON DELETE CASCADE,
+  wallet TEXT NOT NULL,
+  role TEXT NOT NULL,
+  handle TEXT NOT NULL DEFAULT '',
+  bps INT NOT NULL,
+  PRIMARY KEY (mint, wallet, role)
+);
+
+CREATE INDEX IF NOT EXISTS coin_shareholders_wallet_role_idx
+  ON coin_shareholders (wallet, role);
+
+-- Audit log of referred agent-key claims (rate-limit review).
+CREATE TABLE IF NOT EXISTS agent_referral_claims (
+  id TEXT PRIMARY KEY,
+  agent_key_id TEXT NOT NULL,
+  fingerprint TEXT NOT NULL DEFAULT '',
+  referral_code TEXT NOT NULL,
+  referrer_wallet TEXT NOT NULL DEFAULT '',
+  referrer_handle TEXT NOT NULL DEFAULT '',
+  label TEXT NOT NULL DEFAULT '',
+  ip TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS agent_referral_claims_code_day_idx
+  ON agent_referral_claims (lower(referral_code), created_at DESC);
+
 CREATE TABLE IF NOT EXISTS mode_actions (
   id TEXT PRIMARY KEY,
   mint TEXT NOT NULL,

@@ -10,11 +10,16 @@ import { MODE_DESK_BPS, PUMP_COIN_URL, type DeskMode } from './constants.js'
 import { proposeHolderKolFromChain } from './holders.js'
 import { OnlinePumpSdk, PumpSdk } from './pump.js'
 import { getConnection, sendInstructions } from './send.js'
-import { resolveLaunchAgentReferrer } from '../agent-referral.js'
-import { awardReferralHirePointsForCrew, lookupReferralCuts } from '../kol-register.js'
+import {
+  getAgentKeyReferral,
+  resolveLaunchAgentReferrer,
+  upsertCoinShareholders,
+} from '../agent-referral.js'
+import { awardReferralHirePointsForCrew } from '../kol-register.js'
 import {
   agentReferrerDualRoleHandles,
   buildCrewShareholders,
+  maxCrewSeats,
   normalizeCrew,
   type Shareholder,
 } from './shareholders.js'
@@ -111,38 +116,33 @@ export async function wireFeesForAgent(opts: {
       'Provide crew[] or launch first so the board has crew to wire (shares must total 100%).',
     )
   }
-  const crew = normalizeCrew(crewSource, opts.mode)
-  let referralCuts: { handle: string; referrerWallet: string; referrerHandle?: string }[] = []
-  try {
-    referralCuts = (await lookupReferralCuts(crew.map((m) => m.handle))).map((c) => ({
-      handle: c.handle,
-      referrerWallet: c.referrerWallet,
-      referrerHandle: c.referrerHandle,
-    }))
-  } catch {
-    referralCuts = []
-  }
+  const boundRef = boardExisting?.agentKeyId
+    ? await getAgentKeyReferral(boardExisting.agentKeyId)
+    : null
+  const crew = normalizeCrew(crewSource, opts.mode, {
+    maxSeats: maxCrewSeats({
+      hasAgentReferrer: Boolean(boundRef),
+      mode: opts.mode,
+    }),
+  })
   const agentRef = await resolveLaunchAgentReferrer({
     keyId: boardExisting?.agentKeyId,
     launcherWallet: launcher.publicKey.toBase58(),
+    crewWallets: crew.map((m) => m.wallet),
   })
   if (agentRef.warning) console.warn(agentRef.warning)
-  if (agentRef.referrer) {
-    const dual = agentReferrerDualRoleHandles(crew, agentRef.referrer.wallet)
-    if (dual.length) {
-      console.info(
-        JSON.stringify({
-          event: 'agent_referral_dual_role',
-          code: agentRef.referrer.code,
-          handles: dual,
-          mint: mint.toBase58(),
-        }),
-      )
-    }
+  if (agentRef.skippedInCrew && boundRef) {
+    console.info(
+      JSON.stringify({
+        event: 'agent_referral_dual_role',
+        code: boundRef.code,
+        handles: agentReferrerDualRoleHandles(crew, boundRef.referrer.wallet),
+        mint: mint.toBase58(),
+      }),
+    )
   }
   const shareholders = buildCrewShareholders(crew, opts.mode, {
     deskWallet: launcher.publicKey.toBase58(),
-    referralCuts,
     agentReferrer: agentRef.referrer
       ? {
           wallet: agentRef.referrer.wallet,
@@ -223,6 +223,14 @@ export async function wireFeesForAgent(opts: {
     holderKol: false,
   }
   await upsertCoin(coin)
+  try {
+    await upsertCoinShareholders(mintStr, shareholders)
+  } catch (err) {
+    console.warn(
+      'coin_shareholders persist failed',
+      err instanceof Error ? err.message : err,
+    )
+  }
   try {
     await awardReferralHirePointsForCrew(
       mintStr,

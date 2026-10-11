@@ -160,7 +160,7 @@ export function agentDiscoveryJson() {
       description:
         '≤204 user chars (final on-chain ≤240 after “Launched from CrewPay.dev platform”)',
       initialBuySol: '0–10',
-      crewSeats: '1–10',
+      crewSeats: '1–8 (max 7 when referred)',
       crewShares: 'must total 100% when crew[] is provided',
       cluster: 'mainnet-beta only (no devnet)',
     },
@@ -168,7 +168,7 @@ export function agentDiscoveryJson() {
       'GET /api/agent': 'This discovery document',
       'POST /api/agent/autohire': {
         auth: 'x-crew-api-key',
-        body: { name: 'string', ticker: 'string', description: 'string', seats: '1-10' },
+        body: { name: 'string', ticker: 'string', description: 'string', seats: '1-8' },
         returns: 'Narrative hire plan + crew wallets + disclaimer (no on-chain tx)',
       },
       'POST /api/agent/launch/dry-run': {
@@ -755,7 +755,7 @@ export function openApiSpec() {
               description:
                 'User vibe ≤204. Final IPFS description appends “Launched from CrewPay.dev platform” (≤240).',
             },
-            seats: { type: 'integer', minimum: 1, maximum: 10, default: 5 },
+            seats: { type: 'integer', minimum: 1, maximum: 8, default: 5 },
           },
         },
         CrewMember: {
@@ -801,7 +801,7 @@ export function openApiSpec() {
             autoHire: {
               type: 'object',
               properties: {
-                seats: { type: 'integer', minimum: 1, maximum: 10, default: 5 },
+                seats: { type: 'integer', minimum: 1, maximum: 8, default: 5 },
               },
             },
             agent: {
@@ -1084,7 +1084,7 @@ Canonical site is **https://crewpay.dev** (\`app.crewpay.dev\` has no DNS).
 
 ## Limits (site + API + MCP aligned)
 
-- Name 2–32 · ticker 2–13 · description ≤204 user / ≤240 final · initialBuySol 0–10 · seats 1–10
+- Name 2–32 · ticker 2–13 · description ≤204 user / ≤240 final · initialBuySol 0–10 · seats 1–8 (max 7 when referred)
 - Crew shares must total 100% when \`crew[]\` is provided
 - MAINNET only — dry-run does not spend SOL; real launch does
 - Always check \`feeShareLocked\` (HTTP 201 locked / 202 mint-without-fees → wire-fees)
