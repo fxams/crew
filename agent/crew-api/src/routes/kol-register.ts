@@ -1,5 +1,6 @@
 import { Router, type Request } from 'express'
 import { z } from 'zod'
+import { randomBytes } from 'node:crypto'
 import { takeRateLimit } from '../lib/agent/rate-limit.js'
 import { AGENT_REFERRAL_BPS } from '../lib/agent/constants.js'
 import { getKolReferralStats } from '../lib/agent-referral.js'
@@ -265,7 +266,13 @@ kolRegisterRouter.post('/kols/register/start', async (req, res) => {
         referralCode: z.string().min(2).max(32).optional(),
       })
       .parse(req.body)
-    const out = await beginXAuth({ ...body, ip })
+    // Set CSRF cookie crew_reg and bind its hash to the state row.
+    const cookieVal = randomBytes(16).toString('hex')
+    res.setHeader(
+      'Set-Cookie',
+      `crew_reg=${cookieVal}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${10 * 60}`,
+    )
+    const out = await beginXAuth({ ...body, ip, regCookie: cookieVal })
     res.json({ ok: true, authorizeUrl: out.authorizeUrl })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'start failed'
@@ -288,7 +295,10 @@ kolRegisterRouter.get('/kols/register/callback', async (req, res) => {
     return
   }
   try {
-    const saved = await completeXCallback(code, state)
+    const cookieHeader = String(req.headers.cookie || '')
+    const match = cookieHeader.match(/(?:^|;)\s*crew_reg=([^;]+)/)
+    const cookieVal = match ? decodeURIComponent(match[1]!) : ''
+    const saved = await completeXCallback(code, state, { regCookie: cookieVal })
     res.redirect(
       `${site}/kol/${encodeURIComponent(saved.xUsername)}?registered=1`,
     )

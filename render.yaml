@@ -42,8 +42,6 @@ services:
         sync: false
       - key: VITE_CREW_API_URL
         value: https://api.crewpay.dev
-      - key: VITE_CREW_API_KEY
-        sync: false
       - key: VITE_RPC_URL
         sync: false
       - key: VITE_PINATA_JWT
