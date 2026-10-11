@@ -1,4 +1,5 @@
 import { buybackStats, listBuybackRuns } from './buyback-exec.js'
+import { isHouseHandle } from './agent/optout.js'
 import { listCoins, listRemits, type ApiCoin, type ApiRemit } from './coins.js'
 import { query } from './db.js'
 import { countKols } from './kols.js'
@@ -94,6 +95,7 @@ export function buildCrewLeaderboardFromRemits(
     const role = (r.role || '').toLowerCase()
     if (role !== 'crew' && role !== 'kol') continue
     if (!r.handle) continue
+    if (isHouseHandle(r.handle)) continue
     const key = r.handle.toLowerCase()
     const row =
       map.get(key) ??

@@ -3,6 +3,7 @@
  */
 
 import { createHash, randomBytes } from 'node:crypto'
+import { houseHandles, isHouseHandle } from './agent/optout.js'
 import { PublicKey } from '@solana/web3.js'
 import bs58 from 'bs58'
 import nacl from 'tweetnacl'
@@ -759,18 +760,28 @@ export async function listRegistered(limit = 50): Promise<{
     ),
     query<{ n: string }>(`SELECT count(*)::text AS n FROM kol_registrations`),
   ])
-  const leaderboard = board.map((raw) => {
-    const row = raw as Record<string, unknown>
-    return mapReg(row, Number(row.board_rank || 0))
-  })
-  const tapeOut = tape.map((raw) => {
-    const row = raw as Record<string, unknown>
-    return mapReg(row, Number(row.board_rank || 0))
-  })
+  const house = houseHandles()
+  const leaderboard = board
+    .map((raw) => {
+      const row = raw as Record<string, unknown>
+      return mapReg(row, Number(row.board_rank || 0))
+    })
+    .filter((r) => !isHouseHandle(r.xUsername, house))
+    .map((r, i) => ({ ...r, rank: i + 1 }))
+  const tapeOut = tape
+    .map((raw) => {
+      const row = raw as Record<string, unknown>
+      return mapReg(row, Number(row.board_rank || 0))
+    })
+    .filter((r) => !isHouseHandle(r.xUsername, house))
+  const houseRegistered = board.filter((raw) =>
+    isHouseHandle(String((raw as Record<string, unknown>).x_username || ''), house),
+  ).length
   return {
     leaderboard,
     tape: tapeOut,
-    total: Number(countRows[0]?.n || 0),
+    // Public count excludes house accounts (e.g. @CrewPayHQ).
+    total: Math.max(0, Number(countRows[0]?.n || 0) - houseRegistered),
     rankedBy: 'sol_earned',
   }
 }

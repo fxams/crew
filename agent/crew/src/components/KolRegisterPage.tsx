@@ -94,7 +94,7 @@ function PaidByAgents() {
   if (!rows || rows.length === 0) return null
   return (
     <div className="register-paid" aria-label="KOLs already paid by agents">
-      <p className="section-label">Already hired by agents · not registered yet</p>
+      <p className="section-label">Already picked by Autohire · not registered yet</p>
       <p className="section-sub">
         These KOLs were picked by Autohire and paid on-chain from coin fee-shares. Is one of them you? Claim the desk.
       </p>
@@ -465,9 +465,9 @@ export function KolRegisterPage() {
         <PaidByAgents />
 
         <div className="register-tape" aria-label="Registration tape">
-          <p className="section-label">Tape · {total} registered</p>
+          <p className="section-label">Tape · {total > 0 ? `${total} registered` : 'early access: be the first KOL to register'}</p>
           {tape.length === 0 ? (
-            <p className="section-sub">No KOLs registered yet.</p>
+            <p className="section-sub">No outside KOLs registered yet. The first ones fill Autohire seats before anyone else.</p>
           ) : (
             <div className="register-tape-track">
               {tape.map((row) => (
