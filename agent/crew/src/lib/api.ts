@@ -108,6 +108,11 @@ export type ProofBundle = {
     buybackOkRuns: number
     buybackSolSpent: number
     modeActions: number
+    /** Per-role attribution (crew/desk/platform/agent-referral/referral/unknown). */
+    byRole?: { role: string; remits: number; sol: number }[]
+    /** Convenience totals focused on humans (crew only). */
+    humansPaidSol?: number
+    humansPaidRemits?: number
   }
   buybacks: {
     id: number
@@ -119,6 +124,8 @@ export type ProofBundle = {
     at: number
   }[]
   remits: RemitRecord[]
+  /** Top KOL leaderboard (crew-only), if server provides it. */
+  leaderboard?: { handle: string; totalSol: number; remits: number; tickers: string[] }[]
   coins: {
     mint: string
     ticker: string
