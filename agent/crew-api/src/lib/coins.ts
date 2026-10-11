@@ -40,6 +40,8 @@ export type ApiRemit = {
   at: number
   signature?: string
   source?: string
+  /** Canonical attribution role for this remit recipient on the given mint. */
+  role?: string
 }
 
 function rowToCoin(row: Record<string, unknown>, crew: ApiCrewMember[]): ApiCoin {
@@ -190,12 +192,29 @@ export async function listRemits(
 ): Promise<ApiRemit[]> {
   const safeLimit = Math.min(500, Math.max(1, limit))
   const mint = opts?.mint?.trim()
+  // Join shareholder role for attribution. A wallet may have multiple rows in
+  // coin_shareholders for a mint historically, but normalization ensures there
+  // is at most one canonical role per wallet (crew/platform/desk/agent-referral).
   const { rows } = mint
     ? await query(
-        `SELECT * FROM remits WHERE mint = $1 ORDER BY at DESC LIMIT $2`,
+        `SELECT r.*, cs.role
+         FROM remits r
+         LEFT JOIN coin_shareholders cs
+           ON cs.mint = r.mint AND cs.wallet = r.wallet
+         WHERE r.mint = $1
+         ORDER BY r.at DESC
+         LIMIT $2`,
         [mint, safeLimit],
       )
-    : await query(`SELECT * FROM remits ORDER BY at DESC LIMIT $1`, [safeLimit])
+    : await query(
+        `SELECT r.*, cs.role
+         FROM remits r
+         LEFT JOIN coin_shareholders cs
+           ON cs.mint = r.mint AND cs.wallet = r.wallet
+         ORDER BY r.at DESC
+         LIMIT $1`,
+        [safeLimit],
+      )
   return rows.map((r) => ({
     id: String(r.id),
     mint: String(r.mint),
@@ -207,6 +226,7 @@ export async function listRemits(
     at: new Date(String(r.at)).getTime(),
     signature: r.signature ? String(r.signature) : undefined,
     source: r.source ? String(r.source) : undefined,
+    role: r.role ? String(r.role) : undefined,
   }))
 }
 

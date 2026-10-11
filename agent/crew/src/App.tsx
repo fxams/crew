@@ -21,7 +21,7 @@ import { ClaimPage } from "./components/ClaimPage";
 import { KolProfilePage } from "./components/KolProfilePage";
 import { KolRegisterPage } from "./components/KolRegisterPage";
 import { TopKolsPage } from "./components/TopKolsPage";
-import { apiConfigured, pushModeAction, pushRemits } from "./lib/api";
+import { apiConfigured, pushModeAction, pushRemits, fetchProof } from "./lib/api";
 import { evaluateDipGate } from "./lib/desk-rules";
 import { executeBuybackFire, executeRaidClaim } from "./lib/mode-execute";
 import { BRAND_ASSETS, BRAND_PALETTE, brandUrl } from "./lib/brand";
@@ -183,6 +183,12 @@ export default function App() {
   const [cranking, setCranking] = useState<string | null>(null);
   const [wiring, setWiring] = useState<string | null>(null);
   const [tapeSyncing, setTapeSyncing] = useState(false);
+  const [serverScoreboard, setServerScoreboard] = useState<
+    { handle: string; totalSol: number; remits: number; tickers: string[] }[] | null
+  >(null);
+  const [serverRoleStats, setServerRoleStats] = useState<
+    { role: string; remits: number; sol: number }[] | null
+  >(null);
   const [holderScan, setHolderScan] = useState<
     (HolderKolProposal & { editable: boolean; editReason?: string }) | null
   >(null);
@@ -301,6 +307,24 @@ export default function App() {
   useEffect(() => {
     void refreshTapeFromChain(coins);
   }, [coins, refreshTapeFromChain]);
+
+  // Fetch server-side proof bundle for canonical scoreboard + role-filtered stats.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const proof = await fetchProof(80);
+        if (cancelled) return;
+        setServerScoreboard(proof.leaderboard || null);
+        setServerRoleStats(proof.stats?.byRole || null);
+      } catch {
+        /* ignore — fall back to local heuristics */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Holder KOL: refresh top holders ∩ 1500 KOL DB every 60s for the selected coin.
   useEffect(() => {
@@ -467,8 +491,23 @@ export default function App() {
       if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
     };
   }, [imagePreviewUrl]);
-  const stats = useMemo(() => deskStats(coins, remits), [coins, remits]);
-  const scoreboard = useMemo(() => buildScoreboard(remits), [remits]);
+  const stats = useMemo(() => {
+    if (serverRoleStats) {
+      const crew = serverRoleStats.find((r) => r.role === "crew");
+      return {
+        coins: coins.length,
+        remits: remits.length,
+        humanRemits: crew?.remits || 0,
+        paidSol: crew?.sol || 0,
+        platformCut: PLATFORM_BUYBACK_BPS / 100,
+      };
+    }
+    return deskStats(coins, remits);
+  }, [coins, remits, serverRoleStats]);
+  const scoreboard = useMemo(
+    () => (serverScoreboard && serverScoreboard.length ? serverScoreboard : buildScoreboard(remits)),
+    [serverScoreboard, remits],
+  );
   const pulse = useMemo(
     () => buildDeskPulse(coins, remits, boardTick),
     [coins, remits, boardTick],
