@@ -6,6 +6,7 @@ import {
   CREW_EDGES,
   LAUNCH_TEMPLATES,
   buildDeskPulse,
+  isKolRemit,
 } from './edges'
 import type { CoinRecord, RemitRecord } from './types'
 
@@ -102,6 +103,55 @@ describe('buildScoreboard', () => {
     expect(board.length).toBe(1)
     expect(board[0].handle).toBe('@alice')
     expect(board[0].totalSol).toBeCloseTo(0.5)
+  })
+})
+
+describe('isKolRemit', () => {
+  const coin: CoinRecord = {
+    id: 'c1',
+    mint: 'm1',
+    name: 'AAA',
+    ticker: 'AAA',
+    vibe: '',
+    mode: 'agent',
+    crew: [{ handle: '@alice', wallet: 'W_A', share: 100 }],
+    signature: 'x',
+    feeShareSignature: 'x',
+    launchedAt: 1,
+    launcher: 'W_L',
+    pumpUrl: 'https://pump.fun/coin/m1',
+    agent: { name: 'GrokBot', objective: 'Test', model: 'api' },
+  }
+  it('excludes launcher desk rows (e.g., @GrokBot) from KOL remits', () => {
+    const r: RemitRecord = {
+      id: 'r1',
+      mint: coin.mint,
+      ticker: coin.ticker,
+      handle: '@GrokBot',
+      wallet: 'W_L',
+      amountSol: 0.2,
+      mode: 'agent',
+      at: Date.now(),
+      signature: 'sig',
+      source: 'chain',
+    }
+    expect(isKolRemit(r, coin)).toBe(false)
+  })
+  it('excludes treasury rows from KOL remits', () => {
+    ;(process as any).env.VITE_CREW_BUYBACK_WALLET = 'W_T'
+    const r: RemitRecord = {
+      id: 'r2',
+      mint: coin.mint,
+      ticker: coin.ticker,
+      handle: '@crew-buyback',
+      wallet: 'W_T',
+      amountSol: 0.3,
+      mode: 'split',
+      at: Date.now(),
+      signature: 'sig2',
+      source: 'chain',
+    }
+    expect(isKolRemit(r, coin)).toBe(false)
   })
 })
 

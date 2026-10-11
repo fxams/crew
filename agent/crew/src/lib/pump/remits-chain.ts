@@ -1,6 +1,7 @@
 import { PublicKey, type Connection, type VersionedTransactionResponse } from '@solana/web3.js'
 import { feeSharingConfigPda } from '@pump-fun/pump-sdk'
 import type { CoinRecord, RemitRecord } from '../types'
+import { readPlatformBuybackWallet } from '../config'
 import { getConnection, getPumpSdk } from './connection'
 export { isChainRemit, walletToHandle } from './remits-chain-helpers'
 import { walletToHandle } from './remits-chain-helpers'
@@ -96,18 +97,31 @@ export function parseDistributeRowsFromTx(
 }
 
 export function rowsToRemits(coin: CoinRecord, rows: ParsedRow[]): RemitRecord[] {
-  return rows.map((row) => ({
-    id: `chain_${row.signature.slice(0, 12)}_${row.wallet.slice(0, 8)}`,
-    mint: coin.mint,
-    ticker: coin.ticker,
-    handle: walletToHandle(coin, row.wallet),
-    wallet: row.wallet,
-    amountSol: Number(row.amountSol.toFixed(9)),
-    mode: coin.mode,
-    at: row.at,
-    signature: row.signature,
-    source: 'chain' as const,
-  }))
+  const platformWallet = readPlatformBuybackWallet()
+  return rows.map((row) => {
+    const inCrew = coin.crew.some((m) => m.wallet === row.wallet)
+    let role: 'crew' | 'desk' | 'platform' | undefined
+    if (platformWallet && row.wallet === platformWallet) {
+      role = 'platform'
+    } else if (inCrew) {
+      role = 'crew'
+    } else if (coin.launcher === row.wallet) {
+      role = 'desk'
+    }
+    return {
+      id: `chain_${row.signature.slice(0, 12)}_${row.wallet.slice(0, 8)}`,
+      mint: coin.mint,
+      ticker: coin.ticker,
+      handle: walletToHandle(coin, row.wallet),
+      wallet: row.wallet,
+      amountSol: Number(row.amountSol.toFixed(9)),
+      mode: coin.mode,
+      at: row.at,
+      signature: row.signature,
+      source: 'chain' as const,
+      role,
+    }
+  })
 }
 
 async function fetchParsedRows(
