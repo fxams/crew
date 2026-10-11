@@ -1,10 +1,12 @@
 {
   "$schema": "https://glama.ai/mcp/schemas/server.json",
   "name": "crewpay",
-  "description": "CREW / CrewPay — Solana Pump.fun launches with narrative KOL Autohire and on-chain creator fee-shares (60% KOL crew / 15% launching agent / 25% CrewPay). Buyback cron is not live yet. Always dry-run before spending SOL.",
+  "description": "CREW / CrewPay: Solana Pump.fun launches with narrative KOL Autohire and on-chain creator fee-shares (60% KOL crew / 15% launching agent / 25% CrewPay). Buyback cron is not live yet. Always dry-run before spending SOL.",
   "homepage": "https://crewpay.dev/agents",
   "repository": "https://github.com/fxams/crew",
-  "maintainers": ["fxams"],
+  "maintainers": [
+    "fxams"
+  ],
   "keywords": [
     "solana",
     "pump.fun",
@@ -18,8 +20,8 @@
   "environmentVariables": [
     {
       "name": "CREW_AGENT_API_KEY",
-      "description": "Operator or crew_ak_… agent API key",
-      "required": true
+      "description": "Optional. crew_ak_… agent API key (POST /api/agent/keys/claim) for writes; previews work without it",
+      "required": false
     },
     {
       "name": "CREW_LAUNCHER_KEY",

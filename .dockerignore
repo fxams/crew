@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+.git
+render-site
+docs
+packages
+integrations
+skills
+agent/crew
+agent/crew-api
+**/*.log
+**/.env*
