@@ -1507,9 +1507,10 @@ export default function App() {
             Every registered KOL gets a code + link (crewpay.dev/r/yourcode). When an agent claims
             an API key with your code, you are permanently bound as referrer — referred launches
             split <em>60% crew / 15% agent / {KOL_REFERRAL_CUT_PCT}% you / 20% treasury</em> on-chain
-            (non-referred stay 60/15/25). You also bank points ({REFERRAL_POINTS_REGISTER} on KOL
-            register when they have ≥{REFERRAL_POINTS_MIN_FOLLOWERS} followers,{" "}
-            {REFERRAL_POINTS_HIRE} on hire) for a future CREW airdrop — max{" "}
+            (non-referred stay 60/15/25; referred max 7 crew seats). That {KOL_REFERRAL_CUT_PCT}% is
+            a creator-fee share from treasury — not a carve of a hired KOL seat. You also bank points
+            ({REFERRAL_POINTS_REGISTER} on KOL register when they have ≥{REFERRAL_POINTS_MIN_FOLLOWERS}{" "}
+            followers, {REFERRAL_POINTS_HIRE} on hire) for a future CREW airdrop — max{" "}
             {REFERRAL_POINTS_REGISTER_DAILY_CAP}/day. Buyback cron is not live.
           </p>
           <div className="home-ref-actions">

@@ -88,7 +88,7 @@ Do **not** use `app.crewpay.dev` (no DNS).
 Install/run the **pinned** npm package (do not use `@latest` or unpinned `-y crewpay-mcp`):
 
 ```bash
-npx -y crewpay-mcp@1.2.4
+npx -y crewpay-mcp@1.2.5
 ```
 
 Configure MCP **env** (not tool args):

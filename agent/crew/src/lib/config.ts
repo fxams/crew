@@ -140,11 +140,12 @@ export const PLATFORM_BUYBACK_BPS = 2500
  * Referred launches: 60/15/5/20 — non-referred stay 60/15/25. Buyback cron is NOT live.
  */
 export const AGENT_REFERRAL_BPS = 500
-/** Legacy KOL→KOL seat carve: 5% of a referred hired KOL's seat. */
-export const REFERRAL_CUT_BPS = 500
 /** Pump fee-share configs allow at most this many unique wallets. */
 export const PUMP_MAX_SHAREHOLDERS = 10
-/** Advertised agent-referral cut for registered KOLs (percent of creator fees). */
+/**
+ * Agent-key referral cut advertised to KOLs (percent of total creator fees from treasury).
+ * Not a KOL-seat carve — that program was removed.
+ */
 export const KOL_REFERRAL_CUT_PCT = 5
 /** Points for a future CREW airdrop when someone registers with your code. */
 export const REFERRAL_POINTS_REGISTER = 100

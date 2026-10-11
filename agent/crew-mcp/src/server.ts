@@ -206,7 +206,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
           .describe(
             'Narrative / vibe (≤204 — leaves room for “Launched from CrewPay.dev platform”)',
           ),
-        seats: z.number().int().min(1).max(10).optional().describe('Crew seats 1–10 (default 5)'),
+        seats: z.number().int().min(1).max(8).optional().describe('Crew seats 1–8 (default 5)'),
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
@@ -245,7 +245,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
           .describe('≤204 chars; attribution appended to reach ≤240 final'),
         imageUrl: z.string().url().optional().describe('Public image URL (or use imageBase64)'),
         imageBase64: z.string().min(64).optional(),
-        seats: z.number().int().min(1).max(10).optional(),
+        seats: z.number().int().min(1).max(8).optional(),
         mode: z.enum(['agent', 'split', 'buyback', 'raid']).optional(),
         initialBuySol: z.number().min(0).max(10).optional(),
         twitter: z.string().max(128).optional(),
@@ -261,7 +261,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         agentName: z.string().min(2).max(48).optional(),
         agentObjective: z.string().min(8).max(280).optional(),
         agentModel: z.string().max(48).optional(),
-        crew: z.array(crewMemberSchema).min(1).max(10).optional(),
+        crew: z.array(crewMemberSchema).min(1).max(8).optional(),
         ...forbiddenSecretFields,
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
@@ -368,7 +368,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         crew: z
           .array(crewMemberSchema)
           .min(1)
-          .max(10)
+          .max(8)
           .optional()
           .describe('Optional — omit to reuse board crew from launch'),
         ...forbiddenSecretFields,
@@ -514,7 +514,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
           .describe('≤204 chars; attribution appended to reach ≤240 final'),
         imageUrl: z.string().url().optional().describe('Public image URL (or use imageBase64)'),
         imageBase64: z.string().min(64).optional(),
-        seats: z.number().int().min(1).max(10).optional().describe('Autohire seats when crew omitted'),
+        seats: z.number().int().min(1).max(8).optional().describe('Autohire seats when crew omitted'),
         mode: z.enum(['agent', 'split', 'buyback', 'raid']).optional(),
         initialBuySol: z.number().min(0).max(10).optional().describe('Dev buy 0–10 SOL (site+API aligned)'),
         twitter: z.string().max(128).optional().describe('X / Twitter handle or URL'),
@@ -535,7 +535,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         crew: z
           .array(crewMemberSchema)
           .min(1)
-          .max(10)
+          .max(8)
           .optional()
           .describe('Explicit crew (shares must total 100%) overrides Autohire when provided'),
         ...forbiddenSecretFields,

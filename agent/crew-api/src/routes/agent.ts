@@ -8,7 +8,14 @@ import {
   revokeAgentKey,
   setAgentKeyRequireApproval,
 } from '../lib/agent-keys.js'
-import { agentReferralLink, resolveAgentReferrer } from '../lib/agent-referral.js'
+import {
+  agentReferralLink,
+  assertReferralClaimAllowed,
+  isSelfReferral,
+  logReferralKeyClaim,
+  resolveAgentReferrer,
+  upsertCoinShareholders,
+} from '../lib/agent-referral.js'
 import { normalizeWallet, parseApproverAllowlist } from '../lib/agent/approver.js'
 import {
   assertMaySetRequireApproval,
@@ -599,7 +606,6 @@ agentRouter.post('/agent/launch', requireAgentApiKey, async (req, res) => {
       const msg = persistErr instanceof Error ? persistErr.message : 'persist failed'
       console.warn('agent launch persist failed', msg)
     }
-
     // Immediate one-shot wire retry when atomic/sequential lock failed (non-holderKol).
     if (!result.feeShareLocked && !result.coin.holderKol && result.coin.crew?.length) {
       try {
@@ -635,6 +641,17 @@ agentRouter.post('/agent/launch', requireAgentApiKey, async (req, res) => {
             .filter(Boolean)
             .join(' '),
         }
+      }
+    }
+
+    if (result.feeShareLocked && result.shareholders?.length) {
+      try {
+        await upsertCoinShareholders(result.mint, result.shareholders)
+      } catch (shareErr) {
+        console.warn(
+          'coin_shareholders persist failed',
+          shareErr instanceof Error ? shareErr.message : shareErr,
+        )
       }
     }
 
@@ -945,9 +962,29 @@ agentRouter.post('/agent/keys/claim', async (req, res) => {
     }
     let referralCode: string | null = null
     let referrer: Awaited<ReturnType<typeof resolveAgentReferrer>> | null = null
+    const parts = [body.label]
+    if (body.agentName) parts.push(body.agentName)
+    if (body.model) parts.push(body.model)
+    const label = parts.join(':').slice(0, 64)
     if (body.referralCode?.trim()) {
       try {
         referrer = await resolveAgentReferrer(body.referralCode)
+        if (
+          isSelfReferral({
+            referrerWallet: referrer.wallet,
+            referrerXUsername: referrer.xUsername,
+            agentLabel: label,
+            ownerXUsername: body.agentName,
+          })
+        ) {
+          res.status(400).json({
+            ok: false,
+            error:
+              'Self-referral blocked — referralCode must not match your agent/KOL identity. Use another KOL code.',
+          })
+          return
+        }
+        await assertReferralClaimAllowed(referrer)
         referralCode = referrer.code
       } catch (err) {
         res.status(400).json({
@@ -957,15 +994,22 @@ agentRouter.post('/agent/keys/claim', async (req, res) => {
         return
       }
     }
-    const parts = [body.label]
-    if (body.agentName) parts.push(body.agentName)
-    if (body.model) parts.push(body.model)
-    const label = parts.join(':').slice(0, 64)
     const created = await createAgentKey({
       label,
       launchesPerHour: 5,
       referralCode,
     })
+    if (referrer) {
+      await logReferralKeyClaim({
+        keyId: created.row.id,
+        fingerprint: created.row.fingerprint,
+        referralCode: referrer.code,
+        referrerWallet: referrer.wallet,
+        referrerHandle: referrer.handle,
+        label,
+        ip,
+      })
+    }
     res.status(201).json({
       ok: true,
       key: created.key,
@@ -976,7 +1020,7 @@ agentRouter.post('/agent/keys/claim', async (req, res) => {
             handle: referrer.handle,
             wallet: referrer.wallet,
             link: agentReferralLink(referrer.code),
-            note: 'Bound permanently on this key — referred launches use fee map 60/15/5/20 (crew/agent/referrer/treasury).',
+            note: 'Bound permanently on this key — referred launches use fee map 60/15/5/20 (crew/agent/referrer/treasury). Max 7 crew seats when referred.',
           }
         : null,
       tip: 'Store crew_ak_… once — it is not shown again. Pass as x-crew-api-key for writes. Launcher SOL stays in your wallet via x-launcher-key / CREW_LAUNCHER_KEY. Approval is optional (requireApproval defaults false). Operators can require human approval per key. Pass referralCode at claim to bind a KOL referrer (immutable).',

@@ -12,7 +12,6 @@ import {
   issueNonce,
   KOL_REFERRAL_CUT_PCT,
   listRegistered,
-  lookupReferralCuts,
   REFERRAL_POINTS_HIRE,
   REFERRAL_POINTS_MIN_FOLLOWERS,
   REFERRAL_POINTS_REGISTER,
@@ -99,7 +98,11 @@ kolRegisterRouter.get('/kol/referrals', async (req, res) => {
   }
 })
 
-/** Lookup direct referrer wallets for hired crew handles (fee-share preview). */
+/**
+ * Legacy endpoint: KOL-seat carve-out was removed.
+ * Kept for older clients — always returns empty cuts.
+ * Agent-key referral earnings: GET /api/kol/referrals.
+ */
 kolRegisterRouter.get('/kols/referral-cuts', async (req, res) => {
   try {
     const ip = clientIp(req)
@@ -109,14 +112,15 @@ kolRegisterRouter.get('/kols/referral-cuts', async (req, res) => {
       res.status(429).json({ ok: false, error: 'Slow down and retry.' })
       return
     }
-    const raw = typeof req.query.handles === 'string' ? req.query.handles : ''
-    const handles = raw
-      .split(',')
-      .map((h) => h.trim())
-      .filter(Boolean)
-      .slice(0, 20)
-    const cuts = await lookupReferralCuts(handles)
-    res.json({ ok: true, cutPct: KOL_REFERRAL_CUT_PCT, cuts })
+    void req.query.handles
+    res.json({
+      ok: true,
+      cutPct: 0,
+      cuts: [],
+      retired: true,
+      note:
+        'KOL-seat referral carve removed. Referral means 5% of creator fees on agent-key referred launches — see GET /api/kol/referrals.',
+    })
   } catch (err) {
     res.status(500).json({ ok: false, error: err instanceof Error ? err.message : 'lookup failed' })
   }

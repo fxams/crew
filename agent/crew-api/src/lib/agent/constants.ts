@@ -1,4 +1,12 @@
-export const MAX_CREW = 10
+/**
+ * Hard upper bound for crew array validation (desk modes without agent referrer).
+ * Prefer {@link maxCrewSeats} / {@link MAX_CREW_REFERRED} when a referrer applies.
+ */
+export const MAX_CREW = 8
+/** Agent mode + referrer: treasury + agent + referrer + ≤7 crew = 10 Pump wallets. */
+export const MAX_CREW_REFERRED = 7
+/** Agent mode without referrer: treasury + agent + ≤8 crew. */
+export const MAX_CREW_UNREFERRED = 8
 /** Cap agent initial buys — confused agents should not dump large wallets. */
 export const MAX_INITIAL_BUY_SOL = 10
 /** Minimum SOL left for create + fee-share txs beyond the initial buy. */
@@ -7,12 +15,13 @@ export const PLATFORM_BUYBACK_BPS = 2500
 /**
  * Agent-key referral: 5% of total creator fees to the KOL who referred the launching agent.
  * Taken from the treasury cut → referred launches are 60/15/5/20 (crew/agent/referrer/treasury).
+ * This is the only "referral" fee program — there is no KOL-seat carve-out.
  */
 export const AGENT_REFERRAL_BPS = 500
-/** Legacy KOL→KOL seat carve: 5% of a referred hired KOL's seat (not of total fees). */
-export const REFERRAL_CUT_BPS = 500
 /** Pump fee-share configs allow at most this many unique wallets. */
 export const PUMP_MAX_SHAREHOLDERS = 10
+/** Max new agent keys that may bind a given referrer code per UTC day. */
+export const REFERRAL_CLAIM_DAILY_CAP = 20
 export const MODE_DESK_BPS = {
   split: 0,
   buyback: 2000,

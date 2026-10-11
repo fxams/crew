@@ -276,4 +276,39 @@ export async function migrate(): Promise<void> {
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['009_agent_key_referral'],
   )
+  await query(`
+    CREATE TABLE IF NOT EXISTS coin_shareholders (
+      mint TEXT NOT NULL REFERENCES coins (mint) ON DELETE CASCADE,
+      wallet TEXT NOT NULL,
+      role TEXT NOT NULL,
+      handle TEXT NOT NULL DEFAULT '',
+      bps INT NOT NULL,
+      PRIMARY KEY (mint, wallet, role)
+    )
+  `)
+  await query(
+    `CREATE INDEX IF NOT EXISTS coin_shareholders_wallet_role_idx
+      ON coin_shareholders (wallet, role)`,
+  )
+  await query(`
+    CREATE TABLE IF NOT EXISTS agent_referral_claims (
+      id TEXT PRIMARY KEY,
+      agent_key_id TEXT NOT NULL,
+      fingerprint TEXT NOT NULL DEFAULT '',
+      referral_code TEXT NOT NULL,
+      referrer_wallet TEXT NOT NULL DEFAULT '',
+      referrer_handle TEXT NOT NULL DEFAULT '',
+      label TEXT NOT NULL DEFAULT '',
+      ip TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS agent_referral_claims_code_day_idx
+      ON agent_referral_claims (lower(referral_code), created_at DESC)
+  `)
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['010_referral_attribution'],
+  )
 }
