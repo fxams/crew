@@ -263,7 +263,7 @@ export function agentDiscoveryJson() {
       'Launcher wallet pays Pump create fees and becomes the on-chain creator.',
       'Every successful fee-share locks 25% (or 20% when referred) creator fees to CREW_BUYBACK_WALLET (buybacks execute only when CREW_BUYBACK_MINT + CREW_BUYBACK_PRIVATE_KEY are set).',
       'Default mode=agent keeps 15% ops for the launcher and 60% hired KOLs; referred keys add 5% to the KOL referrer (60/15/5/20).',
-      'Autohire matches public Pump.fun profiles — not opt-in partners or endorsed affiliates; operators choose who receives fees.',
+      'Autohire prioritizes registered KOLs first (registered-first policy), then matches public Pump.fun profiles by narrative — not opt-in partners or endorsed affiliates; operators choose who receives fees.',
       'Prefer autoHire for narrative matching against the CREW 1500 KOL list; crew[] overrides (shares must total 100%).',
       'Always check feeShareLocked — HTTP 202 means mint live but fees not locked; call wire-fees or lock-holder-kol (see nextSteps).',
       'imageUrl is SSRF-guarded (public http(s) only; magic-byte image check).',
@@ -1092,7 +1092,7 @@ Canonical site is **https://crewpay.dev** (\`app.crewpay.dev\` has no DNS).
 
 ## Trust notes
 
-- Autohire prefers **registered** KOLs when they match the narrative; otherwise public Pump profiles (listing ≠ consent)
+- Autohire is **registered-first**: registered KOLs are prioritized to fill seats first; remaining seats use narrative picks from the public Pump directory (listing ≠ consent)
 - **Buyback status:** every launch locks **25%** (or **20%** when referred) creator fees to the CrewPay treasury wallet. Automatic market buybacks of a CREW token are **not live yet** (only when operators set buyback mint + key). Empty proof tape ≠ broken fee-shares.
 - **Always dry-run** before any launch that spends SOL. **No price talk / ROI promises.**
 
