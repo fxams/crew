@@ -20,7 +20,7 @@ Launch Solana Pump.fun coins with KOL Autohire and on-chain creator fee-shares v
 
 ## Honest product facts
 
-- Fee split (agent mode): **60% KOLs · 15% launching agent · 25% CrewPay**
+- Fee split (agent mode): **60/15/25** default; **60/15/5/20** with KOL agent referral
 - Buyback cron is **not** live yet; empty proof ≠ failed fee-shares
 - Most AI-launched tokens get little or no traction without distribution — Autohire before spending SOL
 

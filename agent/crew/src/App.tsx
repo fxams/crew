@@ -66,7 +66,7 @@ import {
 import type { HireRole } from "./lib/types";
 import { launchCrew } from "./lib/launch";
 import { useOwnRegisteredHandle } from "./lib/registered-kol";
-import { isAgentsPath, isApprovePath, isClaimPath, isKolsPath, isLaunchPath, isProofPath, isRegisterPath, kolHandleFromPath, kolProfilePath } from "./lib/routes";
+import { isAgentsPath, isApprovePath, isClaimPath, isKolsPath, isLaunchPath, isProofPath, isReferralPath, isRegisterPath, kolHandleFromPath, kolProfilePath, referralCodeFromPath } from "./lib/routes";
 import { ApprovePage } from "./components/ApprovePage";
 import { distributeCreatorFees, lockHolderKolFeeShares, wireCrewFeeShares } from "./lib/pump/fees";
 import {
@@ -159,12 +159,19 @@ export default function App() {
   const path = location.pathname.replace(/\/+$/, "") || "/";
   const isLaunchPage = isLaunchPath(path);
   const isKolsPage = isKolsPath(path);
-  const isRegisterPage = isRegisterPath(path);
+  const referralInviteCode = referralCodeFromPath(path);
+  const isRegisterPage = isRegisterPath(path) || Boolean(referralInviteCode);
   const isKolProfilePage = Boolean(kolHandleFromPath(path));
   const isClaimPage = isClaimPath(path);
   const isAgentsPage = isAgentsPath(path);
   const isProofPage = isProofPath(path);
   const isApprovePage = isApprovePath(path);
+
+  useEffect(() => {
+    if (!referralInviteCode || !isReferralPath(path)) return
+    // Canonicalize short invite links onto /register?ref= so OAuth keeps the code.
+    navigate(`/register?ref=${encodeURIComponent(referralInviteCode)}`, { replace: true })
+  }, [referralInviteCode, path, navigate]);
   const ownRegisteredHandle = useOwnRegisteredHandle(wallet.publicKey?.toBase58());
   const isOwnDeskPage =
     isKolProfilePage &&
@@ -1373,8 +1380,8 @@ export default function App() {
               <p className="hero-copy">
                 Agents launch tokens to make money — distribution is the bottleneck. Autohire
                 KOLs from your narrative, lock fee-shares on-chain, and pay the crew from creator
-                fees. <em>{PLATFORM_BUYBACK_BPS / 100}% CrewPay treasury</em> fee-share locks on
-                every launch; market buyback cron is not live yet.
+                fees. Default split <em>60% KOLs / 15% agent / 25% treasury</em>; referred agents
+                use <em>60 / 15 / 5 / 20</em> (referrer KOL). Buyback cron is not live yet.
               </p>
               <div className="hero-actions">
                 <Link className="btn btn-primary hero-cta-register" to="/register">
@@ -1469,13 +1476,18 @@ export default function App() {
             <div className="home-fee-legend">
               <div>
                 <strong>{PLATFORM_BUYBACK_BPS / 100}%</strong>
-                <span>Platform fee-share</span>
-                <em>Ops cut to the configured treasury wallet</em>
+                <span>Treasury (20% if referred)</span>
+                <em>CrewPay treasury — buyback cron not live</em>
               </div>
               <div>
                 <strong>{MODE_DESK_BPS.agent / 100}%</strong>
                 <span>Launcher / agent</span>
                 <em>Ops cut to the launching wallet</em>
+              </div>
+              <div>
+                <strong>{KOL_REFERRAL_CUT_PCT}%</strong>
+                <span>Referrer KOL</span>
+                <em>Only when the agent claimed a key with your code</em>
               </div>
               <div>
                 <strong>{100 - PLATFORM_BUYBACK_BPS / 100 - MODE_DESK_BPS.agent / 100}%</strong>
@@ -1487,17 +1499,18 @@ export default function App() {
         </section>
 
         <section className="section section-tight" id="referrals" aria-labelledby="home-ref-title">
-          <p className="section-label">KOL referral · direct only</p>
+          <p className="section-label">KOL referral · agent keys</p>
           <h2 className="section-title" id="home-ref-title">
-            Refer crew. Earn {KOL_REFERRAL_CUT_PCT}%.
+            Refer agents. Earn {KOL_REFERRAL_CUT_PCT}% of fees.
           </h2>
           <p className="section-sub">
-            Every registered KOL gets a referral code. When someone joins with your link and later
-            gets hired, you earn {KOL_REFERRAL_CUT_PCT}% of their seat — locked into the fee-share
-            with them. You also bank referral points ({REFERRAL_POINTS_REGISTER} on register when
-            they have ≥{REFERRAL_POINTS_MIN_FOLLOWERS} followers, {REFERRAL_POINTS_HIRE} on hire)
-            for a future CREW airdrop — max {REFERRAL_POINTS_REGISTER_DAILY_CAP} register awards per
-            code per day. Direct only — no multi-level trees.
+            Every registered KOL gets a code + link (crewpay.dev/r/yourcode). When an agent claims
+            an API key with your code, you are permanently bound as referrer — referred launches
+            split <em>60% crew / 15% agent / {KOL_REFERRAL_CUT_PCT}% you / 20% treasury</em> on-chain
+            (non-referred stay 60/15/25). You also bank points ({REFERRAL_POINTS_REGISTER} on KOL
+            register when they have ≥{REFERRAL_POINTS_MIN_FOLLOWERS} followers,{" "}
+            {REFERRAL_POINTS_HIRE} on hire) for a future CREW airdrop — max{" "}
+            {REFERRAL_POINTS_REGISTER_DAILY_CAP}/day. Buyback cron is not live.
           </p>
           <div className="home-ref-actions">
             <Link className="btn btn-primary" to="/register">

@@ -10,6 +10,8 @@ export type AgentKeyRow = {
   ownerWallet: string | null
   /** When true, launch/wire-fees require an approved dryRunId. Default false. */
   requireApproval: boolean
+  /** KOL referral code bound at claim — immutable once set. */
+  referralCode: string | null
   createdAt: number
   lastUsedAt: number | null
 }
@@ -26,6 +28,8 @@ export async function createAgentKey(opts: {
   label: string
   launchesPerHour?: number
   ownerWallet?: string | null
+  /** Bound once at claim — cannot be changed later. */
+  referralCode?: string | null
 }): Promise<{ key: string; row: AgentKeyRow }> {
   const id = `ak_${randomBytes(6).toString('hex')}`
   const key = `crew_ak_${randomBytes(24).toString('hex')}`
@@ -33,11 +37,12 @@ export async function createAgentKey(opts: {
   const fp = fingerprint(key)
   const launchesPerHour = Math.min(100, Math.max(1, opts.launchesPerHour ?? 5))
   const ownerWallet = opts.ownerWallet?.trim() || null
+  const referralCode = opts.referralCode?.trim().toLowerCase() || null
   await query(
     `INSERT INTO agent_keys (
-      id, label, key_hash, fingerprint, launches_per_hour, active, owner_wallet, require_approval
-    ) VALUES ($1,$2,$3,$4,$5, true, $6, false)`,
-    [id, opts.label.slice(0, 64), keyHash, fp, launchesPerHour, ownerWallet],
+      id, label, key_hash, fingerprint, launches_per_hour, active, owner_wallet, require_approval, referral_code
+    ) VALUES ($1,$2,$3,$4,$5, true, $6, false, $7)`,
+    [id, opts.label.slice(0, 64), keyHash, fp, launchesPerHour, ownerWallet, referralCode],
   )
   return {
     key,
@@ -49,6 +54,7 @@ export async function createAgentKey(opts: {
       active: true,
       ownerWallet,
       requireApproval: false,
+      referralCode,
       createdAt: Date.now(),
       lastUsedAt: null,
     },
@@ -62,13 +68,13 @@ export async function listAgentKeys(opts?: {
   const { rows } = opts?.keyId
     ? await query(
         `SELECT id, label, fingerprint, launches_per_hour, active, owner_wallet, require_approval,
-                created_at, last_used_at
+                referral_code, created_at, last_used_at
          FROM agent_keys WHERE id = $1 LIMIT 1`,
         [opts.keyId],
       )
     : await query(
         `SELECT id, label, fingerprint, launches_per_hour, active, owner_wallet, require_approval,
-                created_at, last_used_at
+                referral_code, created_at, last_used_at
          FROM agent_keys ORDER BY created_at DESC LIMIT 100`,
       )
   return rows.map((r) => ({
@@ -79,6 +85,7 @@ export async function listAgentKeys(opts?: {
     active: Boolean(r.active),
     ownerWallet: r.owner_wallet ? String(r.owner_wallet) : null,
     requireApproval: Boolean(r.require_approval),
+    referralCode: r.referral_code ? String(r.referral_code) : null,
     createdAt: new Date(String(r.created_at)).getTime(),
     lastUsedAt: r.last_used_at ? new Date(String(r.last_used_at)).getTime() : null,
   }))
@@ -92,6 +99,16 @@ export async function getOwnerWalletByFingerprint(fingerprint: string): Promise<
      WHERE active = true AND fingerprint = $1 AND owner_wallet IS NOT NULL
      LIMIT 1`,
     [fingerprint],
+  )
+  const w = rows[0]?.owner_wallet
+  return w ? String(w) : null
+}
+
+export async function getOwnerWalletByKeyId(keyId: string): Promise<string | null> {
+  if (!keyId) return null
+  const { rows } = await query(
+    `SELECT owner_wallet FROM agent_keys WHERE id = $1 AND active = true LIMIT 1`,
+    [keyId],
   )
   const w = rows[0]?.owner_wallet
   return w ? String(w) : null

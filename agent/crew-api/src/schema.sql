@@ -130,12 +130,16 @@ CREATE TABLE IF NOT EXISTS agent_keys (
   owner_wallet TEXT,
   /** When true, launch/wire-fees require an approved dryRunId. Default false. */
   require_approval BOOLEAN NOT NULL DEFAULT false,
+  /** KOL referral code bound at claim — immutable; drives 60/15/5/20 fee split. */
+  referral_code TEXT,
   last_used_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS agent_keys_active_idx ON agent_keys (active);
+CREATE INDEX IF NOT EXISTS agent_keys_referral_code_idx
+  ON agent_keys (lower(referral_code)) WHERE referral_code IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS mode_actions (
   id TEXT PRIMARY KEY,

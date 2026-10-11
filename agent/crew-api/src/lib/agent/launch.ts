@@ -3,11 +3,12 @@ import { NATIVE_MINT, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { OnlinePumpSdk, PumpSdk, getBuyTokenAmountFromSolAmount } from './pump.js'
 import BN from 'bn.js'
 import {
+  AGENT_REFERRAL_BPS,
   CREW_LAUNCH_ATTRIBUTION,
   MAX_INITIAL_BUY_SOL,
   MIN_LAUNCH_FEE_SOL,
   MODE_DESK_BPS,
-  PLATFORM_BUYBACK_BPS,
+  platformBuybackBps,
   PUMP_COIN_URL,
   USER_DESCRIPTION_MAX,
   withCrewLaunchDescription,
@@ -25,8 +26,13 @@ import {
   sendInstructions,
   sendJitoBundle,
 } from './send.js'
+import { resolveLaunchAgentReferrer } from '../agent-referral.js'
 import { lookupReferralCuts } from '../kol-register.js'
-import { buildCrewShareholders, normalizeCrew } from './shareholders.js'
+import {
+  agentReferrerDualRoleHandles,
+  buildCrewShareholders,
+  normalizeCrew,
+} from './shareholders.js'
 import { assertSafeHttpUrl } from './safe-url.js'
 
 async function referralCutsForCrew(crew: { handle: string }[]) {
@@ -166,7 +172,16 @@ export type AgentDryRunResult = {
     platformBuybackBps: number
     deskBps: number
     crewPoolBps: number
+    /** Present when the launching agent key is referred (500 bps). */
+    referrerBps?: number
   }
+  /** Agent-key referrer written into on-chain fee-share when present. */
+  referral?: {
+    code: string
+    wallet: string
+    handle: string
+    bps: number
+  } | null
   /** share = % of KOL pool (60% in agent mode); effectiveBps = on-chain bps of all fees. */
   crew: Array<CrewMember & { effectiveBps?: number }>
   hirePlan: NarrativeHirePlan | null
@@ -187,7 +202,7 @@ export type AgentDryRunResult = {
 /** Validate + plan a launch without uploading metadata or signing txs. */
 export async function dryRunLaunchForAgent(
   input: AgentLaunchInput,
-  opts?: { launcherPubkey?: string },
+  opts?: { launcherPubkey?: string; agentKeyId?: string | null; ownerWallet?: string | null },
 ): Promise<AgentDryRunResult> {
   const mode: DeskMode = input.mode || 'agent'
   const name = input.name.trim()
@@ -229,8 +244,20 @@ export async function dryRunLaunchForAgent(
 
   const { crew, hirePlan } = await resolveCrew({ ...input, mode })
   const vibe = withCrewLaunchDescription(vibeRaw)
+  const launcherPreview = opts?.launcherPubkey?.trim() || null
+  const agentRef = await resolveLaunchAgentReferrer({
+    keyId: opts?.agentKeyId,
+    ownerWallet: opts?.ownerWallet,
+    launcherWallet: launcherPreview,
+  })
+  if (agentRef.warning) {
+    /* collected below */
+  }
+  const hasAgentReferrer = Boolean(agentRef.referrer)
   const deskBps = MODE_DESK_BPS[mode]
-  const crewPoolBps = 10_000 - PLATFORM_BUYBACK_BPS - deskBps
+  const platformBps = platformBuybackBps(hasAgentReferrer)
+  const referrerBps = hasAgentReferrer ? AGENT_REFERRAL_BPS : 0
+  const crewPoolBps = 10_000 - platformBps - referrerBps - deskBps
   const needSol = initialBuySol + MIN_LAUNCH_FEE_SOL
   const warnings: string[] = [
     'MAINNET ONLY — dry-run does not create a mint; a real launch spends SOL.',
@@ -238,24 +265,50 @@ export async function dryRunLaunchForAgent(
     'Never put a Solana secret in an LLM tool argument — set CREW_LAUNCHER_KEY in MCP/server env only.',
     `Description will include attribution: "${CREW_LAUNCH_ATTRIBUTION}" (appended if missing).`,
   ]
+  if (agentRef.warning) warnings.push(agentRef.warning)
+  if (hasAgentReferrer && agentRef.referrer) {
+    warnings.push(
+      `Agent referral: ${agentRef.referrer.handle} (${agentRef.referrer.code}) receives ${AGENT_REFERRAL_BPS} bps — fee map 60/15/5/20.`,
+    )
+    const dual = agentReferrerDualRoleHandles(crew, agentRef.referrer.wallet)
+    if (dual.length) {
+      warnings.push(
+        `Referrer also in crew (${dual.join(', ')}) — receives crew seat + referral cut (on-chain merged).`,
+      )
+      console.info(
+        JSON.stringify({
+          event: 'agent_referral_dual_role',
+          code: agentRef.referrer.code,
+          handles: dual,
+        }),
+      )
+    }
+  } else {
+    warnings.push('Non-referred agent — fee map 60/15/25 (crew/agent/treasury).')
+  }
   if (input.holderKol) {
     warnings.push('holderKol=true leaves fee-shares unlocked until crew_lock_holder_kol.')
   }
 
   let shareholders: { wallet: string; bps: number; role?: string; handle?: string }[] | undefined
   if (!input.holderKol) {
-    const deskWallet =
-      opts?.launcherPubkey?.trim() ||
-      '11111111111111111111111111111111'
+    const deskWallet = launcherPreview || '11111111111111111111111111111111'
     try {
       const referralCuts = await referralCutsForCrew(crew)
       shareholders = buildCrewShareholders(crew, mode, {
         deskWallet: new PublicKey(deskWallet).toBase58(),
         referralCuts,
+        agentReferrer: agentRef.referrer
+          ? {
+              wallet: agentRef.referrer.wallet,
+              handle: agentRef.referrer.handle,
+              code: agentRef.referrer.code,
+            }
+          : null,
       })
       if (referralCuts.length) {
         warnings.push(
-          `Direct referral: ${referralCuts.length} hired KOL(s) route 5% of their seat to their referrer.`,
+          `Direct KOL-seat referral: ${referralCuts.length} hired KOL(s) route 5% of their seat to their referrer.`,
         )
       }
     } catch (err) {
@@ -266,8 +319,8 @@ export async function dryRunLaunchForAgent(
   }
 
   let balance: AgentDryRunResult['balance']
-  if (opts?.launcherPubkey?.trim()) {
-    const launcher = new PublicKey(opts.launcherPubkey.trim()).toBase58()
+  if (launcherPreview) {
+    const launcher = new PublicKey(launcherPreview).toBase58()
     const lamports = await getConnection().getBalance(new PublicKey(launcher), 'confirmed')
     const sol = lamports / 1e9
     balance = { launcher, sol, sufficient: sol >= needSol }
@@ -278,8 +331,7 @@ export async function dryRunLaunchForAgent(
     }
   }
 
-  const deskWalletPreview =
-    opts?.launcherPubkey?.trim() || '11111111111111111111111111111111'
+  const deskWalletPreview = launcherPreview || '11111111111111111111111111111111'
   const crewOut = input.holderKol
     ? [{ handle: '@holder', wallet: '(launcher)', share: 100, hireRole: 'kol' as HireRole }]
     : crew.map((m) => {
@@ -288,15 +340,17 @@ export async function dryRunLaunchForAgent(
       })
   const shareholderTable = shareholders?.map((s) => {
     const role =
-      s.role === 'referral'
-        ? 'referral'
-        : s.role === 'platform'
-          ? 'buyback'
-          : s.wallet === deskWalletPreview || s.role === 'desk'
-            ? 'launcher-ops'
-            : crew.some((c) => c.wallet === s.wallet)
-              ? 'kol'
-              : 'buyback'
+      s.role === 'agent-referral'
+        ? 'agent-referral'
+        : s.role === 'referral'
+          ? 'referral'
+          : s.role === 'platform'
+            ? 'buyback'
+            : s.wallet === deskWalletPreview || s.role === 'desk'
+              ? 'launcher-ops'
+              : crew.some((c) => c.wallet === s.wallet)
+                ? 'kol'
+                : 'buyback'
     return { ...s, role }
   })
   warnings.push(
@@ -323,10 +377,19 @@ export async function dryRunLaunchForAgent(
       note: `Real launch needs ≥ ${needSol.toFixed(3)} SOL on the launcher (buy + ~${MIN_LAUNCH_FEE_SOL} fees).`,
     },
     feeMap: {
-      platformBuybackBps: PLATFORM_BUYBACK_BPS,
+      platformBuybackBps: platformBps,
       deskBps,
       crewPoolBps,
+      ...(referrerBps ? { referrerBps } : {}),
     },
+    referral: agentRef.referrer
+      ? {
+          code: agentRef.referrer.code,
+          wallet: agentRef.referrer.wallet,
+          handle: agentRef.referrer.handle,
+          bps: AGENT_REFERRAL_BPS,
+        }
+      : null,
     crew: crewOut,
     hirePlan: hirePlan ?? null,
     shareholders: shareholderTable,
@@ -371,6 +434,7 @@ export function launchNextSteps(result: Extract<AgentLaunchResult, { ok: true }>
 export async function launchForAgent(
   input: AgentLaunchInput,
   launcher: Keypair,
+  opts?: { agentKeyId?: string | null; ownerWallet?: string | null },
 ): Promise<AgentLaunchResult> {
   try {
     const mode: DeskMode = input.mode || 'agent'
@@ -412,6 +476,27 @@ export async function launchForAgent(
     const { crew, hirePlan } = await resolveCrew({ ...input, mode })
     const vibe = withCrewLaunchDescription(vibeRaw)
     const deskWallet = launcher.publicKey.toBase58()
+    const agentRef = await resolveLaunchAgentReferrer({
+      keyId: opts?.agentKeyId,
+      ownerWallet: opts?.ownerWallet,
+      launcherWallet: deskWallet,
+    })
+    if (agentRef.warning) {
+      console.warn(agentRef.warning)
+    }
+    if (agentRef.referrer) {
+      const dual = agentReferrerDualRoleHandles(crew, agentRef.referrer.wallet)
+      if (dual.length) {
+        console.info(
+          JSON.stringify({
+            event: 'agent_referral_dual_role',
+            code: agentRef.referrer.code,
+            handles: dual,
+            mintHint: ticker,
+          }),
+        )
+      }
+    }
 
     // Holder KOL: placeholder crew is the launcher until later lock.
     const effectiveCrew: CrewMember[] = input.holderKol
@@ -421,7 +506,17 @@ export async function launchForAgent(
     const referralCuts = input.holderKol ? [] : await referralCutsForCrew(effectiveCrew)
     const shareholders = input.holderKol
       ? null
-      : buildCrewShareholders(effectiveCrew, mode, { deskWallet, referralCuts })
+      : buildCrewShareholders(effectiveCrew, mode, {
+          deskWallet,
+          referralCuts,
+          agentReferrer: agentRef.referrer
+            ? {
+                wallet: agentRef.referrer.wallet,
+                handle: agentRef.referrer.handle,
+                code: agentRef.referrer.code,
+              }
+            : null,
+        })
 
     const crewWithBps = effectiveCrew.map((m) => {
       const hit = shareholders?.find((s) => s.wallet === m.wallet)
@@ -429,15 +524,17 @@ export async function launchForAgent(
     })
     const shareholderTable = shareholders?.map((s) => {
       const role =
-        s.role === 'referral'
-          ? 'referral'
-          : s.role === 'platform'
-            ? 'buyback'
-            : s.wallet === deskWallet || s.role === 'desk'
-              ? 'launcher-ops'
-              : effectiveCrew.some((c) => c.wallet === s.wallet)
-                ? 'kol'
-                : 'buyback'
+        s.role === 'agent-referral'
+          ? 'agent-referral'
+          : s.role === 'referral'
+            ? 'referral'
+            : s.role === 'platform'
+              ? 'buyback'
+              : s.wallet === deskWallet || s.role === 'desk'
+                ? 'launcher-ops'
+                : effectiveCrew.some((c) => c.wallet === s.wallet)
+                  ? 'kol'
+                  : 'buyback'
       return { ...s, role }
     })
     /** Always present — null when explicit crew[] (not Autohire). */

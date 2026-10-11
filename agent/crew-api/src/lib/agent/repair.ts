@@ -10,8 +10,14 @@ import { MODE_DESK_BPS, PUMP_COIN_URL, type DeskMode } from './constants.js'
 import { proposeHolderKolFromChain } from './holders.js'
 import { OnlinePumpSdk, PumpSdk } from './pump.js'
 import { getConnection, sendInstructions } from './send.js'
+import { resolveLaunchAgentReferrer } from '../agent-referral.js'
 import { awardReferralHirePointsForCrew, lookupReferralCuts } from '../kol-register.js'
-import { buildCrewShareholders, normalizeCrew, type Shareholder } from './shareholders.js'
+import {
+  agentReferrerDualRoleHandles,
+  buildCrewShareholders,
+  normalizeCrew,
+  type Shareholder,
+} from './shareholders.js'
 import type { CrewMember } from './narrative.js'
 
 const require = createRequire(import.meta.url)
@@ -116,9 +122,34 @@ export async function wireFeesForAgent(opts: {
   } catch {
     referralCuts = []
   }
+  const agentRef = await resolveLaunchAgentReferrer({
+    keyId: boardExisting?.agentKeyId,
+    launcherWallet: launcher.publicKey.toBase58(),
+  })
+  if (agentRef.warning) console.warn(agentRef.warning)
+  if (agentRef.referrer) {
+    const dual = agentReferrerDualRoleHandles(crew, agentRef.referrer.wallet)
+    if (dual.length) {
+      console.info(
+        JSON.stringify({
+          event: 'agent_referral_dual_role',
+          code: agentRef.referrer.code,
+          handles: dual,
+          mint: mint.toBase58(),
+        }),
+      )
+    }
+  }
   const shareholders = buildCrewShareholders(crew, opts.mode, {
     deskWallet: launcher.publicKey.toBase58(),
     referralCuts,
+    agentReferrer: agentRef.referrer
+      ? {
+          wallet: agentRef.referrer.wallet,
+          handle: agentRef.referrer.handle,
+          code: agentRef.referrer.code,
+        }
+      : null,
   })
 
   const connection = getConnection()

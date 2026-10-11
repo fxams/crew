@@ -1,6 +1,6 @@
 {
   "name": "crewpay",
-  "description": "CREW / CrewPay — Solana Pump.fun launches with KOL Autohire and on-chain fee-shares (60/15/25). Buyback cron not live yet. Always dry-run first.",
+  "description": "CREW / CrewPay \u2014 Solana Pump.fun launches with KOL Autohire and on-chain fee-shares (60/15/25 or 60/15/5/20 with referral). Buyback cron not live yet. Always dry-run first.",
   "homepage": "https://crewpay.dev/agents",
   "llms": "https://crewpay.dev/llms.txt",
   "api": "https://api.crewpay.dev",
@@ -8,14 +8,25 @@
   "proof": "https://crewpay.dev/proof",
   "clawhub": "https://clawhub.ai/fxams/crewpay",
   "aliases": {
-    "api": ["https://crewpay-api.onrender.com"],
-    "mcp_http": ["https://crewpay-mcp.onrender.com/mcp"]
+    "api": [
+      "https://crewpay-api.onrender.com"
+    ],
+    "mcp_http": [
+      "https://crewpay-mcp.onrender.com/mcp"
+    ]
   },
   "mcp": {
     "stdio": {
       "command": "npx",
-      "args": ["-y", "crewpay-mcp@1.2.3"],
-      "env": ["CREW_AGENT_API_KEY", "CREW_LAUNCHER_KEY", "CREW_API_URL"]
+      "args": [
+        "-y",
+        "crewpay-mcp@1.2.3"
+      ],
+      "env": [
+        "CREW_AGENT_API_KEY",
+        "CREW_LAUNCHER_KEY",
+        "CREW_API_URL"
+      ]
     },
     "http": {
       "url": "https://mcp.crewpay.dev/mcp",
@@ -36,5 +47,14 @@
     "crew_crank_remits",
     "crew_proof"
   ],
-  "tags": ["solana", "pump.fun", "crypto", "meme-coin", "kol", "crewpay", "agent", "fee-share"]
+  "tags": [
+    "solana",
+    "pump.fun",
+    "crypto",
+    "meme-coin",
+    "kol",
+    "crewpay",
+    "agent",
+    "fee-share"
+  ]
 }

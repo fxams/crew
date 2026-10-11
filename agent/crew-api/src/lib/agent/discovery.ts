@@ -52,7 +52,7 @@ export function agentDiscoveryJson() {
     build,
     name: 'CREW / CrewPay Agent Launch',
     description:
-      'AI agents launch Pump.fun coins on Solana with on-chain fee-shares (60% KOL crew / 15% launching agent / 25% CrewPay). Buyback cron is not live yet — always dry-run first.',
+      'AI agents launch Pump.fun coins on Solana with on-chain fee-shares (60/15/25 default; 60/15/5/20 with KOL agent referral). Buyback cron is not live yet — always dry-run first.',
     homepage: SITE_URL,
     api: API_URL,
     aliases: {
@@ -82,8 +82,8 @@ export function agentDiscoveryJson() {
       http_legacy: MCP_HTTP_URL_LEGACY,
       manifest: MCP_MANIFEST_URL,
       package: 'crewpay-mcp',
-      package_version: '1.2.3',
-      package_install: 'npx -y crewpay-mcp@1.2.4',
+      package_version: '1.2.5',
+      package_install: 'npx -y crewpay-mcp@1.2.5',
       hosted: MCP_HTTP_URL,
       clawhub_skill: 'openclaw skills install @fxams/crewpay',
       official_mcp_registry: 'https://registry.modelcontextprotocol.io',
@@ -261,8 +261,8 @@ export function agentDiscoveryJson() {
       'Every launch description appends “Launched from CrewPay.dev platform” when missing (shown in dry-run.vibe / attribution).',
       'Dry-run validates images with the same PNG/JPEG/WebP/GIF magic-byte rules as a real launch (SVG rejected).',
       'Launcher wallet pays Pump create fees and becomes the on-chain creator.',
-      'Every successful fee-share locks 25% creator fees to CREW_BUYBACK_WALLET (buybacks execute only when CREW_BUYBACK_MINT + CREW_BUYBACK_PRIVATE_KEY are set).',
-      'Default mode=agent keeps 15% ops for the launcher and 60% hired KOLs.',
+      'Every successful fee-share locks 25% (or 20% when referred) creator fees to CREW_BUYBACK_WALLET (buybacks execute only when CREW_BUYBACK_MINT + CREW_BUYBACK_PRIVATE_KEY are set).',
+      'Default mode=agent keeps 15% ops for the launcher and 60% hired KOLs; referred keys add 5% to the KOL referrer (60/15/5/20).',
       'Autohire matches public Pump.fun profiles — not opt-in partners or endorsed affiliates; operators choose who receives fees.',
       'Prefer autoHire for narrative matching against the CREW 1500 KOL list; crew[] overrides (shares must total 100%).',
       'Always check feeShareLocked — HTTP 202 means mint live but fees not locked; call wire-fees or lock-holder-kol (see nextSteps).',
@@ -479,7 +479,7 @@ export function openApiSpec() {
       '/api/agent/keys/claim': {
         post: {
           tags: ['agent'],
-          summary: 'Self-serve mint a crew_ak_… API key (no operator bootstrap)',
+          summary: 'Self-serve mint a crew_ak_… API key (optional referralCode)',
           operationId: 'postAgentKeysClaim',
           requestBody: {
             required: false,
@@ -491,6 +491,13 @@ export function openApiSpec() {
                     label: { type: 'string', minLength: 2, maxLength: 64, default: 'agent' },
                     agentName: { type: 'string', maxLength: 48 },
                     model: { type: 'string', maxLength: 48 },
+                    referralCode: {
+                      type: 'string',
+                      minLength: 2,
+                      maxLength: 24,
+                      description:
+                        'KOL referral code (crewpay.dev/r/<code>). Bound permanently; referred launches use fee map 60/15/5/20.',
+                    },
                   },
                 },
               },
@@ -498,7 +505,27 @@ export function openApiSpec() {
           },
           responses: {
             '201': { description: 'crew_ak_… key shown once (default 5 launches/hour)' },
+            '400': { description: 'Invalid/unknown referralCode' },
             '429': { description: 'IP claim rate limit (5/hour)' },
+          },
+        },
+      },
+      '/api/kol/referrals': {
+        get: {
+          tags: ['kol'],
+          summary: 'KOL referral dashboard (referred agents, launches, fees)',
+          operationId: 'getKolReferrals',
+          description:
+            'Requires Phantom signature of crew-kol-referrals:<wallet>:<timestamp> via x-crew-wallet, x-crew-timestamp, x-crew-signature.',
+          parameters: [
+            { name: 'x-crew-wallet', in: 'header', required: true, schema: { type: 'string' } },
+            { name: 'x-crew-timestamp', in: 'header', required: true, schema: { type: 'string' } },
+            { name: 'x-crew-signature', in: 'header', required: true, schema: { type: 'string' } },
+          ],
+          responses: {
+            '200': { description: 'Referral stats for the signed KOL wallet' },
+            '401': { description: 'Missing/invalid wallet signature' },
+            '404': { description: 'Wallet not a registered KOL' },
           },
         },
       },
@@ -833,6 +860,40 @@ export function openApiSpec() {
               description: 'Bound image content hash (launch intent).',
             },
             tip: { type: 'string' },
+            feeMap: {
+              type: 'object',
+              properties: {
+                platformBuybackBps: { type: 'integer' },
+                deskBps: { type: 'integer' },
+                crewPoolBps: { type: 'integer' },
+                referrerBps: {
+                  type: 'integer',
+                  description: '500 when the agent key is referred',
+                },
+              },
+            },
+            referral: {
+              type: ['object', 'null'],
+              description: 'Agent-key referrer written into on-chain fee-share when bound at claim',
+              properties: {
+                code: { type: 'string' },
+                wallet: { type: 'string' },
+                handle: { type: 'string' },
+                bps: { type: 'integer' },
+              },
+            },
+            shareholders: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  wallet: { type: 'string' },
+                  bps: { type: 'integer' },
+                  role: { type: 'string' },
+                  handle: { type: 'string' },
+                },
+              },
+            },
           },
         },
         DryRunPublicView: {
@@ -892,7 +953,7 @@ export function agentCard(origin: 'site' | 'api' = 'api') {
   return {
     name: 'CREW Agent Launch',
     description:
-      'Launch Pump.fun coins with on-chain fee-shares (60% KOL crew / 15% launching agent / 25% CrewPay). Buyback cron not live yet. Always dry-run first.',
+      'Launch Pump.fun coins with on-chain fee-shares (60/15/25 default; 60/15/5/20 with KOL agent referral). Buyback cron not live yet. Always dry-run first.',
     url,
     provider: { organization: 'CREW / CrewPay', url: SITE_URL },
     version: '1.0.0',
@@ -920,7 +981,7 @@ export function agentCard(origin: 'site' | 'api' = 'api') {
         id: 'crew-launch',
         name: 'Launch with CrewPay',
         description:
-          'Create Pump coin + lock fee-share (60% KOL / 15% agent / 25% CrewPay).',
+          'Create Pump coin + lock fee-share (60/15/25 or 60/15/5/20 with referral).',
         tags: ['solana', 'pump', 'launch', 'fee-share', 'crewpay'],
         examples: [
           'POST /api/agent/launch with imageUrl + autoHire + agent brief',
@@ -930,7 +991,7 @@ export function agentCard(origin: 'site' | 'api' = 'api') {
         id: 'crew-mcp',
         name: 'MCP tools',
         description:
-          'Connect https://mcp.crewpay.dev/mcp or npx -y crewpay-mcp@1.2.4',
+          'Connect https://mcp.crewpay.dev/mcp or npx -y crewpay-mcp@1.2.5',
         tags: ['mcp', 'solana', 'crewpay'],
         examples: ['crew_claim_key → crew_discover → crew_autohire → crew_launch_dry_run'],
       },
@@ -950,7 +1011,7 @@ export function llmsTxt(): string {
 2. \`POST ${API_URL}/api/agent/autohire\` with \`x-crew-api-key\` + name/ticker/description → inspect crew
 3. \`POST ${API_URL}/api/agent/launch\` with \`x-crew-api-key\` + \`x-launcher-key\` (+ optional \`crew[]\` / \`autoHire\`) → check \`feeShareLocked\`
 
-MCP equivalent (pinned): \`npx -y crewpay-mcp@1.2.4\` then \`crew_claim_key\` → \`crew_autohire\` → \`crew_launch\` (Approval is optional. Operators can require human approval per key.) Hosted \`${MCP_HTTP_URL}\` for discover/autohire; launcher secret stays local.
+MCP equivalent (pinned): \`npx -y crewpay-mcp@1.2.5\` then \`crew_claim_key\` → \`crew_autohire\` → \`crew_launch\` (Approval is optional. Operators can require human approval per key.) Hosted \`${MCP_HTTP_URL}\` for discover/autohire; launcher secret stays local.
 
 ClawHub / OpenClaw skill: \`openclaw skills install @fxams/crewpay\` (https://clawhub.ai/fxams/crewpay).
 Official MCP Registry: \`io.github.fxams/crewpay-mcp\` (https://registry.modelcontextprotocol.io).
@@ -1004,7 +1065,7 @@ Approval is optional. Operators can require human approval per key.
 ## Auth
 
 - \`x-crew-api-key\`: mint yourself via **POST /api/agent/keys/claim** (returns \`crew_ak_…\` once, 5/hour/IP) or use operator \`CREW_AGENT_API_KEY\` / POST /api/agent/keys.
-- \`x-launcher-key\`: agent Solana secret (base58 or JSON byte array); signs create + fee-share; never logged. MCP: set CREW_LAUNCHER_KEY in env only (tool args are rejected). Hosted public MCP cannot take your wallet — run \`npx -y crewpay-mcp@1.2.4\` locally or call REST from your backend.
+- \`x-launcher-key\`: agent Solana secret (base58 or JSON byte array); signs create + fee-share; never logged. MCP: set CREW_LAUNCHER_KEY in env only (tool args are rejected). Hosted public MCP cannot take your wallet — run \`npx -y crewpay-mcp@1.2.5\` locally or call REST from your backend.
 - \`x-idempotency-key\` (optional on launch): 8–128 chars; replays cached response for 15 minutes
 
 ## Description attribution
@@ -1015,7 +1076,7 @@ On-chain / IPFS descriptions append **Launched from CrewPay.dev platform** when 
 
 Hosted MCP (\`mcp.crewpay.dev\`) is publicMode: pass \`x-crew-api-key\` for writes; it **cannot** hold your launcher secret. To launch with your own wallet:
 
-1. \`npx -y crewpay-mcp@1.2.4\` (pin the version — do not use unpinned \`@latest\`)
+1. \`npx -y crewpay-mcp@1.2.5\` (pin the version — do not use unpinned \`@latest\`)
 2. Set \`CREW_AGENT_API_KEY\` + \`CREW_LAUNCHER_KEY\` (dedicated low-SOL burner) in MCP env (never tool args)
 3. Or call REST \`POST /api/agent/launch\` from your backend with \`x-launcher-key\`
 
@@ -1032,14 +1093,16 @@ Canonical site is **https://crewpay.dev** (\`app.crewpay.dev\` has no DNS).
 ## Trust notes
 
 - Autohire prefers **registered** KOLs when they match the narrative; otherwise public Pump profiles (listing ≠ consent)
-- **Buyback status:** every launch locks **25% creator fees** to the CrewPay treasury wallet. Automatic market buybacks of a CREW token are **not live yet** (only when operators set buyback mint + key). Empty proof tape ≠ broken fee-shares.
+- **Buyback status:** every launch locks **25%** (or **20%** when referred) creator fees to the CrewPay treasury wallet. Automatic market buybacks of a CREW token are **not live yet** (only when operators set buyback mint + key). Empty proof tape ≠ broken fee-shares.
 - **Always dry-run** before any launch that spends SOL. **No price talk / ROI promises.**
 
 ## Fee map (mode=agent)
 
 - **60%** hired KOL crew
 - **15%** launching agent
-- **25%** CrewPay treasury (buyback cron not live yet)
+- **25%** CrewPay treasury — or **20%** when the agent key has a KOL referral
+- **5%** referrer KOL (only when \`referralCode\` was bound at claim-key; on-chain recipient)
+- Non-referred stays **60/15/25**. Buyback cron not live yet. Invite: \`https://crewpay.dev/r/<code>\`
 
 ## Optional docs
 
@@ -1058,7 +1121,7 @@ For: ${FRONTIER_MODELS.join('; ')}.
 
 ## What this is
 
-CrewPay lets an AI agent launch a Solana Pump.fun coin and permanently split creator fees (**60% KOL crew / 15% launching agent / 25% CrewPay**) — without using the browser desk. Buyback cron is not live yet. Always dry-run first; no price talk.
+CrewPay lets an AI agent launch a Solana Pump.fun coin and permanently split creator fees (**60/15/25** default; **60/15/5/20** with KOL agent referral) — without using the browser desk. Buyback cron is not live yet. Always dry-run first; no price talk.
 
 Base URL: ${API_URL}
 Human site: ${SITE_URL}
@@ -1112,7 +1175,7 @@ Every launch appends **Launched from CrewPay.dev platform** when missing. Keep t
 ## Own wallet / local MCP
 
 - Hosted MCP \`https://mcp.crewpay.dev/mcp\` is **publicMode**: pass \`x-crew-api-key\`; it cannot use your launcher secret.
-- Local package (pinned): \`npx -y crewpay-mcp@1.2.4\` with env \`CREW_AGENT_API_KEY\` + \`CREW_LAUNCHER_KEY\` (never tool args).
+- Local package (pinned): \`npx -y crewpay-mcp@1.2.5\` with env \`CREW_AGENT_API_KEY\` + \`CREW_LAUNCHER_KEY\` (never tool args).
 - ClawHub skill: \`openclaw skills install @fxams/crewpay\`
 - Or REST from your backend with \`x-launcher-key\`. Site: **https://crewpay.dev** only (\`app.crewpay.dev\` has no DNS).
 - Crank remits: \`POST /api/agent/crank\` with body \`{ "mint" }\` (MCP tool name remains \`crew_crank_remits\`).

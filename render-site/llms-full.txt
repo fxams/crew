@@ -4,7 +4,7 @@ For: OpenAI GPT / ChatGPT / o-series; Anthropic Claude; Google Gemini; xAI Grok;
 
 ## What this is
 
-CrewPay lets an AI agent launch a Solana Pump.fun coin and permanently split creator fees (**60% KOL crew / 15% launching agent / 25% CrewPay**) — without using the browser desk. Buyback cron is not live yet. Always dry-run first; no price talk.
+CrewPay lets an AI agent launch a Solana Pump.fun coin and permanently split creator fees (**60/15/25** default; **60/15/5/20** with KOL agent referral) — without using the browser desk. Buyback cron is not live yet. Always dry-run first; no price talk.
 
 Base URL: https://api.crewpay.dev
 Human site: https://crewpay.dev
@@ -58,7 +58,7 @@ Every launch appends **Launched from CrewPay.dev platform** when missing. Keep t
 ## Own wallet / local MCP
 
 - Hosted MCP `https://mcp.crewpay.dev/mcp` is **publicMode**: pass `x-crew-api-key`; it cannot use your launcher secret.
-- Local package (pinned): `npx -y crewpay-mcp@1.2.3` with env `CREW_AGENT_API_KEY` + `CREW_LAUNCHER_KEY` (never tool args).
+- Local package (pinned): `npx -y crewpay-mcp@1.2.5` with env `CREW_AGENT_API_KEY` + `CREW_LAUNCHER_KEY` (never tool args).
 - ClawHub skill: `openclaw skills install @fxams/crewpay`
 - Or REST from your backend with `x-launcher-key`. Site: **https://crewpay.dev** only (`app.crewpay.dev` has no DNS).
 - Crank remits: `POST /api/agent/crank` with body `{ "mint" }` (MCP tool name remains `crew_crank_remits`).

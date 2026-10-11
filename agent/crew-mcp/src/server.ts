@@ -135,11 +135,19 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Claim a self-serve CREW API key',
       description:
-        'Mint a crew_ak_… agent API key with no operator signup (POST /api/agent/keys/claim). Returns the secret once — store it as CREW_AGENT_API_KEY or pass as x-crew-api-key. Rate-limited 5/hour/IP. Default 5 launches/hour. Use before autohire/launch when you have no key.',
+        'Mint a crew_ak_… agent API key with no operator signup (POST /api/agent/keys/claim). Optional referral_code (or CREWPAY_REFERRAL_CODE env) permanently binds a KOL referrer — referred launches use fee map 60/15/5/20. Returns the secret once — store it as CREW_AGENT_API_KEY or pass as x-crew-api-key. Rate-limited 5/hour/IP. Default 5 launches/hour. Use before autohire/launch when you have no key.',
       inputSchema: {
         label: z.string().min(2).max(64).optional().describe('Key label (default agent)'),
         agentName: z.string().min(2).max(48).optional().describe('Your agent name for the label'),
         model: z.string().min(1).max(48).optional().describe('Model id e.g. claude, gpt, grok'),
+        referral_code: z
+          .string()
+          .min(2)
+          .max(24)
+          .optional()
+          .describe(
+            'KOL referral code (crewpay.dev/r/<code>). Bound permanently on this key. Falls back to CREWPAY_REFERRAL_CODE env.',
+          ),
       },
       annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: false },
     },
@@ -148,13 +156,17 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
       if (input.label) body.label = input.label
       if (input.agentName) body.agentName = input.agentName
       if (input.model) body.model = input.model
+      const referralCode =
+        (input.referral_code || '').trim() ||
+        (process.env.CREWPAY_REFERRAL_CODE || process.env.CREW_REFERRAL_CODE || '').trim()
+      if (referralCode) body.referralCode = referralCode
       const data = await crewFetch(cfg, '/api/agent/keys/claim', {
         method: 'POST',
         body: JSON.stringify(body),
       })
       return asText({
         ...(typeof data === 'object' && data ? data : { raw: data }),
-        tip: 'Store crew_ak_… once — it is not shown again. Set CREW_AGENT_API_KEY (local MCP) or pass x-crew-api-key (hosted). Then: crew_autohire → crew_launch_dry_run → crew_launch.',
+        tip: 'Store crew_ak_… once — it is not shown again. Set CREW_AGENT_API_KEY (local MCP) or pass x-crew-api-key (hosted). Then: crew_autohire → crew_launch_dry_run → crew_launch. Referral codes are immutable after claim.',
       })
     },
   )
@@ -463,7 +475,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Public CREW proof tape',
       description:
-        'Load public proof tape: launches, remit totals, and buyback runs if any. Fee-shares lock 25% to CrewPay treasury; market buyback cron is not live yet — empty buyback rows ≠ failed fee-shares.',
+        'Load public proof tape: launches, remit totals, and buyback runs if any. Fee-shares lock 25% to CrewPay treasury (20% when the launching agent is referred); market buyback cron is not live yet — empty buyback rows ≠ failed fee-shares.',
       inputSchema: {
         limit: z.number().int().min(1).max(100).optional(),
       },
@@ -481,7 +493,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Launch Pump coin via CrewPay (MAINNET)',
       description:
-        'MAINNET launch: create a Solana Pump.fun coin with on-chain fee-shares (60% KOL crew / 15% launching agent / 25% CrewPay treasury). Buyback cron is not live yet. Prefers atomic create+fee-lock. Approval is optional. Operators can require human approval per key (then pass dryRunId from crew_launch_dry_run after approvalUrl). Requires CREW_AGENT_API_KEY + CREW_LAUNCHER_KEY in MCP env (never tool args). Check feeShareLocked — HTTP 202 needs crew_wire_fees.',
+        'MAINNET launch: create a Solana Pump.fun coin with on-chain fee-shares (60% KOL crew / 15% launching agent / 25% CrewPay treasury; or 60/15/5/20 when the API key was claimed with a KOL referral_code). Buyback cron is not live yet. Prefers atomic create+fee-lock. Approval is optional. Operators can require human approval per key (then pass dryRunId from crew_launch_dry_run after approvalUrl). Requires CREW_AGENT_API_KEY + CREW_LAUNCHER_KEY in MCP env (never tool args). Check feeShareLocked — HTTP 202 needs crew_wire_fees.',
       inputSchema: {
         dryRunId: z
           .string()

@@ -62,9 +62,17 @@ export class CrewPayClient {
         return this.fetch('/api/agent');
     }
     claimKey(body = {}) {
+        const referralCode = body.referralCode?.trim() ||
+            process.env.CREWPAY_REFERRAL_CODE?.trim() ||
+            process.env.CREW_REFERRAL_CODE?.trim() ||
+            undefined;
         return this.fetch('/api/agent/keys/claim', {
             method: 'POST',
-            body: JSON.stringify({ label: 'agent', ...body }),
+            body: JSON.stringify({
+                label: 'agent',
+                ...body,
+                ...(referralCode ? { referralCode } : {}),
+            }),
         });
     }
     autohire(body) {

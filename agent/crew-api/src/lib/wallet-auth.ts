@@ -14,6 +14,26 @@ export function buildBoardMessage(mint: string, timestamp: number): string {
   return `crew-board:${mint}:${timestamp}`
 }
 
+export function buildKolReferralsMessage(wallet: string, timestamp: number): string {
+  return `crew-kol-referrals:${wallet}:${timestamp}`
+}
+
+/** Verify Phantom-signed KOL referrals dashboard auth. */
+export function kolReferralsWalletFresh(req: {
+  header(name: string): string | undefined
+}): { wallet: string } | null {
+  const wallet = (req.header('x-crew-wallet') || '').trim()
+  const tsRaw = (req.header('x-crew-timestamp') || '').trim()
+  const signature = (req.header('x-crew-signature') || '').trim()
+  if (!wallet || !tsRaw || !signature) return null
+  const timestamp = Number(tsRaw)
+  if (!Number.isFinite(timestamp)) return null
+  if (Math.abs(Date.now() - timestamp) > 10 * 60_000) return null
+  const message = buildKolReferralsMessage(wallet, timestamp)
+  if (!verifyWalletSignature({ wallet, message, signatureBase58: signature })) return null
+  return { wallet }
+}
+
 export function buildApproveDryRunMessage(dryRunId: string, timestamp: number): string {
   return `crew-approve-dry-run:${dryRunId}:${timestamp}`
 }

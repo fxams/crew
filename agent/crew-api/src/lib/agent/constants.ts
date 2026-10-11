@@ -4,7 +4,12 @@ export const MAX_INITIAL_BUY_SOL = 10
 /** Minimum SOL left for create + fee-share txs beyond the initial buy. */
 export const MIN_LAUNCH_FEE_SOL = 0.02
 export const PLATFORM_BUYBACK_BPS = 2500
-/** Direct referral cut: 5% of the referred KOL's seat (not of total fees). */
+/**
+ * Agent-key referral: 5% of total creator fees to the KOL who referred the launching agent.
+ * Taken from the treasury cut → referred launches are 60/15/5/20 (crew/agent/referrer/treasury).
+ */
+export const AGENT_REFERRAL_BPS = 500
+/** Legacy KOL→KOL seat carve: 5% of a referred hired KOL's seat (not of total fees). */
 export const REFERRAL_CUT_BPS = 500
 /** Pump fee-share configs allow at most this many unique wallets. */
 export const PUMP_MAX_SHAREHOLDERS = 10
@@ -14,6 +19,11 @@ export const MODE_DESK_BPS = {
   raid: 2500,
   agent: 1500,
 } as const
+
+/** Treasury bps after optional agent-referral carve. */
+export function platformBuybackBps(hasAgentReferrer: boolean): number {
+  return hasAgentReferrer ? PLATFORM_BUYBACK_BPS - AGENT_REFERRAL_BPS : PLATFORM_BUYBACK_BPS
+}
 
 export const CREW_LAUNCH_ATTRIBUTION = 'Launched from CrewPay.dev platform'
 /** Final on-chain / IPFS description hard cap (Pump metadata). */
@@ -52,7 +62,9 @@ export function readPlatformBuybackWallet(): string {
 export function getPlatformBuybackWallet(): string {
   const w = readPlatformBuybackWallet()
   if (!w || w.length < 32) {
-    throw new Error('Set CREW_BUYBACK_WALLET (Solana address for the 25% CrewPay treasury fee-share).')
+    throw new Error(
+      'Set CREW_BUYBACK_WALLET (Solana address for the CrewPay treasury fee-share — 25%, or 20% when the agent is referred).',
+    )
   }
   return w
 }

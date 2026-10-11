@@ -17,7 +17,7 @@ Standalone mirrors (may be empty until PAT contents:write is available):
 
 - Read `CREWPAY_API_KEY` / `CREW_AGENT_API_KEY` and `CREW_LAUNCHER_KEY` from **env only**
 - Always dry-run before launch; human opens `approvalUrl`; launch with `dryRunId` (no confirm phrase)
-- Honest fee map: **60% KOL crew / 15% launching agent / 25% CrewPay**
+- Honest fee map: **60/15/25** default; **60/15/5/20** with KOL agent referral (buyback not live)
 - Buyback cron **not live yet** — no price talk
 - Crank path: `POST /api/agent/crank`
 

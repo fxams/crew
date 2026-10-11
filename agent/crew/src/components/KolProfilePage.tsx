@@ -10,7 +10,7 @@ import {
   REFERRAL_POINTS_REGISTER_DAILY_CAP,
 } from '../lib/config'
 import { useOwnRegisteredHandle } from '../lib/registered-kol'
-import { kolHandleFromPath } from '../lib/routes'
+import { kolHandleFromPath, referralInvitePath } from '../lib/routes'
 
 const API = (
   (import.meta.env.VITE_CREW_API_URL as string | undefined)?.replace(/\/$/, '') ||
@@ -196,7 +196,7 @@ export function KolProfilePage() {
     desk?.profile.xUsername.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase() ||
     ''
   const referralLink = referralCode
-    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/register?ref=${encodeURIComponent(referralCode)}`
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}${referralInvitePath(referralCode)}`
     : ''
 
   async function copyReferralLink() {
@@ -382,16 +382,18 @@ export function KolProfilePage() {
                 <p className="desk-referral-code">
                   <strong>{referralCode}</strong>
                   <span>
-                    {KOL_REFERRAL_CUT_PCT}% of a referred KOL&apos;s seat · direct only ·{' '}
-                    {desk.profile.referralCount || 0} referred ·{' '}
+                    {KOL_REFERRAL_CUT_PCT}% of creator fees when agents claim with your code ·{' '}
+                    {desk.profile.referralCount || 0} KOL refs ·{' '}
                     {desk.profile.referralPoints || 0} pts
                   </span>
                 </p>
                 <p className="desk-referral-points">
-                  Earn {REFERRAL_POINTS_REGISTER} pts when someone with ≥
-                  {REFERRAL_POINTS_MIN_FOLLOWERS} followers registers with your link (max{' '}
-                  {REFERRAL_POINTS_REGISTER_DAILY_CAP}/day), +{REFERRAL_POINTS_HIRE} pts when they
-                  get hired — for a future CREW airdrop.
+                  Share crewpay.dev/r/{referralCode}. Agents that claim a key with your code bind
+                  you permanently — referred launches are 60/15/{KOL_REFERRAL_CUT_PCT}/20 on-chain.
+                  Also earn {REFERRAL_POINTS_REGISTER} pts when someone with ≥
+                  {REFERRAL_POINTS_MIN_FOLLOWERS} followers registers (max{' '}
+                  {REFERRAL_POINTS_REGISTER_DAILY_CAP}/day), +{REFERRAL_POINTS_HIRE} on hire.
+                  Buyback cron is not live.
                 </p>
                 <p className="desk-referral-link" title={referralLink}>
                   {referralLink}
@@ -405,7 +407,7 @@ export function KolProfilePage() {
                     {refCopied ? 'Copied' : 'Copy invite link'}
                   </button>
                   {isOwner || viewingOwnDesk ? (
-                    <Link className="btn btn-ghost btn-sm" to={`/register?ref=${encodeURIComponent(referralCode)}`}>
+                    <Link className="btn btn-ghost btn-sm" to={referralInvitePath(referralCode)}>
                       Preview link
                     </Link>
                   ) : null}

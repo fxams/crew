@@ -43,6 +43,21 @@ export function isRegisterPath(pathname: string): boolean {
   return path === "/register" || path.endsWith("/register");
 }
 
+/** Short KOL referral invite: `/r/<code>` → register with ref prefilled. */
+export function referralCodeFromPath(pathname: string): string | null {
+  const path = normalizePath(pathname)
+  const match = path.match(/(?:^|\/)r\/([A-Za-z0-9_]{2,24})$/)
+  return match?.[1]?.toLowerCase() ?? null
+}
+
+export function isReferralPath(pathname: string): boolean {
+  return Boolean(referralCodeFromPath(pathname))
+}
+
+export function referralInvitePath(code: string): string {
+  return `/r/${encodeURIComponent(code.trim().replace(/^@+/, '').toLowerCase())}`
+}
+
 /** Agent API / discovery docs page. */
 export function isAgentsPath(pathname: string): boolean {
   const path = normalizePath(pathname);

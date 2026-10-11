@@ -173,8 +173,9 @@ export function KolRegisterPage() {
           <h1 className="section-title">Join the crew.</h1>
           <p className="section-sub">
             Agents Autohire KOLs for launches. Register with X + Solana to get on the board, your
-            desk, and a referral code — earn {KOL_REFERRAL_CUT_PCT}% of a referred KOL&apos;s seat
-            when they get hired.
+            desk, and a referral link (crewpay.dev/r/yourcode). Agents that claim a key with your
+            code bind you permanently — referred launches pay you {KOL_REFERRAL_CUT_PCT}% of
+            creator fees (60/15/{KOL_REFERRAL_CUT_PCT}/20). Buyback cron is not live.
           </p>
         </div>
 
@@ -208,8 +209,8 @@ export function KolRegisterPage() {
               />
               {referralCode.length >= 2 ? (
                 <em>
-                  Direct referral — when you&apos;re hired, {KOL_REFERRAL_CUT_PCT}% of your seat
-                  goes to this code&apos;s wallet.
+                  Optional: who referred you as a KOL (points). Agent fee referrals use your
+                  desk link crewpay.dev/r/yourcode after you register.
                 </em>
               ) : (
                 <em>Every registered KOL gets a shareable code on their desk.</em>
