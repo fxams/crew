@@ -1,7 +1,13 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { apiKeyFingerprint, clientIp, requireAgentApiKey } from '../lib/auth.js'
-import { createAgentKey, listAgentKeys, revokeAgentKey } from '../lib/agent-keys.js'
+import {
+  createAgentKey,
+  listAgentKeys,
+  revokeAgentKey,
+  setAgentKeyOwnerWallet,
+} from '../lib/agent-keys.js'
+import { normalizeWallet } from '../lib/agent/approver.js'
 import { listCoinsByAgentKey, listCoins, upsertCoin, type ApiCoin } from '../lib/coins.js'
 import { MAX_CREW, MAX_INITIAL_BUY_SOL, USER_DESCRIPTION_MAX } from '../lib/agent/constants.js'
 import { agentDiscoveryJson } from '../lib/agent/discovery.js'
@@ -353,6 +359,7 @@ agentRouter.post('/agent/launch/dry-run', requireAgentApiKey, async (req, res) =
         bodyHash,
         imageSha256: null,
         plan,
+        launcherPubkey: null,
       })
       // Never include approve secrets — operator must log in on approvalUrl.
       const approvalUrl = `${site}/approve/${rec.id}`
@@ -361,7 +368,7 @@ agentRouter.post('/agent/launch/dry-run', requireAgentApiKey, async (req, res) =
         dryRunId: rec.id,
         approvalUrl,
         expiresAt: new Date(rec.expiresAt).toISOString(),
-        tip: 'Open approvalUrl, connect a wallet, and approve. Then call POST /api/agent/wire-fees with the same body + dryRunId. Agents cannot approve with an API key.',
+        tip: 'Open approvalUrl, connect an allowlisted operator/owner wallet, and approve. Then call POST /api/agent/wire-fees with the same body + dryRunId. Agents cannot approve with an API key or launcher keypair.',
       })
       return
     }
@@ -372,12 +379,14 @@ agentRouter.post('/agent/launch/dry-run', requireAgentApiKey, async (req, res) =
       launcherPubkey: body.launcherPubkey,
     })
     const bodyHash = hashLaunchBody(body as unknown as Record<string, unknown>, imageSha256)
+    const launcherPubkey = body.launcherPubkey?.trim() || null
     const rec = await createDryRun({
       apiKeyFp: fp,
       intent: 'launch',
       bodyHash,
       imageSha256,
-      plan: { ...result, imageSha256 },
+      launcherPubkey,
+      plan: { ...result, imageSha256, launcherPubkey },
     })
     const approvalUrl = `${site}/approve/${rec.id}`
     res.json({
@@ -386,7 +395,7 @@ agentRouter.post('/agent/launch/dry-run', requireAgentApiKey, async (req, res) =
       dryRunId: rec.id,
       approvalUrl,
       expiresAt: new Date(rec.expiresAt).toISOString(),
-      tip: 'Open approvalUrl, connect a wallet, and approve. Then call POST /api/agent/launch with the same body + dryRunId. The approve token is never returned to agents.',
+      tip: 'Open approvalUrl, connect an allowlisted operator/owner wallet (not the launcher/burner), and approve. Then call POST /api/agent/launch with the same body + dryRunId. Approve tokens are never returned to agents.',
     })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'dry-run failed'
@@ -454,7 +463,9 @@ agentRouter.post('/agent/launch/dry-run/:id/approve', async (req, res) => {
     })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'approve failed'
-    res.status(400).json({ ok: false, error: msg })
+    const status =
+      /allowlist|Approvals disabled|cannot approve|Launcher\/burner/i.test(msg) ? 403 : 400
+    res.status(status).json({ ok: false, error: msg })
   }
 })
 
@@ -833,25 +844,34 @@ agentRouter.post('/agent/keys/claim', async (req, res) => {
         label: z.string().min(2).max(64).default('agent'),
         agentName: z.string().min(2).max(48).optional(),
         model: z.string().min(1).max(48).optional(),
+        /** Optional human owner wallet — may approve dry-runs for this key. */
+        ownerWallet: z.string().min(32).max(64).optional(),
       })
       .parse(req.body ?? {})
     const parts = [body.label]
     if (body.agentName) parts.push(body.agentName)
     if (body.model) parts.push(body.model)
     const label = parts.join(':').slice(0, 64)
+    const ownerWallet = body.ownerWallet ? normalizeWallet(body.ownerWallet) : null
+    if (body.ownerWallet && !ownerWallet) {
+      res.status(400).json({ ok: false, error: 'ownerWallet must be a valid Solana address' })
+      return
+    }
     const created = await createAgentKey({
       label,
       launchesPerHour: 5,
+      ownerWallet,
     })
     res.status(201).json({
       ok: true,
       key: created.key,
       row: created.row,
-      tip: 'Store crew_ak_… once — it is not shown again. Pass as x-crew-api-key for writes. Launcher SOL stays in your wallet via x-launcher-key / CREW_LAUNCHER_KEY.',
+      tip: 'Store crew_ak_… once — it is not shown again. Pass as x-crew-api-key for writes. Launcher SOL stays in your wallet via x-launcher-key / CREW_LAUNCHER_KEY. Dry-run approval requires CREWPAY_APPROVER_WALLETS or this key’s ownerWallet — never the launcher/burner.',
       next: [
         'POST /api/agent/autohire with x-crew-api-key',
         'POST /api/agent/launch/dry-run',
-        'POST /api/agent/launch with x-crew-api-key + x-launcher-key (own burner)',
+        'Open approvalUrl with an allowlisted wallet',
+        'POST /api/agent/launch with x-crew-api-key + x-launcher-key (own burner) + dryRunId',
       ],
     })
   } catch (err) {
@@ -865,9 +885,19 @@ agentRouter.post('/agent/keys', requireAgentApiKey, async (req, res) => {
       .object({
         label: z.string().min(2).max(64),
         launchesPerHour: z.number().int().min(1).max(100).optional(),
+        ownerWallet: z.string().min(32).max(64).optional(),
       })
       .parse(req.body)
-    const created = await createAgentKey(body)
+    const ownerWallet = body.ownerWallet ? normalizeWallet(body.ownerWallet) : null
+    if (body.ownerWallet && !ownerWallet) {
+      res.status(400).json({ error: 'ownerWallet must be a valid Solana address' })
+      return
+    }
+    const created = await createAgentKey({
+      label: body.label,
+      launchesPerHour: body.launchesPerHour,
+      ownerWallet,
+    })
     res.status(201).json({
       ok: true,
       key: created.key,
@@ -876,6 +906,38 @@ agentRouter.post('/agent/keys', requireAgentApiKey, async (req, res) => {
     })
   } catch (err) {
     res.status(400).json({ error: err instanceof Error ? err.message : 'create key failed' })
+  }
+})
+
+/** Bind the human owner wallet for the calling API key (approver allowlist). */
+agentRouter.post('/agent/keys/owner', requireAgentApiKey, async (req, res) => {
+  try {
+    const keyId = req.crewAgentAuth?.source === 'db' ? req.crewAgentAuth.keyId : null
+    if (!keyId) {
+      res.status(400).json({
+        ok: false,
+        error: 'ownerWallet can only be registered on DB-backed crew_ak_… keys',
+      })
+      return
+    }
+    const body = z.object({ ownerWallet: z.string().min(32).max(64) }).parse(req.body ?? {})
+    const ownerWallet = normalizeWallet(body.ownerWallet)
+    if (!ownerWallet) {
+      res.status(400).json({ ok: false, error: 'ownerWallet must be a valid Solana address' })
+      return
+    }
+    const ok = await setAgentKeyOwnerWallet({ keyId, ownerWallet })
+    if (!ok) {
+      res.status(404).json({ ok: false, error: 'Key not found' })
+      return
+    }
+    res.json({
+      ok: true,
+      ownerWallet,
+      tip: 'This wallet may approve dry-runs for this API key (launcher/burner still rejected). Operators may also set CREWPAY_APPROVER_WALLETS.',
+    })
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err instanceof Error ? err.message : 'set owner failed' })
   }
 })
 

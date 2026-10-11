@@ -126,6 +126,8 @@ CREATE TABLE IF NOT EXISTS agent_keys (
   fingerprint TEXT NOT NULL,
   launches_per_hour INT NOT NULL DEFAULT 5,
   active BOOLEAN NOT NULL DEFAULT true,
+  /** Human owner wallet allowed to approve dry-runs for this key (optional). */
+  owner_wallet TEXT,
   last_used_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
