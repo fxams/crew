@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { buildOptOutSet, isOptedOut, normalizeHandle } from './optout.js'
+import { buildHouseSet, buildOptOutSet, isHouseHandle, isOptedOut, normalizeHandle } from './optout.js'
+import { buildCrewLeaderboardFromRemits } from '../proof.js'
 import { planNarrativeHires } from './narrative.js'
 
 const REG = [
@@ -29,10 +30,25 @@ describe('autohire opt-out', () => {
     expect(isOptedOut(['@Anyone', null], new Set(['anyone']))).toBe(true)
   })
 
-  it('empty opt-out list leaves the plan unchanged', () => {
-    const a = planNarrativeHires(INPUT, { limit: 5, registered: REG, optOut: new Set() })
-    const b = planNarrativeHires(INPUT, { limit: 5, registered: REG })
-    expect(b.crew).toEqual(a.crew)
+  it('default list (shipped file) excludes the house account @crewpayhq', () => {
+    const plan = planNarrativeHires(INPUT, { limit: 5, registered: REG })
+    expect(plan.crew.some((c) => c.handle.toLowerCase() === '@crewpayhq')).toBe(false)
+    expect(plan.crew.length).toBe(5)
+    expect(isHouseHandle('@CrewPayHQ')).toBe(true)
+    expect(isHouseHandle('@blknoiz06')).toBe(false)
+  })
+
+  it('house set only includes house entries', () => {
+    const s = buildHouseSet([{ handle: '@a', house: true }, { handle: '@b' }])
+    expect([...s]).toEqual(['a'])
+  })
+
+  it('crew leaderboard hides house handles', () => {
+    const rows = buildCrewLeaderboardFromRemits([
+      { handle: '@crewpayhq', amountSol: 1, role: 'crew', ticker: 'X' },
+      { handle: '@blknoiz06', amountSol: 0.1, role: 'crew', ticker: 'X' },
+    ] as never, 8)
+    expect(rows.map((r) => r.handle)).toEqual(['@blknoiz06'])
   })
 
   it('excludes an opted-out registered handle (synthetic row)', () => {

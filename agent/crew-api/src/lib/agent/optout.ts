@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url'
  *  - data/autohire-optout.json: [{ "handle": "@someone", "reason": "asked to opt out", "at": "2026-10-12" }]
  *  - AUTOHIRE_EXCLUDE_HANDLES env (comma/space separated), optional.
  */
-export type OptOutEntry = { handle: string; reason?: string; at?: string }
+export type OptOutEntry = { handle: string; reason?: string; at?: string; /** House/operator account: also hidden from public leaderboards. */ house?: boolean }
 
 export function normalizeHandle(raw: string): string {
   return String(raw || '')
@@ -65,4 +65,25 @@ export function autohireOptOuts(): Set<string> {
 export function isOptedOut(handles: Array<string | undefined | null>, set = autohireOptOuts()): boolean {
   if (!set.size) return false
   return handles.some((h) => h && set.has(normalizeHandle(h)))
+}
+
+/** House accounts (entries with house: true) are also hidden from public leaderboards/counters. */
+export function buildHouseSet(entries: OptOutEntry[] = loadFile()): Set<string> {
+  const out = new Set<string>()
+  for (const e of entries) {
+    if (!e?.house) continue
+    const h = normalizeHandle(e.handle || '')
+    if (h) out.add(h)
+  }
+  return out
+}
+
+let houseCached: Set<string> | null = null
+export function houseHandles(): Set<string> {
+  if (!houseCached) houseCached = buildHouseSet()
+  return houseCached
+}
+
+export function isHouseHandle(handle: string | undefined | null, set = houseHandles()): boolean {
+  return Boolean(handle) && set.has(normalizeHandle(String(handle)))
 }

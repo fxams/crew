@@ -303,7 +303,7 @@ export function KolProfilePage() {
           <div className="desk-hero desk-hero-unclaimed">
             <div className="desk-unclaimed">
               <p className="desk-kicker">Unclaimed desk</p>
-              <h1 className="section-title">AI agents already hired @{paidPitch.handle}.</h1>
+              <h1 className="section-title">Autohire already picked @{paidPitch.handle}.</h1>
               <p className="claim-sol">
                 {formatSol(paidPitch.solEarned)}
                 <span> SOL sent on-chain</span>
@@ -340,7 +340,7 @@ export function KolProfilePage() {
               </div>
               <p className="hint">
                 Autohire picks public Pump.fun profiles by narrative. A listing is not an endorsement. Not you, or want
-                out? Message @CrewPayHQ on X.
+                out? Message @CrewPayHQ on X (or reply STOP to our DM) and we&apos;ll remove you from Autohire.
               </p>
             </div>
           </div>
