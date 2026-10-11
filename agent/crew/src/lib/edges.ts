@@ -226,6 +226,17 @@ function isHumanHandle(handle: string) {
   )
 }
 
+/** True when remit is attributable to a KOL crew seat (server role or coin fallback). */
+export function isKolRemit(remit: RemitRecord, coin?: CoinRecord): boolean {
+  const role = (remit as any).role ? String((remit as any).role).toLowerCase() : ''
+  if (role) return role === 'crew' || role === 'kol'
+  const platformWallet = readPlatformBuybackWallet()
+  if (platformWallet && remit.wallet && remit.wallet === platformWallet) return false
+  if (coin?.crew.some((m) => m.wallet === remit.wallet)) return true
+  if (coin && coin.launcher === remit.wallet) return false
+  return isHumanHandle(remit.handle)
+}
+
 export function deskStats(coins: CoinRecord[], remits: RemitRecord[]) {
   const platformWallet = readPlatformBuybackWallet()
   const human = remits.filter((r) => {
@@ -288,19 +299,10 @@ export function buildDeskPulse(
   now: number,
 ): PulseItem[] {
   const items: PulseItem[] = []
+  const coinByMint = new Map(coins.map((c) => [c.mint, c]))
 
-  const platformWallet = readPlatformBuybackWallet()
   const remitKols = remits
-    .filter((r) => {
-      if ('role' in r) {
-        const role = (r.role || '').toLowerCase()
-        if (role !== 'crew' && role !== 'kol') return false
-      } else {
-        if (!isHumanHandle(r.handle)) return false
-      }
-      if (platformWallet && r.wallet && r.wallet === platformWallet) return false
-      return true
-    })
+    .filter((r) => isKolRemit(r, coinByMint.get(r.mint)))
     .slice(0, 10)
 
   for (const r of remitKols) {
