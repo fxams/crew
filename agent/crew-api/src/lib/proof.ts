@@ -6,7 +6,8 @@ import { readPlatformBuybackWallet } from './agent/constants.js'
 
 /** Aggregate stats independent of list `limit` (avoids undercount when limit is small). */
 async function proofAggregates() {
-  const [{ rows: coinRows }, { rows: remitRows }, { rows: modeRows }] = await Promise.all([
+  const [{ rows: coinRows }, { rows: remitRows }, { rows: modeRows }, { rows: roleRows }] =
+    await Promise.all([
     query<{ n: number; locked: number }>(
       `SELECT COUNT(*)::int AS n,
               COUNT(fee_share_signature)::int AS locked
@@ -17,14 +18,33 @@ async function proofAggregates() {
               COALESCE(SUM(amount_sol), 0)::float8 AS sol
        FROM remits`,
     ),
-    query<{ n: number }>(`SELECT COUNT(*)::int AS n FROM mode_actions`),
-  ])
+      query<{ n: number }>(`SELECT COUNT(*)::int AS n FROM mode_actions`),
+      query<{ role: string | null; n: number; sol: number }>(`
+        SELECT COALESCE(cs.role, 'unknown') AS role,
+               COUNT(*)::int AS n,
+               COALESCE(SUM(r.amount_sol), 0)::float8 AS sol
+        FROM remits r
+        LEFT JOIN coin_shareholders cs
+          ON cs.mint = r.mint AND cs.wallet = r.wallet
+        GROUP BY COALESCE(cs.role, 'unknown')
+      `),
+    ])
+  const byRole = Object.fromEntries(
+    roleRows.map((r) => [
+      String(r.role || 'unknown'),
+      { count: Number(r.n || 0), sol: Number(Number(r.sol || 0).toFixed(6)) },
+    ]),
+  ) as Record<string, { count: number; sol: number }>
+  const humansPaidSol =
+    (byRole['crew']?.sol || 0) + (byRole['kol']?.sol || 0) // 'kol' kept for older rows
   return {
     coins: Number(coinRows[0]?.n || 0),
     feeShareLocked: Number(coinRows[0]?.locked || 0),
     remitRows: Number(remitRows[0]?.n || 0),
     remitSolTotal: Number(Number(remitRows[0]?.sol || 0).toFixed(6)),
     modeActions: Number(modeRows[0]?.n || 0),
+    byRole,
+    humansPaidSol: Number(humansPaidSol.toFixed(6)),
   }
 }
 
@@ -72,7 +92,7 @@ export function buildCrewLeaderboardFromRemits(
   const map = new Map<string, { handle: string; totalSol: number; remits: number; tickers: string[] }>()
   for (const r of remits) {
     const role = (r.role || '').toLowerCase()
-    if (role && role !== 'crew') continue
+    if (role !== 'crew' && role !== 'kol') continue
     if (!r.handle) continue
     const key = r.handle.toLowerCase()
     const row =
@@ -128,9 +148,25 @@ export async function getProofBundle(limit = 40) {
       proofAggregates(),
     ])
 
-  const buybackWallet = readPlatformBuybackWallet() || null
-  const coinsByMint = new Map(coins.map((c) => [c.mint, c]))
-  const roleTotals = sumByRole(remits)
+const buybackWallet = readPlatformBuybackWallet() || null
+const coinsByMint = new Map(coins.map((c) => [c.mint, c]))
+const classified = remits.map((r) => {
+  const coin = coinsByMint.get(r.mint)
+  let role = (r.role || '').toLowerCase() || null
+  if (role === 'kol') role = 'crew'
+  if (!role) {
+    if (buybackWallet && r.wallet === buybackWallet) role = 'platform'
+    else if (coin?.crew.some((c) => c.wallet === r.wallet)) role = 'crew'
+    else if (coin && coin.launcher === r.wallet) role = 'desk'
+  }
+  if (buybackWallet && r.wallet === buybackWallet) role = 'platform'
+  return {
+    ...r,
+    role: role ?? undefined,
+    handle: enrichRemitHandle(r, coin, buybackWallet),
+  }
+})
+const roleTotals = sumByRole(classified)
 
   return {
     ok: true,
@@ -153,15 +189,12 @@ export async function getProofBundle(limit = 40) {
       buybackSolSpent: buybackSummary.solSpentOk,
       modeActions: aggregates.modeActions,
       byRole: roleTotals,
-      humansPaidSol: roleTotals.find((r) => r.role === 'crew')?.sol ?? 0,
+      humansPaidSol: Number((roleTotals.find((r) => r.role === 'crew')?.sol ?? 0).toFixed(9)),
       humansPaidRemits: roleTotals.find((r) => r.role === 'crew')?.remits ?? 0,
     },
     buybacks,
-    remits: remits.slice(0, safeLimit).map((r) => ({
-      ...r,
-      handle: enrichRemitHandle(r, coinsByMint.get(r.mint), buybackWallet),
-    })),
-    leaderboard: buildCrewLeaderboardFromRemits(remits, 8),
+    remits: classified.slice(0, safeLimit),
+    leaderboard: buildCrewLeaderboardFromRemits(classified, 8),
     coins: coins.slice(0, 20).map((c) => ({
       mint: c.mint,
       ticker: c.ticker,

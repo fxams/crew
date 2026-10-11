@@ -1,4 +1,4 @@
-import { PLATFORM_BUYBACK_BPS } from './config'
+import { PLATFORM_BUYBACK_BPS, readPlatformBuybackWallet } from './config'
 import { formatSolSigned } from './format-sol'
 import type {
   BuybackRule,
@@ -185,7 +185,13 @@ export type ScoreRow = {
 
 export function buildScoreboard(remits: RemitRecord[], limit = 8): ScoreRow[] {
   const map = new Map<string, ScoreRow>()
+  const platformWallet = readPlatformBuybackWallet()
   for (const r of remits) {
+    // Prefer explicit role attribution when present on the remit object.
+    if ('role' in r) {
+      const role = (r.role || '').toLowerCase()
+      if (role !== 'crew' && role !== 'kol') continue
+    }
     if (
       !r.handle ||
       r.handle === '@desk' ||
@@ -195,6 +201,7 @@ export function buildScoreboard(remits: RemitRecord[], limit = 8): ScoreRow[] {
     ) {
       continue
     }
+    if (platformWallet && r.wallet && r.wallet === platformWallet) continue
     const key = r.handle.toLowerCase()
     const row = map.get(key) ?? {
       handle: r.handle,
@@ -220,7 +227,16 @@ function isHumanHandle(handle: string) {
 }
 
 export function deskStats(coins: CoinRecord[], remits: RemitRecord[]) {
-  const human = remits.filter((r) => isHumanHandle(r.handle))
+  const platformWallet = readPlatformBuybackWallet()
+  const human = remits.filter((r) => {
+    if ('role' in r) {
+      const role = (r.role || '').toLowerCase()
+      return role === 'crew' || role === 'kol'
+    }
+    if (!isHumanHandle(r.handle)) return false
+    if (platformWallet && r.wallet && r.wallet === platformWallet) return false
+    return true
+  })
   const paidSol = human.reduce((s, r) => s + (r.amountSol || 0), 0)
   return {
     coins: coins.length,

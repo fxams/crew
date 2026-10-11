@@ -49,6 +49,59 @@ describe('buildScoreboard', () => {
     expect(board[0].tickers).toEqual(['AA', 'BB'])
     expect(board[1].handle).toBe('@bob')
   })
+
+  it('ignores non-KOL roles and null roles when attributed', () => {
+    const sample: RemitRecord[] = [
+      {
+        id: 'p',
+        mint: 'mX',
+        ticker: 'PLAT',
+        handle: '@crew-buyback',
+        wallet: 'W_TREASURY',
+        amountSol: 1.0,
+        mode: 'split',
+        at: 1,
+        role: 'platform',
+      },
+      {
+        id: 'd',
+        mint: 'mX',
+        ticker: 'DESK',
+        handle: '@CrewAgent',
+        wallet: 'W_LAUNCHER',
+        amountSol: 1.0,
+        mode: 'agent',
+        at: 2,
+        role: 'desk',
+      },
+      {
+        id: 'u',
+        mint: 'mX',
+        ticker: 'UNK',
+        handle: '@unknown',
+        wallet: 'W_U',
+        amountSol: 0.7,
+        mode: 'split',
+        at: 3,
+        role: null,
+      },
+      {
+        id: 'c',
+        mint: 'mX',
+        ticker: 'CREW',
+        handle: '@alice',
+        wallet: 'W_A',
+        amountSol: 0.5,
+        mode: 'split',
+        at: 4,
+        role: 'crew',
+      },
+    ]
+    const board = buildScoreboard(sample)
+    expect(board.length).toBe(1)
+    expect(board[0].handle).toBe('@alice')
+    expect(board[0].totalSol).toBeCloseTo(0.5)
+  })
 })
 
 describe('deskStats', () => {
@@ -58,6 +111,19 @@ describe('deskStats', () => {
     expect(stats.platformCut).toBe(25)
     expect(stats.paidSol).toBeCloseTo(0.06)
     expect(stats.coins).toBe(2)
+  })
+
+  it('sums only KOL remits when roles are present', () => {
+    const coins = [{}] as CoinRecord[]
+    const sample: RemitRecord[] = [
+      { id: '1', mint: 'm', ticker: 'X', handle: '@crew-buyback', wallet: 'T', amountSol: 1, mode: 'split', at: 1, role: 'platform' },
+      { id: '2', mint: 'm', ticker: 'X', handle: '@CrewAgent', wallet: 'L', amountSol: 2, mode: 'agent', at: 2, role: 'desk' },
+      { id: '3', mint: 'm', ticker: 'X', handle: '@alice', wallet: 'A', amountSol: 0.25, mode: 'split', at: 3, role: 'crew' },
+      { id: '4', mint: 'm', ticker: 'X', handle: '@bob', wallet: 'B', amountSol: 0.5, mode: 'split', at: 4, role: null },
+    ]
+    const stats = deskStats(coins, sample)
+    expect(stats.humanRemits).toBe(1)
+    expect(stats.paidSol).toBeCloseTo(0.25)
   })
 })
 
