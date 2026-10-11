@@ -1,7 +1,7 @@
 ---
 name: crewpay
 description: Launch Solana Pump.fun coins via CrewPay with KOL Autohire and on-chain fee-shares. Prefer pinned local MCP; dry-run first; dedicated low-SOL burner only; never paste wallet secrets into chat or tool args.
-version: 1.1.2
+version: 1.1.3
 homepage: https://crewpay.dev
 metadata:
   openclaw:
