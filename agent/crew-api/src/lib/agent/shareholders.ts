@@ -24,6 +24,16 @@ export type AgentReferrerInput = {
   code?: string
 }
 
+/** Canonical DB / attribution roles. Display aliases (kol, buyback, …) normalize here. */
+export function normalizeShareholderRole(role?: string | null): string {
+  const r = (role || 'crew').trim().toLowerCase().slice(0, 32)
+  if (r === 'kol' || r === 'hired' || r === 'hire') return 'crew'
+  if (r === 'buyback' || r === 'treasury') return 'platform'
+  if (r === 'launcher-ops' || r === 'launcher' || r === 'agent') return 'desk'
+  if (r === 'referral') return 'agent-referral'
+  return r || 'crew'
+}
+
 export function assertWallet(value: string): string {
   const w = value.trim()
   try {
@@ -44,10 +54,17 @@ export function normalizeHandle(raw: string): string {
 /**
  * Max hired-KOL seats for agent-mode fee maps.
  * Pump allows 10 wallets: treasury + agent (+ referrer) + crew.
+ * Dual-role (referrer also in crew) does not add a wallet → unreferred cap.
  */
-export function maxCrewSeats(opts: { hasAgentReferrer: boolean; mode?: DeskMode }): number {
+export function maxCrewSeats(opts: {
+  hasAgentReferrer: boolean
+  mode?: DeskMode
+  /** Referrer wallet is also a crew seat — no extra Pump wallet. */
+  referrerInCrew?: boolean
+}): number {
   const mode = opts.mode || 'agent'
   if (mode !== 'agent') return MAX_CREW_UNREFERRED
+  if (opts.referrerInCrew) return MAX_CREW_UNREFERRED
   return opts.hasAgentReferrer ? MAX_CREW_REFERRED : MAX_CREW_UNREFERRED
 }
 
@@ -103,13 +120,40 @@ export function agentReferrerDualRoleHandles(
     .map((m) => m.handle)
 }
 
+function allocateCrewPool(
+  crew: CrewMember[],
+  crewPoolBps: number,
+): Array<{ handle: string; wallet: string; bps: number }> {
+  const raw = crew.map((m) => ({
+    handle: m.handle,
+    wallet: m.wallet,
+    bps: Math.floor((crewPoolBps * m.share) / 100),
+  }))
+  const allocated = raw.reduce((s, r) => s + r.bps, 0)
+  let remainder = crewPoolBps - allocated
+  const ordered = [...raw].sort(
+    (a, b) => b.bps - a.bps || a.handle.localeCompare(b.handle),
+  )
+  for (const row of ordered) {
+    if (remainder <= 0) break
+    row.bps += 1
+    remainder -= 1
+  }
+  return raw
+}
+
+/**
+ * Map platform + desk + optional agent-referral into on-chain shareholder bps.
+ * Dual-role (referrer also hired): pay max(crew seat, 5% referral) — a tiny seat
+ * cannot dodge the referral floor.
+ */
 export function buildCrewShareholders(
   crew: CrewMember[],
   mode: DeskMode,
   opts: {
     deskWallet: string
     platformWallet?: string
-    /** Agent-key referrer — 5% of total fees (from treasury). Skipped if also in crew. */
+    /** Agent-key referrer — 5% of total fees (from treasury), or floor when also in crew. */
     agentReferrer?: AgentReferrerInput | null
   },
 ): Shareholder[] {
@@ -127,40 +171,80 @@ export function buildCrewShareholders(
     }
   }
 
-  // Referrer also in crew → no referral cut (crew seat only).
   const dualHandles = agentReferrerDualRoleHandles(crew, agentReferrerWallet)
-  const applyReferrer = Boolean(agentReferrerWallet) && dualHandles.length === 0
+  const dualRole = Boolean(agentReferrerWallet) && dualHandles.length > 0
+  const separateReferrer = Boolean(agentReferrerWallet) && !dualRole
 
-  const maxSeats = maxCrewSeats({ hasAgentReferrer: applyReferrer, mode })
+  const maxSeats = maxCrewSeats({
+    hasAgentReferrer: separateReferrer,
+    referrerInCrew: dualRole,
+    mode,
+  })
   if (crew.length > maxSeats) {
     throw new Error(
-      applyReferrer
+      separateReferrer
         ? `Crew has ${crew.length} seats — referred launches allow at most ${maxSeats} (Pump cap ${PUMP_MAX_SHAREHOLDERS}: crew + agent + referrer + treasury).`
         : `Crew has ${crew.length} seats — max ${maxSeats} for this fee map (Pump cap ${PUMP_MAX_SHAREHOLDERS} wallets).`,
     )
   }
 
-  const platformBps = platformBuybackBps(applyReferrer)
-  const agentReferralBps = applyReferrer ? AGENT_REFERRAL_BPS : 0
   const deskBps = MODE_DESK_BPS[mode]
+
+  // Dual-role: start from non-referred map, then enforce max(seat, 5% referral).
+  if (dualRole && agentReferrerWallet) {
+    const platformBps = platformBuybackBps(false)
+    const crewPoolBps = 10_000 - platformBps - deskBps
+    if (crewPoolBps < 0) throw new Error('Platform + desk reserves exceed 100% of fees.')
+    const raw = allocateCrewPool(crew, crewPoolBps)
+    const refRow = raw.find((r) => assertWallet(r.wallet) === agentReferrerWallet)
+    const crewSeatBps = refRow?.bps ?? 0
+    const target = Math.max(crewSeatBps, AGENT_REFERRAL_BPS)
+    let platformFinal = platformBps
+    if (target > crewSeatBps && refRow) {
+      const topUp = target - crewSeatBps
+      platformFinal = platformBps - topUp
+      if (platformFinal < 0) throw new Error('Referral floor exceeds platform reserve.')
+      refRow.bps = target
+    }
+
+    const staged: Shareholder[] = []
+    staged.push({
+      wallet: platformWallet,
+      bps: platformFinal,
+      role: 'platform',
+      handle: '@crew-buyback',
+    })
+    if (deskBps > 0) {
+      mergeShare(staged, deskWallet, deskBps, 'desk', mode === 'agent' ? '@agent' : '@desk')
+    }
+    for (const row of raw) {
+      if (row.bps <= 0) continue
+      const w = assertWallet(row.wallet)
+      if (w === agentReferrerWallet && target > crewSeatBps) {
+        // Topped up to referral floor — attribute as agent-referral for earnings.
+        mergeShare(staged, w, row.bps, 'agent-referral', agentReferrerHandle)
+      } else {
+        mergeShare(staged, w, row.bps, 'crew', row.handle)
+      }
+    }
+
+    const uniqueWallets = new Set(staged.map((s) => s.wallet)).size
+    if (uniqueWallets > PUMP_MAX_SHAREHOLDERS) {
+      throw new Error(
+        `Fee-share has ${uniqueWallets} wallets — Pump allows ${PUMP_MAX_SHAREHOLDERS}. Reduce crew seats.`,
+      )
+    }
+    const total = staged.reduce((s, r) => s + r.bps, 0)
+    if (total !== 10_000) throw new Error(`Shareholder bps must total 10000 (got ${total}).`)
+    return staged
+  }
+
+  const platformBps = platformBuybackBps(separateReferrer)
+  const agentReferralBps = separateReferrer ? AGENT_REFERRAL_BPS : 0
   const crewPoolBps = 10_000 - platformBps - agentReferralBps - deskBps
   if (crewPoolBps < 0) throw new Error('Platform + desk + referral reserves exceed 100% of fees.')
 
-  const raw = crew.map((m) => ({
-    handle: m.handle,
-    wallet: m.wallet,
-    bps: Math.floor((crewPoolBps * m.share) / 100),
-  }))
-  const allocated = raw.reduce((s, r) => s + r.bps, 0)
-  let remainder = crewPoolBps - allocated
-  const ordered = [...raw].sort(
-    (a, b) => b.bps - a.bps || a.handle.localeCompare(b.handle),
-  )
-  for (const row of ordered) {
-    if (remainder <= 0) break
-    row.bps += 1
-    remainder -= 1
-  }
+  const raw = allocateCrewPool(crew, crewPoolBps)
 
   const staged: Shareholder[] = []
   staged.push({
@@ -169,7 +253,7 @@ export function buildCrewShareholders(
     role: 'platform',
     handle: '@crew-buyback',
   })
-  if (applyReferrer && agentReferrerWallet && agentReferralBps > 0) {
+  if (separateReferrer && agentReferrerWallet && agentReferralBps > 0) {
     mergeShare(staged, agentReferrerWallet, agentReferralBps, 'agent-referral', agentReferrerHandle)
   }
   if (deskBps > 0) {
@@ -184,7 +268,7 @@ export function buildCrewShareholders(
   if (uniqueWallets > PUMP_MAX_SHAREHOLDERS) {
     throw new Error(
       `Fee-share has ${uniqueWallets} wallets — Pump allows ${PUMP_MAX_SHAREHOLDERS}. Reduce crew seats` +
-        (applyReferrer ? ' (referred max 7).' : '.'),
+        (separateReferrer ? ' (referred max 7).' : '.'),
     )
   }
 

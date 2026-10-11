@@ -131,13 +131,14 @@ export async function wireFeesForAgent(opts: {
     crewWallets: crew.map((m) => m.wallet),
   })
   if (agentRef.warning) console.warn(agentRef.warning)
-  if (agentRef.skippedInCrew && boundRef) {
+  if (agentRef.dualRoleInCrew && boundRef) {
     console.info(
       JSON.stringify({
         event: 'agent_referral_dual_role',
         code: boundRef.code,
         handles: agentReferrerDualRoleHandles(crew, boundRef.referrer.wallet),
         mint: mint.toBase58(),
+        note: 'max(crew seat, 5% referral floor)',
       }),
     )
   }

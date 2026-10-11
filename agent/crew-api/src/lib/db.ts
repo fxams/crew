@@ -311,4 +311,22 @@ export async function migrate(): Promise<void> {
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['010_referral_attribution'],
   )
+  // Normalize display alias "kol" → canonical "crew" for earnings attribution.
+  await query(`UPDATE coin_shareholders SET role = 'crew' WHERE role = 'kol'`)
+  await query(`
+    DO $mig$
+    BEGIN
+      IF to_regclass('public.kol_registrations') IS NOT NULL THEN
+        ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS register_ip TEXT;
+      END IF;
+      IF to_regclass('public.kol_oauth_states') IS NOT NULL THEN
+        ALTER TABLE kol_oauth_states ADD COLUMN IF NOT EXISTS ip TEXT;
+      END IF;
+    END
+    $mig$;
+  `)
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['011_shareholder_role_ip'],
+  )
 }

@@ -205,6 +205,8 @@ CREATE TABLE IF NOT EXISTS kol_registrations (
   referred_by_code TEXT,
   -- Cached sum of kol_referral_events.points — for future CREW airdrop eligibility.
   referral_points INT NOT NULL DEFAULT 0,
+  -- Client IP at first registration (self-referral claim checks).
+  register_ip TEXT,
   registered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   stats_refreshed_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -246,6 +248,7 @@ CREATE TABLE IF NOT EXISTS kol_oauth_states (
   code_verifier TEXT NOT NULL,
   wallet TEXT NOT NULL,
   referral_code TEXT,
+  ip TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

@@ -7,6 +7,7 @@
 import { PublicKey } from '@solana/web3.js'
 import { randomBytes } from 'node:crypto'
 import { AGENT_REFERRAL_BPS, REFERRAL_CLAIM_DAILY_CAP } from './agent/constants.js'
+import { normalizeShareholderRole } from './agent/shareholders.js'
 import { query } from './db.js'
 import { normalizeReferralCode, siteUrl } from './kol-register.js'
 
@@ -56,7 +57,28 @@ export async function resolveAgentReferrer(rawCode: string): Promise<AgentReferr
   }
 }
 
-/** True when launcher/owner wallet or X handle matches the referring KOL. */
+/** Lowercase + strip non-alphanumerics for self-referral name compares. */
+export function normalizeReferralName(raw: string): string {
+  return raw.replace(/^@+/, '').toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+/**
+ * True when candidate matches referrer handle (exact, or prefix/suffix after normalize).
+ * e.g. referrer "crewpayhq" blocks "crewpayhq-bot", "bot_crewpayhq".
+ */
+export function namesMatchSelfReferral(
+  referrerName: string,
+  candidate: string,
+): boolean {
+  const ref = normalizeReferralName(referrerName)
+  const cand = normalizeReferralName(candidate)
+  if (!ref || ref.length < 2 || !cand) return false
+  if (ref === cand) return true
+  if (cand.startsWith(ref) || cand.endsWith(ref)) return true
+  return false
+}
+
+/** True when launcher/owner wallet or X/label matches the referring KOL. */
 export function isSelfReferral(opts: {
   referrerWallet: string
   referrerXUsername?: string | null
@@ -79,13 +101,15 @@ export function isSelfReferral(opts: {
       /* ignore */
     }
   }
-  const refX = (opts.referrerXUsername || '').replace(/^@+/, '').toLowerCase()
-  if (refX) {
-    const ownerX = (opts.ownerXUsername || '').replace(/^@+/, '').toLowerCase()
-    if (ownerX && ownerX === refX) return true
-    const label = (opts.agentLabel || '').toLowerCase()
-    if (label && (label.includes(`@${refX}`) || label.split(/[:\s/]+/).includes(refX))) {
+  const refX = opts.referrerXUsername || ''
+  if (normalizeReferralName(refX).length >= 2) {
+    if (opts.ownerXUsername && namesMatchSelfReferral(refX, opts.ownerXUsername)) {
       return true
+    }
+    const label = opts.agentLabel || ''
+    if (label && namesMatchSelfReferral(refX, label)) return true
+    for (const part of label.split(/[:\s/|_-]+/)) {
+      if (part && namesMatchSelfReferral(refX, part)) return true
     }
   }
   return false
@@ -103,13 +127,30 @@ export async function countReferralClaimsToday(code: string): Promise<number> {
   return Number(rows[0]?.n || 0)
 }
 
-/** Enforce daily cap and log the claim for operator review. */
-export async function assertReferralClaimAllowed(referrer: AgentReferrer): Promise<void> {
+/** Enforce daily cap, registration-IP self-referral block, and log for review. */
+export async function assertReferralClaimAllowed(
+  referrer: AgentReferrer,
+  opts?: { claimIp?: string | null },
+): Promise<void> {
   const n = await countReferralClaimsToday(referrer.code)
   if (n >= REFERRAL_CLAIM_DAILY_CAP) {
     throw new Error(
       `Referral code "${referrer.code}" hit the daily claim cap (${REFERRAL_CLAIM_DAILY_CAP}/day UTC). Try again tomorrow.`,
     )
+  }
+  const claimIp = (opts?.claimIp || '').trim()
+  if (claimIp) {
+    const { rows } = await query(
+      `SELECT register_ip FROM kol_registrations
+       WHERE lower(referral_code) = $1 LIMIT 1`,
+      [referrer.code],
+    )
+    const regIp = rows[0]?.register_ip ? String(rows[0].register_ip).trim() : ''
+    if (regIp && regIp === claimIp) {
+      throw new Error(
+        'Self-referral blocked — claim IP matches the referrer KOL registration IP.',
+      )
+    }
   }
 }
 
@@ -176,7 +217,8 @@ export async function getAgentKeyReferral(keyId: string): Promise<{
 
 /**
  * Resolve agent referrer for a launch.
- * Self-referral and referrer-in-crew both drop the referral cut (crew seat still pays).
+ * Self-referral drops the cut. Referrer-in-crew keeps the referrer — fee map pays
+ * max(crew seat, 5% referral) so a tiny seat cannot dodge the floor.
  */
 export async function resolveLaunchAgentReferrer(opts: {
   keyId?: string | null
@@ -188,7 +230,7 @@ export async function resolveLaunchAgentReferrer(opts: {
 }): Promise<{
   referrer: AgentReferrer | null
   warning?: string
-  skippedInCrew?: boolean
+  dualRoleInCrew?: boolean
 }> {
   if (!opts.keyId) return { referrer: null }
   const bound = await getAgentKeyReferral(opts.keyId)
@@ -215,10 +257,10 @@ export async function resolveLaunchAgentReferrer(opts: {
       try {
         if (new PublicKey(w.trim()).toBase58() === ref) {
           return {
-            referrer: null,
-            skippedInCrew: true,
+            referrer: bound.referrer,
+            dualRoleInCrew: true,
             warning:
-              'Agent referral ignored — referrer is also in this launch crew (crew seat only; no double-pay).',
+              'Referrer is also in this launch crew — paid max(crew seat, 5% referral floor); no separate referrer wallet.',
           }
         }
       } catch {
@@ -273,7 +315,7 @@ export async function upsertCoinShareholders(
   if (!mint || !shareholders.length) return
   await query(`DELETE FROM coin_shareholders WHERE mint = $1`, [mint])
   for (const s of shareholders) {
-    const role = (s.role || 'crew').slice(0, 32)
+    const role = normalizeShareholderRole(s.role)
     await query(
       `INSERT INTO coin_shareholders (mint, wallet, role, handle, bps)
        VALUES ($1,$2,$3,$4,$5)
@@ -346,7 +388,8 @@ export async function getKolReferralStats(walletRaw: string): Promise<KolReferra
     `SELECT COALESCE(SUM(r.amount_sol), 0) AS total, COUNT(*)::int AS n
      FROM remits r
      INNER JOIN coin_shareholders cs
-       ON cs.mint = r.mint AND cs.wallet = r.wallet AND cs.role = 'crew'
+       ON cs.mint = r.mint AND cs.wallet = r.wallet
+      AND cs.role IN ('crew', 'kol')
      WHERE r.wallet = $1`,
     [wallet],
   )
