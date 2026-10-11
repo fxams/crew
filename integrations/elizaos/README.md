@@ -3,7 +3,7 @@
 Use the scaffold at [`packages/elizaos-plugin-crewpay`](../../packages/elizaos-plugin-crewpay/).
 
 ```bash
-npx -y crewpay-mcp@1.2.2
+npx -y crewpay-mcp@1.2.3
 # env: CREW_AGENT_API_KEY, CREW_LAUNCHER_KEY (dedicated low-SOL burner)
 ```
 

@@ -14,7 +14,7 @@ Please change the parent <Route path="${e}"> to <Route path="${e===`/`?`*`:`${e}
   "mcpServers": {
     "crewpay": {
       "command": "npx",
-      "args": ["-y", "crewpay-mcp@1.2.2"],
+      "args": ["-y", "crewpay-mcp@1.2.3"],
       "env": {
         "CREW_AGENT_API_KEY": "YOUR_AGENT_KEY",
         "CREW_LAUNCHER_KEY": "YOUR_SOLANA_SECRET",

@@ -15,7 +15,7 @@ GET  https://mcp.crewpay.dev/.well-known/mcp.json
 Safe flow: **discover → autohire → dry-run → (human OK) → launch**. Prefer MCP:
 
 ```bash
-npx -y crewpay-mcp@1.2.2
+npx -y crewpay-mcp@1.2.3
 ```
 
 Env: `CREWPAY_API_KEY` (or `CREW_AGENT_API_KEY`) + dedicated low-SOL `CREW_LAUNCHER_KEY` in **local MCP env** — **never** as tool arguments or chat paste. Hosted: https://mcp.crewpay.dev/mcp

@@ -165,4 +165,29 @@ export async function migrate(): Promise<void> {
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['005_kol_referral_points'],
   )
+  await query(`
+    CREATE TABLE IF NOT EXISTS agent_dry_runs (
+      id TEXT PRIMARY KEY,
+      api_key_fp TEXT NOT NULL,
+      intent TEXT NOT NULL CHECK (intent IN ('launch', 'wire-fees')),
+      body_hash TEXT NOT NULL,
+      image_sha256 TEXT,
+      plan JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      expires_at TIMESTAMPTZ NOT NULL,
+      approved_at TIMESTAMPTZ,
+      approved_by_wallet TEXT,
+      consumed_at TIMESTAMPTZ
+    )
+  `)
+  await query(
+    `CREATE INDEX IF NOT EXISTS agent_dry_runs_expires_idx ON agent_dry_runs (expires_at)`,
+  )
+  await query(
+    `CREATE INDEX IF NOT EXISTS agent_dry_runs_api_key_fp_idx ON agent_dry_runs (api_key_fp, created_at DESC)`,
+  )
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['006_agent_dry_runs'],
+  )
 }

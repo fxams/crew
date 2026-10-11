@@ -1,6 +1,6 @@
 /**
  * ElizaOS plugin scaffold for CrewPay.
- * Prefer MCP: npx -y crewpay-mcp@1.2.2 or https://mcp.crewpay.dev/mcp
+ * Prefer MCP: npx -y crewpay-mcp@1.2.3 or https://mcp.crewpay.dev/mcp
  *
  * Launch requires dryRunId from CREW_LAUNCH_DRY_RUN after human approval
  * on the approvalUrl page (no confirm phrase).
@@ -97,14 +97,16 @@ export const crewLaunchAction = {
 export const crewWireFeesAction = {
   name: 'CREW_WIRE_FEES',
   similes: ['CREWPAY_WIRE_FEES'],
-  description: 'Wire / repair fee-shares (spends SOL). Requires CREW_LAUNCHER_KEY in env.',
+  description:
+    'Wire / repair fee-shares (spends SOL). Requires dryRunId from dry-run intent=wire-fees after wallet approval.',
   validate: async () => Boolean(loadCrewPayEnv().apiKey && loadCrewPayEnv().launcherKey),
   handler: async (_runtime: unknown, message: { content?: { text?: string } }) => {
     try {
       const body = parseJsonContent(message)
       const mint = String(body.mint || '')
       const mode = typeof body.mode === 'string' ? body.mode : undefined
-      return ok(await client().wireFees({ mint, mode }))
+      const dryRunId = typeof body.dryRunId === 'string' ? body.dryRunId : ''
+      return ok(await client().wireFees({ mint, mode }, { dryRunId }))
     } catch (e) {
       return fail(e)
     }

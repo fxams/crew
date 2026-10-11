@@ -2,9 +2,9 @@
  * Minimal CrewPay REST client for framework plugins.
  * Keys from env only — never accept private keys as function arguments.
  *
- * Spend gate: POST /api/agent/launch/dry-run returns dryRunId + approvalUrl.
- * A human opens approvalUrl; then launch with the same body + dryRunId.
- * No APPROVE_SOL_SPEND (or any) confirm phrase.
+ * Spend gate: POST /api/agent/launch/dry-run returns dryRunId + approvalUrl
+ * (no approve secret). Operator opens approvalUrl and wallet-signs.
+ * Launch/wire require dryRunId after approval. Image content is bound by sha256.
  */
 
 export const DEFAULT_API_URL = 'https://api.crewpay.dev'
@@ -13,23 +13,6 @@ export type CrewPayEnv = {
   apiUrl?: string
   apiKey?: string
   launcherKey?: string
-}
-
-/** Canonical hash of launch fields (useful for clients that cache dry-runs). */
-export function hashLaunchBody(body: Record<string, unknown>): string {
-  const pick = {
-    name: body.name,
-    ticker: body.ticker,
-    description: body.description ?? null,
-    mode: body.mode ?? 'agent',
-    initialBuySol: body.initialBuySol ?? 0,
-    imageUrl: body.imageUrl ?? null,
-    autoHire: body.autoHire ?? null,
-    crew: body.crew ?? null,
-    holderKol: body.holderKol ?? false,
-  }
-  // Stable JSON — not a security hash; server re-hashes on approve/consume.
-  return JSON.stringify(pick)
 }
 
 export function loadCrewPayEnv(overrides: CrewPayEnv = {}): Required<Pick<CrewPayEnv, 'apiUrl'>> & CrewPayEnv {
@@ -106,10 +89,7 @@ export class CrewPayClient {
     })
   }
 
-  /**
-   * Server dry-run — returns plan + dryRunId + approvalUrl.
-   * Human must open approvalUrl before launch.
-   */
+  /** Server dry-run — returns plan + dryRunId + approvalUrl (no approve secret). */
   dryRun(body: Record<string, unknown>) {
     return this.fetch('/api/agent/launch/dry-run', {
       method: 'POST',
@@ -118,15 +98,11 @@ export class CrewPayClient {
     })
   }
 
-  /**
-   * Real launch — spends SOL. Requires server dryRunId after human approval
-   * on the approvalUrl page from dry-run.
-   */
   launch(body: Record<string, unknown>, opts: { dryRunId: string }) {
     const dryRunId = String(opts.dryRunId || '').trim()
     if (!dryRunId) {
       throw new Error(
-        'Launch blocked: dryRunId required — call dryRun, open approvalUrl, then launch with dryRunId',
+        'Launch blocked: dryRunId required — dry-run, operator wallet-approves on approvalUrl, then launch',
       )
     }
     return this.fetch('/api/agent/launch', {
@@ -137,12 +113,18 @@ export class CrewPayClient {
     })
   }
 
-  wireFees(body: { mint: string; mode?: string; crew?: unknown[] }) {
+  wireFees(body: { mint: string; mode?: string; crew?: unknown[]; name?: string; ticker?: string }, opts: { dryRunId: string }) {
+    const dryRunId = String(opts.dryRunId || '').trim()
+    if (!dryRunId) {
+      throw new Error(
+        'Wire-fees blocked: dryRunId required — dry-run with intent=wire-fees, wallet-approve, then wire',
+      )
+    }
     return this.fetch('/api/agent/wire-fees', {
       method: 'POST',
       auth: true,
       launcher: true,
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...body, dryRunId }),
     })
   }
 

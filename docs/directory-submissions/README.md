@@ -5,7 +5,7 @@ Also refresh Glama / mcp.so / awesome-mcp with honest 60/15/25 + dryRunId approv
 
 | Channel | Status | Doc |
 |---------|--------|-----|
-| Official MCP Registry | Live — `server.json` / remote `crewpay-mcp@1.2.2` | [../mcp-registry-publish.md](../mcp-registry-publish.md) |
+| Official MCP Registry | Live — `server.json` / remote `crewpay-mcp@1.2.3` | [../mcp-registry-publish.md](../mcp-registry-publish.md) |
 | Smithery | Live — refresh description + pin `1.2.2` | [smithery.md](./smithery.md) |
 | ClawHub skill | Publish `@fxams/crewpay` **1.1.2** | repo `skills/crewpay/` |
 | mcp.so | Draft updated for `1.2.2` | [mcp-so.md](./mcp-so.md) |

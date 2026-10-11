@@ -11,9 +11,10 @@ import {
 import { MAX_CREW } from './lib/config'
 
 describe('DESK_MODES copy', () => {
-  it('keeps 25% CREW treasury fee-share language on every mode', () => {
+  it('keeps honest 25% CrewPay treasury language on every mode', () => {
     for (const mode of DESK_MODES) {
-      expect(mode.blurb).toMatch(/25% CREW treasury fee-share/)
+      expect(mode.blurb).toMatch(/25% CrewPay treasury/)
+      expect(mode.blurb).not.toMatch(/CREW treasury fee-share|CREW buyback/)
     }
   })
 

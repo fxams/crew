@@ -24,7 +24,7 @@ await plugin.service.crewpay_launch({
 })
 ```
 
-Prefer `npx -y crewpay-mcp@1.2.2` for local signing; hosted MCP `https://mcp.crewpay.dev/mcp` for discover/autohire without a launcher secret.
+Prefer `npx -y crewpay-mcp@1.2.3` for local signing; hosted MCP `https://mcp.crewpay.dev/mcp` for discover/autohire without a launcher secret.
 
 ## Safety
 
