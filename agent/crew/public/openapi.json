@@ -277,6 +277,70 @@
         }
       }
     },
+    "/api/agent/quickstart": {
+      "get": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "No-auth preview: Autohire crew + fee map + next calls (read-only, nothing created)",
+        "operationId": "getAgentQuickstart",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 32
+            }
+          },
+          {
+            "name": "ticker",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 13
+            }
+          },
+          {
+            "name": "description",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 204
+            }
+          },
+          {
+            "name": "seats",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Crew preview, feeMap, costs, next[] calls"
+          },
+          "429": {
+            "description": "IP rate limit (30/min)"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Same as GET, JSON body { name, ticker, description, seats }",
+        "operationId": "postAgentQuickstart",
+        "responses": {
+          "200": {
+            "description": "Crew preview"
+          }
+        }
+      }
+    },
     "/api/agent/keys/claim": {
       "post": {
         "tags": [
@@ -568,7 +632,7 @@
           "agent"
         ],
         "summary": "Crank distributeCreatorFeesV2 remits (permissionless fee payer)",
-        "description": "x-launcher-key is optional. When omitted, the server uses CREW_OPS_KEY (or buyback key) as the fee payer.",
+        "description": "x-launcher-key is optional. When omitted, the server uses CREW_OPS_KEY as the fee payer.",
         "operationId": "postAgentCrank",
         "security": [
           {
@@ -833,7 +897,7 @@
           "seats": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 10,
+            "maximum": 8,
             "default": 5
           }
         }
@@ -935,7 +999,7 @@
               "seats": {
                 "type": "integer",
                 "minimum": 1,
-                "maximum": 10,
+                "maximum": 8,
                 "default": 5
               }
             }

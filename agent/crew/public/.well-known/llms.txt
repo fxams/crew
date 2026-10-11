@@ -2,13 +2,20 @@
 
 > AI agents hire KOLs. Humans get paid. Launch Pump.fun coins with permanent on-chain fee splits via CrewPay.
 
+## Try it in one call (no key, no wallet, nothing spent)
+
+`GET https://api.crewpay.dev/api/agent/quickstart?name=Night%20Owl&ticker=HOOT&description=owl%20meme%20coin`
+→ the KOL crew Autohire would pick, the fee map, cost, and the exact next calls. Works from browse-only LLMs (GET) or POST JSON.
+
 ## 3-call launch (start here)
+
+Auth header: `x-crew-api-key: crew_ak_…` (`Authorization: Bearer crew_ak_…` also accepted). `autoHire` accepts `true`, a seat count, or `{ "seats": 5 }`.
 
 1. `POST https://api.crewpay.dev/api/agent/keys/claim` → store `crew_ak_…` once
 2. `POST https://api.crewpay.dev/api/agent/autohire` with `x-crew-api-key` + name/ticker/description → inspect crew
 3. `POST https://api.crewpay.dev/api/agent/launch` with `x-crew-api-key` + `x-launcher-key` (+ optional `crew[]` / `autoHire`) → check `feeShareLocked`
 
-MCP equivalent (pinned): `npx -y crewpay-mcp@1.2.5` then `crew_claim_key` → `crew_autohire` → `crew_launch` (Approval is optional. Operators can require human approval per key.) Hosted `https://mcp.crewpay.dev/mcp` for discover/autohire; launcher secret stays local.
+  MCP equivalent (pinned): `npx -y crewpay-mcp@1.2.5` then `crew_claim_key` → `crew_autohire` → `crew_launch` (Approval is optional. Operators can require human approval per key.) Hosted `https://mcp.crewpay.dev/mcp` for discover/autohire. CREW_LAUNCHER_KEY is kept out of tool arguments, but crewpay-mcp sends it to api.crewpay.dev over HTTPS in the x-launcher-key header on launch/wire/lock calls (the API uses it to sign and does not store it). Use a dedicated low-balance burner wallet.
 
 ClawHub / OpenClaw skill: `openclaw skills install @fxams/crewpay` (https://clawhub.ai/fxams/crewpay).
 Official MCP Registry: `io.github.fxams/crewpay-mcp` (https://registry.modelcontextprotocol.io).
@@ -91,7 +98,7 @@ Canonical site is **https://crewpay.dev** (`app.crewpay.dev` has no DNS).
 
 ## Limits (site + API + MCP aligned)
 
-- Name 2–32 · ticker 2–13 · description ≤204 user / ≤240 final · initialBuySol 0–10 · seats 1–10
+- Name 2–32 · ticker 2–13 · description ≤204 user / ≤240 final · initialBuySol 0–10 · seats 1–8 (max 7 when referred)
 - Crew shares must total 100% when `crew[]` is provided
 - MAINNET only — dry-run does not spend SOL; real launch does
 - Always check `feeShareLocked` (HTTP 201 locked / 202 mint-without-fees → wire-fees)
@@ -99,7 +106,7 @@ Canonical site is **https://crewpay.dev** (`app.crewpay.dev` has no DNS).
 
 ## Trust notes
 
-- Autohire prefers **registered** KOLs when they match the narrative; otherwise public Pump profiles (listing ≠ consent)
+- Autohire is **registered-first**: registered KOLs are prioritized to fill seats first; remaining seats use narrative picks from the public Pump directory (listing ≠ consent)
 - **Buyback status:** every launch locks **25%** (or **20%** when referred) creator fees to the CrewPay treasury wallet. Automatic market buybacks of a CREW token are **not live yet** (only when operators set buyback mint + key). Empty proof tape ≠ broken fee-shares.
 - **Always dry-run** before any launch that spends SOL. **No price talk / ROI promises.**
 

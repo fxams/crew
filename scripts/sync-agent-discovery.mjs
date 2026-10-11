@@ -35,6 +35,8 @@ const files = [
   ['.well-known/llms.txt', mod.llmsTxt()],
   // Site origin must match card.url for WellKnown / A2A crawlers.
   ['.well-known/agent.json', JSON.stringify(mod.agentCard('site'), null, 2) + '\n'],
+  // A2A v0.3+ card filename (clients probe this first).
+  ['.well-known/agent-card.json', JSON.stringify(mod.agentCard('site'), null, 2) + '\n'],
   [
     '.well-known/ai-plugin.json',
     JSON.stringify(mod.aiPluginManifest(), null, 2) + '\n',

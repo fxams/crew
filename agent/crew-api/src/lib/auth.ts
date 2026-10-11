@@ -2,6 +2,32 @@ import type { Request, Response, NextFunction } from 'express'
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { matchAgentKey } from './agent-keys.js'
 
+/**
+ * Read the agent key from `x-crew-api-key` (canonical) or common aliases
+ * agents reach for first: `Authorization: Bearer <key>` and `x-api-key`.
+ */
+export function readAgentKeyHeader(req: { header(name: string): string | undefined }): string {
+  const direct = (req.header('x-crew-api-key') || '').trim()
+  if (direct) return direct
+  const auth = (req.header('authorization') || '').trim()
+  const bearer = auth.match(/^Bearer\s+(.+)$/i)
+  if (bearer?.[1]?.trim()) return bearer[1].trim()
+  return (req.header('x-api-key') || '').trim()
+}
+
+/** 401 body that tells an agent exactly how to get unblocked. */
+export function agentUnauthorizedBody(hadKey: boolean) {
+  return {
+    ok: false,
+    error: hadKey
+      ? 'Unauthorized — API key not recognized (revoked or mistyped).'
+      : 'Unauthorized — missing API key.',
+    fix: 'Get a free key in one call: POST https://api.crewpay.dev/api/agent/keys/claim (no auth, body {}). Then send it as header x-crew-api-key (Authorization: Bearer <key> also works).',
+    claimUrl: 'https://api.crewpay.dev/api/agent/keys/claim',
+    docs: 'https://crewpay.dev/llms.txt',
+  }
+}
+
 function keysEqual(got: string, expected: string): boolean {
   const a = Buffer.from(got)
   const b = Buffer.from(expected)
@@ -61,7 +87,7 @@ export async function requireAgentApiKey(req: Request, res: Response, next: Next
   const agentKey = process.env.CREW_AGENT_API_KEY?.trim()
   const boardKey = process.env.CREW_API_KEY?.trim()
   const expected = agentKey || boardKey
-  const got = (req.header('x-crew-api-key') || '').trim()
+  const got = readAgentKeyHeader(req)
 
   if (got) {
     try {
@@ -99,7 +125,7 @@ export async function requireAgentApiKey(req: Request, res: Response, next: Next
       })
       return
     }
-    res.status(401).json({ error: 'Unauthorized' })
+    res.status(401).json(agentUnauthorizedBody(Boolean(got)))
     return
   }
 
@@ -116,7 +142,7 @@ export async function requireAgentApiKey(req: Request, res: Response, next: Next
 /** Stable short fingerprint for rate-limit buckets (never log the raw key). */
 export function apiKeyFingerprint(req: Request): string {
   if (req.crewAgentAuth?.fingerprint) return req.crewAgentAuth.fingerprint
-  const got = (req.header('x-crew-api-key') || '').trim() || 'anon'
+  const got = readAgentKeyHeader(req) || 'anon'
   return createHash('sha256').update(got).digest('hex').slice(0, 16)
 }
 

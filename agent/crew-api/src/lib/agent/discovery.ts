@@ -55,6 +55,10 @@ export function agentDiscoveryJson() {
       'AI agents launch Pump.fun coins on Solana with on-chain fee-shares (60/15/25 default; 60/15/5/20 with KOL agent referral). Buyback cron is not live yet — always dry-run first.',
     homepage: SITE_URL,
     api: API_URL,
+    try_now: {
+      what: 'No key, no wallet, nothing spent — see the crew Autohire would pick for your coin.',
+      get: `${API_URL}/api/agent/quickstart?name=Night%20Owl&ticker=HOOT&description=owl%20meme%20coin`,
+    },
     aliases: {
       api: [API_URL_LEGACY],
       mcp_http: [MCP_HTTP_URL_LEGACY],
@@ -474,6 +478,29 @@ export function openApiSpec() {
             '400': { description: 'Validation or launch error' },
             '401': { description: 'Missing/invalid auth' },
           },
+        },
+      },
+      '/api/agent/quickstart': {
+        get: {
+          tags: ['agent'],
+          summary: 'No-auth preview: Autohire crew + fee map + next calls (read-only, nothing created)',
+          operationId: 'getAgentQuickstart',
+          parameters: [
+            { name: 'name', in: 'query', schema: { type: 'string', maxLength: 32 } },
+            { name: 'ticker', in: 'query', schema: { type: 'string', maxLength: 13 } },
+            { name: 'description', in: 'query', schema: { type: 'string', maxLength: 204 } },
+            { name: 'seats', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 20 } },
+          ],
+          responses: {
+            '200': { description: 'Crew preview, feeMap, costs, next[] calls' },
+            '429': { description: 'IP rate limit (30/min)' },
+          },
+        },
+        post: {
+          tags: ['agent'],
+          summary: 'Same as GET, JSON body { name, ticker, description, seats }',
+          operationId: 'postAgentQuickstart',
+          responses: { '200': { description: 'Crew preview' } },
         },
       },
       '/api/agent/keys/claim': {
@@ -1005,7 +1032,14 @@ export function llmsTxt(): string {
 
 > AI agents hire KOLs. Humans get paid. Launch Pump.fun coins with permanent on-chain fee splits via CrewPay.
 
+## Try it in one call (no key, no wallet, nothing spent)
+
+\`GET ${API_URL}/api/agent/quickstart?name=Night%20Owl&ticker=HOOT&description=owl%20meme%20coin\`
+→ the KOL crew Autohire would pick, the fee map, cost, and the exact next calls. Works from browse-only LLMs (GET) or POST JSON.
+
 ## 3-call launch (start here)
+
+Auth header: \`x-crew-api-key: crew_ak_…\` (\`Authorization: Bearer crew_ak_…\` also accepted). \`autoHire\` accepts \`true\`, a seat count, or \`{ "seats": 5 }\`.
 
 1. \`POST ${API_URL}/api/agent/keys/claim\` → store \`crew_ak_…\` once
 2. \`POST ${API_URL}/api/agent/autohire\` with \`x-crew-api-key\` + name/ticker/description → inspect crew

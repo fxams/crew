@@ -56,6 +56,14 @@ discoveryRouter.get('/.well-known/llms.txt', (_req, res) => textPlain(res, llmsT
 discoveryRouter.get('/.well-known/agent.json', (_req, res) =>
   jsonDoc(res, agentCard('api')),
 )
+/** A2A v0.3+ renamed the card to agent-card.json — clients probe it (404s in logs). */
+discoveryRouter.get('/.well-known/agent-card.json', (_req, res) =>
+  jsonDoc(res, agentCard('api')),
+)
+/** Browsers and crawlers ask for this on every visit; answer quietly. */
+discoveryRouter.get('/favicon.ico', (_req, res) => {
+  res.redirect(301, `${SITE_URL}/favicon.png`)
+})
 discoveryRouter.get('/.well-known/ai-plugin.json', (_req, res) =>
   jsonDoc(res, aiPluginManifest()),
 )

@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { apiKeyFingerprint, clientIp, requireAgentApiKey } from '../lib/auth.js'
+import { apiKeyFingerprint, clientIp, readAgentKeyHeader, requireAgentApiKey } from '../lib/auth.js'
 import {
   createAgentKey,
   getOwnerWalletByKeyId,
@@ -24,7 +24,14 @@ import {
   resolveSpendGate,
 } from '../lib/agent/spend-gate.js'
 import { listCoinsByAgentKey, listCoins, upsertCoin, type ApiCoin } from '../lib/coins.js'
-import { MAX_CREW, MAX_INITIAL_BUY_SOL, USER_DESCRIPTION_MAX } from '../lib/agent/constants.js'
+import {
+  MAX_CREW,
+  MAX_INITIAL_BUY_SOL,
+  MIN_LAUNCH_FEE_SOL,
+  MODE_DESK_BPS,
+  USER_DESCRIPTION_MAX,
+  platformBuybackBps,
+} from '../lib/agent/constants.js'
 import { agentDiscoveryJson } from '../lib/agent/discovery.js'
 import {
   getIdempotent,
@@ -61,6 +68,7 @@ import {
   wireFeesForAgent,
 } from '../lib/agent/repair.js'
 import { assertSafeHttpUrl } from '../lib/agent/safe-url.js'
+import { AGENT_EXAMPLES, errorIssues, errorMessage, normalizeAutoHireInput } from '../lib/agent/errors.js'
 import { parseLauncherKey, resolveOpsPayer } from '../lib/agent/send.js'
 import { solanaAddress } from '../lib/agent/solana-address.js'
 import { draftMentionFromRemit } from '../lib/kol-mentions.js'
@@ -119,7 +127,7 @@ function refineLaunchBody(
     } catch (err) {
       ctx.addIssue({
         code: 'custom',
-        message: err instanceof Error ? err.message : 'Invalid imageUrl',
+        message: errorMessage(err, 'Invalid imageUrl'),
         path: ['imageUrl'],
       })
     }
@@ -130,7 +138,7 @@ function refineLaunchBody(
     } catch (err) {
       ctx.addIssue({
         code: 'custom',
-        message: err instanceof Error ? err.message : 'Invalid website',
+        message: errorMessage(err, 'Invalid website'),
         path: ['website'],
       })
     }
@@ -157,11 +165,14 @@ const launchBodySchema = z
     imageBase64: z.string().min(64).optional(),
     imageContentType: z.string().max(64).optional(),
     crew: z.array(crewMemberSchema).min(1).max(MAX_CREW).optional(),
-    autoHire: z
-      .object({
-        seats: z.number().int().min(1).max(AUTOHIRE_SEATS_REQUEST_MAX).optional().default(5),
-      })
-      .optional(),
+    autoHire: z.preprocess(
+      normalizeAutoHireInput,
+      z
+        .object({
+          seats: z.number().int().min(1).max(AUTOHIRE_SEATS_REQUEST_MAX).optional().default(5),
+        })
+        .optional(),
+    ),
     agent: z
       .object({
         name: z.string().min(2).max(48),
@@ -288,8 +299,103 @@ agentRouter.post('/agent/autohire', requireAgentApiKey, async (req, res) => {
         'Inspect hires/reasons, remix via crew[], or keep autoHire. Listing ≠ consent.',
     })
   } catch (err) {
-    res.status(400).json({ error: err instanceof Error ? err.message : 'autohire failed' })
+    res.status(400).json({
+      ok: false,
+      error: errorMessage(err, 'autohire failed'),
+      issues: errorIssues(err),
+      example: AGENT_EXAMPLES.autohire,
+    })
   }
+})
+
+/**
+ * Zero-friction "try it": no API key, no image, works with GET query params
+ * (for browse-only LLMs) or a POST JSON body. Read-only — creates no key,
+ * no dry-run record and spends nothing. Returns the crew Autohire would pick,
+ * the fee map, and the exact next calls.
+ */
+const quickstartSchema = z.object({
+  name: z.string().max(32).optional().default(''),
+  ticker: z.string().max(13).optional().default(''),
+  description: z.string().max(USER_DESCRIPTION_MAX).optional().default(''),
+  seats: z.coerce.number().int().min(1).max(AUTOHIRE_SEATS_REQUEST_MAX).optional().default(5),
+})
+
+async function handleQuickstart(
+  raw: Record<string, unknown>,
+  req: import('express').Request,
+  res: import('express').Response,
+) {
+  try {
+    if (!applyRateLimit(res, `quickstart:ip:${clientIp(req)}`, 30, 60_000)) return
+    const body = quickstartSchema.parse(raw)
+    const name = body.name.trim() || 'Night Owl'
+    const ticker = (body.ticker.trim() || 'HOOT').replace(/^\$/, '').toUpperCase()
+    const description = body.description.trim() || 'An owl that only trades after midnight.'
+    const usedExample = !body.name.trim() && !body.ticker.trim() && !body.description.trim()
+    const seats = Math.min(maxCrewSeats({ hasAgentReferrer: false }), body.seats)
+    const registered = await listRegisteredHireBoosts()
+    const plan = planNarrativeHires({ name, ticker, vibe: description }, { limit: seats, registered })
+    const platformBps = platformBuybackBps(false)
+    const deskBps = MODE_DESK_BPS.agent
+    const crewPoolBps = 10_000 - platformBps - deskBps
+    const launchBody = { name, ticker, description, imageUrl: 'https://<your-public-image>.png', autoHire: true }
+    res.setHeader('Cache-Control', 'no-store')
+    res.json({
+      ok: true,
+      quickstart: true,
+      usedExample,
+      note: usedExample
+        ? 'No name/ticker/description given — showing an example. Pass ?name=&ticker=&description= (GET) or a JSON body (POST).'
+        : 'Preview only — nothing was created and no SOL was spent.',
+      coin: { name, ticker, description },
+      crew: plan.hires.map((h) => ({
+        handle: `@${h.kol.x || h.kol.pump}`,
+        wallet: h.kol.wallet,
+        sharePctOfCrewPool: h.share,
+        effectiveBps: Math.round((h.share / 100) * crewPoolBps),
+        registered: h.reasons.some((r) => /registered crew/i.test(r)),
+        reasons: h.reasons,
+      })),
+      feeMap: {
+        crewPoolBps,
+        agentBps: deskBps,
+        platformBps,
+        referredAlternative: '60/15/5/20 when your key was claimed with a KOL referral code',
+      },
+      costs: { minSol: MIN_LAUNCH_FEE_SOL, note: 'A real launch needs ≥0.02 SOL on your launcher wallet (+ optional initial buy).' },
+      disclaimer: AUTOHIRE_DISCLAIMER,
+      next: [
+        { step: 1, call: 'POST https://api.crewpay.dev/api/agent/keys/claim', body: {}, returns: 'crew_ak_… (store once)' },
+        {
+          step: 2,
+          call: 'POST https://api.crewpay.dev/api/agent/launch/dry-run',
+          headers: { 'x-crew-api-key': 'crew_ak_…' },
+          body: launchBody,
+          returns: 'final crew, fee map, cost — no SOL spent',
+        },
+        {
+          step: 3,
+          call: 'POST https://api.crewpay.dev/api/agent/launch',
+          headers: { 'x-crew-api-key': 'crew_ak_…', 'x-launcher-key': '<launcher secret, env only>' },
+          body: launchBody,
+          returns: 'mint + feeShareLocked (MAINNET, spends SOL)',
+        },
+      ],
+      mcp: { hosted: 'https://mcp.crewpay.dev/mcp', local: 'npx -y crewpay-mcp' },
+      docs: 'https://crewpay.dev/llms.txt',
+    })
+  } catch (err) {
+    res.status(400).json({ ok: false, error: errorMessage(err, 'quickstart failed'), issues: errorIssues(err) })
+  }
+}
+
+agentRouter.get('/agent/quickstart', (req, res) => {
+  void handleQuickstart(req.query as Record<string, unknown>, req, res)
+})
+agentRouter.post('/agent/quickstart', (req, res) => {
+  const raw = req.body && typeof req.body === 'object' ? (req.body as Record<string, unknown>) : {}
+  void handleQuickstart(raw, req, res)
 })
 
 /**
@@ -473,9 +579,12 @@ agentRouter.post('/agent/launch/dry-run', requireAgentApiKey, async (req, res) =
         : 'Approval is optional. Call POST /api/agent/launch with the same body (+ optional dryRunId). Operators can require human approval per key.',
     })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'dry-run failed'
+    const msg = errorMessage(err, 'dry-run failed')
     const status = /unauthorized|api key/i.test(msg) ? 401 : 400
-    res.status(status).json({ ok: false, error: msg })
+    const issues = errorIssues(err)
+    res
+      .status(status)
+      .json(issues ? { ok: false, error: msg, issues, example: AGENT_EXAMPLES.launch } : { ok: false, error: msg })
   }
 })
 
@@ -496,7 +605,7 @@ agentRouter.get('/agent/launch/dry-run/:id', async (req, res) => {
 agentRouter.post('/agent/launch/dry-run/:id/approve', async (req, res) => {
   try {
     const id = String(req.params.id || '')
-    if ((req.header('x-crew-api-key') || '').trim()) {
+    if (readAgentKeyHeader(req)) {
       res.status(403).json({
         ok: false,
         error:
@@ -537,7 +646,7 @@ agentRouter.post('/agent/launch/dry-run/:id/approve', async (req, res) => {
       tip: 'Dry-run approved. Call the matching spend endpoint with the same body + dryRunId.',
     })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'approve failed'
+    const msg = errorMessage(err, 'approve failed')
     const status =
       /allowlist|Approvals disabled|cannot approve|Launcher\/burner/i.test(msg) ? 403 : 400
     res.status(status).json({ ok: false, error: msg })
@@ -556,7 +665,7 @@ agentRouter.post('/agent/launch', requireAgentApiKey, async (req, res) => {
     try {
       idem = normalizeIdempotencyKey(req.header('x-idempotency-key') || undefined)
     } catch (err) {
-      res.status(400).json({ ok: false, error: err instanceof Error ? err.message : 'bad idempotency key' })
+      res.status(400).json({ ok: false, error: errorMessage(err, 'bad idempotency key') })
       return
     }
     if (idem) {
@@ -576,7 +685,7 @@ agentRouter.post('/agent/launch', requireAgentApiKey, async (req, res) => {
     } catch (err) {
       res.status(400).json({
         ok: false,
-        error: err instanceof Error ? err.message : 'dry-run gate failed',
+        error: errorMessage(err, 'dry-run gate failed'),
       })
       return
     }
@@ -586,7 +695,7 @@ agentRouter.post('/agent/launch', requireAgentApiKey, async (req, res) => {
     } catch (err) {
       res.status(400).json({
         ok: false,
-        error: err instanceof Error ? err.message : 'launcher key required',
+        error: errorMessage(err, 'launcher key required'),
       })
       return
     }
@@ -608,7 +717,7 @@ agentRouter.post('/agent/launch', requireAgentApiKey, async (req, res) => {
     } catch (err) {
       res.status(400).json({
         ok: false,
-        error: err instanceof Error ? err.message : 'dry-run gate failed',
+        error: errorMessage(err, 'dry-run gate failed'),
       })
       return
     }
@@ -722,10 +831,13 @@ agentRouter.post('/agent/launch', requireAgentApiKey, async (req, res) => {
     if (idem) setIdempotent(`launch:${fp}:${idem}`, status, payload)
     res.status(status).json(payload)
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'launch failed'
+    const msg = errorMessage(err, 'launch failed')
     // Never include header material; Zod issues are safe.
     const status = /unauthorized|launcher key|api key/i.test(msg) ? 401 : 400
-    res.status(status).json({ ok: false, error: msg })
+    const issues = errorIssues(err)
+    res
+      .status(status)
+      .json(issues ? { ok: false, error: msg, issues, example: AGENT_EXAMPLES.launch } : { ok: false, error: msg })
   }
 })
 
@@ -737,7 +849,7 @@ agentRouter.get('/agent/status/:mint', requireAgentApiKey, async (req, res) => {
     const status = await getAgentMintStatus(mintParam)
     res.json(status)
   } catch (err) {
-    res.status(400).json({ ok: false, error: err instanceof Error ? err.message : 'status failed' })
+    res.status(400).json({ ok: false, error: errorMessage(err, 'status failed') })
   }
 })
 
@@ -776,7 +888,7 @@ agentRouter.post('/agent/wire-fees', requireAgentApiKey, async (req, res) => {
     } catch (err) {
       res.status(400).json({
         ok: false,
-        error: err instanceof Error ? err.message : 'dry-run gate failed',
+        error: errorMessage(err, 'dry-run gate failed'),
       })
       return
     }
@@ -786,7 +898,7 @@ agentRouter.post('/agent/wire-fees', requireAgentApiKey, async (req, res) => {
     } catch (err) {
       res.status(400).json({
         ok: false,
-        error: err instanceof Error ? err.message : 'launcher key required',
+        error: errorMessage(err, 'launcher key required'),
       })
       return
     }
@@ -805,7 +917,7 @@ agentRouter.post('/agent/wire-fees', requireAgentApiKey, async (req, res) => {
     } catch (err) {
       res.status(400).json({
         ok: false,
-        error: err instanceof Error ? err.message : 'dry-run gate failed',
+        error: errorMessage(err, 'dry-run gate failed'),
       })
       return
     }
@@ -823,7 +935,7 @@ agentRouter.post('/agent/wire-fees', requireAgentApiKey, async (req, res) => {
     })
     res.status(201).json(result)
   } catch (err) {
-    res.status(400).json({ ok: false, error: err instanceof Error ? err.message : 'wire-fees failed' })
+    res.status(400).json({ ok: false, error: errorMessage(err, 'wire-fees failed') })
   }
 })
 
@@ -860,7 +972,7 @@ agentRouter.post('/agent/lock-holder-kol', requireAgentApiKey, async (req, res) 
   } catch (err) {
     res
       .status(400)
-      .json({ ok: false, error: err instanceof Error ? err.message : 'lock-holder-kol failed' })
+      .json({ ok: false, error: errorMessage(err, 'lock-holder-kol failed') })
   }
 })
 
@@ -906,7 +1018,7 @@ agentRouter.post('/agent/crank', requireAgentApiKey, async (req, res) => {
     }).catch(() => undefined)
     res.json(result)
   } catch (err) {
-    res.status(400).json({ ok: false, error: err instanceof Error ? err.message : 'crank failed' })
+    res.status(400).json({ ok: false, error: errorMessage(err, 'crank failed') })
   }
 })
 
@@ -941,7 +1053,7 @@ agentRouter.get('/agent/launches', requireAgentApiKey, async (req, res) => {
       })),
     })
   } catch (err) {
-    res.status(400).json({ ok: false, error: err instanceof Error ? err.message : 'list launches failed' })
+    res.status(400).json({ ok: false, error: errorMessage(err, 'list launches failed') })
   }
 })
 
@@ -951,7 +1063,7 @@ agentRouter.get('/agent/keys', requireAgentApiKey, async (req, res) => {
     const keys = await listAgentKeys(keyId ? { keyId } : undefined)
     res.json({ ok: true, scoped: Boolean(keyId), keys })
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : 'list keys failed' })
+    res.status(500).json({ error: errorMessage(err, 'list keys failed') })
   }
 })
 
@@ -1027,7 +1139,7 @@ agentRouter.post('/agent/keys/claim', async (req, res) => {
       } catch (err) {
         res.status(400).json({
           ok: false,
-          error: err instanceof Error ? err.message : 'Invalid referralCode',
+          error: errorMessage(err, 'Invalid referralCode'),
         })
         return
       }
@@ -1069,7 +1181,7 @@ agentRouter.post('/agent/keys/claim', async (req, res) => {
       ],
     })
   } catch (err) {
-    res.status(400).json({ ok: false, error: err instanceof Error ? err.message : 'claim key failed' })
+    res.status(400).json({ ok: false, error: errorMessage(err, 'claim key failed') })
   }
 })
 
@@ -1108,7 +1220,7 @@ agentRouter.post('/agent/keys', requireAgentApiKey, async (req, res) => {
       tip: 'Store the key once — it is not shown again.',
     })
   } catch (err) {
-    res.status(400).json({ error: err instanceof Error ? err.message : 'create key failed' })
+    res.status(400).json({ error: errorMessage(err, 'create key failed') })
   }
 })
 
@@ -1171,7 +1283,7 @@ agentRouter.post('/agent/keys/require-approval', requireAgentApiKey, async (req,
     } catch (err) {
       res.status(403).json({
         ok: false,
-        error: err instanceof Error ? err.message : 'not allowed',
+        error: errorMessage(err, 'not allowed'),
       })
       return
     }
@@ -1192,7 +1304,7 @@ agentRouter.post('/agent/keys/require-approval', requireAgentApiKey, async (req,
   } catch (err) {
     res.status(400).json({
       ok: false,
-      error: err instanceof Error ? err.message : 'set requireApproval failed',
+      error: errorMessage(err, 'set requireApproval failed'),
     })
   }
 })
@@ -1222,6 +1334,32 @@ agentRouter.delete('/agent/keys/:id', requireAgentApiKey, async (req, res) => {
     }
     res.json({ ok: true })
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : 'revoke failed' })
+    res.status(500).json({ error: errorMessage(err, 'revoke failed') })
   }
 })
+
+/**
+ * Agents often probe POST endpoints with GET (seen in logs as 404s).
+ * Answer with 405 + the exact call instead of a bare 404.
+ */
+const POST_ONLY = [
+  '/agent/autohire',
+  '/agent/launch',
+  '/agent/launch/dry-run',
+  '/agent/keys/claim',
+  '/agent/wire-fees',
+  '/agent/crank',
+  '/agent/lock-holder-kol',
+]
+for (const path of POST_ONLY) {
+  agentRouter.get(path, (_req, res) => {
+    res.setHeader('Allow', 'POST')
+    res.status(405).json({
+      ok: false,
+      error: `Use POST /api${path} (JSON body).`,
+      tryWithoutKey: 'GET https://api.crewpay.dev/api/agent/quickstart?name=Night%20Owl&ticker=HOOT&description=owl%20coin',
+      claimKey: 'POST https://api.crewpay.dev/api/agent/keys/claim',
+      docs: 'https://crewpay.dev/llms.txt',
+    })
+  })
+}
