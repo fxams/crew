@@ -8,7 +8,7 @@ import { formatSol } from '../lib/format-sol'
 import { useOwnRegisteredHandle } from '../lib/registered-kol'
 import { kolProfilePath } from '../lib/routes'
 
-const MCP_PIN = '1.2.5'
+const MCP_PIN = '1.2.6'
 
 const API = (
   (import.meta.env.VITE_CREW_API_URL as string | undefined)?.replace(/\/$/, '') ||
