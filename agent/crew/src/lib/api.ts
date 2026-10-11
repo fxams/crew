@@ -55,12 +55,8 @@ export async function pushCoin(
 }
 
 export async function pushRemits(remits: RemitRecord[]): Promise<number> {
-  if (!remits.length) return 0
-  const { saved } = await apiFetch<{ saved: number }>('/api/remits', {
-    method: 'POST',
-    body: JSON.stringify({ remits }),
-  })
-  return saved
+  // Browser does not persist remits to the API anymore; server ingests chain data itself.
+  return 0
 }
 
 export type ApiKol = {
