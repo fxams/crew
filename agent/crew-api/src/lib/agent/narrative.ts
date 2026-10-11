@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { equalShares, MAX_CREW, type HireRole } from './constants.js'
+import { autohireOptOuts, isOptedOut } from './optout.js'
 
 export type NarrativeTag =
   | 'meme'
@@ -208,8 +209,11 @@ export function planNarrativeHires(
     minFollowers?: number
     /** When present, matching handles get a large score boost and hire the registered wallet. */
     registered?: RegisteredHireBoost[]
+    /** Handles never to hire (defaults to data/autohire-optout.json + AUTOHIRE_EXCLUDE_HANDLES). */
+    optOut?: Set<string>
   },
 ): NarrativeHirePlan {
+  const optOut = opts?.optOut ?? autohireOptOuts()
   const registeredFirst =
     (process.env.AUTOHIRE_REGISTERED_FIRST || 'true').toLowerCase() === 'true'
   const limit = Math.max(1, Math.min(MAX_CREW, opts?.limit ?? 5))
@@ -242,7 +246,8 @@ export function planNarrativeHires(
     (kol) =>
       kol.followers >= minFollowers &&
       !JUNK_USER.test(kol.pump) &&
-      kol.wallet.length >= 32,
+      kol.wallet.length >= 32 &&
+      !isOptedOut([kol.pump, kol.x, ...(kol.aliases || [])], optOut),
   )
     .map((kol) => {
       let score = 0
@@ -413,6 +418,7 @@ export function planNarrativeHires(
   for (const r of opts?.registered || []) {
     const handle = r.handle.replace(/^@+/, '').toLowerCase()
     if (!handle || knownHandles.has(handle)) continue
+    if (isOptedOut([handle], optOut)) continue
     if (!r.wallet || r.wallet.length < 32) continue
     const id = `reg:${handle}`
     const kol: KolRecord = {
