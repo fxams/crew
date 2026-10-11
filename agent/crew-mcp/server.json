@@ -2,13 +2,13 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.fxams/crewpay-mcp",
   "title": "CREW / CrewPay",
-  "description": "Solana Pump.fun + KOL Autohire fee-shares (60/15/25). Approval optional. Buyback not live.",
+  "description": "Solana Pump.fun + KOL Autohire fee-shares (60/15/25 or 60/15/5/20 with referral). Approval optional. Buyback not live.",
   "repository": {
     "url": "https://github.com/fxams/crew",
     "source": "github",
     "subdirectory": "agent/crew-mcp"
   },
-  "version": "1.2.4",
+  "version": "1.2.5",
   "remotes": [
     {
       "type": "streamable-http",
@@ -27,7 +27,7 @@
     {
       "registryType": "npm",
       "identifier": "crewpay-mcp",
-      "version": "1.2.4",
+      "version": "1.2.5",
       "transport": {
         "type": "stdio"
       },
@@ -49,6 +49,13 @@
         {
           "name": "CREW_API_URL",
           "description": "API base URL (default https://api.crewpay.dev)",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "CREWPAY_REFERRAL_CODE",
+          "description": "Optional KOL referral code used by crew_claim_key when referral_code arg omitted",
           "isRequired": false,
           "format": "string",
           "isSecret": false

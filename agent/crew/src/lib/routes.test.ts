@@ -6,7 +6,10 @@ import {
   isKolsPath,
   isLaunchPath,
   isProofPath,
+  isReferralPath,
   isRegisterPath,
+  referralCodeFromPath,
+  referralInvitePath,
 } from "./routes";
 
 describe("isLaunchPath", () => {
@@ -54,6 +57,15 @@ describe("isRegisterPath", () => {
     expect(isRegisterPath("/register/")).toBe(true);
     expect(isRegisterPath("/kols")).toBe(false);
     expect(isRegisterPath("/")).toBe(false);
+  });
+});
+
+describe("referral invite paths", () => {
+  it("parses /r/<code>", () => {
+    expect(isReferralPath("/r/coolkol")).toBe(true);
+    expect(referralCodeFromPath("/r/CoolKOL")).toBe("coolkol");
+    expect(referralInvitePath("CoolKOL")).toBe("/r/coolkol");
+    expect(isReferralPath("/register")).toBe(false);
   });
 });
 

@@ -128,7 +128,8 @@
         "tags": [
           "agent"
         ],
-        "summary": "Dry-run launch plan (no on-chain tx, mainnet costs estimated)",
+        "summary": "Create a dry-run plan + dryRunId (optional human approval). No on-chain spend.",
+        "description": "Returns `dryRunId`, `approvalUrl` (site `/approve/{dryRunId}`), plan, and `expiresAt`. Approval is optional. Operators can require human approval per key (`requireApproval`). When required, approve with `CREWPAY_APPROVER_WALLETS` only — never the launcher/burner. `launcherPubkey` is required when requireApproval is true. Pass `intent: \"wire-fees\"` for fee-share wiring.",
         "operationId": "postAgentLaunchDryRun",
         "security": [
           {
@@ -147,7 +148,14 @@
         },
         "responses": {
           "200": {
-            "description": "Validated plan + fee map + warnings"
+            "description": "Validated plan + dryRunId + approvalUrl",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DryRunResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Validation error"
@@ -158,12 +166,84 @@
         }
       }
     },
+    "/api/agent/launch/dry-run/{id}": {
+      "get": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Read a dry-run plan (public; used by the human approval page)",
+        "description": "Returns plan status: approved, consumed, expiresAt, imageSha256, and plan details. No secrets.",
+        "operationId": "getAgentLaunchDryRun",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "dryRunId from POST /api/agent/launch/dry-run"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dry-run public view",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DryRunPublicView"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or expired dryRunId"
+          }
+        }
+      }
+    },
+    "/api/agent/launch/dry-run/{id}/approve": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Human-approve a dry-run with an allowlisted wallet signature",
+        "description": "Wallet SIWS-style headers: `x-crew-wallet`, `x-crew-timestamp`, `x-crew-signature`, `x-crew-dry-run-id` (message `crew-approve-dry-run:{id}:{ts}`). Rejects agent API keys, approve tokens, the launcher/burner pubkey on the dry-run, unknown wallets, and empty allowlists. Allowlist = `CREWPAY_APPROVER_WALLETS` only (agent-set ownerWallet is ignored).",
+        "operationId": "postAgentLaunchDryRunApprove",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "dryRunId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Approved — proceed to launch or wire-fees with same body + dryRunId"
+          },
+          "400": {
+            "description": "Unknown/expired dryRunId or already consumed"
+          },
+          "401": {
+            "description": "Missing/invalid wallet signature"
+          },
+          "403": {
+            "description": "Wallet not allowlisted, launcher/burner self-approval, empty allowlist, or agent API key used"
+          }
+        }
+      }
+    },
     "/api/agent/launch": {
       "post": {
         "tags": [
           "agent"
         ],
         "summary": "Launch Pump coin with CREW fee-shares (mainnet)",
+        "description": "Approval is optional. Operators can require human approval per key. When requireApproval is false (default), dryRunId is optional. When true, requires an approved unused dryRunId with matching body/image hash and launcherPubkey.",
         "operationId": "postAgentLaunch",
         "security": [
           {
@@ -202,7 +282,7 @@
         "tags": [
           "agent"
         ],
-        "summary": "Self-serve mint a crew_ak_… API key (no operator bootstrap)",
+        "summary": "Self-serve mint a crew_ak_… API key (optional referralCode)",
         "operationId": "postAgentKeysClaim",
         "requestBody": {
           "required": false,
@@ -224,6 +304,12 @@
                   "model": {
                     "type": "string",
                     "maxLength": 48
+                  },
+                  "referralCode": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 24,
+                    "description": "KOL referral code (crewpay.dev/r/<code>). Bound permanently; referred launches use fee map 60/15/5/20."
                   }
                 }
               }
@@ -234,8 +320,58 @@
           "201": {
             "description": "crew_ak_… key shown once (default 5 launches/hour)"
           },
+          "400": {
+            "description": "Invalid/unknown referralCode"
+          },
           "429": {
             "description": "IP claim rate limit (5/hour)"
+          }
+        }
+      }
+    },
+    "/api/kol/referrals": {
+      "get": {
+        "tags": [
+          "kol"
+        ],
+        "summary": "KOL referral dashboard (referred agents, launches, fees)",
+        "operationId": "getKolReferrals",
+        "description": "Requires Phantom signature of crew-kol-referrals:<wallet>:<timestamp> via x-crew-wallet, x-crew-timestamp, x-crew-signature.",
+        "parameters": [
+          {
+            "name": "x-crew-wallet",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-crew-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-crew-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Referral stats for the signed KOL wallet"
+          },
+          "401": {
+            "description": "Missing/invalid wallet signature"
+          },
+          "404": {
+            "description": "Wallet not a registered KOL"
           }
         }
       }
@@ -827,6 +963,166 @@
             "type": "boolean",
             "default": false,
             "description": "When true, refuse sequential create→lock fallback (same as CREW_ATOMIC_REQUIRED=1)."
+          },
+          "launcherPubkey": {
+            "type": "string",
+            "description": "Required on dry-run. Burner pubkey that must match x-launcher-key at spend time. Cannot approve."
+          },
+          "dryRunId": {
+            "type": "string",
+            "description": "Required on spend endpoints — id from POST /api/agent/launch/dry-run after human approval."
+          },
+          "intent": {
+            "type": "string",
+            "enum": [
+              "launch",
+              "wire-fees"
+            ],
+            "description": "Dry-run intent (default launch). Use wire-fees for fee-share wiring."
+          }
+        }
+      },
+      "DryRunResponse": {
+        "type": "object",
+        "required": [
+          "dryRunId",
+          "approvalUrl",
+          "expiresAt"
+        ],
+        "properties": {
+          "dryRunId": {
+            "type": "string",
+            "description": "Opaque id — pass to launch/wire-fees after wallet approval."
+          },
+          "approvalUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "Human approval page on the site. Connect an allowlisted wallet and sign; agents cannot self-approve."
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "imageSha256": {
+            "type": "string",
+            "description": "Bound image content hash (launch intent)."
+          },
+          "tip": {
+            "type": "string"
+          },
+          "feeMap": {
+            "type": "object",
+            "properties": {
+              "platformBuybackBps": {
+                "type": "integer"
+              },
+              "deskBps": {
+                "type": "integer"
+              },
+              "crewPoolBps": {
+                "type": "integer"
+              },
+              "referrerBps": {
+                "type": "integer",
+                "description": "500 when the agent key is referred"
+              }
+            }
+          },
+          "referral": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Agent-key referrer written into on-chain fee-share when bound at claim",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "wallet": {
+                "type": "string"
+              },
+              "handle": {
+                "type": "string"
+              },
+              "bps": {
+                "type": "integer"
+              }
+            }
+          },
+          "shareholders": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "wallet": {
+                  "type": "string"
+                },
+                "bps": {
+                  "type": "integer"
+                },
+                "role": {
+                  "type": "string"
+                },
+                "handle": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "DryRunPublicView": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "dryRunId": {
+            "type": "string"
+          },
+          "intent": {
+            "type": "string",
+            "enum": [
+              "launch",
+              "wire-fees"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "approved": {
+            "type": "boolean"
+          },
+          "approvedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "approvedByWallet": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "consumed": {
+            "type": "boolean"
+          },
+          "imageSha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "plan": {
+            "type": "object",
+            "additionalProperties": true
           }
         }
       }

@@ -1,6 +1,8 @@
 import { Router, type Request } from 'express'
 import { z } from 'zod'
 import { takeRateLimit } from '../lib/agent/rate-limit.js'
+import { AGENT_REFERRAL_BPS } from '../lib/agent/constants.js'
+import { getKolReferralStats } from '../lib/agent-referral.js'
 import {
   beginXAuth,
   completeXCallback,
@@ -22,6 +24,7 @@ import {
   listMentionDrafts,
   setMentionDraftStatus,
 } from '../lib/kol-mentions.js'
+import { kolReferralsWalletFresh } from '../lib/wallet-auth.js'
 
 export const kolRegisterRouter = Router()
 
@@ -41,7 +44,10 @@ kolRegisterRouter.get('/kols/register/status', (_req, res) => {
     requires: ['solana wallet signature', 'x oauth'],
     referral: {
       cutPct: KOL_REFERRAL_CUT_PCT,
-      note: 'Every registered KOL gets a referral code. Direct referrals only — 5% of the referred KOL seat when they are hired.',
+      cutBps: AGENT_REFERRAL_BPS,
+      linkPattern: `${siteUrl()}/r/<code>`,
+      note:
+        'Every registered KOL gets a referral code + link (crewpay.dev/r/<code>). Agents that claim a key with your code permanently bind you as referrer — referred launches split fees 60% crew / 15% agent / 5% you / 20% treasury (non-referred stay 60/15/25). Buyback cron is NOT live.',
       points: {
         register: REFERRAL_POINTS_REGISTER,
         hire: REFERRAL_POINTS_HIRE,
@@ -51,6 +57,46 @@ kolRegisterRouter.get('/kols/register/status', (_req, res) => {
       },
     },
   })
+})
+
+/**
+ * KOL-authed referral dashboard: referred agents, launches, fees earned.
+ * Auth: sign `crew-kol-referrals:<wallet>:<timestamp>` (Phantom) →
+ * headers x-crew-wallet, x-crew-timestamp, x-crew-signature.
+ */
+kolRegisterRouter.get('/kol/referrals', async (req, res) => {
+  try {
+    const ip = clientIp(req)
+    const gate = takeRateLimit(`kol:referrals:${ip}`, { limit: 30, windowMs: 60_000 })
+    if (!gate.ok) {
+      res.setHeader('Retry-After', String(gate.retryAfterSec))
+      res.status(429).json({ ok: false, error: 'Slow down and retry.' })
+      return
+    }
+    const signed = kolReferralsWalletFresh(req)
+    if (!signed) {
+      res.status(401).json({
+        ok: false,
+        error:
+          'KOL wallet signature required. Sign message crew-kol-referrals:<wallet>:<timestamp> and send x-crew-wallet, x-crew-timestamp, x-crew-signature.',
+      })
+      return
+    }
+    const stats = await getKolReferralStats(signed.wallet)
+    if (!stats) {
+      res.status(404).json({
+        ok: false,
+        error: 'Wallet is not a registered KOL — complete /register first.',
+      })
+      return
+    }
+    res.json({ ok: true, ...stats })
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      error: err instanceof Error ? err.message : 'referrals lookup failed',
+    })
+  }
 })
 
 /** Lookup direct referrer wallets for hired crew handles (fee-share preview). */

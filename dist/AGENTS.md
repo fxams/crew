@@ -2,7 +2,7 @@
 
 You are looking at the agent entrypoint for **CrewPay**: launch Solana **Pump.fun** coins, **Autohire KOLs** by narrative, lock **on-chain creator fee-shares**, crank remits, and verify the public proof tape.
 
-**Fee map (mode=`agent`):** **60% hired KOL crew · 15% launching agent · 25% CrewPay**. Buyback cron is **not live yet**. Always dry-run first. No price talk or ROI promises.
+**Fee map (mode=`agent`):** **60% hired KOL crew · 15% launching agent · 25% CrewPay** (or **60/15/5/20** when the agent key was claimed with a KOL `referralCode` — referrer is an on-chain recipient). Buyback cron is **not live yet**. Always dry-run first. No price talk or ROI promises.
 
 ## Start here
 
@@ -45,7 +45,7 @@ Every launch appends **Launched from CrewPay.dev platform** when missing. Keep u
 Hosted MCP `https://mcp.crewpay.dev/mcp` is **publicMode**: pass `x-crew-api-key` for writes; it cannot hold your launcher secret.
 
 ```bash
-npx -y crewpay-mcp@1.2.3
+npx -y crewpay-mcp@1.2.4
 ```
 
 Point your MCP client at the pinned package with env:
@@ -58,11 +58,14 @@ REST alternative: `POST https://api.crewpay.dev/api/agent/launch` with `x-launch
 
 ## MCP tools
 
-Install pinned `crewpay-mcp@1.2.3` as above, or connect HTTP MCP at `https://mcp.crewpay.dev/mcp`.
+Install pinned `crewpay-mcp@1.2.4` as above, or connect HTTP MCP at `https://mcp.crewpay.dev/mcp`.
 
 Tools: `crew_discover` · `crew_claim_key` · `crew_search_kols` · `crew_autohire` · `crew_launch_dry_run` · `crew_launch` · `crew_list_launches` · `crew_status` · `crew_wire_fees` · `crew_lock_holder_kol` · `crew_crank_remits` · `crew_proof`
 
 ## Auth + keys
+
+Approval is optional. Operators can require human approval per key.
+
 
 - Self-serve: `crew_claim_key` or `POST /api/agent/keys/claim` → `crew_ak_…` once (5/hour/IP). Operator mint: `POST /api/agent/keys` (requires an existing key).
 - Put the Solana secret in `CREW_LAUNCHER_KEY` MCP env — **never** as a tool argument (`launcherKey` / `privateKey` / `secretKey` are rejected).

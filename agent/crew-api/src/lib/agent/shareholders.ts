@@ -1,8 +1,9 @@
 import { PublicKey } from '@solana/web3.js'
 import {
+  AGENT_REFERRAL_BPS,
   getPlatformBuybackWallet,
   MODE_DESK_BPS,
-  PLATFORM_BUYBACK_BPS,
+  platformBuybackBps,
   PUMP_MAX_SHAREHOLDERS,
   REFERRAL_CUT_BPS,
   type DeskMode,
@@ -16,6 +17,12 @@ export type Shareholder = {
   handle?: string
   /** When role=referral, fold bps back to this KOL wallet if over Pump's cap. */
   foldToWallet?: string
+}
+
+export type AgentReferrerInput = {
+  wallet: string
+  handle?: string
+  code?: string
 }
 
 export function assertWallet(value: string): string {
@@ -51,10 +58,18 @@ function mergeShare(
   const existing = out.find((s) => s.wallet === wallet)
   if (existing) {
     existing.bps += bps
-    if (role === 'platform' || role === 'desk') {
-      existing.role = role
-      if (handle) existing.handle = handle
-    } else if (role && existing.role !== 'platform' && existing.role !== 'desk') {
+    if (role === 'platform' || role === 'desk' || role === 'agent-referral') {
+      // Keep primary fee-map roles visible when a wallet wears two hats.
+      if (existing.role !== 'platform') {
+        existing.role = role
+        if (handle) existing.handle = handle
+      }
+    } else if (
+      role &&
+      existing.role !== 'platform' &&
+      existing.role !== 'desk' &&
+      existing.role !== 'agent-referral'
+    ) {
       existing.role = role
       if (handle) existing.handle = handle
     }
@@ -163,15 +178,30 @@ export function buildCrewShareholders(
   opts: {
     deskWallet: string
     platformWallet?: string
+    /** Legacy KOL→KOL seat carve (5% of hired KOL seat). */
     referralCuts?: ReferralCutInput[]
+    /** Agent-key referrer — 5% of total fees (from treasury). */
+    agentReferrer?: AgentReferrerInput | null
   },
 ): Shareholder[] {
   const deskWallet = assertWallet(opts.deskWallet)
   const platformWallet = assertWallet(opts.platformWallet || getPlatformBuybackWallet())
-  const platformBps = PLATFORM_BUYBACK_BPS
+  let agentReferrerWallet: string | null = null
+  let agentReferrerHandle = '@referrer'
+  if (opts.agentReferrer?.wallet) {
+    agentReferrerWallet = assertWallet(opts.agentReferrer.wallet)
+    if (opts.agentReferrer.handle) {
+      agentReferrerHandle = opts.agentReferrer.handle.startsWith('@')
+        ? opts.agentReferrer.handle
+        : `@${opts.agentReferrer.handle}`
+    }
+  }
+
+  const platformBps = platformBuybackBps(Boolean(agentReferrerWallet))
+  const agentReferralBps = agentReferrerWallet ? AGENT_REFERRAL_BPS : 0
   const deskBps = MODE_DESK_BPS[mode]
-  const crewPoolBps = 10_000 - platformBps - deskBps
-  if (crewPoolBps < 0) throw new Error('Platform + desk reserves exceed 100% of fees.')
+  const crewPoolBps = 10_000 - platformBps - agentReferralBps - deskBps
+  if (crewPoolBps < 0) throw new Error('Platform + desk + referral reserves exceed 100% of fees.')
 
   const raw = crew.map((m) => ({
     handle: m.handle,
@@ -193,6 +223,10 @@ export function buildCrewShareholders(
 
   const staged: Shareholder[] = []
   staged.push({ wallet: platformWallet, bps: platformBps, role: 'platform', handle: '@crew-buyback' })
+  if (agentReferrerWallet && agentReferralBps > 0) {
+    // Keep as its own recipient; mergeShare if same wallet as desk/crew (dual role OK).
+    mergeShare(staged, agentReferrerWallet, agentReferralBps, 'agent-referral', agentReferrerHandle)
+  }
   if (deskBps > 0) {
     mergeShare(staged, deskWallet, deskBps, 'desk', mode === 'agent' ? '@agent' : '@desk')
   }
@@ -214,6 +248,27 @@ export function buildCrewShareholders(
   const total = out.reduce((s, r) => s + r.bps, 0)
   if (total !== 10_000) throw new Error(`Shareholder bps must total 10000 (got ${total}).`)
   return out
+}
+
+/** Handles in crew that also match the agent referrer wallet (dual-role log). */
+export function agentReferrerDualRoleHandles(
+  crew: CrewMember[],
+  agentReferrerWallet: string | null | undefined,
+): string[] {
+  if (!agentReferrerWallet) return []
+  let ref: string
+  try {
+    ref = assertWallet(agentReferrerWallet)
+  } catch {
+    return []
+  }
+  return crew.filter((m) => {
+    try {
+      return assertWallet(m.wallet) === ref
+    } catch {
+      return false
+    }
+  }).map((m) => m.handle)
 }
 
 export function normalizeCrew(

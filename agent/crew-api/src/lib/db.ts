@@ -249,4 +249,22 @@ export async function migrate(): Promise<void> {
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['008_require_approval'],
   )
+  // Agent-key referral: KOL code bound at claim-key (immutable).
+  await query(`
+    DO $mig$
+    BEGIN
+      IF to_regclass('public.agent_keys') IS NOT NULL THEN
+        ALTER TABLE agent_keys ADD COLUMN IF NOT EXISTS referral_code TEXT;
+      END IF;
+    END
+    $mig$;
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS agent_keys_referral_code_idx
+      ON agent_keys (lower(referral_code)) WHERE referral_code IS NOT NULL
+  `)
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['009_agent_key_referral'],
+  )
 }

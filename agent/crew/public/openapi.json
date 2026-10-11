@@ -282,7 +282,7 @@
         "tags": [
           "agent"
         ],
-        "summary": "Self-serve mint a crew_ak_… API key (no operator bootstrap)",
+        "summary": "Self-serve mint a crew_ak_… API key (optional referralCode)",
         "operationId": "postAgentKeysClaim",
         "requestBody": {
           "required": false,
@@ -304,6 +304,12 @@
                   "model": {
                     "type": "string",
                     "maxLength": 48
+                  },
+                  "referralCode": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 24,
+                    "description": "KOL referral code (crewpay.dev/r/<code>). Bound permanently; referred launches use fee map 60/15/5/20."
                   }
                 }
               }
@@ -314,8 +320,58 @@
           "201": {
             "description": "crew_ak_… key shown once (default 5 launches/hour)"
           },
+          "400": {
+            "description": "Invalid/unknown referralCode"
+          },
           "429": {
             "description": "IP claim rate limit (5/hour)"
+          }
+        }
+      }
+    },
+    "/api/kol/referrals": {
+      "get": {
+        "tags": [
+          "kol"
+        ],
+        "summary": "KOL referral dashboard (referred agents, launches, fees)",
+        "operationId": "getKolReferrals",
+        "description": "Requires Phantom signature of crew-kol-referrals:<wallet>:<timestamp> via x-crew-wallet, x-crew-timestamp, x-crew-signature.",
+        "parameters": [
+          {
+            "name": "x-crew-wallet",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-crew-timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-crew-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Referral stats for the signed KOL wallet"
+          },
+          "401": {
+            "description": "Missing/invalid wallet signature"
+          },
+          "404": {
+            "description": "Wallet not a registered KOL"
           }
         }
       }
@@ -953,6 +1009,65 @@
           },
           "tip": {
             "type": "string"
+          },
+          "feeMap": {
+            "type": "object",
+            "properties": {
+              "platformBuybackBps": {
+                "type": "integer"
+              },
+              "deskBps": {
+                "type": "integer"
+              },
+              "crewPoolBps": {
+                "type": "integer"
+              },
+              "referrerBps": {
+                "type": "integer",
+                "description": "500 when the agent key is referred"
+              }
+            }
+          },
+          "referral": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Agent-key referrer written into on-chain fee-share when bound at claim",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "wallet": {
+                "type": "string"
+              },
+              "handle": {
+                "type": "string"
+              },
+              "bps": {
+                "type": "integer"
+              }
+            }
+          },
+          "shareholders": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "wallet": {
+                  "type": "string"
+                },
+                "bps": {
+                  "type": "integer"
+                },
+                "role": {
+                  "type": "string"
+                },
+                "handle": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       },

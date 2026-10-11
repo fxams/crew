@@ -3,10 +3,12 @@ import { z } from 'zod'
 import { apiKeyFingerprint, clientIp, requireAgentApiKey } from '../lib/auth.js'
 import {
   createAgentKey,
+  getOwnerWalletByKeyId,
   listAgentKeys,
   revokeAgentKey,
   setAgentKeyRequireApproval,
 } from '../lib/agent-keys.js'
+import { agentReferralLink, resolveAgentReferrer } from '../lib/agent-referral.js'
 import { normalizeWallet, parseApproverAllowlist } from '../lib/agent/approver.js'
 import {
   assertMaySetRequireApproval,
@@ -405,8 +407,12 @@ agentRouter.post('/agent/launch/dry-run', requireAgentApiKey, async (req, res) =
       return
     }
     const imageSha256 = await resolveLaunchImageSha(body)
+    const agentKeyId = req.crewAgentAuth?.keyId
+    const ownerWallet = agentKeyId ? await getOwnerWalletByKeyId(agentKeyId) : null
     const result = await dryRunLaunchForAgent(bodyToLaunchInput(body), {
       launcherPubkey: launcherPubkey || undefined,
+      agentKeyId,
+      ownerWallet,
     })
     const bodyHash = hashLaunchBody(body as unknown as Record<string, unknown>, imageSha256)
     const rec = await createDryRun({
@@ -571,13 +577,17 @@ agentRouter.post('/agent/launch', requireAgentApiKey, async (req, res) => {
       })
       return
     }
-    let result = await launchForAgent(bodyToLaunchInput(body), launcher)
+    const agentKeyId = req.crewAgentAuth?.keyId
+    const ownerWallet = agentKeyId ? await getOwnerWalletByKeyId(agentKeyId) : null
+    let result = await launchForAgent(bodyToLaunchInput(body), launcher, {
+      agentKeyId,
+      ownerWallet,
+    })
     if (!result.ok) {
       res.status(400).json(result)
       return
     }
 
-    const agentKeyId = req.crewAgentAuth?.keyId
     // Persist to CREW board (best-effort) — stamp agent_key_id for launch history.
     try {
       await upsertCoin({
@@ -918,6 +928,7 @@ agentRouter.post('/agent/keys/claim', async (req, res) => {
         label: z.string().min(2).max(64).default('agent'),
         agentName: z.string().min(2).max(48).optional(),
         model: z.string().min(1).max(48).optional(),
+        referralCode: z.string().min(2).max(24).optional(),
       })
       .parse(req.body ?? {})
     if (
@@ -932,6 +943,20 @@ agentRouter.post('/agent/keys/claim', async (req, res) => {
       })
       return
     }
+    let referralCode: string | null = null
+    let referrer: Awaited<ReturnType<typeof resolveAgentReferrer>> | null = null
+    if (body.referralCode?.trim()) {
+      try {
+        referrer = await resolveAgentReferrer(body.referralCode)
+        referralCode = referrer.code
+      } catch (err) {
+        res.status(400).json({
+          ok: false,
+          error: err instanceof Error ? err.message : 'Invalid referralCode',
+        })
+        return
+      }
+    }
     const parts = [body.label]
     if (body.agentName) parts.push(body.agentName)
     if (body.model) parts.push(body.model)
@@ -939,12 +964,22 @@ agentRouter.post('/agent/keys/claim', async (req, res) => {
     const created = await createAgentKey({
       label,
       launchesPerHour: 5,
+      referralCode,
     })
     res.status(201).json({
       ok: true,
       key: created.key,
       row: created.row,
-      tip: 'Store crew_ak_… once — it is not shown again. Pass as x-crew-api-key for writes. Launcher SOL stays in your wallet via x-launcher-key / CREW_LAUNCHER_KEY. Approval is optional (requireApproval defaults false). Operators can require human approval per key.',
+      referral: referrer
+        ? {
+            code: referrer.code,
+            handle: referrer.handle,
+            wallet: referrer.wallet,
+            link: agentReferralLink(referrer.code),
+            note: 'Bound permanently on this key — referred launches use fee map 60/15/5/20 (crew/agent/referrer/treasury).',
+          }
+        : null,
+      tip: 'Store crew_ak_… once — it is not shown again. Pass as x-crew-api-key for writes. Launcher SOL stays in your wallet via x-launcher-key / CREW_LAUNCHER_KEY. Approval is optional (requireApproval defaults false). Operators can require human approval per key. Pass referralCode at claim to bind a KOL referrer (immutable).',
       next: [
         'POST /api/agent/autohire with x-crew-api-key',
         'POST /api/agent/launch with x-crew-api-key + x-launcher-key (optional dry-run first)',

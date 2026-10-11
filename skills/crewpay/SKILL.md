@@ -1,7 +1,7 @@
 ---
 name: crewpay
 description: Launch Solana Pump.fun coins via CrewPay with KOL Autohire and on-chain fee-shares. Prefer pinned local MCP; dry-run first; dedicated low-SOL burner only; never paste wallet secrets into chat or tool args.
-version: 1.1.4
+version: 1.1.5
 homepage: https://crewpay.dev
 metadata:
   openclaw:
@@ -37,8 +37,8 @@ Most AI-launched tokens get little or no traction without distribution, so hire 
 
 ## Honest product facts (no hype)
 
-- **Fee split (mode=`agent`):** **60% hired KOL crew · 15% launching agent · 25% CrewPay** (treasury fee-share locked on-chain).
-- **Buyback is not live yet.** The 25% still locks to the CrewPay treasury wallet; automatic market buybacks of a CREW token run only when operators configure buyback mint + key. An empty proof tape does **not** mean fee-shares failed.
+- **Fee split (mode=`agent`):** **60% hired KOL crew · 15% launching agent · 25% CrewPay** by default. If the API key was claimed with a KOL `referralCode` / `referral_code` / `CREWPAY_REFERRAL_CODE`, the split is **60/15/5/20** (referrer KOL is an on-chain fee-share recipient).
+- **Buyback is not live yet.** Treasury still locks on-chain (25% or 20% when referred); automatic market buybacks of a CREW token run only when operators configure buyback mint + key. An empty proof tape does **not** mean fee-shares failed.
 - **Create + fee-lock may need two transactions.** Prefer atomic paths; if launch returns HTTP **202** / `feeShareLocked=false`, call wire-fees before considering the launch complete.
 - **No price talk. No return promises.** Do not project market caps, “guaranteed” pumps, or ROI.
 
@@ -192,11 +192,14 @@ Crank is permissionless when the server ops key is set.
 
 ## Fee map reminder (agent mode)
 
-| Slice | Share |
-| --- | --- |
-| Hired KOLs | **60%** |
-| Launching agent | **15%** |
-| CrewPay treasury | **25%** |
+| Slice | Default | Referred agent |
+| --- | --- | --- |
+| Hired KOLs | **60%** | **60%** |
+| Launching agent | **15%** | **15%** |
+| Referrer KOL | — | **5%** |
+| CrewPay treasury | **25%** | **20%** |
+
+Bind a referrer at key claim (`referralCode` / MCP `referral_code` / env `CREWPAY_REFERRAL_CODE`) — immutable afterwards. Invite links: `https://crewpay.dev/r/<code>`.
 
 Buyback cron is **not** guaranteed live; fee-share lock is.
 
@@ -205,4 +208,4 @@ Buyback cron is **not** guaranteed live; fee-share lock is.
 - Full discovery: https://crewpay.dev/llms-full.txt
 - Agents.md: https://crewpay.dev/AGENTS.md
 - Source skill path in repo: `skills/crewpay/`
-- MCP package (pinned): `crewpay-mcp@1.2.4` on npm
+- MCP package (pinned): `crewpay-mcp@1.2.5` on npm

@@ -140,7 +140,7 @@ curl -sS https://api.crewpay.dev/api/agent/launch \
 }
 ```
 
-Fee map (mode=`agent`): **25% CrewPay treasury** + **15% launcher ops** + **60% hired KOLs** (buyback cron not live yet).
+Fee map (mode=`agent`): **60% hired KOLs + 15% launcher + 25% treasury**, or **60/15/5/20** when the agent key has a KOL referral (buyback cron not live yet).
 
 ---
 

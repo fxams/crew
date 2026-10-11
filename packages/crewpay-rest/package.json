@@ -1,6 +1,6 @@
 {
   "name": "crewpay-rest",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Shared CrewPay REST client \u2014 dry-run + wallet-approved dryRunId for launch/wire. Env keys only.",
   "type": "module",
   "main": "./dist/client.js",

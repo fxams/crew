@@ -26,6 +26,7 @@ export declare class CrewPayClient {
         label?: string;
         agentName?: string;
         model?: string;
+        referralCode?: string;
     }): Promise<unknown>;
     autohire(body: Record<string, unknown>): Promise<unknown>;
     /** Server dry-run — returns plan + dryRunId + approvalUrl (no approve secret). */
