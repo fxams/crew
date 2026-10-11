@@ -13,6 +13,9 @@ import {
 const OPERATOR = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
 const UNKNOWN = 'So11111111111111111111111111111111111111112'
 const LAUNCHER = '11111111111111111111111111111111'
+const OTHER_LAUNCHER = 'SysvarRent111111111111111111111111111111111'
+/** Agent-claimed "owner" — must not be able to self-approve. */
+const FAKE_OWNER = 'SysvarC1ock11111111111111111111111111111111'
 
 describe('dry-run-store', () => {
   beforeEach(() => {
@@ -61,6 +64,7 @@ describe('dry-run-store', () => {
         intent: 'launch',
         bodyHash,
         imageSha256: imageSha,
+        launcherPubkey: LAUNCHER,
       }),
     ).rejects.toThrow(/not approved/)
 
@@ -72,6 +76,7 @@ describe('dry-run-store', () => {
         intent: 'launch',
         bodyHash,
         imageSha256: 'c'.repeat(64),
+        launcherPubkey: LAUNCHER,
       }),
     ).rejects.toThrow(/Image content/)
 
@@ -81,6 +86,7 @@ describe('dry-run-store', () => {
       intent: 'launch',
       bodyHash,
       imageSha256: imageSha,
+      launcherPubkey: LAUNCHER,
     })
     expect(used.consumedAt).toBeTruthy()
     expect(used.approvedByWallet).toBe(OPERATOR)
@@ -95,6 +101,7 @@ describe('dry-run-store', () => {
       bodyHash,
       imageSha256: null,
       plan: { mint: 'MintWire1' },
+      launcherPubkey: LAUNCHER,
     })
     await approveDryRunWithWallet(rec.id, OPERATOR)
     await expect(
@@ -103,6 +110,7 @@ describe('dry-run-store', () => {
         apiKeyFp: 'fp1',
         intent: 'launch',
         bodyHash,
+        launcherPubkey: LAUNCHER,
       }),
     ).rejects.toThrow(/intent/)
     const used = await consumeApprovedDryRun({
@@ -110,6 +118,7 @@ describe('dry-run-store', () => {
       apiKeyFp: 'fp1',
       intent: 'wire-fees',
       bodyHash,
+      launcherPubkey: LAUNCHER,
     })
     expect(used.intent).toBe('wire-fees')
   })
@@ -124,9 +133,25 @@ describe('dry-run-store', () => {
       launcherPubkey: LAUNCHER,
       plan: { ok: true },
     })
-    // Even if somehow listed, launcher is always rejected — also not in allowlist here.
     await expect(approveDryRunWithWallet(rec.id, LAUNCHER)).rejects.toThrow(
       /Launcher\/burner wallet cannot approve/,
+    )
+    expect((await getDryRun(rec.id))?.approvedAt).toBeNull()
+  })
+
+  it('rejects an agent that sets its own owner wallet and self-approves', async () => {
+    const bodyHash = hashLaunchBody(launchBody, imageSha)
+    const rec = await createDryRun({
+      apiKeyFp: 'fp1',
+      intent: 'launch',
+      bodyHash,
+      imageSha256: imageSha,
+      launcherPubkey: LAUNCHER,
+      plan: { ok: true },
+    })
+    // Even if the agent "registered" FAKE_OWNER as ownerWallet, env allowlist wins.
+    await expect(approveDryRunWithWallet(rec.id, FAKE_OWNER)).rejects.toThrow(
+      /not on the approver allowlist/,
     )
     expect((await getDryRun(rec.id))?.approvedAt).toBeNull()
   })
@@ -147,7 +172,7 @@ describe('dry-run-store', () => {
     expect((await getDryRun(rec.id))?.approvedAt).toBeNull()
   })
 
-  it('accepts an allowlisted operator wallet', async () => {
+  it('accepts a CREWPAY_APPROVER_WALLETS wallet', async () => {
     const bodyHash = hashLaunchBody(launchBody, imageSha)
     const rec = await createDryRun({
       apiKeyFp: 'fp1',
@@ -177,5 +202,41 @@ describe('dry-run-store', () => {
     await expect(
       approveDryRunWithWallet(rec.id, OPERATOR, { allowlist: [] }),
     ).rejects.toThrow(/Approvals disabled/)
+  })
+
+  it('rejects a dry-run with no launcherPubkey', async () => {
+    await expect(
+      createDryRun({
+        apiKeyFp: 'fp1',
+        intent: 'launch',
+        bodyHash: hashLaunchBody(launchBody, imageSha),
+        imageSha256: imageSha,
+        plan: { ok: true },
+        launcherPubkey: '',
+      }),
+    ).rejects.toThrow(/launcherPubkey is required/)
+  })
+
+  it('rejects launch with a different launcher than the dry-run', async () => {
+    const bodyHash = hashLaunchBody(launchBody, imageSha)
+    const rec = await createDryRun({
+      apiKeyFp: 'fp1',
+      intent: 'launch',
+      bodyHash,
+      imageSha256: imageSha,
+      launcherPubkey: LAUNCHER,
+      plan: { ok: true },
+    })
+    await approveDryRunWithWallet(rec.id, OPERATOR)
+    await expect(
+      consumeApprovedDryRun({
+        dryRunId: rec.id,
+        apiKeyFp: 'fp1',
+        intent: 'launch',
+        bodyHash,
+        imageSha256: imageSha,
+        launcherPubkey: OTHER_LAUNCHER,
+      }),
+    ).rejects.toThrow(/does not match the approved dry-run launcherPubkey/)
   })
 })

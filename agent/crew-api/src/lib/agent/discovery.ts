@@ -364,9 +364,9 @@ export function openApiSpec() {
             'Create a dry-run plan + dryRunId (no on-chain spend). Human must approve via approvalUrl before launch/wire-fees.',
           description:
             'Returns `dryRunId`, `approvalUrl` (site `/approve/{dryRunId}`), plan, and `expiresAt`. ' +
-            'Approve tokens are never returned. Approval requires an allowlisted operator wallet ' +
-            '(`CREWPAY_APPROVER_WALLETS`) or the API key `ownerWallet` — never the launcher/burner keypair. ' +
-            'Pass `intent: "wire-fees"` for fee-share wiring dry-runs.',
+            'Approve tokens are never returned. Approval requires `CREWPAY_APPROVER_WALLETS` only — ' +
+            'never the launcher/burner keypair and never an agent-set ownerWallet. ' +
+            '`launcherPubkey` is required (launch and wire-fees). Pass `intent: "wire-fees"` for fee-share wiring dry-runs.',
           operationId: 'postAgentLaunchDryRun',
           security: [{ CrewApiKey: [] }],
           requestBody: {
@@ -428,7 +428,7 @@ export function openApiSpec() {
             'Wallet SIWS-style headers: `x-crew-wallet`, `x-crew-timestamp`, `x-crew-signature`, `x-crew-dry-run-id` ' +
             '(message `crew-approve-dry-run:{id}:{ts}`). Rejects agent API keys, approve tokens, ' +
             'the launcher/burner pubkey on the dry-run, unknown wallets, and empty allowlists. ' +
-            'Allowlist = `CREWPAY_APPROVER_WALLETS` ∪ API key `ownerWallet`.',
+            'Allowlist = `CREWPAY_APPROVER_WALLETS` only (agent-set ownerWallet is ignored).',
           operationId: 'postAgentLaunchDryRunApprove',
           parameters: [
             {
@@ -798,7 +798,7 @@ export function openApiSpec() {
             launcherPubkey: {
               type: 'string',
               description:
-                'Optional launcher public address for balance checks. This wallet cannot approve the dry-run.',
+                'Required on dry-run. Burner pubkey that must match x-launcher-key at spend time. Cannot approve.',
             },
             dryRunId: {
               type: 'string',
