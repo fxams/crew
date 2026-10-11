@@ -12,7 +12,7 @@
 
 import { createHash, randomBytes } from 'node:crypto'
 import { query } from '../db.js'
-import { assertWalletMayApprove } from './approver.js'
+import { assertWalletMayApprove, normalizeWallet } from './approver.js'
 
 export type DryRunIntent = 'launch' | 'wire-fees'
 
@@ -135,11 +135,15 @@ export async function createDryRun(opts: {
   bodyHash: string
   imageSha256: string | null
   plan: unknown
-  launcherPubkey?: string | null
+  /** Required — burner that will sign the eventual spend; cannot approve. */
+  launcherPubkey: string
 }): Promise<DryRunRecord> {
   const now = Date.now()
   const id = randomBytes(16).toString('hex')
-  const launcherPubkey = opts.launcherPubkey?.trim() || null
+  const launcherPubkey = normalizeWallet(opts.launcherPubkey || '')
+  if (!launcherPubkey) {
+    throw new Error('launcherPubkey is required on every dry-run (launch and wire-fees)')
+  }
   const rec: DryRunRecord = {
     id,
     apiKeyFp: opts.apiKeyFp,
@@ -236,7 +240,6 @@ export async function approveDryRunWithWallet(
   }
   await assertWalletMayApprove({
     wallet,
-    apiKeyFp: rec.apiKeyFp,
     launcherPubkey: rec.launcherPubkey,
     allowlist: opts?.allowlist,
   })
@@ -266,6 +269,8 @@ export async function consumeApprovedDryRun(opts: {
   intent: DryRunIntent
   bodyHash: string
   imageSha256?: string | null
+  /** Pubkey of the Keypair that will sign the spend (from x-launcher-key). */
+  launcherPubkey: string
 }): Promise<DryRunRecord> {
   const rec = await getDryRun(opts.dryRunId)
   if (!rec) throw new Error('Unknown or expired dryRunId — call POST /api/agent/launch/dry-run first')
@@ -277,6 +282,16 @@ export async function consumeApprovedDryRun(opts: {
   }
   if (rec.bodyHash !== opts.bodyHash) {
     throw new Error('Request body does not match the dry-run that issued dryRunId')
+  }
+  if (!rec.launcherPubkey) {
+    throw new Error('Approved dry-run is missing launcherPubkey — create a new dry-run')
+  }
+  const signing = normalizeWallet(opts.launcherPubkey || '')
+  const expected = normalizeWallet(rec.launcherPubkey || '')
+  if (!signing || !expected || signing !== expected) {
+    throw new Error(
+      'Signing launcher/burner pubkey does not match the approved dry-run launcherPubkey',
+    )
   }
   if (opts.intent === 'launch') {
     if (!opts.imageSha256 || !rec.imageSha256 || opts.imageSha256 !== rec.imageSha256) {
@@ -319,6 +334,8 @@ export function publicDryRunView(rec: DryRunRecord) {
     approvedByWallet: rec.approvedByWallet,
     consumed: Boolean(rec.consumedAt),
     imageSha256: rec.imageSha256,
+    /** Burner that will sign spend — cannot approve. */
+    launcherPubkey: rec.launcherPubkey,
     plan: rec.plan,
   }
 }
