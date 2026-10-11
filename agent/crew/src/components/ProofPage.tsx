@@ -112,8 +112,8 @@ export function ProofPage() {
                 <span>SOL → CREW</span>
               </div>
               <div>
-                <strong>{fmtSol(data.stats.remitSolTotal)}</strong>
-                <span>remit tape</span>
+                <strong>{fmtSol((data.stats as any).humansPaidSol ?? data.stats.remitSolTotal)}</strong>
+                <span>crew remits</span>
               </div>
               <div>
                 <strong>{data.stats.feeShareLocked}</strong>
