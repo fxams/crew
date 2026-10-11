@@ -115,7 +115,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         docs: `${DEFAULT_SITE_URL}/agents`,
         llms: `${cfg.apiUrl}/llms.txt`,
         discovery: data,
-        tip: 'Safe flow: crew_claim_key (if needed) → crew_discover → crew_autohire → crew_launch_dry_run → operator opens approvalUrl + wallet-signs → crew_launch(dryRunId). Wire-fees needs its own dry-run intent=wire-fees. Secrets stay in MCP env only.',
+        tip: 'Safe flow: crew_claim_key (if needed) → crew_discover → crew_autohire → crew_launch. Approval is optional. Operators can require human approval per key (then: crew_launch_dry_run → approvalUrl → crew_launch(dryRunId)). Secrets stay in MCP env only.',
         auth: {
           reads: 'crew_discover / crew_search_kols / crew_proof / crew_claim_key need no API key',
           writes: cfg.publicMode
@@ -341,13 +341,14 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Wire / repair CREW fee-shares',
       description:
-        'Create + lock fee-sharing for an existing mint. Requires dryRunId from crew_launch_dry_run with intent=wire-fees after wallet approval on approvalUrl. Requires CREW_LAUNCHER_KEY in MCP env.',
+        'Create + lock fee-sharing for an existing mint. Approval is optional. Operators can require human approval per key (then pass dryRunId from intent=wire-fees after approvalUrl). Requires CREW_LAUNCHER_KEY in MCP env.',
       inputSchema: {
         dryRunId: z
           .string()
           .min(16)
           .max(64)
-          .describe('From crew_launch_dry_run intent=wire-fees after human wallet approval'),
+          .optional()
+          .describe('Optional unless the API key has requireApproval=true'),
         mint: mintSchema,
         mode: z.enum(['agent', 'split', 'buyback', 'raid']).optional(),
         name: z.string().max(32).optional(),
@@ -365,10 +366,10 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     async (input) => {
       assertNoSecretToolArgs(input as Record<string, unknown>)
       const body: Record<string, unknown> = {
-        dryRunId: input.dryRunId,
         mint: input.mint,
         mode: input.mode || 'agent',
       }
+      if (input.dryRunId) body.dryRunId = input.dryRunId
       if (input.name) body.name = input.name
       if (input.ticker) body.ticker = input.ticker
       if (input.crew?.length) body.crew = input.crew
@@ -480,13 +481,14 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Launch Pump coin via CrewPay (MAINNET)',
       description:
-        'MAINNET launch: create a Solana Pump.fun coin with on-chain fee-shares (60% KOL crew / 15% launching agent / 25% CrewPay treasury). Buyback cron is not live yet. Prefers atomic create+fee-lock. Requires dryRunId from crew_launch_dry_run after a human opens approvalUrl. Requires CREW_AGENT_API_KEY + CREW_LAUNCHER_KEY in MCP env (never tool args). Check feeShareLocked — HTTP 202 needs crew_wire_fees.',
+        'MAINNET launch: create a Solana Pump.fun coin with on-chain fee-shares (60% KOL crew / 15% launching agent / 25% CrewPay treasury). Buyback cron is not live yet. Prefers atomic create+fee-lock. Approval is optional. Operators can require human approval per key (then pass dryRunId from crew_launch_dry_run after approvalUrl). Requires CREW_AGENT_API_KEY + CREW_LAUNCHER_KEY in MCP env (never tool args). Check feeShareLocked — HTTP 202 needs crew_wire_fees.',
       inputSchema: {
         dryRunId: z
           .string()
           .min(16)
           .max(64)
-          .describe('From crew_launch_dry_run after human approval on approvalUrl'),
+          .optional()
+          .describe('Optional unless the API key has requireApproval=true'),
         name: z.string().min(2).max(32),
         ticker: z
           .string()
@@ -534,7 +536,6 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         throw new Error('Provide imageUrl or imageBase64')
       }
       const body: Record<string, unknown> = {
-        dryRunId: input.dryRunId,
         name: input.name,
         ticker: input.ticker,
         description: input.description || '',
@@ -550,6 +551,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
           model: input.agentModel || 'mcp',
         },
       }
+      if (input.dryRunId) body.dryRunId = input.dryRunId
       if (input.imageUrl) body.imageUrl = input.imageUrl
       if (input.imageBase64) body.imageBase64 = input.imageBase64
       if (input.twitter) body.twitter = input.twitter

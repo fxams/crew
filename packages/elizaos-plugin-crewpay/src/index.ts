@@ -1,6 +1,6 @@
 /**
  * ElizaOS plugin scaffold for CrewPay.
- * Prefer MCP: npx -y crewpay-mcp@1.2.3 or https://mcp.crewpay.dev/mcp
+ * Prefer MCP: npx -y crewpay-mcp@1.2.4 or https://mcp.crewpay.dev/mcp
  *
  * Launch requires dryRunId from CREW_LAUNCH_DRY_RUN after human approval
  * on the approvalUrl page (no confirm phrase).
@@ -77,7 +77,7 @@ export const crewLaunchAction = {
   name: 'CREW_LAUNCH',
   similes: ['CREWPAY_LAUNCH'],
   description:
-    'MAINNET launch after dry-run. Requires dryRunId from CREW_LAUNCH_DRY_RUN after human approval on approvalUrl. Fee map 60/15/25; buyback not live.',
+    'MAINNET launch after dry-run. dryRunId optional unless requireApproval; Approval is optional on approvalUrl. Fee map 60/15/25; buyback not live.',
   validate: async () => Boolean(loadCrewPayEnv().apiKey && loadCrewPayEnv().launcherKey),
   handler: async (_runtime: unknown, message: { content?: { text?: string } }) => {
     try {
@@ -98,7 +98,7 @@ export const crewWireFeesAction = {
   name: 'CREW_WIRE_FEES',
   similes: ['CREWPAY_WIRE_FEES'],
   description:
-    'Wire / repair fee-shares (spends SOL). Requires dryRunId from dry-run intent=wire-fees after wallet approval.',
+    'Wire / repair fee-shares (spends SOL). dryRunId optional unless requireApproval is on.',
   validate: async () => Boolean(loadCrewPayEnv().apiKey && loadCrewPayEnv().launcherKey),
   handler: async (_runtime: unknown, message: { content?: { text?: string } }) => {
     try {
@@ -145,7 +145,7 @@ export const crewProofAction = {
 export const crewpayPlugin = {
   name: 'crewpay',
   description:
-    'CrewPay — Solana Pump.fun launches with KOL Autohire and on-chain fee-shares (60/15/25). Buyback not live yet. Dry-run → approvalUrl → launch with dryRunId.',
+    'CrewPay — Solana Pump.fun launches with KOL Autohire and on-chain fee-shares (60/15/25). Buyback not live yet. Approval optional; operators can require approval per key.',
   actions: [
     crewDiscoverAction,
     crewAutohireAction,

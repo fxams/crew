@@ -1,8 +1,17 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { apiKeyFingerprint, clientIp, requireAgentApiKey } from '../lib/auth.js'
-import { createAgentKey, listAgentKeys, revokeAgentKey } from '../lib/agent-keys.js'
-import { normalizeWallet } from '../lib/agent/approver.js'
+import {
+  createAgentKey,
+  listAgentKeys,
+  revokeAgentKey,
+  setAgentKeyRequireApproval,
+} from '../lib/agent-keys.js'
+import { normalizeWallet, parseApproverAllowlist } from '../lib/agent/approver.js'
+import {
+  assertMaySetRequireApproval,
+  resolveSpendGate,
+} from '../lib/agent/spend-gate.js'
 import { listCoinsByAgentKey, listCoins, upsertCoin, type ApiCoin } from '../lib/coins.js'
 import { MAX_CREW, MAX_INITIAL_BUY_SOL, USER_DESCRIPTION_MAX } from '../lib/agent/constants.js'
 import { agentDiscoveryJson } from '../lib/agent/discovery.js'
@@ -25,7 +34,7 @@ import {
   type DryRunIntent,
 } from '../lib/agent/dry-run-store.js'
 import { loadAgentImageBytes, sha256ImageBytes } from '../lib/agent/ipfs.js'
-import { approveDryRunWalletFresh } from '../lib/wallet-auth.js'
+import { approveDryRunWalletFresh, requireApprovalWalletFresh } from '../lib/wallet-auth.js'
 import {
   dryRunLaunchForAgent,
   launchForAgent,
@@ -150,13 +159,13 @@ const launchBodySchema = z
     /** Refuse sequential create→lock fallback (also settable via CREW_ATOMIC_REQUIRED=1). */
     atomicRequired: z.boolean().optional().default(false),
     /**
-     * Required on dry-run (and must match the spend-time x-launcher-key pubkey).
-     * This burner cannot approve the dry-run.
+     * Required on dry-run when the key has requireApproval=true.
+     * Must match the spend-time x-launcher-key pubkey. Cannot approve.
      */
-    launcherPubkey: solanaAddress,
+    launcherPubkey: solanaAddress.optional(),
     /**
-     * Required for real launches: id from POST /api/agent/launch/dry-run after
-     * human approval on the approvalUrl page.
+     * Optional unless the API key has requireApproval=true.
+     * From POST /api/agent/launch/dry-run (+ approval when required).
      */
     dryRunId: z.string().min(16).max(64).optional(),
   })
@@ -298,8 +307,8 @@ const wireDryRunBodySchema = z
     name: z.string().max(32).optional(),
     ticker: z.string().max(13).optional(),
     crew: z.array(crewMemberSchema).min(1).max(MAX_CREW).optional(),
-    /** Required — burner that will sign wire-fees; cannot approve. */
-    launcherPubkey: solanaAddress,
+    /** Required when requireApproval=true — burner that will sign wire-fees; cannot approve. */
+    launcherPubkey: solanaAddress.optional(),
   })
   .superRefine((val, ctx) => {
     if (!val.crew?.length) return
@@ -339,12 +348,16 @@ agentRouter.post('/agent/launch/dry-run', requireAgentApiKey, async (req, res) =
     const raw = req.body && typeof req.body === 'object' ? (req.body as Record<string, unknown>) : {}
     const intent: DryRunIntent = raw.intent === 'wire-fees' ? 'wire-fees' : 'launch'
     const site = (process.env.CREW_SITE_URL || 'https://crewpay.dev').replace(/\/$/, '')
+    const requireApproval = Boolean(req.crewAgentAuth?.requireApproval)
 
     if (intent === 'wire-fees') {
       const body = wireDryRunBodySchema.parse(raw)
-      const launcherPubkey = normalizeWallet(body.launcherPubkey)
-      if (!launcherPubkey) {
-        res.status(400).json({ ok: false, error: 'launcherPubkey is required on every dry-run' })
+      const launcherPubkey = body.launcherPubkey ? normalizeWallet(body.launcherPubkey) : null
+      if (requireApproval && !launcherPubkey) {
+        res.status(400).json({
+          ok: false,
+          error: 'launcherPubkey is required on dry-runs when requireApproval is true',
+        })
         return
       }
       const bodyHash = hashWireBody(body as unknown as Record<string, unknown>)
@@ -357,7 +370,7 @@ agentRouter.post('/agent/launch/dry-run', requireAgentApiKey, async (req, res) =
         ticker: body.ticker,
         crew: body.crew,
         launcherPubkey,
-        note: 'Wire-fees dry-run — no SOL spent until approved + POST /api/agent/wire-fees',
+        note: 'Wire-fees dry-run — no SOL spent until POST /api/agent/wire-fees',
       }
       const rec = await createDryRun({
         apiKeyFp: fp,
@@ -366,28 +379,34 @@ agentRouter.post('/agent/launch/dry-run', requireAgentApiKey, async (req, res) =
         imageSha256: null,
         plan,
         launcherPubkey,
+        requireLauncher: requireApproval,
       })
-      // Never include approve secrets — operator must log in on approvalUrl.
       const approvalUrl = `${site}/approve/${rec.id}`
       res.json({
         ...plan,
         dryRunId: rec.id,
         approvalUrl,
+        requireApproval,
         expiresAt: new Date(rec.expiresAt).toISOString(),
-        tip: 'Open approvalUrl, connect a CREWPAY_APPROVER_WALLETS wallet (not the launcher/burner), and approve. Then call POST /api/agent/wire-fees with the same body + dryRunId + matching x-launcher-key.',
+        tip: requireApproval
+          ? 'requireApproval=true — open approvalUrl with a CREWPAY_APPROVER_WALLETS wallet (not the launcher), then wire-fees with dryRunId + matching x-launcher-key.'
+          : 'Approval is optional. Call POST /api/agent/wire-fees with the same body (+ optional dryRunId). Operators can require human approval per key.',
       })
       return
     }
 
     const body = launchBodySchema.parse(raw)
-    const launcherPubkey = normalizeWallet(body.launcherPubkey)
-    if (!launcherPubkey) {
-      res.status(400).json({ ok: false, error: 'launcherPubkey is required on every dry-run' })
+    const launcherPubkey = body.launcherPubkey ? normalizeWallet(body.launcherPubkey) : null
+    if (requireApproval && !launcherPubkey) {
+      res.status(400).json({
+        ok: false,
+        error: 'launcherPubkey is required on dry-runs when requireApproval is true',
+      })
       return
     }
     const imageSha256 = await resolveLaunchImageSha(body)
     const result = await dryRunLaunchForAgent(bodyToLaunchInput(body), {
-      launcherPubkey,
+      launcherPubkey: launcherPubkey || undefined,
     })
     const bodyHash = hashLaunchBody(body as unknown as Record<string, unknown>, imageSha256)
     const rec = await createDryRun({
@@ -396,6 +415,7 @@ agentRouter.post('/agent/launch/dry-run', requireAgentApiKey, async (req, res) =
       bodyHash,
       imageSha256,
       launcherPubkey,
+      requireLauncher: requireApproval,
       plan: { ...result, imageSha256, launcherPubkey },
     })
     const approvalUrl = `${site}/approve/${rec.id}`
@@ -405,8 +425,11 @@ agentRouter.post('/agent/launch/dry-run', requireAgentApiKey, async (req, res) =
       launcherPubkey,
       dryRunId: rec.id,
       approvalUrl,
+      requireApproval,
       expiresAt: new Date(rec.expiresAt).toISOString(),
-      tip: 'Open approvalUrl, connect a CREWPAY_APPROVER_WALLETS wallet (not the launcher/burner), and approve. Then call POST /api/agent/launch with the same body + dryRunId + matching x-launcher-key.',
+      tip: requireApproval
+        ? 'requireApproval=true — open approvalUrl with a CREWPAY_APPROVER_WALLETS wallet (not the launcher), then launch with dryRunId + matching x-launcher-key.'
+        : 'Approval is optional. Call POST /api/agent/launch with the same body (+ optional dryRunId). Operators can require human approval per key.',
     })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'dry-run failed'
@@ -505,11 +528,14 @@ agentRouter.post('/agent/launch', requireAgentApiKey, async (req, res) => {
     }
 
     const body = launchBodySchema.parse(req.body)
-    if (!body.dryRunId) {
+    const requireApproval = Boolean(req.crewAgentAuth?.requireApproval)
+    let gate: ReturnType<typeof resolveSpendGate>
+    try {
+      gate = resolveSpendGate({ requireApproval, dryRunId: body.dryRunId })
+    } catch (err) {
       res.status(400).json({
         ok: false,
-        error:
-          'dryRunId required — call POST /api/agent/launch/dry-run, open approvalUrl (wallet login), then launch with dryRunId',
+        error: err instanceof Error ? err.message : 'dry-run gate failed',
       })
       return
     }
@@ -526,15 +552,18 @@ agentRouter.post('/agent/launch', requireAgentApiKey, async (req, res) => {
     let imageSha256: string
     try {
       imageSha256 = await resolveLaunchImageSha(body)
-      const bodyHash = hashLaunchBody(body as unknown as Record<string, unknown>, imageSha256)
-      await consumeApprovedDryRun({
-        dryRunId: body.dryRunId,
-        apiKeyFp: fp,
-        intent: 'launch',
-        bodyHash,
-        imageSha256,
-        launcherPubkey: launcher.publicKey.toBase58(),
-      })
+      if (gate === 'consume' && body.dryRunId) {
+        const bodyHash = hashLaunchBody(body as unknown as Record<string, unknown>, imageSha256)
+        await consumeApprovedDryRun({
+          dryRunId: body.dryRunId,
+          apiKeyFp: fp,
+          intent: 'launch',
+          bodyHash,
+          imageSha256,
+          launcherPubkey: launcher.publicKey.toBase58(),
+          requireApproval,
+        })
+      }
     } catch (err) {
       res.status(400).json({
         ok: false,
@@ -665,8 +694,8 @@ const wireBodySchema = z
     ticker: z.string().max(13).optional(),
     /** Optional — when omitted, wire uses crew stored on the board from launch. */
     crew: z.array(crewMemberSchema).min(1).max(MAX_CREW).optional(),
-    /** Required: approved dry-run with intent=wire-fees. */
-    dryRunId: z.string().min(16).max(64),
+    /** Optional unless requireApproval=true on the API key. */
+    dryRunId: z.string().min(16).max(64).optional(),
   })
   .superRefine((val, ctx) => {
     if (!val.crew?.length) return
@@ -685,6 +714,17 @@ agentRouter.post('/agent/wire-fees', requireAgentApiKey, async (req, res) => {
     const fp = apiKeyFingerprint(req)
     if (!applyRateLimit(res, `wire:key:${fp}`, 10, 60_000)) return
     const body = wireBodySchema.parse(req.body)
+    const requireApproval = Boolean(req.crewAgentAuth?.requireApproval)
+    let gate: ReturnType<typeof resolveSpendGate>
+    try {
+      gate = resolveSpendGate({ requireApproval, dryRunId: body.dryRunId })
+    } catch (err) {
+      res.status(400).json({
+        ok: false,
+        error: err instanceof Error ? err.message : 'dry-run gate failed',
+      })
+      return
+    }
     let launcher
     try {
       launcher = parseLauncherKey(resolveLauncherKey(req))
@@ -696,14 +736,17 @@ agentRouter.post('/agent/wire-fees', requireAgentApiKey, async (req, res) => {
       return
     }
     try {
-      const bodyHash = hashWireBody(body as unknown as Record<string, unknown>)
-      await consumeApprovedDryRun({
-        dryRunId: body.dryRunId,
-        apiKeyFp: fp,
-        intent: 'wire-fees',
-        bodyHash,
-        launcherPubkey: launcher.publicKey.toBase58(),
-      })
+      if (gate === 'consume' && body.dryRunId) {
+        const bodyHash = hashWireBody(body as unknown as Record<string, unknown>)
+        await consumeApprovedDryRun({
+          dryRunId: body.dryRunId,
+          apiKeyFp: fp,
+          intent: 'wire-fees',
+          bodyHash,
+          launcherPubkey: launcher.publicKey.toBase58(),
+          requireApproval,
+        })
+      }
     } catch (err) {
       res.status(400).json({
         ok: false,
@@ -901,12 +944,11 @@ agentRouter.post('/agent/keys/claim', async (req, res) => {
       ok: true,
       key: created.key,
       row: created.row,
-      tip: 'Store crew_ak_… once — it is not shown again. Pass as x-crew-api-key for writes. Launcher SOL stays in your wallet via x-launcher-key / CREW_LAUNCHER_KEY. Dry-run approval requires CREWPAY_APPROVER_WALLETS only — never the launcher/burner.',
+      tip: 'Store crew_ak_… once — it is not shown again. Pass as x-crew-api-key for writes. Launcher SOL stays in your wallet via x-launcher-key / CREW_LAUNCHER_KEY. Approval is optional (requireApproval defaults false). Operators can require human approval per key.',
       next: [
         'POST /api/agent/autohire with x-crew-api-key',
-        'POST /api/agent/launch/dry-run with launcherPubkey',
-        'Open approvalUrl with a CREWPAY_APPROVER_WALLETS wallet',
-        'POST /api/agent/launch with x-crew-api-key + matching x-launcher-key + dryRunId',
+        'POST /api/agent/launch with x-crew-api-key + x-launcher-key (optional dry-run first)',
+        'Optional: POST /api/agent/keys/require-approval to opt into human approval',
       ],
     })
   } catch (err) {
@@ -950,8 +992,93 @@ agentRouter.post('/agent/keys', requireAgentApiKey, async (req, res) => {
 })
 
 /**
+ * Toggle requireApproval on a DB-backed API key.
+ * - Agent API key: may turn ON only (never OFF).
+ * - CREWPAY_APPROVER_WALLETS wallet signature: may turn ON or OFF.
+ *   Message: crew-require-approval:{keyId}:{0|1}:{ts}
+ */
+agentRouter.post('/agent/keys/require-approval', requireAgentApiKey, async (req, res) => {
+  try {
+    const body = z
+      .object({
+        keyId: z.string().min(4).max(64).optional(),
+        requireApproval: z.boolean(),
+      })
+      .parse(req.body ?? {})
+
+    const operator = requireApprovalWalletFresh({
+      header: (n) => req.header(n),
+      body,
+    })
+    const allow = parseApproverAllowlist()
+    const viaOperator =
+      Boolean(operator) &&
+      allow.includes(normalizeWallet(operator!.wallet) || '') &&
+      Boolean(operator!.keyId)
+
+    const keyId = viaOperator
+      ? operator!.keyId
+      : req.crewAgentAuth?.source === 'db'
+        ? req.crewAgentAuth.keyId
+        : body.keyId
+
+    if (!keyId) {
+      res.status(400).json({
+        ok: false,
+        error: 'keyId required (DB-backed crew_ak_… key, or operator wallet signature with keyId)',
+      })
+      return
+    }
+
+    // Scoped agent keys may only toggle themselves.
+    if (
+      !viaOperator &&
+      req.crewAgentAuth?.source === 'db' &&
+      req.crewAgentAuth.keyId &&
+      req.crewAgentAuth.keyId !== keyId
+    ) {
+      res.status(403).json({ ok: false, error: 'Cannot change requireApproval on another key' })
+      return
+    }
+
+    const next = viaOperator ? operator!.requireApproval : body.requireApproval
+    try {
+      assertMaySetRequireApproval({
+        next,
+        viaAgentApiKey: !viaOperator,
+      })
+    } catch (err) {
+      res.status(403).json({
+        ok: false,
+        error: err instanceof Error ? err.message : 'not allowed',
+      })
+      return
+    }
+
+    const ok = await setAgentKeyRequireApproval({ keyId, requireApproval: next })
+    if (!ok) {
+      res.status(404).json({ ok: false, error: 'Key not found' })
+      return
+    }
+    res.json({
+      ok: true,
+      keyId,
+      requireApproval: next,
+      tip: next
+        ? 'Launches now require an approved dryRunId. dry-run must include launcherPubkey.'
+        : 'Approval optional again — launch/wire-fees work with the API key alone.',
+    })
+  } catch (err) {
+    res.status(400).json({
+      ok: false,
+      error: err instanceof Error ? err.message : 'set requireApproval failed',
+    })
+  }
+})
+
+/**
  * Agents cannot register approver wallets (self-approve bypass).
- * Approvals trust CREWPAY_APPROVER_WALLETS only until an operator-authenticated path exists.
+ * Approvals trust CREWPAY_APPROVER_WALLETS only.
  */
 agentRouter.post('/agent/keys/owner', requireAgentApiKey, async (_req, res) => {
   res.status(403).json({

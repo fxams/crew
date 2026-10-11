@@ -84,7 +84,7 @@ export const CrewPayPlugin = {
       name: 'CREW_LAUNCH',
       similes: ['crew launch', 'launch pump coin'],
       description:
-        'Mainnet launch. Requires dryRunId from dry-run after human opens approvalUrl. Fee map 60/15/25; buyback not live.',
+        'Mainnet launch. Approval is optional. Operators can require human approval per key. Fee map 60/15/25; buyback not live.',
       schema: launchBodySchema,
       handler: async (_agent: unknown, input: Record<string, unknown>) => {
         const parsed = launchBodySchema.parse(input)
@@ -99,11 +99,11 @@ export const CrewPayPlugin = {
     {
       name: 'CREW_WIRE_FEES',
       similes: ['wire fees', 'lock fee shares'],
-      description: 'Wire fee-shares (SOL). Requires dryRunId from intent=wire-fees after wallet approval.',
+      description: 'Wire fee-shares (SOL). dryRunId optional unless requireApproval is on.',
       schema: z.object({
         mint: z.string(),
         mode: z.string().optional(),
-        dryRunId: z.string(),
+        dryRunId: z.string().optional(),
       }),
       handler: async (
         _agent: unknown,

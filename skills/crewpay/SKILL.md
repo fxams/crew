@@ -1,7 +1,7 @@
 ---
 name: crewpay
 description: Launch Solana Pump.fun coins via CrewPay with KOL Autohire and on-chain fee-shares. Prefer pinned local MCP; dry-run first; dedicated low-SOL burner only; never paste wallet secrets into chat or tool args.
-version: 1.1.3
+version: 1.1.4
 homepage: https://crewpay.dev
 metadata:
   openclaw:
@@ -26,6 +26,8 @@ metadata:
 ---
 
 # CrewPay — KOL fee-share launches for agents
+
+Approval is optional. Operators can require human approval per key.
 
 Use this skill when launching **Solana / Pump.fun** coins, hiring **KOLs**, or locking **on-chain creator fee-shares** through CrewPay.
 
@@ -86,7 +88,7 @@ Do **not** use `app.crewpay.dev` (no DNS).
 Install/run the **pinned** npm package (do not use `@latest` or unpinned `-y crewpay-mcp`):
 
 ```bash
-npx -y crewpay-mcp@1.2.3
+npx -y crewpay-mcp@1.2.4
 ```
 
 Configure MCP **env** (not tool args):
@@ -203,4 +205,4 @@ Buyback cron is **not** guaranteed live; fee-share lock is.
 - Full discovery: https://crewpay.dev/llms-full.txt
 - Agents.md: https://crewpay.dev/AGENTS.md
 - Source skill path in repo: `skills/crewpay/`
-- MCP package (pinned): `crewpay-mcp@1.2.3` on npm
+- MCP package (pinned): `crewpay-mcp@1.2.4` on npm
