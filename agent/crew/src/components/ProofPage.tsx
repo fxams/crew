@@ -9,6 +9,7 @@ import {
   SOLSCAN_TX_URL,
 } from '../lib/config'
 import { fetchProof, type ProofBundle } from '../lib/api'
+import { formatSol } from '../lib/format-sol'
 
 function shortAddr(addr: string) {
   if (!addr || addr.length < 10) return addr || '—'
@@ -17,7 +18,7 @@ function shortAddr(addr: string) {
 
 function fmtSol(n: number | null | undefined) {
   if (n == null || Number.isNaN(n)) return '—'
-  return `${n.toFixed(4)} SOL`
+  return `${formatSol(n)} SOL`
 }
 
 function fmtTime(ms: number) {
