@@ -2,9 +2,9 @@
  * Minimal CrewPay REST client for framework plugins.
  * Keys from env only — never accept private keys as function arguments.
  *
- * Spend gate: POST /api/agent/launch/dry-run returns dryRunId + approvalUrl
- * (no approve secret). Operator opens approvalUrl and wallet-signs.
- * Launch/wire require dryRunId after approval. Image content is bound by sha256.
+ * Approval is optional. Operators can require human approval per key.
+ * When requireApproval is off (default), launch/wire work with the API key alone.
+ * dryRunId is optional; when sent it is validated. Image content is bound by sha256 when dry-running.
  */
 export declare const DEFAULT_API_URL = "https://api.crewpay.dev";
 export type CrewPayEnv = {
@@ -30,8 +30,8 @@ export declare class CrewPayClient {
     autohire(body: Record<string, unknown>): Promise<unknown>;
     /** Server dry-run — returns plan + dryRunId + approvalUrl (no approve secret). */
     dryRun(body: Record<string, unknown>): Promise<unknown>;
-    launch(body: Record<string, unknown>, opts: {
-        dryRunId: string;
+    launch(body: Record<string, unknown>, opts?: {
+        dryRunId?: string;
     }): Promise<unknown>;
     wireFees(body: {
         mint: string;
@@ -39,8 +39,8 @@ export declare class CrewPayClient {
         crew?: unknown[];
         name?: string;
         ticker?: string;
-    }, opts: {
-        dryRunId: string;
+    }, opts?: {
+        dryRunId?: string;
     }): Promise<unknown>;
     crank(body: {
         mint: string;

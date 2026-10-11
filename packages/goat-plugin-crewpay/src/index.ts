@@ -1,6 +1,6 @@
 /**
  * GOAT SDK plugin scaffold for CrewPay.
- * Prefer MCP: npx -y crewpay-mcp@1.2.3 or https://mcp.crewpay.dev/mcp
+ * Prefer MCP: npx -y crewpay-mcp@1.2.4 or https://mcp.crewpay.dev/mcp
  */
 
 import { CrewPayClient, loadCrewPayEnv } from './client.js'
@@ -30,7 +30,7 @@ export class CrewPayGoatService {
   }
 
   /**
-   * Spends SOL. Requires dryRunId from dry-run after human approval on approvalUrl.
+   * Spends SOL. dryRunId optional unless requireApproval; Approval is optional. Operators can require human approval per key on approvalUrl.
    */
   async crewpay_launch(
     params: Record<string, unknown> & {
@@ -63,7 +63,7 @@ export function crewpay(options: CrewPayGoatOptions = {}) {
   return {
     name: 'crewpay',
     description:
-      'CrewPay — Pump.fun KOL Autohire + fee-shares (60/15/25). Buyback not live. Dry-run → approvalUrl → launch with dryRunId.',
+      'CrewPay — Pump.fun KOL Autohire + fee-shares (60/15/25). Buyback not live. Approval optional; operators can require approval per key.',
     tools: new CrewPayGoatService(options),
   }
 }

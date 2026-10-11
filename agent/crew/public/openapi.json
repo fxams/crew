@@ -128,8 +128,8 @@
         "tags": [
           "agent"
         ],
-        "summary": "Create a dry-run plan + dryRunId (no on-chain spend). Human must approve via approvalUrl before launch/wire-fees.",
-        "description": "Returns `dryRunId`, `approvalUrl` (site `/approve/{dryRunId}`), plan, and `expiresAt`. Approve tokens are never returned. Approval requires `CREWPAY_APPROVER_WALLETS` only — never the launcher/burner keypair and never an agent-set ownerWallet. `launcherPubkey` is required (launch and wire-fees). Pass `intent: \"wire-fees\"` for fee-share wiring dry-runs.",
+        "summary": "Create a dry-run plan + dryRunId (optional human approval). No on-chain spend.",
+        "description": "Returns `dryRunId`, `approvalUrl` (site `/approve/{dryRunId}`), plan, and `expiresAt`. Approval is optional. Operators can require human approval per key (`requireApproval`). When required, approve with `CREWPAY_APPROVER_WALLETS` only — never the launcher/burner. `launcherPubkey` is required when requireApproval is true. Pass `intent: \"wire-fees\"` for fee-share wiring.",
         "operationId": "postAgentLaunchDryRun",
         "security": [
           {
@@ -243,7 +243,7 @@
           "agent"
         ],
         "summary": "Launch Pump coin with CREW fee-shares (mainnet)",
-        "description": "Requires a prior approved `dryRunId` whose body hash and image sha256 match. Create the dry-run, open `approvalUrl`, then call this endpoint with the same body + dryRunId.",
+        "description": "Approval is optional. Operators can require human approval per key. When requireApproval is false (default), dryRunId is optional. When true, requires an approved unused dryRunId with matching body/image hash and launcherPubkey.",
         "operationId": "postAgentLaunch",
         "security": [
           {
