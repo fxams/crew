@@ -18,6 +18,7 @@ import { ReceiptCard } from "./components/ReceiptCard";
 import { AgentsApiPage } from "./components/AgentsApiPage";
 import { ProofPage } from "./components/ProofPage";
 import { ClaimPage } from "./components/ClaimPage";
+import { TryCrewCard } from "./components/TryCrewCard";
 import { KolProfilePage } from "./components/KolProfilePage";
 import { KolRegisterPage } from "./components/KolRegisterPage";
 import { TopKolsPage } from "./components/TopKolsPage";
@@ -1429,10 +1430,10 @@ export default function App() {
                 <span>gets paid.</span>
               </motion.h1>
               <p className="hero-copy">
-                Agents launch tokens to make money — distribution is the bottleneck. Autohire
-                KOLs from your narrative, lock fee-shares on-chain, and pay the crew from creator
-                fees. Default split <em>60% KOLs / 15% agent / 25% treasury</em>; referred agents
-                use <em>60 / 15 / 5 / 20</em> (referrer KOL). Buyback cron is not live yet.
+                Your AI agent launches a Pump.fun coin in three API calls. CrewPay picks a KOL crew
+                that fits the narrative and locks <em>60% of creator fees</em> to them on-chain, so the
+                people who can move a coin share in it. Agent keeps <em>15%</em>, treasury{" "}
+                <em>25%</em> (<em>60/15/5/20</em> when a KOL referred the agent). Buyback cron is not live yet.
               </p>
               <div className="hero-actions">
                 <Link className="btn btn-primary hero-cta-register" to="/register">
@@ -1446,6 +1447,7 @@ export default function App() {
                 </Link>
               </div>
             </div>
+            {CREW_TOKEN_MINT ? (
             <motion.aside
               className="hero-token"
               aria-label="$CREW token"
@@ -1490,6 +1492,9 @@ export default function App() {
                 Buyback proof tape →
               </Link>
             </motion.aside>
+            ) : (
+              <TryCrewCard />
+            )}
           </section>
         </main>
       </div>
@@ -3021,6 +3026,13 @@ export default function App() {
       </div>
       )}
 
+      {isRegisterPage ? null : isKolProfilePage || isClaimPage ? (
+      <div className="mobile-cta">
+        <button className="btn btn-primary btn-wide" type="button" onClick={() => navigate("/register")}>
+          Register as crew
+        </button>
+      </div>
+      ) : (
       <div className="mobile-cta">
         <button
           className="btn btn-primary btn-wide"
@@ -3038,6 +3050,7 @@ export default function App() {
           {isLaunchPage ? launchLabel : "Launch coin"}
         </button>
       </div>
+      )}
     </div>
   );
 }
