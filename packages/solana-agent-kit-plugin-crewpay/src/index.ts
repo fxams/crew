@@ -40,8 +40,10 @@ export const CrewPayPlugin = {
         dryRunId: parsed.dryRunId || '',
       })
     },
-    crewWireFees: async (_agent: unknown, body: { mint: string; mode?: string }) =>
-      api().wireFees({ mint: body.mint, mode: body.mode }),
+    crewWireFees: async (
+      _agent: unknown,
+      body: { mint: string; mode?: string; dryRunId?: string },
+    ) => api().wireFees({ mint: body.mint, mode: body.mode }, { dryRunId: body.dryRunId || '' }),
     crewCrank: async (_agent: unknown, body: { mint: string }) => api().crank(body),
     crewProof: async () => api().proof(),
   },
@@ -97,14 +99,21 @@ export const CrewPayPlugin = {
     {
       name: 'CREW_WIRE_FEES',
       similes: ['wire fees', 'lock fee shares'],
-      description: 'Wire fee-shares (SOL). Requires CREW_LAUNCHER_KEY in env.',
+      description: 'Wire fee-shares (SOL). Requires dryRunId from intent=wire-fees after wallet approval.',
       schema: z.object({
         mint: z.string(),
         mode: z.string().optional(),
+        dryRunId: z.string(),
       }),
-      handler: async (_agent: unknown, input: { mint: string; mode?: string }) => ({
+      handler: async (
+        _agent: unknown,
+        input: { mint: string; mode?: string; dryRunId: string },
+      ) => ({
         status: 'success',
-        data: await api().wireFees({ mint: input.mint, mode: input.mode }),
+        data: await api().wireFees(
+          { mint: input.mint, mode: input.mode },
+          { dryRunId: input.dryRunId },
+        ),
       }),
     },
     {

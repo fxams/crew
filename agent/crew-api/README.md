@@ -2,6 +2,8 @@
 
 Postgres-backed API for CREW launches, remits, KOL directory, buyback cron, and **agent launch**.
 
+**Dry-run store:** persisted in Postgres table `agent_dry_runs` when `DATABASE_URL` is set (production). Without a DB the store is in-memory only and does **not** survive restarts or multi-instance deploys.
+
 Production: https://api.crewpay.dev  
 Legacy alias: https://crewpay-api.onrender.com (see `agent/crew/DOMAINS.md` for DNS)
 
@@ -33,7 +35,7 @@ Legacy alias: https://crewpay-api.onrender.com (see `agent/crew/DOMAINS.md` for 
 | POST | `/api/agent/autohire` | `CREW_AGENT_API_KEY` |
 | POST | `/api/agent/launch` | `CREW_AGENT_API_KEY` + `x-launcher-key` (+ optional `x-idempotency-key`) |
 | GET | `/api/agent/status/:mint` | `CREW_AGENT_API_KEY` |
-| POST | `/api/agent/wire-fees` | `CREW_AGENT_API_KEY` + `x-launcher-key` |
+| POST | `/api/agent/wire-fees` | `CREW_AGENT_API_KEY` + `x-launcher-key` + approved `dryRunId` (intent=`wire-fees`) |
 | POST | `/api/agent/lock-holder-kol` | `CREW_AGENT_API_KEY` + `x-launcher-key` |
 | POST | `/api/agent/crank` | `CREW_AGENT_API_KEY` + `x-launcher-key` |
 | GET | `/api/proof` | public buyback + remit proof |

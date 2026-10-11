@@ -14,6 +14,30 @@ export function buildBoardMessage(mint: string, timestamp: number): string {
   return `crew-board:${mint}:${timestamp}`
 }
 
+export function buildApproveDryRunMessage(dryRunId: string, timestamp: number): string {
+  return `crew-approve-dry-run:${dryRunId}:${timestamp}`
+}
+
+/** Verify Phantom-signed dry-run approval headers (no mint). */
+export function approveDryRunWalletFresh(req: {
+  header(name: string): string | undefined
+  body?: unknown
+}): { wallet: string; dryRunId: string } | null {
+  const wallet = (req.header('x-crew-wallet') || '').trim()
+  const tsRaw = (req.header('x-crew-timestamp') || '').trim()
+  const signature = (req.header('x-crew-signature') || '').trim()
+  const dryRunId =
+    (req.header('x-crew-dry-run-id') || '').trim() ||
+    String((req.body as { dryRunId?: string } | undefined)?.dryRunId || '')
+  if (!wallet || !tsRaw || !signature || !dryRunId) return null
+  const timestamp = Number(tsRaw)
+  if (!Number.isFinite(timestamp)) return null
+  if (Math.abs(Date.now() - timestamp) > 10 * 60_000) return null
+  const message = buildApproveDryRunMessage(dryRunId, timestamp)
+  if (!verifyWalletSignature({ wallet, message, signatureBase58: signature })) return null
+  return { wallet, dryRunId }
+}
+
 export function verifyWalletSignature(opts: {
   wallet: string
   message: string

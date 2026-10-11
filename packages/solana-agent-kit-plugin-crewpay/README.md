@@ -26,7 +26,7 @@ await agent.methods.crewLaunch({
 - Dry-run first; human opens `approvalUrl`; launch with `dryRunId`
 - Env keys only (`CREWPAY_API_KEY` / `CREW_AGENT_API_KEY`, `CREW_LAUNCHER_KEY`)
 - Fee map **60/15/25**; buyback cron not live yet
-- Prefer MCP: `npx -y crewpay-mcp@1.2.2` or https://mcp.crewpay.dev/mcp
+- Prefer MCP: `npx -y crewpay-mcp@1.2.3` or https://mcp.crewpay.dev/mcp
 
 ## Links
 

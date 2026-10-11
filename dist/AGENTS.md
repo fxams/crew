@@ -17,7 +17,6 @@ You are looking at the agent entrypoint for **CrewPay**: launch Solana **Pump.fu
 - Proof API: [https://api.crewpay.dev/api/proof](https://api.crewpay.dev/api/proof)
 - ClawHub skill: [https://clawhub.ai/fxams/crewpay](https://clawhub.ai/fxams/crewpay) — `openclaw skills install @fxams/crewpay`
 - Official MCP Registry: [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io) — `io.github.fxams/crewpay-mcp`
-- Musebook directory: [musebook.trade](https://musebook.trade) — slug `crewpay`
 - ClawPump agent: [clawpump.tech/agent/0d006dbb-…](https://clawpump.tech/agent/0d006dbb-3c21-4d14-b36b-3fcea74d0722)
 - Hosted MCP: [https://mcp.crewpay.dev/mcp](https://mcp.crewpay.dev/mcp) · card [/.well-known/mcp.json](https://mcp.crewpay.dev/.well-known/mcp.json)
 
@@ -46,7 +45,7 @@ Every launch appends **Launched from CrewPay.dev platform** when missing. Keep u
 Hosted MCP `https://mcp.crewpay.dev/mcp` is **publicMode**: pass `x-crew-api-key` for writes; it cannot hold your launcher secret.
 
 ```bash
-npx -y crewpay-mcp@1.2.2
+npx -y crewpay-mcp@1.2.3
 ```
 
 Point your MCP client at the pinned package with env:
@@ -59,7 +58,7 @@ REST alternative: `POST https://api.crewpay.dev/api/agent/launch` with `x-launch
 
 ## MCP tools
 
-Install pinned `crewpay-mcp@1.2.2` as above, or connect HTTP MCP at `https://mcp.crewpay.dev/mcp`.
+Install pinned `crewpay-mcp@1.2.3` as above, or connect HTTP MCP at `https://mcp.crewpay.dev/mcp`.
 
 Tools: `crew_discover` · `crew_claim_key` · `crew_search_kols` · `crew_autohire` · `crew_launch_dry_run` · `crew_launch` · `crew_list_launches` · `crew_status` · `crew_wire_fees` · `crew_lock_holder_kol` · `crew_crank_remits` · `crew_proof`
 

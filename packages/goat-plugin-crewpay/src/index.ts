@@ -1,6 +1,6 @@
 /**
  * GOAT SDK plugin scaffold for CrewPay.
- * Prefer MCP: npx -y crewpay-mcp@1.2.2 or https://mcp.crewpay.dev/mcp
+ * Prefer MCP: npx -y crewpay-mcp@1.2.3 or https://mcp.crewpay.dev/mcp
  */
 
 import { CrewPayClient, loadCrewPayEnv } from './client.js'
@@ -43,8 +43,11 @@ export class CrewPayGoatService {
     })
   }
 
-  async crewpay_wire_fees(params: { mint: string; mode?: string }) {
-    return api(this.opts).wireFees({ mint: params.mint, mode: params.mode })
+  async crewpay_wire_fees(params: { mint: string; mode?: string; dryRunId?: string }) {
+    return api(this.opts).wireFees(
+      { mint: params.mint, mode: params.mode },
+      { dryRunId: params.dryRunId || '' },
+    )
   }
 
   async crewpay_crank(params: { mint: string }) {

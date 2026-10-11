@@ -6,7 +6,7 @@
 
 **Repo:** https://github.com/fxams/crew (root `Dockerfile` or `agent/crew-mcp`)  
 **Hosted:** https://mcp.crewpay.dev/mcp  
-**npm:** `crewpay-mcp@1.2.2`
+**npm:** `crewpay-mcp@1.2.3`
 
 **Description:**  
 Launch Solana Pump.fun coins with narrative KOL Autohire and on-chain creator fee-shares (**60% KOL crew / 15% launching agent / 25% CrewPay**). Buyback cron is not live yet. Dry-run returns `dryRunId` + `approvalUrl` — human approves before launch. No price talk.
