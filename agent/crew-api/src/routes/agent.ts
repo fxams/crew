@@ -182,11 +182,14 @@ const launchBodySchema = z
   })
   .superRefine(refineLaunchBody)
 
+/** Requested seats may exceed the fee-map cap; handler clamps + warns. */
+const AUTOHIRE_SEATS_REQUEST_MAX = 20
+
 const autohireBodySchema = z.object({
   name: z.string().max(32).optional().default(''),
   ticker: z.string().max(13).optional().default(''),
   description: z.string().max(USER_DESCRIPTION_MAX).optional().default(''),
-  seats: z.number().int().min(1).max(MAX_CREW).optional().default(5),
+  seats: z.number().int().min(1).max(AUTOHIRE_SEATS_REQUEST_MAX).optional().default(5),
 })
 
 function applyRateLimit(
