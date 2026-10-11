@@ -6,11 +6,13 @@
  * does NOT survive restarts or multi-instance deploys (see README).
  *
  * Security: approve tokens are never returned to agents. Approval requires a wallet
- * signature on the approval page; agent API keys are rejected on the approve route.
+ * signature from an allowlisted operator/owner wallet; agent API keys and the
+ * launcher/burner pubkey named on the dry-run are rejected on the approve route.
  */
 
 import { createHash, randomBytes } from 'node:crypto'
 import { query } from '../db.js'
+import { assertWalletMayApprove } from './approver.js'
 
 export type DryRunIntent = 'launch' | 'wire-fees'
 
@@ -20,6 +22,8 @@ export type DryRunRecord = {
   intent: DryRunIntent
   bodyHash: string
   imageSha256: string | null
+  /** Launcher/burner pubkey from the dry-run request — never allowed to approve. */
+  launcherPubkey: string | null
   plan: unknown
   createdAt: number
   expiresAt: number
@@ -96,6 +100,7 @@ function rowToRec(row: {
   intent: string
   body_hash: string
   image_sha256: string | null
+  launcher_pubkey?: string | null
   plan: unknown
   created_at: Date | string
   expires_at: Date | string
@@ -104,12 +109,17 @@ function rowToRec(row: {
   consumed_at: Date | string | null
 }): DryRunRecord {
   const toMs = (v: Date | string) => (v instanceof Date ? v.getTime() : new Date(v).getTime())
+  const planObj =
+    row.plan && typeof row.plan === 'object' ? (row.plan as Record<string, unknown>) : null
+  const fromPlan =
+    typeof planObj?.launcherPubkey === 'string' ? planObj.launcherPubkey : null
   return {
     id: row.id,
     apiKeyFp: row.api_key_fp,
     intent: row.intent === 'wire-fees' ? 'wire-fees' : 'launch',
     bodyHash: row.body_hash,
     imageSha256: row.image_sha256,
+    launcherPubkey: row.launcher_pubkey ?? fromPlan,
     plan: row.plan,
     createdAt: toMs(row.created_at),
     expiresAt: toMs(row.expires_at),
@@ -125,15 +135,18 @@ export async function createDryRun(opts: {
   bodyHash: string
   imageSha256: string | null
   plan: unknown
+  launcherPubkey?: string | null
 }): Promise<DryRunRecord> {
   const now = Date.now()
   const id = randomBytes(16).toString('hex')
+  const launcherPubkey = opts.launcherPubkey?.trim() || null
   const rec: DryRunRecord = {
     id,
     apiKeyFp: opts.apiKeyFp,
     intent: opts.intent,
     bodyHash: opts.bodyHash,
     imageSha256: opts.imageSha256,
+    launcherPubkey,
     plan: opts.plan,
     createdAt: now,
     expiresAt: now + TTL_MS,
@@ -150,11 +163,11 @@ export async function createDryRun(opts: {
 
   await query(
     `INSERT INTO agent_dry_runs (
-      id, api_key_fp, intent, body_hash, image_sha256, plan,
+      id, api_key_fp, intent, body_hash, image_sha256, launcher_pubkey, plan,
       created_at, expires_at, approved_at, approved_by_wallet, consumed_at
     ) VALUES (
-      $1, $2, $3, $4, $5, $6::jsonb,
-      to_timestamp($7 / 1000.0), to_timestamp($8 / 1000.0),
+      $1, $2, $3, $4, $5, $6, $7::jsonb,
+      to_timestamp($8 / 1000.0), to_timestamp($9 / 1000.0),
       NULL, NULL, NULL
     )`,
     [
@@ -163,6 +176,7 @@ export async function createDryRun(opts: {
       rec.intent,
       rec.bodyHash,
       rec.imageSha256,
+      rec.launcherPubkey,
       JSON.stringify(rec.plan ?? null),
       rec.createdAt,
       rec.expiresAt,
@@ -189,6 +203,7 @@ export async function getDryRun(id: string): Promise<DryRunRecord | null> {
     intent: string
     body_hash: string
     image_sha256: string | null
+    launcher_pubkey: string | null
     plan: unknown
     created_at: Date
     expires_at: Date
@@ -196,7 +211,7 @@ export async function getDryRun(id: string): Promise<DryRunRecord | null> {
     approved_by_wallet: string | null
     consumed_at: Date | null
   }>(
-    `SELECT id, api_key_fp, intent, body_hash, image_sha256, plan,
+    `SELECT id, api_key_fp, intent, body_hash, image_sha256, launcher_pubkey, plan,
             created_at, expires_at, approved_at, approved_by_wallet, consumed_at
      FROM agent_dry_runs
      WHERE id = $1 AND expires_at > now()`,
@@ -210,14 +225,21 @@ export async function getDryRun(id: string): Promise<DryRunRecord | null> {
 export async function approveDryRunWithWallet(
   id: string,
   wallet: string,
+  opts?: { allowlist?: string[] },
 ): Promise<DryRunRecord> {
   const rec = await getDryRun(id)
   if (!rec) throw new Error('Unknown or expired dryRunId')
   if (rec.consumedAt) throw new Error('This dry-run was already used')
   if (rec.approvedAt) {
-    // Idempotent re-approve by same or any wallet once approved
+    // Idempotent re-approve once already approved (skip re-check)
     return rec
   }
+  await assertWalletMayApprove({
+    wallet,
+    apiKeyFp: rec.apiKeyFp,
+    launcherPubkey: rec.launcherPubkey,
+    allowlist: opts?.allowlist,
+  })
   const approvedAt = Date.now()
   if (!useDb()) {
     rec.approvedAt = approvedAt

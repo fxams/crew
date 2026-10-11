@@ -1469,8 +1469,8 @@ export default function App() {
             <div className="home-fee-legend">
               <div>
                 <strong>{PLATFORM_BUYBACK_BPS / 100}%</strong>
-                <span>CREW treasury</span>
-                <em>Platform fee-share · buyback cron not live</em>
+                <span>Platform fee-share</span>
+                <em>Ops cut to the configured treasury wallet</em>
               </div>
               <div>
                 <strong>{MODE_DESK_BPS.agent / 100}%</strong>
