@@ -79,7 +79,9 @@ export async function validateAgentImage(
 
 async function toBlob(image: AgentImageInput): Promise<{ blob: Blob; filename: string }> {
   const { buf, contentType, filename } = await loadAgentImageBytes(image)
-  return { blob: new Blob([buf], { type: contentType }), filename }
+  // Convert Buffer to Uint8Array for Blob compatibility under strict TS
+  const view = new Uint8Array(buf)
+  return { blob: new Blob([view], { type: contentType }), filename }
 }
 
 export async function uploadPumpMetadata(input: {

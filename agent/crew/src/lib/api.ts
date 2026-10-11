@@ -54,7 +54,7 @@ export async function pushCoin(
   return saved
 }
 
-export async function pushRemits(remits: RemitRecord[]): Promise<number> {
+export async function pushRemits(_remits: RemitRecord[]): Promise<number> {
   // Browser does not persist remits to the API anymore; server ingests chain data itself.
   return 0
 }
