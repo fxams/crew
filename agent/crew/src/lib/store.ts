@@ -1,4 +1,4 @@
-import { apiConfigured, fetchBoard, pushCoin, pushRemits, type BoardWallet } from './api'
+import { apiConfigured, fetchBoard, pushCoin, type BoardWallet } from './api'
 import { DRAFT_KEY, STORE_KEY, STORE_LEGACY_KEYS, UI_KEY } from './config'
 import { sanitizeBoard, sanitizeDraft, sanitizeUiPrefs } from './security'
 import type { CoinRecord, LaunchDraft, RemitRecord } from './types'
@@ -18,7 +18,7 @@ function syncCoinRemote(coin: CoinRecord) {
   )
 }
 
-function syncRemitsRemote(remits: RemitRecord[]) {
+function syncRemitsRemote(_remits: RemitRecord[]) {
   // No-op: server persists chain-synced remits; keep UI responsive without network writes.
   return
 }
