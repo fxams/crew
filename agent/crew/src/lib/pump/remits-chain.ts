@@ -1,7 +1,7 @@
 import { PublicKey, type Connection, type VersionedTransactionResponse } from '@solana/web3.js'
 import { feeSharingConfigPda } from '@pump-fun/pump-sdk'
 import type { CoinRecord, RemitRecord } from '../types'
-import { readPlatformBuybackWallet } from '../config'
+import { isPlatformTreasury } from '../config'
 import { getConnection, getPumpSdk } from './connection'
 export { isChainRemit, walletToHandle } from './remits-chain-helpers'
 import { walletToHandle } from './remits-chain-helpers'
@@ -97,11 +97,10 @@ export function parseDistributeRowsFromTx(
 }
 
 export function rowsToRemits(coin: CoinRecord, rows: ParsedRow[]): RemitRecord[] {
-  const platformWallet = readPlatformBuybackWallet()
   return rows.map((row) => {
     const inCrew = coin.crew.some((m) => m.wallet === row.wallet)
     let role: 'crew' | 'desk' | 'platform' | undefined
-    if (platformWallet && row.wallet === platformWallet) {
+    if (isPlatformTreasury(row.wallet)) {
       role = 'platform'
     } else if (inCrew) {
       role = 'crew'

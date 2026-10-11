@@ -7,6 +7,7 @@ import {
   CREW_TOKEN_MINT,
   CREW_TOKEN_PUMP_URL,
   SOLSCAN_TX_URL,
+  readLegacyPlatformBuybackWallets,
 } from '../lib/config'
 import { fetchProof, type ProofBundle } from '../lib/api'
 import { formatSol } from '../lib/format-sol'
@@ -132,6 +133,14 @@ export function ProofPage() {
                   {shortAddr(data.platform.buybackWallet || '')}
                 </code>
               </span>
+              {readLegacyPlatformBuybackWallets().length ? (
+                <span>
+                  Legacy treasury{' '}
+                  <code title={readLegacyPlatformBuybackWallets().join(', ')}>
+                    {shortAddr(readLegacyPlatformBuybackWallets()[0]!)}
+                  </code>
+                </span>
+              ) : null}
               <span>
                 CREW mint{' '}
                 <code title={data.platform.crewMint || ''}>

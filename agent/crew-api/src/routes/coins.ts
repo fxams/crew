@@ -11,7 +11,7 @@ import {
   type ApiRemit,
 } from '../lib/coins.js'
 import { enrichRemitHandle } from '../lib/proof.js'
-import { readPlatformBuybackWallet } from '../lib/agent/constants.js'
+import { isPlatformTreasury, readPlatformBuybackWallet } from '../lib/agent/constants.js'
 import { requireApiKeyOrWallet, requireWalletSignatureOnly } from '../lib/wallet-auth.js'
 import { issueBoardNonce } from '../lib/board-nonces.js'
 import { assertSafeHttpUrl } from '../lib/agent/safe-url.js'
@@ -160,11 +160,11 @@ coinsRouter.get('/remits', async (req, res) => {
         let role = (r.role || '').toLowerCase() || null
         if (role === 'kol') role = 'crew'
         if (!role) {
-          if (buybackWallet && r.wallet === buybackWallet) role = 'platform'
+          if (isPlatformTreasury(r.wallet)) role = 'platform'
           else if (coin?.crew.some((c) => c.wallet === r.wallet)) role = 'crew'
           else if (coin && coin.launcher === r.wallet) role = 'desk'
         }
-        if (buybackWallet && r.wallet === buybackWallet) role = 'platform'
+        if (isPlatformTreasury(r.wallet)) role = 'platform'
         return {
           ...r,
           role: role ?? undefined,
@@ -210,11 +210,11 @@ coinsRouter.get('/board', async (_req, res) => {
         let role = (r.role || '').toLowerCase() || null
         if (role === 'kol') role = 'crew'
         if (!role) {
-          if (buybackWallet && r.wallet === buybackWallet) role = 'platform'
+          if (isPlatformTreasury(r.wallet)) role = 'platform'
           else if (coin?.crew.some((c) => c.wallet === r.wallet)) role = 'crew'
           else if (coin && coin.launcher === r.wallet) role = 'desk'
         }
-        if (buybackWallet && r.wallet === buybackWallet) role = 'platform'
+        if (isPlatformTreasury(r.wallet)) role = 'platform'
         return {
           ...r,
           role: role ?? undefined,
