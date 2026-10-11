@@ -117,7 +117,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         discovery: data,
         tip: 'Safe flow: crew_claim_key (if needed) → crew_discover → crew_autohire → crew_launch. Approval is optional. Operators can require human approval per key (then: crew_launch_dry_run → approvalUrl → crew_launch(dryRunId)). Secrets stay in MCP env only.',
         auth: {
-          reads: 'crew_discover / crew_search_kols / crew_proof / crew_claim_key need no API key',
+          reads: 'crew_discover / crew_search_kols / crew_proof / crew_claim_key / crew_autohire (keyless preview) need no API key',
           writes: cfg.publicMode
             ? 'Pass x-crew-api-key on the MCP HTTP request (or run locally with CREW_AGENT_API_KEY). Mint via crew_claim_key or POST /api/agent/keys/claim.'
             : 'Set CREW_AGENT_API_KEY in MCP env (mint via crew_claim_key). Operator mint: POST /api/agent/keys.',
@@ -195,7 +195,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Narrative Autohire KOLs',
       description:
-        'Preview CREW narrative Autohire: match a Solana / Pump.fun token name, ticker, and vibe to the top KOL pack (wallets, roles, shares, reasons). No on-chain tx. Public Pump wallets — not endorsed affiliates. Requires CREW_AGENT_API_KEY.',
+        'Preview CREW narrative Autohire: match a Solana / Pump.fun token name, ticker, and vibe to the top KOL pack (wallets, roles, shares, reasons). No on-chain tx. Public Pump wallets — not endorsed affiliates. Works without a key (keyless preview); with CREW_AGENT_API_KEY / x-crew-api-key it uses your key and referral binding.',
       inputSchema: {
         name: z.string().max(32).optional().describe('Token name (2–32 on launch)'),
         ticker: z.string().max(13).optional().describe('Token ticker (2–13 on launch)'),
@@ -211,6 +211,21 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
     async (input) => {
+      if (!cfg.apiKey) {
+        // No key yet: use the read-only no-auth preview so first contact always works.
+        const qs = new URLSearchParams({
+          name: input.name || '',
+          ticker: input.ticker || '',
+          description: input.description || '',
+          seats: String(input.seats ?? 5),
+        })
+        const preview = await crewFetch(cfg, `/api/agent/quickstart?${qs}`)
+        return asText({
+          ...(preview as Record<string, unknown>),
+          keyless: true,
+          tip: 'Keyless preview (no API key on this session). Call crew_claim_key to get crew_ak_…, then crew_launch_dry_run / crew_launch.',
+        })
+      }
       const data = await crewFetch(cfg, '/api/agent/autohire', {
         method: 'POST',
         auth: true,
