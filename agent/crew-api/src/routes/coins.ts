@@ -114,10 +114,22 @@ coinsRouter.get('/remits', async (req, res) => {
       }),
     )
     res.json({
-      remits: remits.map((r) => ({
-        ...r,
-        handle: enrichRemitHandle(r, coinMap.get(r.mint), buybackWallet),
-      })),
+      remits: remits.map((r) => {
+        const coin = coinMap.get(r.mint)
+        let role = (r.role || '').toLowerCase() || null
+        if (role === 'kol') role = 'crew'
+        if (!role) {
+          if (buybackWallet && r.wallet === buybackWallet) role = 'platform'
+          else if (coin?.crew.some((c) => c.wallet === r.wallet)) role = 'crew'
+          else if (coin && coin.launcher === r.wallet) role = 'desk'
+        }
+        if (buybackWallet && r.wallet === buybackWallet) role = 'platform'
+        return {
+          ...r,
+          role: role ?? undefined,
+          handle: enrichRemitHandle(r, coin, buybackWallet),
+        }
+      }),
     })
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : 'list failed' })
@@ -138,7 +150,27 @@ coinsRouter.post('/remits', writeAuth, async (req, res) => {
 coinsRouter.get('/board', async (_req, res) => {
   try {
     const [coins, remits] = await Promise.all([listCoins(100), listRemits(200)])
-    res.json({ coins, remits })
+    const buybackWallet = readPlatformBuybackWallet() || null
+    const coinsByMint = new Map(coins.map((c) => [c.mint, c]))
+    res.json({
+      coins,
+      remits: remits.map((r) => {
+        const coin = coinsByMint.get(r.mint)
+        let role = (r.role || '').toLowerCase() || null
+        if (role === 'kol') role = 'crew'
+        if (!role) {
+          if (buybackWallet && r.wallet === buybackWallet) role = 'platform'
+          else if (coin?.crew.some((c) => c.wallet === r.wallet)) role = 'crew'
+          else if (coin && coin.launcher === r.wallet) role = 'desk'
+        }
+        if (buybackWallet && r.wallet === buybackWallet) role = 'platform'
+        return {
+          ...r,
+          role: role ?? undefined,
+          handle: enrichRemitHandle(r, coin, buybackWallet),
+        }
+      }),
+    })
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : 'board failed' })
   }

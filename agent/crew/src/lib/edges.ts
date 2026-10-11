@@ -289,7 +289,21 @@ export function buildDeskPulse(
 ): PulseItem[] {
   const items: PulseItem[] = []
 
-  for (const r of remits.slice(0, 10)) {
+  const platformWallet = readPlatformBuybackWallet()
+  const remitKols = remits
+    .filter((r) => {
+      if ('role' in r) {
+        const role = (r.role || '').toLowerCase()
+        if (role !== 'crew' && role !== 'kol') return false
+      } else {
+        if (!isHumanHandle(r.handle)) return false
+      }
+      if (platformWallet && r.wallet && r.wallet === platformWallet) return false
+      return true
+    })
+    .slice(0, 10)
+
+  for (const r of remitKols) {
     items.push({
       id: `p_${r.id}`,
       kind: r.amountSol > 0 ? 'remit' : 'lock',

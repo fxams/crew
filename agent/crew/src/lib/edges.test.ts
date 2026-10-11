@@ -5,6 +5,7 @@ import {
   shareReceiptText,
   CREW_EDGES,
   LAUNCH_TEMPLATES,
+  buildDeskPulse,
 } from './edges'
 import type { CoinRecord, RemitRecord } from './types'
 
@@ -101,6 +102,36 @@ describe('buildScoreboard', () => {
     expect(board.length).toBe(1)
     expect(board[0].handle).toBe('@alice')
     expect(board[0].totalSol).toBeCloseTo(0.5)
+  })
+})
+
+describe('buildDeskPulse', () => {
+  it('includes only crew/KOL remits in the pulse', () => {
+    const coins = [
+      {
+        id: 'c1',
+        mint: 'm1',
+        name: 'AAA',
+        ticker: 'AAA',
+        vibe: '',
+        mode: 'split',
+        crew: [],
+        signature: 'x',
+        launchedAt: 1,
+        launcher: 'L',
+        pumpUrl: 'https://pump.fun/coin/m1',
+      },
+    ] as unknown as CoinRecord[]
+    const remits: RemitRecord[] = [
+      { id: 'p', mint: 'm1', ticker: 'AAA', handle: '@crew-buyback', wallet: 'T', amountSol: 1, mode: 'split', at: 1, role: 'platform' },
+      { id: 'd', mint: 'm1', ticker: 'AAA', handle: '@CrewAgent', wallet: 'L', amountSol: 2, mode: 'agent', at: 2, role: 'desk' },
+      { id: 'c', mint: 'm1', ticker: 'AAA', handle: '@alice', wallet: 'A', amountSol: 0.25, mode: 'split', at: 3, role: 'crew' },
+    ]
+    const pulse = buildDeskPulse(coins, remits, Date.now())
+    const remitItems = pulse.filter((p) => p.kind === 'remit' || p.kind === 'lock')
+    expect(remitItems.some((i) => i.title.includes('@alice'))).toBe(true)
+    expect(remitItems.some((i) => i.title.includes('@CrewAgent'))).toBe(false)
+    expect(remitItems.some((i) => i.title.includes('@crew-buyback'))).toBe(false)
   })
 })
 
