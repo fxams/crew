@@ -1,14 +1,15 @@
 /**
  * Dry-run approval allowlist.
  *
- * Only wallets in CREWPAY_APPROVER_WALLETS (comma/space separated) and/or the
- * owner_wallet registered on the issuing API key may approve. The launcher /
- * burner pubkey named on the dry-run is always rejected. If the allowlist is
- * empty after combining env + owner, all approvals are refused.
+ * Only wallets in CREWPAY_APPROVER_WALLETS (comma/space separated) may approve.
+ * API-key ownerWallet is intentionally NOT trusted — agents holding crew_ak_…
+ * must not be able to register an approver and self-approve.
+ *
+ * The launcher/burner pubkey named on the dry-run is always rejected.
+ * If the allowlist is empty, all approvals are refused.
  */
 
 import { PublicKey } from '@solana/web3.js'
-import { getOwnerWalletByFingerprint } from '../agent-keys.js'
 
 export function normalizeWallet(addr: string): string | null {
   try {
@@ -32,49 +33,43 @@ export function parseApproverAllowlist(
   return [...new Set(out)]
 }
 
-export async function resolveApproverAllowlist(opts: {
-  apiKeyFp: string
+/** Env-only allowlist — never merges API-key ownerWallet. */
+export function resolveApproverAllowlist(opts?: {
   env?: NodeJS.ProcessEnv
-}): Promise<string[]> {
-  const allow = new Set(parseApproverAllowlist(opts.env))
-  try {
-    const owner = await getOwnerWalletByFingerprint(opts.apiKeyFp)
-    const n = owner ? normalizeWallet(owner) : null
-    if (n) allow.add(n)
-  } catch {
-    /* DB unavailable in unit tests — env-only allowlist still applies */
-  }
-  return [...allow]
+}): string[] {
+  return parseApproverAllowlist(opts?.env)
 }
 
 /**
  * Throw if wallet may not approve this dry-run.
- * Pure check when `allowlist` is passed (tests); otherwise loads env + owner.
+ * Pure check when `allowlist` is passed (tests); otherwise loads env.
  */
 export async function assertWalletMayApprove(opts: {
   wallet: string
-  apiKeyFp: string
-  /** Burner / launcher pubkey from the dry-run — never an approver. */
-  launcherPubkey?: string | null
-  /** Precomputed allowlist for tests (skips env/DB). */
+  /** Burner / launcher pubkey from the dry-run — required; never an approver. */
+  launcherPubkey: string | null | undefined
+  /** Precomputed allowlist for tests (skips env). */
   allowlist?: string[]
 }): Promise<void> {
   const wallet = normalizeWallet(opts.wallet)
   if (!wallet) throw new Error('Invalid approver wallet')
 
   const launcher = opts.launcherPubkey ? normalizeWallet(opts.launcherPubkey) : null
-  if (launcher && wallet === launcher) {
+  if (!launcher) {
+    throw new Error('Dry-run missing launcherPubkey — refuse approval')
+  }
+  if (wallet === launcher) {
     throw new Error('Launcher/burner wallet cannot approve dry-runs')
   }
 
   const allow =
     opts.allowlist !== undefined
       ? opts.allowlist.map((w) => normalizeWallet(w)).filter((w): w is string => Boolean(w))
-      : await resolveApproverAllowlist({ apiKeyFp: opts.apiKeyFp })
+      : resolveApproverAllowlist()
 
   if (allow.length === 0) {
     throw new Error(
-      'Approvals disabled — set CREWPAY_APPROVER_WALLETS or register an owner wallet on the API key',
+      'Approvals disabled — set CREWPAY_APPROVER_WALLETS (comma-separated operator wallets)',
     )
   }
 
