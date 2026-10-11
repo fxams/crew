@@ -47,9 +47,27 @@ export async function withTransaction<T>(
   }
 }
 
+function loadSchemaSql(): string {
+  const here = dirname(fileURLToPath(import.meta.url))
+  // tsx: src/lib → ../schema.sql
+  // compiled on Render: dist/src/lib → prefer copied dist/src/schema.sql, else source tree
+  const candidates = [
+    join(here, '../schema.sql'),
+    join(here, '../../../src/schema.sql'),
+    join(here, '../../schema.sql'),
+  ]
+  for (const path of candidates) {
+    try {
+      return readFileSync(path, 'utf8')
+    } catch {
+      /* try next */
+    }
+  }
+  throw new Error(`schema.sql not found (searched from ${here})`)
+}
+
 export async function migrate(): Promise<void> {
-  const __dirname = dirname(fileURLToPath(import.meta.url))
-  const sql = readFileSync(join(__dirname, '../schema.sql'), 'utf8')
+  const sql = loadSchemaSql()
 
   // Live DBs created before agent_key_id: CREATE TABLE IF NOT EXISTS is a no-op,
   // but schema.sql still creates coins_agent_key_id_idx which requires the column.
