@@ -4,7 +4,6 @@ const base = (
   (import.meta.env.VITE_CREW_API_URL as string | undefined)?.replace(/\/$/, '') ||
   'https://api.crewpay.dev'
 )
-const apiKey = (import.meta.env.VITE_CREW_API_KEY as string | undefined)?.trim() || ''
 
 export function apiConfigured(): boolean {
   return Boolean(base)
@@ -16,7 +15,6 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   if (!headers.has('Content-Type') && init?.body) {
     headers.set('Content-Type', 'application/json')
   }
-  if (apiKey) headers.set('x-crew-api-key', apiKey)
   const res = await fetch(`${base}${path}`, { ...init, headers })
   if (!res.ok) {
     const text = await res.text().catch(() => '')
