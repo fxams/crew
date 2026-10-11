@@ -263,6 +263,7 @@ agentRouter.post('/agent/autohire', requireAgentApiKey, async (req, res) => {
       seatsDropped,
       warnings,
       match: plan.match,
+      policy: plan.policy || 'score',
       registeredPreferred: registered.length,
       hires: plan.hires.map((h) => ({
         rank: h.hireRank,
@@ -280,7 +281,11 @@ agentRouter.post('/agent/autohire', requireAgentApiKey, async (req, res) => {
       })),
       crew: plan.crew,
       disclaimer: AUTOHIRE_DISCLAIMER,
-      tip: 'Registered KOLs are preferred when they match the narrative. Inspect hires/reasons, remix via crew[], or keep autoHire. Listing ≠ consent.',
+      tip:
+        (plan.policy === 'registered-first'
+          ? 'Registered-first: registered KOLs fill seats first (then narrative picks). '
+          : 'Score policy: narrative picks by score. ') +
+        'Inspect hires/reasons, remix via crew[], or keep autoHire. Listing ≠ consent.',
     })
   } catch (err) {
     res.status(400).json({ error: err instanceof Error ? err.message : 'autohire failed' })
@@ -458,6 +463,7 @@ agentRouter.post('/agent/launch/dry-run', requireAgentApiKey, async (req, res) =
       ...result,
       imageSha256,
       launcherPubkey,
+      policy: result.hirePlan?.policy || 'score',
       dryRunId: rec.id,
       approvalUrl,
       requireApproval,

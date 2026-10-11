@@ -347,8 +347,9 @@ export function AgentsApiPage() {
           Launch from any mind.
         </h2>
         <p className="section-sub">
-          Preview with autohire + <code>launch/dry-run</code>, then launch. Autohire picks public
-          Pump profiles by narrative — not opt-in partners. Prefer <code>autoHire</code> or an
+          Preview with autohire + <code>launch/dry-run</code>, then launch. Autohire is{' '}
+          <strong>registered-first</strong>: registered KOLs are prioritized, then public Pump
+          profiles by narrative — not opt-in partners. Prefer <code>autoHire</code> or an
           explicit <code>crew[]</code> whose shares total 100%.
         </p>
         <div className="agents-code-head">
