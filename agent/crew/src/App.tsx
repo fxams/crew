@@ -514,7 +514,16 @@ export default function App() {
   );
 
   const tapeItems = useMemo(() => {
-    const fromRemits = remits.filter((r) => r.amountSol > 0).slice(0, 16).map((r) => ({
+    const fromRemits = remits
+      .filter((r) => {
+        if (!r || !(r.amountSol > 0)) return false
+        const role = (r as any).role ? String((r as any).role).toLowerCase() : ''
+        if (role) return role === 'crew' || role === 'kol'
+        const h = (r.handle || '').toLowerCase()
+        return h && !['@desk', '@buyback', '@raid', '@agent', '@crew-buyback'].includes(h)
+      })
+      .slice(0, 16)
+      .map((r) => ({
       id: r.id,
       text:
         r.amountSol > 0
@@ -1662,7 +1671,7 @@ export default function App() {
                 <strong>{coins.length}</strong> coins
               </span>
               <span>
-                <strong>{remits.length}</strong> remits
+                <strong>{stats.humanRemits}</strong> remits
               </span>
               <span>
                 <strong>mainnet</strong> live
