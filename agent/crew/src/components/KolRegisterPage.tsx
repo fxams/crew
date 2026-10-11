@@ -4,6 +4,7 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import { useWalletModal } from '@solana/wallet-adapter-react-ui'
 import bs58 from 'bs58'
 import { CREW_VERSION, KOL_REFERRAL_CUT_PCT } from '../lib/config'
+import { formatSol } from '../lib/format-sol'
 import { useOwnRegisteredHandle } from '../lib/registered-kol'
 import { kolProfilePath } from '../lib/routes'
 
@@ -25,12 +26,6 @@ type Registration = {
   rank: number
   description: string
   referralCode?: string
-}
-
-function formatSol(n: number) {
-  if (!Number.isFinite(n) || n === 0) return '0'
-  if (n >= 1) return n.toFixed(3)
-  return n.toFixed(4).replace(/0+$/, '').replace(/\.$/, '')
 }
 
 function shortAddr(addr: string) {

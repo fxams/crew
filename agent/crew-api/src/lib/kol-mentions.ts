@@ -36,14 +36,25 @@ function mapDraft(row: Record<string, unknown>): MentionDraft {
   }
 }
 
+/** Keep tiny remits readable in draft tweets (toFixed(4) collapses ~1e-5 → 0.0000). */
+function formatMentionSol(n: number): string {
+  if (!Number.isFinite(n) || n === 0) return '0'
+  const abs = Math.abs(n)
+  let text: string
+  if (abs >= 1) text = n.toFixed(3)
+  else if (abs >= 0.0001) text = n.toFixed(4)
+  else if (abs >= 1e-7) text = n.toFixed(7)
+  else text = n.toFixed(9)
+  return text.replace(/(\.\d*?[1-9])0+$/, '$1').replace(/\.0+$/, '').replace(/\.$/, '')
+}
+
 function buildDraftText(opts: {
   handle: string
   amountSol: number
   ticker?: string
 }): string {
   const handle = opts.handle.replace(/^@+/, '')
-  const sol =
-    opts.amountSol >= 1 ? opts.amountSol.toFixed(3) : opts.amountSol.toFixed(4)
+  const sol = formatMentionSol(opts.amountSol)
   const coin = opts.ticker ? `$${opts.ticker.replace(/^\$/, '')}` : 'a CrewPay launch'
   return [
     `@${handle} just got paid ${sol} SOL from ${coin} on @CrewPayHQ.`,
