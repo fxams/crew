@@ -59,6 +59,7 @@ import {
   buildDeskPulse,
   buildScoreboard,
   deskStats,
+  isKolRemit,
   modeLabel,
   shareReceiptText,
   type LaunchTemplate,
@@ -544,8 +545,9 @@ export default function App() {
       mint: c.mint,
       coin: c,
     }));
+    const coinByMint = new Map(coins.map((c) => [c.mint, c]));
     const remitRows = remits
-      .filter((r) => r.amountSol > 0)
+      .filter((r) => r.amountSol > 0 && isKolRemit(r as any, coinByMint.get(r.mint)))
       .slice(0, 12)
       .map((r) => ({
         id: `remit_${r.id}`,
