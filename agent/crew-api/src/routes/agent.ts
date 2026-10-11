@@ -137,6 +137,9 @@ function refineLaunchBody(
   }
 }
 
+/** Requested seats may exceed the fee-map cap; handler clamps + warns. */
+const AUTOHIRE_SEATS_REQUEST_MAX = 20
+
 const launchBodySchema = z
   .object({
     name: z.string().min(2).max(32),
@@ -156,7 +159,7 @@ const launchBodySchema = z
     crew: z.array(crewMemberSchema).min(1).max(MAX_CREW).optional(),
     autoHire: z
       .object({
-        seats: z.number().int().min(1).max(MAX_CREW).optional().default(5),
+        seats: z.number().int().min(1).max(AUTOHIRE_SEATS_REQUEST_MAX).optional().default(5),
       })
       .optional(),
     agent: z
@@ -181,9 +184,6 @@ const launchBodySchema = z
     dryRunId: z.string().min(16).max(64).optional(),
   })
   .superRefine(refineLaunchBody)
-
-/** Requested seats may exceed the fee-map cap; handler clamps + warns. */
-const AUTOHIRE_SEATS_REQUEST_MAX = 20
 
 const autohireBodySchema = z.object({
   name: z.string().max(32).optional().default(''),
