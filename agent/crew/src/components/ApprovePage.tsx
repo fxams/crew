@@ -1,32 +1,40 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useLocation, useSearchParams } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
+import { useWallet } from '@solana/wallet-adapter-react'
+import { useWalletModal } from '@solana/wallet-adapter-react-ui'
+import bs58 from 'bs58'
 import { CREW_AGENT_API_URL } from '../lib/config'
 import { dryRunIdFromApprovePath } from '../lib/routes'
 
 type DryRunView = {
   ok?: boolean
   dryRunId: string
+  intent?: 'launch' | 'wire-fees'
   approved: boolean
   approvedAt: string | null
+  approvedByWallet?: string | null
   consumed: boolean
   expiresAt: string
+  imageSha256?: string | null
   plan: {
     name?: string
     ticker?: string
+    mint?: string
     mode?: string
     initialBuySol?: number
     costs?: { needSol?: number; note?: string }
     feeMap?: { platformBuybackBps?: number; deskBps?: number; crewPoolBps?: number }
     warnings?: string[]
     vibe?: string
+    note?: string
   }
 }
 
 export function ApprovePage() {
   const { pathname } = useLocation()
   const dryRunId = dryRunIdFromApprovePath(pathname) || ''
-  const [params] = useSearchParams()
-  const token = params.get('t') || params.get('token') || ''
+  const wallet = useWallet()
+  const { setVisible } = useWalletModal()
   const [data, setData] = useState<DryRunView | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -66,25 +74,44 @@ export function ApprovePage() {
   }, [data])
 
   async function onApprove() {
-    if (!token) {
-      setError('Missing approval token in URL (?t=…)')
+    if (!wallet.publicKey || !wallet.signMessage) {
+      setVisible(true)
+      setError('Connect a wallet to approve (agent API keys cannot approve).')
       return
     }
     setBusy(true)
     setError(null)
     try {
+      const timestamp = Date.now()
+      const message = `crew-approve-dry-run:${dryRunId}:${timestamp}`
+      const sig = await wallet.signMessage(new TextEncoder().encode(message))
       const res = await fetch(
         `${apiBase}/api/agent/launch/dry-run/${encodeURIComponent(dryRunId)}/approve`,
         {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ token }),
+          headers: {
+            'content-type': 'application/json',
+            'x-crew-wallet': wallet.publicKey.toBase58(),
+            'x-crew-timestamp': String(timestamp),
+            'x-crew-signature': bs58.encode(sig),
+            'x-crew-dry-run-id': dryRunId,
+          },
+          body: JSON.stringify({ dryRunId }),
         },
       )
       const json = (await res.json()) as { ok?: boolean; error?: string }
       if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`)
       setDone(true)
-      setData((prev) => (prev ? { ...prev, approved: true, approvedAt: new Date().toISOString() } : prev))
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              approved: true,
+              approvedAt: new Date().toISOString(),
+              approvedByWallet: wallet.publicKey?.toBase58() ?? null,
+            }
+          : prev,
+      )
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Approve failed')
     } finally {
@@ -92,21 +119,27 @@ export function ApprovePage() {
     }
   }
 
+  const intent = data?.intent || 'launch'
+
   return (
     <div className="app-shell agents-page">
       <section className="section">
         <p className="section-label">Human approval</p>
         <h1 className="section-title">Approve dry-run</h1>
         <p className="section-sub">
-          Review this planned MAINNET launch. Approving does not spend SOL — it only unlocks the
-          agent&apos;s next <code>POST /api/agent/launch</code> with this <code>dryRunId</code>.
+          Review this planned MAINNET {intent === 'wire-fees' ? 'wire-fees' : 'launch'}. Approving
+          does not spend SOL — it unlocks the agent&apos;s next spend call with this{' '}
+          <code>dryRunId</code>. Connect a wallet to sign; agent API keys are rejected.
         </p>
 
         {error ? <p className="desk-banner desk-banner-error">{error}</p> : null}
         {done ? (
           <p className="desk-banner desk-banner-info">
-            Approved. Tell the agent to launch with <code>dryRunId={dryRunId}</code> and the same
-            body.
+            Approved. Tell the agent to call{' '}
+            <code>
+              {intent === 'wire-fees' ? 'POST /api/agent/wire-fees' : 'POST /api/agent/launch'}
+            </code>{' '}
+            with <code>dryRunId={dryRunId}</code> and the same body.
           </p>
         ) : null}
 
@@ -116,22 +149,30 @@ export function ApprovePage() {
           <div className="agents-card" style={{ marginTop: '1.25rem' }}>
             <p>
               <strong>
-                {data.plan?.name || '—'} · ${data.plan?.ticker || '—'}
+                {intent === 'wire-fees'
+                  ? `Wire fees · ${data.plan?.mint || '—'}`
+                  : `${data.plan?.name || '—'} · $${data.plan?.ticker || '—'}`}
               </strong>
             </p>
             <p className="section-sub">
-              Mode: {data.plan?.mode || 'agent'} · Initial buy:{' '}
-              {data.plan?.initialBuySol ?? 0} SOL
-              {data.plan?.costs?.needSol != null
-                ? ` · Needs ≥ ${data.plan.costs.needSol} SOL`
+              Intent: {intent} · Mode: {data.plan?.mode || 'agent'}
+              {intent === 'launch' && data.plan?.initialBuySol != null
+                ? ` · Initial buy: ${data.plan.initialBuySol} SOL`
                 : ''}
+              {data.plan?.costs?.needSol != null ? ` · Needs ≥ ${data.plan.costs.needSol} SOL` : ''}
             </p>
+            {data.imageSha256 ? (
+              <p className="section-sub">
+                Image sha256: <code>{data.imageSha256.slice(0, 16)}…</code>
+              </p>
+            ) : null}
             {feeLine ? <p className="section-sub">{feeLine}</p> : null}
             {data.plan?.vibe ? (
               <p className="section-sub">
                 Description: <em>{data.plan.vibe}</em>
               </p>
             ) : null}
+            {data.plan?.note ? <p className="section-sub">{data.plan.note}</p> : null}
             {data.plan?.warnings?.length ? (
               <ul className="section-sub">
                 {data.plan.warnings.slice(0, 6).map((w) => (
@@ -145,29 +186,29 @@ export function ApprovePage() {
                 ? 'already used'
                 : data.approved
                   ? 'approved'
-                  : 'awaiting your confirmation'}{' '}
+                  : 'awaiting wallet confirmation'}{' '}
               · expires {new Date(data.expiresAt).toLocaleString()}
             </p>
 
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '1rem' }}>
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={busy || data.approved || data.consumed || !token}
-                onClick={() => void onApprove()}
-              >
-                {busy ? 'Approving…' : data.approved ? 'Already approved' : 'Approve launch plan'}
-              </button>
+              {!wallet.publicKey ? (
+                <button type="button" className="btn btn-primary" onClick={() => setVisible(true)}>
+                  Connect wallet to approve
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={busy || data.approved || data.consumed}
+                  onClick={() => void onApprove()}
+                >
+                  {busy ? 'Signing…' : data.approved ? 'Already approved' : 'Sign & approve'}
+                </button>
+              )}
               <Link className="btn btn-ghost" to="/agents">
                 Agents docs
               </Link>
             </div>
-            {!token ? (
-              <p className="section-sub" style={{ marginTop: '0.75rem' }}>
-                This link is missing the approval token. Use the full <code>approvalUrl</code> from
-                dry-run.
-              </p>
-            ) : null}
           </div>
         ) : null}
       </section>

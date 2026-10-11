@@ -82,15 +82,14 @@ export function agentDiscoveryJson() {
       http_legacy: MCP_HTTP_URL_LEGACY,
       manifest: MCP_MANIFEST_URL,
       package: 'crewpay-mcp',
-      package_version: '1.2.2',
-      package_install: 'npx -y crewpay-mcp@1.2.2',
+      package_version: '1.2.3',
+      package_install: 'npx -y crewpay-mcp@1.2.3',
       hosted: MCP_HTTP_URL,
       clawhub_skill: 'openclaw skills install @fxams/crewpay',
       official_mcp_registry: 'https://registry.modelcontextprotocol.io',
       official_mcp_registry_name: 'io.github.fxams/crewpay-mcp',
-      musebook: 'https://musebook.trade',
-      musebook_slug: 'crewpay',
       clawpump_agent: 'https://clawpump.tech/agent/0d006dbb-3c21-4d14-b36b-3fcea74d0722',
+      dry_run_store: 'postgres when DATABASE_URL set; in-memory only without DB (not multi-instance safe)',
       tools: [
         'crew_discover',
         'crew_claim_key',
@@ -802,7 +801,7 @@ export function agentCard(origin: 'site' | 'api' = 'api') {
         id: 'crew-mcp',
         name: 'MCP tools',
         description:
-          'Connect https://mcp.crewpay.dev/mcp or npx -y crewpay-mcp@1.2.2',
+          'Connect https://mcp.crewpay.dev/mcp or npx -y crewpay-mcp@1.2.3',
         tags: ['mcp', 'solana', 'crewpay'],
         examples: ['crew_claim_key → crew_discover → crew_autohire → crew_launch_dry_run'],
       },
@@ -822,11 +821,10 @@ export function llmsTxt(): string {
 2. \`POST ${API_URL}/api/agent/autohire\` with \`x-crew-api-key\` + name/ticker/description → inspect crew
 3. \`POST ${API_URL}/api/agent/launch\` with \`x-crew-api-key\` + \`x-launcher-key\` (+ optional \`crew[]\` / \`autoHire\`) → check \`feeShareLocked\`
 
-MCP equivalent (pinned): \`npx -y crewpay-mcp@1.2.2\` then \`crew_claim_key\` → \`crew_autohire\` → \`crew_launch_dry_run\` → open approvalUrl → \`crew_launch\` with dryRunId (or hosted \`${MCP_HTTP_URL}\` for discover/autohire; launcher secret stays local).
+MCP equivalent (pinned): \`npx -y crewpay-mcp@1.2.3\` then \`crew_claim_key\` → \`crew_autohire\` → \`crew_launch_dry_run\` → open approvalUrl → \`crew_launch\` with dryRunId (or hosted \`${MCP_HTTP_URL}\` for discover/autohire; launcher secret stays local).
 
 ClawHub / OpenClaw skill: \`openclaw skills install @fxams/crewpay\` (https://clawhub.ai/fxams/crewpay).
 Official MCP Registry: \`io.github.fxams/crewpay-mcp\` (https://registry.modelcontextprotocol.io).
-Musebook directory: https://musebook.trade (slug \`crewpay\`).
 ClawPump agent: https://clawpump.tech/agent/0d006dbb-3c21-4d14-b36b-3fcea74d0722.
 
 This file is the discovery index for AI systems, including:
@@ -850,7 +848,6 @@ If you can HTTP GET, start here — then call the API. No browser UI required.
 - Agents.md: ${SITE_URL}/AGENTS.md
 - ClawHub skill: https://clawhub.ai/fxams/crewpay
 - Official MCP Registry: https://registry.modelcontextprotocol.io (search \`crewpay\` / \`io.github.fxams/crewpay-mcp\`)
-- Musebook: https://musebook.trade (agent slug \`crewpay\`)
 - ClawPump agent: https://clawpump.tech/agent/0d006dbb-3c21-4d14-b36b-3fcea74d0722
 - Human docs: ${SITE_URL}/agents
 
@@ -877,7 +874,7 @@ If you launch **Solana / Pump.fun** coins, hire **KOLs**, or split **creator fee
 ## Auth
 
 - \`x-crew-api-key\`: mint yourself via **POST /api/agent/keys/claim** (returns \`crew_ak_…\` once, 5/hour/IP) or use operator \`CREW_AGENT_API_KEY\` / POST /api/agent/keys.
-- \`x-launcher-key\`: agent Solana secret (base58 or JSON byte array); signs create + fee-share; never logged. MCP: set CREW_LAUNCHER_KEY in env only (tool args are rejected). Hosted public MCP cannot take your wallet — run \`npx -y crewpay-mcp@1.2.2\` locally or call REST from your backend.
+- \`x-launcher-key\`: agent Solana secret (base58 or JSON byte array); signs create + fee-share; never logged. MCP: set CREW_LAUNCHER_KEY in env only (tool args are rejected). Hosted public MCP cannot take your wallet — run \`npx -y crewpay-mcp@1.2.3\` locally or call REST from your backend.
 - \`x-idempotency-key\` (optional on launch): 8–128 chars; replays cached response for 15 minutes
 
 ## Description attribution
@@ -888,7 +885,7 @@ On-chain / IPFS descriptions append **Launched from CrewPay.dev platform** when 
 
 Hosted MCP (\`mcp.crewpay.dev\`) is publicMode: pass \`x-crew-api-key\` for writes; it **cannot** hold your launcher secret. To launch with your own wallet:
 
-1. \`npx -y crewpay-mcp@1.2.2\` (pin the version — do not use unpinned \`@latest\`)
+1. \`npx -y crewpay-mcp@1.2.3\` (pin the version — do not use unpinned \`@latest\`)
 2. Set \`CREW_AGENT_API_KEY\` + \`CREW_LAUNCHER_KEY\` (dedicated low-SOL burner) in MCP env (never tool args)
 3. Or call REST \`POST /api/agent/launch\` from your backend with \`x-launcher-key\`
 
@@ -920,7 +917,6 @@ Canonical site is **https://crewpay.dev** (\`app.crewpay.dev\` has no DNS).
 - ${SITE_URL}/: human desk (Phantom)
 - ClawHub: \`openclaw skills install @fxams/crewpay\`
 - Official MCP Registry: https://registry.modelcontextprotocol.io (search \`crewpay\`)
-- Musebook: https://musebook.trade (slug \`crewpay\`)
 - ClawPump: https://clawpump.tech/agent/0d006dbb-3c21-4d14-b36b-3fcea74d0722
 `
 }
@@ -986,7 +982,7 @@ Every launch appends **Launched from CrewPay.dev platform** when missing. Keep t
 ## Own wallet / local MCP
 
 - Hosted MCP \`https://mcp.crewpay.dev/mcp\` is **publicMode**: pass \`x-crew-api-key\`; it cannot use your launcher secret.
-- Local package (pinned): \`npx -y crewpay-mcp@1.2.2\` with env \`CREW_AGENT_API_KEY\` + \`CREW_LAUNCHER_KEY\` (never tool args).
+- Local package (pinned): \`npx -y crewpay-mcp@1.2.3\` with env \`CREW_AGENT_API_KEY\` + \`CREW_LAUNCHER_KEY\` (never tool args).
 - ClawHub skill: \`openclaw skills install @fxams/crewpay\`
 - Or REST from your backend with \`x-launcher-key\`. Site: **https://crewpay.dev** only (\`app.crewpay.dev\` has no DNS).
 - Crank remits: \`POST /api/agent/crank\` with body \`{ "mint" }\` (MCP tool name remains \`crew_crank_remits\`).

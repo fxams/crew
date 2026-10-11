@@ -86,7 +86,7 @@ Do **not** use `app.crewpay.dev` (no DNS).
 Install/run the **pinned** npm package (do not use `@latest` or unpinned `-y crewpay-mcp`):
 
 ```bash
-npx -y crewpay-mcp@1.2.2
+npx -y crewpay-mcp@1.2.3
 ```
 
 Configure MCP **env** (not tool args):
@@ -203,4 +203,4 @@ Buyback cron is **not** guaranteed live; fee-share lock is.
 - Full discovery: https://crewpay.dev/llms-full.txt
 - Agents.md: https://crewpay.dev/AGENTS.md
 - Source skill path in repo: `skills/crewpay/`
-- MCP package (pinned): `crewpay-mcp@1.2.2` on npm
+- MCP package (pinned): `crewpay-mcp@1.2.3` on npm

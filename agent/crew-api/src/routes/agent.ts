@@ -14,12 +14,17 @@ import { planNarrativeHires } from '../lib/agent/narrative.js'
 import { awardReferralHirePointsForCrew } from '../lib/kol-register.js'
 import { listRegisteredHireBoosts } from '../lib/registered-hires.js'
 import {
-  approveDryRun,
+  approveDryRunWithWallet,
   createDryRun,
   getDryRun,
   consumeApprovedDryRun,
+  hashLaunchBody,
+  hashWireBody,
   publicDryRunView,
+  type DryRunIntent,
 } from '../lib/agent/dry-run-store.js'
+import { loadAgentImageBytes, sha256ImageBytes } from '../lib/agent/ipfs.js'
+import { approveDryRunWalletFresh } from '../lib/wallet-auth.js'
 import {
   dryRunLaunchForAgent,
   launchForAgent,
@@ -281,6 +286,43 @@ function bodyToLaunchInput(body: z.infer<typeof launchBodySchema>): AgentLaunchI
   }
 }
 
+const wireDryRunBodySchema = z
+  .object({
+    intent: z.literal('wire-fees'),
+    mint: solanaAddress,
+    mode: z.enum(['split', 'buyback', 'raid', 'agent']).optional().default('agent'),
+    name: z.string().max(32).optional(),
+    ticker: z.string().max(13).optional(),
+    crew: z.array(crewMemberSchema).min(1).max(MAX_CREW).optional(),
+  })
+  .superRefine((val, ctx) => {
+    if (!val.crew?.length) return
+    const shareSum = val.crew.reduce((s, m) => s + Math.round(Number(m.share) || 0), 0)
+    if (shareSum !== 100) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `Crew shares must total 100% (now ${shareSum}%).`,
+        path: ['crew'],
+      })
+    }
+  })
+
+async function resolveLaunchImageSha(body: {
+  imageUrl?: string
+  imageBase64?: string
+  imageContentType?: string
+}): Promise<string> {
+  const image = body.imageUrl
+    ? ({ kind: 'url', url: body.imageUrl } as const)
+    : ({
+        kind: 'base64',
+        data: body.imageBase64!,
+        contentType: body.imageContentType,
+      } as const)
+  const { buf } = await loadAgentImageBytes(image)
+  return sha256ImageBytes(buf)
+}
+
 agentRouter.post('/agent/launch/dry-run', requireAgentApiKey, async (req, res) => {
   try {
     const fp = apiKeyFingerprint(req)
@@ -288,23 +330,63 @@ agentRouter.post('/agent/launch/dry-run', requireAgentApiKey, async (req, res) =
     if (!applyRateLimit(res, `dryrun:key:${fp}`, 60, 60_000)) return
     if (!applyRateLimit(res, `dryrun:ip:${ip}`, 120, 60_000)) return
 
-    const body = launchBodySchema.parse(req.body)
+    const raw = req.body && typeof req.body === 'object' ? (req.body as Record<string, unknown>) : {}
+    const intent: DryRunIntent = raw.intent === 'wire-fees' ? 'wire-fees' : 'launch'
+    const site = (process.env.CREW_SITE_URL || 'https://crewpay.dev').replace(/\/$/, '')
+
+    if (intent === 'wire-fees') {
+      const body = wireDryRunBodySchema.parse(raw)
+      const bodyHash = hashWireBody(body as unknown as Record<string, unknown>)
+      const plan = {
+        ok: true,
+        intent: 'wire-fees' as const,
+        mint: body.mint,
+        mode: body.mode,
+        name: body.name,
+        ticker: body.ticker,
+        crew: body.crew,
+        note: 'Wire-fees dry-run — no SOL spent until approved + POST /api/agent/wire-fees',
+      }
+      const rec = await createDryRun({
+        apiKeyFp: fp,
+        intent: 'wire-fees',
+        bodyHash,
+        imageSha256: null,
+        plan,
+      })
+      // Never include approve secrets — operator must log in on approvalUrl.
+      const approvalUrl = `${site}/approve/${rec.id}`
+      res.json({
+        ...plan,
+        dryRunId: rec.id,
+        approvalUrl,
+        expiresAt: new Date(rec.expiresAt).toISOString(),
+        tip: 'Open approvalUrl, connect a wallet, and approve. Then call POST /api/agent/wire-fees with the same body + dryRunId. Agents cannot approve with an API key.',
+      })
+      return
+    }
+
+    const body = launchBodySchema.parse(raw)
+    const imageSha256 = await resolveLaunchImageSha(body)
     const result = await dryRunLaunchForAgent(bodyToLaunchInput(body), {
       launcherPubkey: body.launcherPubkey,
     })
-    const rec = createDryRun({
+    const bodyHash = hashLaunchBody(body as unknown as Record<string, unknown>, imageSha256)
+    const rec = await createDryRun({
       apiKeyFp: fp,
-      body: body as unknown as Record<string, unknown>,
-      plan: result,
+      intent: 'launch',
+      bodyHash,
+      imageSha256,
+      plan: { ...result, imageSha256 },
     })
-    const site = (process.env.CREW_SITE_URL || 'https://crewpay.dev').replace(/\/$/, '')
-    const approvalUrl = `${site}/approve/${rec.id}?t=${encodeURIComponent(rec.approveToken)}`
+    const approvalUrl = `${site}/approve/${rec.id}`
     res.json({
       ...result,
+      imageSha256,
       dryRunId: rec.id,
       approvalUrl,
       expiresAt: new Date(rec.expiresAt).toISOString(),
-      tip: 'Open approvalUrl in a browser and confirm before calling POST /api/agent/launch with the same body + dryRunId.',
+      tip: 'Open approvalUrl, connect a wallet, and approve. Then call POST /api/agent/launch with the same body + dryRunId. The approve token is never returned to agents.',
     })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'dry-run failed'
@@ -315,7 +397,7 @@ agentRouter.post('/agent/launch/dry-run', requireAgentApiKey, async (req, res) =
 
 /** Public read of a dry-run plan (for the human approval page). */
 agentRouter.get('/agent/launch/dry-run/:id', async (req, res) => {
-  const rec = getDryRun(String(req.params.id || ''))
+  const rec = await getDryRun(String(req.params.id || ''))
   if (!rec) {
     res.status(404).json({ ok: false, error: 'Unknown or expired dryRunId' })
     return
@@ -323,29 +405,52 @@ agentRouter.get('/agent/launch/dry-run/:id', async (req, res) => {
   res.json({ ok: true, ...publicDryRunView(rec) })
 })
 
-/** Human approval — requires the one-time approve token from dry-run (query or body). */
+/**
+ * Human approval — wallet signature only.
+ * Rejects agent API keys so a compromised crew_ak_… cannot self-approve.
+ */
 agentRouter.post('/agent/launch/dry-run/:id/approve', async (req, res) => {
   try {
     const id = String(req.params.id || '')
-    const token = String(
-      (req.body && typeof req.body === 'object' && 'token' in req.body
-        ? (req.body as { token?: string }).token
-        : '') ||
-        req.query.t ||
-        req.query.token ||
-        '',
-    ).trim()
-    if (!token) {
-      res.status(400).json({ ok: false, error: 'Missing approval token' })
+    if ((req.header('x-crew-api-key') || '').trim()) {
+      res.status(403).json({
+        ok: false,
+        error:
+          'Approve rejects agent API keys — open the approval page and sign with a wallet (operator login).',
+      })
       return
     }
-    const rec = approveDryRun(id, token)
+    if ((req.body && typeof req.body === 'object' && ('token' in req.body || 'approveToken' in req.body)) ||
+      req.query.t ||
+      req.query.token
+    ) {
+      res.status(400).json({
+        ok: false,
+        error: 'Approve tokens are not accepted — connect a wallet on /approve/:dryRunId and sign.',
+      })
+      return
+    }
+    const signed = approveDryRunWalletFresh({
+      header: (n) => req.header(n),
+      body: { ...(typeof req.body === 'object' && req.body ? req.body : {}), dryRunId: id },
+    })
+    if (!signed || signed.dryRunId !== id) {
+      res.status(401).json({
+        ok: false,
+        error:
+          'Wallet signature required — headers x-crew-wallet, x-crew-timestamp, x-crew-signature, x-crew-dry-run-id (message crew-approve-dry-run:{id}:{ts}).',
+      })
+      return
+    }
+    const rec = await approveDryRunWithWallet(id, signed.wallet)
     res.json({
       ok: true,
       dryRunId: rec.id,
+      intent: rec.intent,
       approved: true,
       approvedAt: new Date(rec.approvedAt!).toISOString(),
-      tip: 'Dry-run approved. Call POST /api/agent/launch with the same launch body + dryRunId.',
+      approvedByWallet: rec.approvedByWallet,
+      tip: 'Dry-run approved. Call the matching spend endpoint with the same body + dryRunId.',
     })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'approve failed'
@@ -382,15 +487,20 @@ agentRouter.post('/agent/launch', requireAgentApiKey, async (req, res) => {
       res.status(400).json({
         ok: false,
         error:
-          'dryRunId required — call POST /api/agent/launch/dry-run, open approvalUrl to confirm, then launch with dryRunId',
+          'dryRunId required — call POST /api/agent/launch/dry-run, open approvalUrl (wallet login), then launch with dryRunId',
       })
       return
     }
+    let imageSha256: string
     try {
-      consumeApprovedDryRun({
+      imageSha256 = await resolveLaunchImageSha(body)
+      const bodyHash = hashLaunchBody(body as unknown as Record<string, unknown>, imageSha256)
+      await consumeApprovedDryRun({
         dryRunId: body.dryRunId,
         apiKeyFp: fp,
-        body: body as unknown as Record<string, unknown>,
+        intent: 'launch',
+        bodyHash,
+        imageSha256,
       })
     } catch (err) {
       res.status(400).json({
@@ -523,6 +633,8 @@ const wireBodySchema = z
     ticker: z.string().max(13).optional(),
     /** Optional — when omitted, wire uses crew stored on the board from launch. */
     crew: z.array(crewMemberSchema).min(1).max(MAX_CREW).optional(),
+    /** Required: approved dry-run with intent=wire-fees. */
+    dryRunId: z.string().min(16).max(64),
   })
   .superRefine((val, ctx) => {
     if (!val.crew?.length) return
@@ -541,6 +653,21 @@ agentRouter.post('/agent/wire-fees', requireAgentApiKey, async (req, res) => {
     const fp = apiKeyFingerprint(req)
     if (!applyRateLimit(res, `wire:key:${fp}`, 10, 60_000)) return
     const body = wireBodySchema.parse(req.body)
+    try {
+      const bodyHash = hashWireBody(body as unknown as Record<string, unknown>)
+      await consumeApprovedDryRun({
+        dryRunId: body.dryRunId,
+        apiKeyFp: fp,
+        intent: 'wire-fees',
+        bodyHash,
+      })
+    } catch (err) {
+      res.status(400).json({
+        ok: false,
+        error: err instanceof Error ? err.message : 'dry-run gate failed',
+      })
+      return
+    }
     const launcher = parseLauncherKey(resolveLauncherKey(req))
     const result = await wireFeesForAgent({
       mint: body.mint,

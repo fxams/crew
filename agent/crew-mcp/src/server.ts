@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import * as z from 'zod/v4'
 import {
@@ -9,6 +12,16 @@ import {
   type CrewApiConfig,
 } from './client.js'
 import { assertNoSecretToolArgs } from './secrets.js'
+
+function packageVersion(): string {
+  try {
+    const here = dirname(fileURLToPath(import.meta.url))
+    const pkg = JSON.parse(readFileSync(join(here, '../package.json'), 'utf8')) as { version?: string }
+    return pkg.version || '0.0.0'
+  } catch {
+    return '0.0.0'
+  }
+}
 
 const mintSchema = z
   .string()
@@ -38,7 +51,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
   const cfg = loadConfig(overrides)
   const server = new McpServer({
     name: 'crewpay',
-    version: '1.2.0',
+    version: packageVersion(),
     websiteUrl: DEFAULT_SITE_URL,
   })
 
@@ -102,7 +115,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         docs: `${DEFAULT_SITE_URL}/agents`,
         llms: `${cfg.apiUrl}/llms.txt`,
         discovery: data,
-        tip: 'Safe flow: crew_claim_key (if needed) → crew_discover → crew_autohire → crew_launch_dry_run → open approvalUrl → crew_launch(dryRunId). Secrets stay in MCP env only.',
+        tip: 'Safe flow: crew_claim_key (if needed) → crew_discover → crew_autohire → crew_launch_dry_run → operator opens approvalUrl + wallet-signs → crew_launch(dryRunId). Wire-fees needs its own dry-run intent=wire-fees. Secrets stay in MCP env only.',
         auth: {
           reads: 'crew_discover / crew_search_kols / crew_proof / crew_claim_key need no API key',
           writes: cfg.publicMode
@@ -205,10 +218,14 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Dry-run a CREW launch (no chain tx)',
       description:
-        'Validate name/ticker/image/crew or autoHire, preview fee map + KOL pack, estimate SOL needed. Returns dryRunId + approvalUrl — a human must open approvalUrl before crew_launch. MAINNET only — does not create a mint. Requires CREW_AGENT_API_KEY. No launcher secret needed.',
+        'Dry-run a launch (default) or wire-fees (intent=wire-fees). Returns dryRunId + approvalUrl (no approve secret). Operator opens approvalUrl and wallet-signs before spend. Launch dry-run binds image sha256. Requires CREW_AGENT_API_KEY.',
       inputSchema: {
-        name: z.string().min(2).max(32),
-        ticker: z.string().min(2).max(13),
+        intent: z
+          .enum(['launch', 'wire-fees'])
+          .optional()
+          .describe('launch (default) or wire-fees'),
+        name: z.string().min(2).max(32).optional(),
+        ticker: z.string().min(2).max(13).optional(),
         description: z
           .string()
           .max(204)
@@ -222,6 +239,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         twitter: z.string().max(128).optional(),
         website: z.string().url().optional(),
         holderKol: z.boolean().optional(),
+        mint: mintSchema.optional().describe('Required when intent=wire-fees'),
         launcherPubkey: z
           .string()
           .min(32)
@@ -238,10 +256,30 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     },
     async (input) => {
       assertNoSecretToolArgs(input as Record<string, unknown>)
+      const intent = input.intent || 'launch'
+      if (intent === 'wire-fees') {
+        if (!input.mint) throw new Error('mint required when intent=wire-fees')
+        const body: Record<string, unknown> = {
+          intent: 'wire-fees',
+          mint: input.mint,
+          mode: input.mode || 'agent',
+        }
+        if (input.name) body.name = input.name
+        if (input.ticker) body.ticker = input.ticker
+        if (input.crew?.length) body.crew = input.crew
+        const data = await crewFetch(cfg, '/api/agent/launch/dry-run', {
+          method: 'POST',
+          auth: true,
+          body: JSON.stringify(body),
+        })
+        return asText(data)
+      }
+      if (!input.name || !input.ticker) throw new Error('name and ticker required for launch dry-run')
       if (!input.imageUrl && !input.imageBase64) {
         throw new Error('Provide imageUrl or imageBase64')
       }
       const body: Record<string, unknown> = {
+        intent: 'launch',
         name: input.name,
         ticker: input.ticker,
         description: input.description || '',
@@ -303,8 +341,13 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Wire / repair CREW fee-shares',
       description:
-        'Create + lock fee-sharing for an existing mint (orphan mint or failed fee-share). Requires CREW_LAUNCHER_KEY in MCP env matching the creator. Prefer after crew_status shows feeShareLocked=false and holderKol=false. Crew optional when the board already has crew from launch (shares must total 100% when provided).',
+        'Create + lock fee-sharing for an existing mint. Requires dryRunId from crew_launch_dry_run with intent=wire-fees after wallet approval on approvalUrl. Requires CREW_LAUNCHER_KEY in MCP env.',
       inputSchema: {
+        dryRunId: z
+          .string()
+          .min(16)
+          .max(64)
+          .describe('From crew_launch_dry_run intent=wire-fees after human wallet approval'),
         mint: mintSchema,
         mode: z.enum(['agent', 'split', 'buyback', 'raid']).optional(),
         name: z.string().max(32).optional(),
@@ -322,6 +365,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     async (input) => {
       assertNoSecretToolArgs(input as Record<string, unknown>)
       const body: Record<string, unknown> = {
+        dryRunId: input.dryRunId,
         mint: input.mint,
         mode: input.mode || 'agent',
       }
@@ -518,45 +562,22 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         body.autoHire = { seats: input.seats ?? 5 }
       }
 
-      let data = await crewFetch(cfg, '/api/agent/launch', {
+      const data = await crewFetch(cfg, '/api/agent/launch', {
         method: 'POST',
         auth: true,
         launcher: true,
         idempotencyKey: input.idempotencyKey,
         body: JSON.stringify(body),
       })
-      // API already retries wire once; if still unlocked (non-holder), try mint-only wire.
+      // API may return HTTP 202 with feeShareLocked=false. Wire-fees now needs its own
+      // dry-run (intent=wire-fees) + wallet approval — do not auto-call wire here.
       const launchOut =
         data && typeof data === 'object' ? (data as Record<string, unknown>) : null
-      const launchMint = typeof launchOut?.mint === 'string' ? launchOut.mint : null
-      if (
-        launchOut &&
-        launchMint &&
-        launchOut.feeShareLocked === false &&
-        !(launchOut.coin as { holderKol?: boolean } | undefined)?.holderKol
-      ) {
-        try {
-          const wired = await crewFetch(cfg, '/api/agent/wire-fees', {
-            method: 'POST',
-            auth: true,
-            launcher: true,
-            body: JSON.stringify({ mint: launchMint }),
-          })
-          data = {
-            ...launchOut,
-            feeShareLocked: true,
-            feeShareSignature:
-              typeof wired === 'object' && wired && 'feeShareSignature' in wired
-                ? (wired as { feeShareSignature: string }).feeShareSignature
-                : undefined,
-            wireRetry: wired,
-          }
-        } catch (wireErr) {
-          data = {
-            ...launchOut,
-            wireRetryError: wireErr instanceof Error ? wireErr.message : 'wire retry failed',
-          }
-        }
+      if (launchOut && launchOut.feeShareLocked === false) {
+        return asText({
+          ...launchOut,
+          tip: 'feeShareLocked=false — run crew_launch_dry_run with intent=wire-fees, open approvalUrl, then crew_wire_fees with that dryRunId.',
+        })
       }
       return asText(data)
     },
