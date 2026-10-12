@@ -76,6 +76,86 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     },
   )
 
+  // Build UNSIGNED transactions for non-custodial signing
+  server.registerTool(
+    'crew_build_unsigned',
+    {
+      title: 'Build UNSIGNED launch transactions',
+      description:
+        'Create v0 transaction messages (base64) for create(+buy) and fee-share lock. Sign and submit locally, or call crew_submit_signed. Requires launcherPubkey; accepts crew[] or autohire seats. Optional treasuryBps 2000–3000.',
+      inputSchema: {
+        name: z.string().min(2).max(32),
+        ticker: z.string().min(2).max(13),
+        description: z.string().max(204).optional(),
+        imageUrl: z.string().url().optional(),
+        imageBase64: z.string().min(64).optional(),
+        seats: z.number().int().min(1).max(8).optional(),
+        mode: z.enum(['agent', 'split', 'buyback', 'raid']).optional(),
+        initialBuySol: z.number().min(0).max(10).optional(),
+        twitter: z.string().max(128).optional(),
+        website: z.string().url().optional(),
+        launcherPubkey: z.string().min(32).max(64),
+        mintPubkey: z.string().min(32).max(64).optional(),
+        optInOnly: z.boolean().optional(),
+        treasuryBps: z.number().int().min(2000).max(3000).optional(),
+        crew: z.array(crewMemberSchema).min(1).max(8).optional(),
+        ...forbiddenSecretFields,
+      },
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async (input) => {
+      assertNoSecretToolArgs(input as Record<string, unknown>)
+      if (!input.imageUrl && !input.imageBase64) {
+        throw new Error('Provide imageUrl or imageBase64')
+      }
+      const body: Record<string, unknown> = {
+        name: input.name,
+        ticker: input.ticker,
+        description: input.description || '',
+        mode: input.mode || 'agent',
+        initialBuySol: input.initialBuySol ?? 0,
+        launcherPubkey: input.launcherPubkey,
+        optInOnly: input.optInOnly ?? true,
+      }
+      if (input.imageUrl) body.imageUrl = input.imageUrl
+      if (input.imageBase64) body.imageBase64 = input.imageBase64
+      if (input.twitter) body.twitter = input.twitter
+      if (input.website) body.website = input.website
+      if (input.mintPubkey) body.mintPubkey = input.mintPubkey
+      if (input.treasuryBps != null) body.treasuryBps = input.treasuryBps
+      if (input.crew?.length) body.crew = input.crew
+      else body.autoHire = { seats: input.seats ?? 5 }
+      const data = await crewFetch(cfg, '/api/agent/launch/unsigned', {
+        method: 'POST',
+        auth: true,
+        body: JSON.stringify(body),
+      })
+      return asText(data)
+    },
+  )
+
+  // Submit previously built signed base64 transactions
+  server.registerTool(
+    'crew_submit_signed',
+    {
+      title: 'Submit signed CREW launch transactions',
+      description:
+        'Submit base64-encoded signed transactions (create then lock). Use after crew_build_unsigned when you prefer the API to broadcast.',
+      inputSchema: {
+        signed: z.array(z.string().min(64)).min(1).max(4),
+      },
+      annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: true },
+    },
+    async (input) => {
+      const data = await crewFetch(cfg, '/api/agent/launch/submit', {
+        method: 'POST',
+        auth: true,
+        body: JSON.stringify({ signed: input.signed }),
+      })
+      return asText(data)
+    },
+  )
+
   server.registerResource(
     'crew-llms',
     `${cfg.apiUrl}/llms.txt`,

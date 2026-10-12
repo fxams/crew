@@ -34,6 +34,19 @@ export function platformBuybackBps(hasAgentReferrer: boolean): number {
   return hasAgentReferrer ? PLATFORM_BUYBACK_BPS - AGENT_REFERRAL_BPS : PLATFORM_BUYBACK_BPS
 }
 
+/** Allow per-launch treasury override within safe bounds (percent of total fees, in bps). */
+export const TREASURY_BPS_MIN = 2000
+export const TREASURY_BPS_MAX = 3000
+
+export function clampTreasuryBpsOverride(raw?: number | null): number | null {
+  if (raw == null) return null
+  const n = Math.floor(Number(raw))
+  if (!Number.isFinite(n)) return null
+  if (n < TREASURY_BPS_MIN) return TREASURY_BPS_MIN
+  if (n > TREASURY_BPS_MAX) return TREASURY_BPS_MAX
+  return n
+}
+
 export const CREW_LAUNCH_ATTRIBUTION = 'Launched from CrewPay.dev platform'
 /** Final on-chain / IPFS description hard cap (Pump metadata). */
 export const DESCRIPTION_HARD_MAX = 240
