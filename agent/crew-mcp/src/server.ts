@@ -210,6 +210,71 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     },
   )
 
+  // Jobs + escrow (test/devnet only) — gated by JOBS_ENABLED
+  const jobsEnabled =
+    (process.env.JOBS_ENABLED || '').trim().toLowerCase() === '1' ||
+    (process.env.JOBS_ENABLED || '').trim().toLowerCase() === 'true'
+  if (jobsEnabled) {
+    server.registerTool(
+      'crew_job_create_dry_run',
+      {
+        title: 'Dry-run: create a campaign job (test/devnet only)',
+        description:
+          'Plan a paid campaign job (multichain, per-proof payouts). Test/devnet only; no funds moved. Returns computed caps and plan. Behind JOBS_ENABLED.',
+        inputSchema: {
+          chainId: z
+            .enum(['solana-devnet', 'solana', 'evm:base-sepolia', 'evm:base', 'evm:ethereum'])
+            .describe('Target chain'),
+          asset: z.enum(['SOL', 'USDC', 'ETH', 'USDT']).describe('Payout asset'),
+          budget: z.number().positive().describe('Total budget (test units)'),
+          perProofAmount: z.number().positive().describe('Per verified post amount (test units)'),
+          maxProofs: z.number().int().min(1).max(10000),
+          perKOLCap: z.number().int().min(1).max(1000).optional().describe('Max proofs per KOL'),
+          deadlineHours: z.number().int().min(1).max(720).optional().describe('Deadline in hours'),
+          requiredTicker: z.string().max(24).optional(),
+          requiredLink: z.string().url().optional(),
+          minPostAgeHours: z.number().int().min(0).max(72).optional(),
+        },
+        annotations: { readOnlyHint: true, openWorldHint: true },
+      },
+      async (input) => {
+        const body: Record<string, unknown> = {
+          chainId: input.chainId,
+          asset: input.asset,
+          budget: input.budget,
+          perProofAmount: input.perProofAmount,
+          maxProofs: input.maxProofs,
+          perKOLCap: input.perKOLCap ?? 5,
+          deadlineHours: input.deadlineHours ?? 24,
+          rules: {
+            requiredTicker: input.requiredTicker,
+            requiredLink: input.requiredLink,
+            minPostAgeHours: input.minPostAgeHours ?? 0,
+          },
+        }
+        const data = await crewFetch(cfg, '/api/jobs/campaigns/dry-run', {
+          method: 'POST',
+          auth: true,
+          body: JSON.stringify(body),
+        })
+        return asText(data)
+      },
+    )
+    server.registerTool(
+      'crew_job_list',
+      {
+        title: 'List open jobs (test/devnet only)',
+        description: 'List open/funded campaign jobs. Test-only; behind JOBS_ENABLED.',
+        inputSchema: {},
+        annotations: { readOnlyHint: true, openWorldHint: true },
+      },
+      async () => {
+        const data = await crewFetch(cfg, '/api/jobs/open')
+        return asText(data)
+      },
+    )
+  }
+
   server.registerTool(
     'crew_claim_key',
     {
