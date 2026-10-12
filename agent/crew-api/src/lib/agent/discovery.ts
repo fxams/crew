@@ -1,6 +1,6 @@
 /** Machine-readable discovery for frontier LLMs / tool-using agents. */
 
-import { LAUNCH_FEE_MAP_COPY, listLaunchVenues } from './platforms.js'
+import { LAUNCH_FEE_MAP_COPY, acpPublicJson, listLaunchVenues } from './platforms.js'
 import { x402PublicDiscovery } from '../x402.js'
 
 /** Pinned npm package for local MCP. Bump with agent/crew-mcp/package.json. */
@@ -140,8 +140,9 @@ export function agentDiscoveryJson() {
       param: 'platform',
       feeMap: LAUNCH_FEE_MAP_COPY,
       list: `${API_URL}/api/platforms`,
-      note: 'UNSIGNED launch venues. platform defaults to pumpfun. The launching agent does not receive the 60% crew slice. Each venue reports enabled + chain (solana | base | base-sepolia).',
+      note: 'UNSIGNED launch venues. platform defaults to pumpfun. The launching agent does not receive the 60% crew slice. Each venue reports enabled + chain (solana | base | base-sepolia). acp is Virtuals ACP v2 (off unless ACP_ENABLED=1). x402 is pay-per-call (off unless X402_ENABLED).',
       venues: listLaunchVenues(),
+      acp: acpPublicJson(),
       x402: x402PublicDiscovery(),
     },
     topics: [
@@ -199,7 +200,7 @@ export function agentDiscoveryJson() {
       'GET /api/platforms': {
         auth: 'none',
         returns:
-          'Launch venues with enabled + chain (pumpfun always; bags if BAGS_API_KEY; zora if ZORA_ENABLED + 0x treasury). Zora chain is base or base-sepolia. x402: pay-per-call status (off unless X402_ENABLED).',
+          'Launch venues with enabled + chain (pumpfun always; bags if BAGS_API_KEY; zora if ZORA_ENABLED + 0x treasury). Zora chain is base or base-sepolia. acp.enabled reflects ACP_ENABLED (false by default). x402: pay-per-call status (off unless X402_ENABLED).',
       },
       'POST /api/agent/autohire': {
         auth: 'x-crew-api-key or X-PAYMENT (x402, when enabled)',
@@ -378,7 +379,7 @@ export function openApiSpec() {
           responses: {
             '200': {
               description:
-                'pumpfun always on; bags if BAGS_API_KEY; zora if ZORA_ENABLED + 0x treasury. chain is solana, base, or base-sepolia. x402 object describes pay-per-call (off unless X402_ENABLED).',
+                'pumpfun always on; bags if BAGS_API_KEY; zora if ZORA_ENABLED + 0x treasury. chain is solana, base, or base-sepolia. acp.enabled is false unless ACP_ENABLED=1. x402 object describes pay-per-call (off unless X402_ENABLED).',
               content: {
                 'application/json': {
                   schema: { $ref: '#/components/schemas/PlatformsResponse' },
@@ -918,7 +919,7 @@ export function openApiSpec() {
         },
         PlatformsResponse: {
           type: 'object',
-          required: ['ok', 'default', 'venues'],
+          required: ['ok', 'default', 'venues', 'acp', 'x402'],
           properties: {
             ok: { type: 'boolean' },
             default: { type: 'string', enum: ['pumpfun'] },
@@ -930,6 +931,23 @@ export function openApiSpec() {
             venues: {
               type: 'array',
               items: { $ref: '#/components/schemas/LaunchVenue' },
+            },
+            acp: {
+              type: 'object',
+              description: 'Virtuals ACP v2 hire channel. enabled is false unless ACP_ENABLED=1.',
+              required: ['id', 'enabled'],
+              properties: {
+                id: { type: 'string', enum: ['acp'] },
+                name: { type: 'string' },
+                protocol: { type: 'string' },
+                enabled: { type: 'boolean' },
+                chainId: { type: 'integer' },
+                chain: { type: 'string' },
+                offerings: { type: 'array', items: { type: 'string' } },
+                pricesUsd: { type: 'object', additionalProperties: { type: 'number' } },
+                feeMap: { type: 'string' },
+                note: { type: 'string' },
+              },
             },
           },
         },
@@ -1297,6 +1315,10 @@ Canonical site is **https://crewpay.dev** (\`app.crewpay.dev\` has no DNS).
 - Same KOL order on every platform: explicit \`crew[]\` first, Autohire second. \`optInOnly\` optional and off by default.
 - Sign locally, then \`POST /api/agent/launch/submit\` / \`crew_submit_signed\` (pass the same \`platform\`).
 
+## Virtuals ACP (off by default)
+
+Agents can hire CrewPay via Agent Commerce Protocol v2 jobs when \`ACP_ENABLED=1\`. \`GET /api/platforms\` reports \`acp.enabled\` (false by default). Offerings: \`crewpay_autohire_kol_crew\` (crew list JSON) and \`crewpay_launch_with_crew\` (unsigned txs + \`crew_submit_signed\` instructions — non-custodial). Paying agent wallet = identity. Fee map unchanged (60% hired KOL crew / 15% launching agent / rest treasury). Worker: \`services/acp-provider\`. Do not send \`ACP_SIGNER_KEY\` anywhere except the worker env.
+
 ## Limits (site + API + MCP aligned)
 
 - Name 2–32 · ticker 2–13 · description ≤204 user / ≤240 final · initialBuySol 0–10 · seats 1–8 (max 7 when referred)
@@ -1374,6 +1396,8 @@ GET ${SITE_URL}/robots.txt
 | x-idempotency-key | optional | Prevents duplicate launches on retry |
 
 UNSIGNED platforms (same endpoints / MCP tools): \`platform\` defaults to \`pumpfun\`. \`bags\` needs \`BAGS_API_KEY\` (Solana fee claimers: 60% hired KOL crew / 15% launching agent / rest treasury). \`zora\` needs \`ZORA_ENABLED\` (Base EIP-1559; 0xSplits payout + CrewPay platform referrer). Manual \`crew[]\` first, Autohire second. \`optInOnly\` off by default.
+
+Virtuals ACP v2: \`GET /api/platforms\` → \`acp.enabled\` (false unless \`ACP_ENABLED=1\`). Offerings \`crewpay_autohire_kol_crew\` and \`crewpay_launch_with_crew\` (unsigned + \`crew_submit_signed\`). Worker: \`services/acp-provider\`. Paying wallet = identity. Do not log \`ACP_SIGNER_KEY\`.
 
 Self-serve key mint (no operator):
 
