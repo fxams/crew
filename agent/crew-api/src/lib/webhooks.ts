@@ -17,6 +17,7 @@ const ALLOWED_EVENTS = [
   'remit.cranked',
   'buyback.executed',
   'holderKol.locked',
+  'coin.graduated',
 ] as const
 
 export type WebhookEvent = (typeof ALLOWED_EVENTS)[number]

@@ -88,6 +88,7 @@ describe('launch platforms', () => {
     expect(venues.find((v) => v.id === 'pumpfun')?.chain).toBe('solana')
     expect(venues.find((v) => v.id === 'bags')?.enabled).toBe(false)
     expect(venues.find((v) => v.id === 'bags')?.caption).toBe('soon')
+    expect(venues.find((v) => v.id === 'bags')?.recommended).toBe(true)
     const zora = venues.find((v) => v.id === 'zora')
     expect(zora?.enabled).toBe(false)
     expect(zora?.chain).toBe('base-sepolia')
@@ -103,7 +104,8 @@ describe('launch platforms', () => {
     process.env.ZORA_CHAIN = 'base'
     const venues = listLaunchVenues()
     expect(venues.find((v) => v.id === 'bags')?.enabled).toBe(true)
-    expect(venues.find((v) => v.id === 'bags')?.caption).toBeUndefined()
+    expect(venues.find((v) => v.id === 'bags')?.caption).toBe('recommended')
+    expect(venues.find((v) => v.id === 'bags')?.recommended).toBe(true)
     const zora = venues.find((v) => v.id === 'zora')
     expect(zora?.enabled).toBe(true)
     expect(zora?.chain).toBe('base')

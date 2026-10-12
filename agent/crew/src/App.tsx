@@ -86,8 +86,12 @@ import { formatSol, formatSolSigned } from "./lib/format-sol";
 import type { HireRole } from "./lib/types";
 import { launchCrew } from "./lib/launch";
 import { useOwnRegisteredHandle } from "./lib/registered-kol";
-import { isAgentsPath, isApprovePath, isClaimPath, isKolsPath, isLaunchPath, isOnepagerPath, isProofPath, isReferralPath, isRegisterPath, kolHandleFromPath, kolProfilePath, referralCodeFromPath } from "./lib/routes";
+import { isAdminKickoffPath, isAgentsPath, isApprovePath, isClaimPath, isCoinPath, isCoinsPath, isKolsPath, isLaunchPath, isOnepagerPath, isProofPath, isReferralPath, isRegisterPath, kolHandleFromPath, kolProfilePath, referralCodeFromPath } from "./lib/routes";
 import { ApprovePage } from "./components/ApprovePage";
+import { CoinPage } from "./components/CoinPage";
+import { CoinsPage } from "./components/CoinsPage";
+import { LiveCoins } from "./components/LiveCoins";
+import { AdminKickoffPage } from "./components/AdminKickoffPage";
 import { distributeCreatorFees, lockHolderKolFeeShares, wireCrewFeeShares } from "./lib/pump/fees";
 import {
   remitsFromSignature,
@@ -188,6 +192,9 @@ export default function App() {
   const isProofPage = isProofPath(path);
   const isOnepagerPage = isOnepagerPath(path);
   const isApprovePage = isApprovePath(path);
+  const isCoinPage = isCoinPath(path);
+  const isCoinsPage = isCoinsPath(path);
+  const isAdminKickoffPage = isAdminKickoffPath(path);
 
   useEffect(() => {
     if (!referralInviteCode || !isReferralPath(path)) return
@@ -1452,8 +1459,11 @@ export default function App() {
       {isProofPage ? <ProofPage /> : null}
       {isOnepagerPage ? <OnepagerPage /> : null}
       {isApprovePage ? <ApprovePage /> : null}
+      {isCoinPage ? <CoinPage /> : null}
+      {isCoinsPage ? <CoinsPage /> : null}
+      {isAdminKickoffPage ? <AdminKickoffPage /> : null}
 
-      {!isLaunchPage && !isKolsPage && !isRegisterPage && !isKolProfilePage && !isClaimPage && !isAgentsPage && !isProofPage && !isOnepagerPage && !isApprovePage ? (
+      {!isLaunchPage && !isKolsPage && !isRegisterPage && !isKolProfilePage && !isClaimPage && !isAgentsPage && !isProofPage && !isOnepagerPage && !isApprovePage && !isCoinPage && !isCoinsPage && !isAdminKickoffPage ? (
         <>
       <div className="app-shell">
         <main id="top">
@@ -1542,6 +1552,12 @@ export default function App() {
             )}
           </section>
         </main>
+      </div>
+
+      <div className="app-shell">
+        <section className="section section-tight" id="live-coins" aria-labelledby="live-coins-title">
+          <LiveCoins limit={8} />
+        </section>
       </div>
 
       <div className="app-shell">
@@ -2952,7 +2968,7 @@ export default function App() {
           </div>
         </footer>
       </div>
-      ) : isAgentsPage || isKolsPage || isRegisterPage || isKolProfilePage || isClaimPage || isProofPage || isOnepagerPage || isApprovePage ? null : (
+      ) : isAgentsPage || isKolsPage || isRegisterPage || isKolProfilePage || isClaimPage || isProofPage || isOnepagerPage || isApprovePage || isCoinPage || isCoinsPage || isAdminKickoffPage ? null : (
       <div className="app-shell">
         <section className="section" id="brand">
           <p className="section-label">Assets</p>
@@ -3056,7 +3072,7 @@ export default function App() {
       </div>
       )}
 
-      {isRegisterPage || isOnepagerPage ? null : isKolProfilePage || isClaimPage ? (
+      {isRegisterPage || isOnepagerPage || isCoinPage || isCoinsPage || isAdminKickoffPage ? null : isKolProfilePage || isClaimPage ? (
       <div className="mobile-cta">
         <button className="btn btn-primary btn-wide" type="button" onClick={() => navigate("/register")}>
           Register as crew

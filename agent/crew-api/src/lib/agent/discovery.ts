@@ -84,6 +84,7 @@ export function agentDiscoveryJson() {
       agents_md: `${SITE_URL}/AGENTS.md`,
       human_docs: `${SITE_URL}/agents`,
       proof: `${SITE_URL}/proof`,
+      coin_page: `${SITE_URL}/coin/{mint}`,
       skill: `${SITE_URL}/AGENTS.md`,
     },
     mcp: {
@@ -116,9 +117,13 @@ export function agentDiscoveryJson() {
         'crew_crank_remits',
         'crew_proof',
         'crew_submit_signed',
+        'post_coin_job',
+        'crew_job_templates',
+        'crew_job_list',
+        'crew_job_create_dry_run',
       ],
       flow:
-        'crew_claim_key → crew_discover → crew_list_kols (select explicit crew) → crew_launch_dry_run → crew_launch → (fallback: crew_autohire) → crew_list_launches / crew_status / crew_wire_fees / crew_crank_remits',
+        'crew_claim_key → crew_discover → crew_list_kols (select explicit crew) → crew_launch_dry_run → crew_launch → (fallback: crew_autohire) → crew_list_launches / public coin page / post_coin_job (JOBS_ENABLED, test/devnet) → crew_status / crew_wire_fees / crew_crank_remits',
     },
     proof: {
       http: `${API_URL}/api/proof`,
@@ -132,6 +137,7 @@ export function agentDiscoveryJson() {
         'remit.cranked',
         'buyback.executed',
         'holderKol.locked',
+        'coin.graduated',
       ],
       register: `${API_URL}/api/webhooks`,
     },
@@ -140,7 +146,7 @@ export function agentDiscoveryJson() {
       param: 'platform',
       feeMap: LAUNCH_FEE_MAP_COPY,
       list: `${API_URL}/api/platforms`,
-      note: 'UNSIGNED launch venues. platform defaults to pumpfun. The launching agent does not receive the 60% crew slice. Each venue reports enabled + chain (solana | base | base-sepolia). acp is Virtuals ACP v2 (off unless ACP_ENABLED=1). x402 is pay-per-call (off unless X402_ENABLED).',
+      note: 'UNSIGNED launch venues. platform defaults to pumpfun (unchanged). Bags.fm is recommended when BAGS_API_KEY is set — still opt-in, not the default. The launching agent does not receive the 60% crew slice. Each venue reports enabled + chain (solana | base | base-sepolia). acp is Virtuals ACP v2 (off unless ACP_ENABLED=1). x402 is pay-per-call (off unless X402_ENABLED).',
       venues: listLaunchVenues(),
       acp: acpPublicJson(),
       x402: x402PublicDiscovery(),
@@ -280,7 +286,39 @@ export function agentDiscoveryJson() {
       'GET /api/kols': 'Public KOL directory (query: q, limit)',
       'GET /api/kols/wallet/{wallet}': 'KOL by wallet',
       'GET /api/coins': 'Public recent launches',
-      'GET /api/coins/{mint}': 'Coin by mint',
+      'GET /api/coins/live':
+        'CrewPay-launched coins sorted by cached Dexscreener market cap (unknown quotes show as null / UI --)',
+      'GET /api/coins/graduated-unfeatured':
+        'Auth. Pump.fun graduates with no @CrewPayHQ post URL yet. External routine posts, then POST /api/coins/{mint}/featured. CrewPay does not auto-post.',
+      'POST /api/coins/{mint}/featured':
+        'Auth. Store the @CrewPayHQ status URL after an external post. Unlocks after graduation. Does not tweet.',
+      'GET /api/coins/{mint}':
+        'Coin by mint (name, ticker, crew, trade URL, optional public image/socials). Public page: https://crewpay.dev/coin/{mint}',
+      'GET /api/coins/{mint}/kit':
+        'Post-launch kit: AI crew, creative job templates, kickoff budget (treasury share of THIS coin’s accrued fees minus reserved). No auto on-chain spend.',
+      'GET /api/jobs/templates': {
+        auth: 'none (JOBS_ENABLED)',
+        returns:
+          'Creative job presets: meme-pack, banner-logo, x-upkeep, website-polish. Test/devnet escrow only.',
+      },
+      'POST /api/jobs/coin': {
+        auth: 'x-crew-api-key (JOBS_ENABLED)',
+        body: {
+          mint: 'required',
+          template: 'meme-pack|banner-logo|x-upkeep|website-polish',
+          chainId: 'solana-devnet|evm:base-sepolia|flop-testnet',
+          asset: 'SOL|USDC|ETH|USDT',
+          budget: 'optional test units',
+          postsPerWeek: 'optional, x-upkeep',
+        },
+        returns:
+          'Job on the existing jobs+escrow flow. Humans claim, deliver, get paid after verification. No mainnet. No earnings promises.',
+      },
+      'POST /api/jobs/coin/dry-run': {
+        auth: 'x-crew-api-key (JOBS_ENABLED)',
+        returns: 'Plan for a coin creative job (not persisted)',
+      },
+      'GET /api/jobs/open': 'Open/funded jobs (query: mint). JOBS_ENABLED.',
       'GET /api/board': 'Coins + remits board snapshot',
       'GET /api/remits': 'Public remits (query: mint, limit)',
       'POST /api/webhooks': 'Register agent webhook (auth)',
@@ -321,6 +359,7 @@ export function agentDiscoveryJson() {
       'Start at GET /llms.txt or GET /api/agent — no browser required.',
       'Crypto agents: prefer MCP at https://mcp.crewpay.dev/mcp (discover → autohire → dry-run → launch → status/wire/crank).',
       'Public proof tape: GET /api/proof and https://crewpay.dev/proof — empty tape means no completed launches yet.',
+      'Every CrewPay-launched coin has a public page at https://crewpay.dev/coin/{mint} (from existing launch records). Post-launch creative jobs (meme pack, banner/logo, X upkeep, website polish) use the jobs+escrow system behind JOBS_ENABLED — test/devnet only, MCP post_coin_job. Kickoff extras (Dexscreener Enhanced Token Info default $299, may change; hosted website free on crewpay.dev/coin/{mint}; optional custom domain ~$10) unlock only when that coin’s treasury share (25% or 20%) of accrued fees fully covers the item; approval reserves the cost. No automatic treasury transfers. No earnings promises. Fee map stays 60% KOL crew / 15% launching agent / 25% treasury (60/15/5/20 with referrer). The launching agent does not receive the 60% crew slice.',
       'Hourly Jupiter buyback cron runs when CREW_BUYBACK_MINT + CREW_BUYBACK_PRIVATE_KEY are set (CREW_BUYBACK_DRY_RUN=0 to execute).',
       `Legacy Render URLs still work: ${API_URL_LEGACY} · ${MCP_HTTP_URL_LEGACY}`,
     ],
@@ -345,6 +384,11 @@ export function openApiSpec() {
     tags: [
       { name: 'discovery', description: 'Public machine-readable docs' },
       { name: 'agent', description: 'Autohire + launch' },
+      {
+        name: 'jobs',
+        description:
+          'Jobs + escrow (JOBS_ENABLED, test/devnet). Campaigns and post-launch creative presets. No mainnet.',
+      },
     ],
     paths: {
       '/llms.txt': {
@@ -823,15 +867,131 @@ export function openApiSpec() {
           responses: { '200': { description: 'Coin list' } },
         },
       },
+      '/api/coins/graduated-unfeatured': {
+        get: {
+          tags: ['discovery'],
+          summary: 'Graduated coins not yet featured on @CrewPayHQ',
+          operationId: 'getGraduatedUnfeatured',
+          security: [{ CrewApiKey: [] }],
+          description:
+            'Poll for Pump.fun graduates missing a stored @CrewPayHQ post URL. External routine posts, then POST /api/coins/{mint}/featured. CrewPay does not auto-post. Webhook: coin.graduated.',
+          responses: { '200': { description: 'Unfeatured graduates' } },
+        },
+      },
+      '/api/coins/{mint}/featured': {
+        post: {
+          tags: ['discovery'],
+          summary: 'Set @CrewPayHQ feature post URL',
+          operationId: 'setCoinFeatured',
+          security: [{ CrewApiKey: [] }],
+          description: 'Stores an x.com/CrewPayHQ/status URL. Does not post to X.',
+          parameters: [{ name: 'mint', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'Featured URL saved' }, '400': { description: 'Invalid' } },
+        },
+      },
+      '/api/coins/live': {
+        get: {
+          tags: ['discovery'],
+          summary: 'Live CrewPay coins sorted by market cap',
+          operationId: 'getLiveCoins',
+          description:
+            'Real launch records plus cached Dexscreener market cap / 24h change. Unknown quotes are null (UI shows --).',
+          responses: { '200': { description: 'Live coin rows' } },
+        },
+      },
+      '/api/coins/{mint}/kit': {
+        get: {
+          tags: ['discovery'],
+          summary: 'Post-launch kit for a coin',
+          operationId: 'getCoinKit',
+          description:
+            'AI crew + job templates + kickoff budget. Budget = treasury share of this mint’s accrued creator fees (cached 1–5 min poll of remits + on-chain fee-sharing) minus spent/reserved. SOL/ETH converted via cached FX. Dexscreener Enhanced Token Info default $299 (may change). Hosted website is free. Custom domain default ~$10. Approval reserves USD so nothing double-spends. No on-chain treasury transfer.',
+          parameters: [{ name: 'mint', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'Kit payload' }, '404': { description: 'Not found' } },
+        },
+      },
       '/api/coins/{mint}': {
         get: {
           tags: ['discovery'],
-          summary: 'Coin by mint',
+          summary: 'Coin by mint (public coin page source)',
+          description:
+            'Launch record plus optional public image/socials. Site page: https://crewpay.dev/coin/{mint}. No new secrets.',
           operationId: 'getCoin',
           parameters: [
             { name: 'mint', in: 'path', required: true, schema: { type: 'string' } },
           ],
-          responses: { '200': { description: 'Coin' }, '404': { description: 'Not found' } },
+          responses: { '200': { description: 'Coin + pageUrl, crew, optional image/socials' }, '404': { description: 'Not found' } },
+        },
+      },
+      '/api/jobs/templates': {
+        get: {
+          tags: ['jobs'],
+          summary: 'Creative job presets for a launched coin',
+          operationId: 'getJobTemplates',
+          description:
+            'One-click templates: Meme pack, Banner/logo design, X account upkeep (N posts/week), Website polish. Behind JOBS_ENABLED. Test/devnet escrow. No earnings promises.',
+          responses: { '200': { description: 'Template catalog' } },
+        },
+      },
+      '/api/jobs/open': {
+        get: {
+          tags: ['jobs'],
+          summary: 'List open jobs',
+          operationId: 'getOpenJobs',
+          parameters: [
+            { name: 'mint', in: 'query', schema: { type: 'string' }, description: 'Filter by coin mint' },
+          ],
+          responses: { '200': { description: 'Open/funded jobs' } },
+        },
+      },
+      '/api/jobs/coin/dry-run': {
+        post: {
+          tags: ['jobs'],
+          summary: 'Dry-run a post-launch creative job',
+          operationId: 'postCoinJobDryRun',
+          security: [{ CrewApiKey: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': { schema: { $ref: '#/components/schemas/PostCoinJobRequest' } },
+            },
+          },
+          responses: { '200': { description: 'Plan' }, '400': { description: 'Invalid' } },
+        },
+      },
+      '/api/jobs/coin': {
+        post: {
+          tags: ['jobs'],
+          summary: 'Post a creative job for a CrewPay-launched coin',
+          description:
+            'MCP: post_coin_job. Uses existing jobs+escrow. Agents post with budget; humans claim, deliver, get paid after verification. Test/devnet only — never mainnet. Fee split for launches remains 60% KOL crew / 15% launching agent / 25% treasury.',
+          operationId: 'postCoinJob',
+          security: [{ CrewApiKey: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': { schema: { $ref: '#/components/schemas/PostCoinJobRequest' } },
+            },
+          },
+          responses: { '201': { description: 'Job created' }, '400': { description: 'Invalid' } },
+        },
+      },
+      '/api/jobs/campaigns/dry-run': {
+        post: {
+          tags: ['jobs'],
+          summary: 'Dry-run a campaign job',
+          operationId: 'postJobCampaignDryRun',
+          security: [{ CrewApiKey: [] }],
+          responses: { '200': { description: 'Plan' } },
+        },
+      },
+      '/api/jobs/campaigns': {
+        post: {
+          tags: ['jobs'],
+          summary: 'Create a campaign or creative job',
+          operationId: 'postJobCampaign',
+          security: [{ CrewApiKey: [] }],
+          responses: { '201': { description: 'Job created' } },
         },
       },
       '/api/board': {
@@ -899,6 +1059,36 @@ export function openApiSpec() {
         },
       },
       schemas: {
+        PostCoinJobRequest: {
+          type: 'object',
+          required: ['mint', 'template', 'chainId', 'asset'],
+          properties: {
+            mint: { type: 'string', minLength: 32, maxLength: 64 },
+            template: {
+              type: 'string',
+              enum: ['meme-pack', 'banner-logo', 'x-upkeep', 'website-polish'],
+            },
+            chainId: {
+              type: 'string',
+              enum: ['solana-devnet', 'evm:base-sepolia', 'flop-testnet'],
+              description: 'Test/devnet only — mainnet chain ids are rejected',
+            },
+            asset: { type: 'string', enum: ['SOL', 'USDC', 'ETH', 'USDT'] },
+            budget: { type: 'number', exclusiveMinimum: 0 },
+            perProofAmount: { type: 'number', exclusiveMinimum: 0 },
+            postsPerWeek: {
+              type: 'integer',
+              minimum: 1,
+              maximum: 21,
+              description: 'X account upkeep: posts per week',
+            },
+            deadlineHours: { type: 'integer', minimum: 1, maximum: 720 },
+            fund: {
+              type: 'boolean',
+              description: 'Optional sim/flop-tclk escrow fund (never mainnet)',
+            },
+          },
+        },
         LaunchVenue: {
           type: 'object',
           required: ['id', 'name', 'chain', 'enabled', 'status'],
@@ -1264,6 +1454,7 @@ If you can HTTP GET, start here — then call the API. No browser UI required.
 - Official MCP Registry: https://registry.modelcontextprotocol.io (search \`crewpay\` / \`io.github.fxams/crewpay-mcp\`)
 - ClawPump agent: https://clawpump.tech/agent/0d006dbb-3c21-4d14-b36b-3fcea74d0722
 - Human docs: ${SITE_URL}/agents
+- Coin page (every launch): ${SITE_URL}/coin/<mint>
 
 ## For crypto agents
 
@@ -1286,6 +1477,7 @@ Approval is optional. Operators can require human approval per key.
 7. GET ${API_URL}/api/agent/launches   (your mints — scoped to crew_ak_…)
 8. Optional: POST ${API_URL}/api/agent/crank  (body \`{ "mint" }\`; x-launcher-key optional when ops key set)
 9. GET ${API_URL}/api/proof
+10. Public coin page: ${SITE_URL}/coin/<mint> — then optional post-launch kit (JOBS_ENABLED, test/devnet): MCP \`post_coin_job\` / \`POST /api/jobs/coin\` with template \`meme-pack\` | \`banner-logo\` | \`x-upkeep\` | \`website-polish\`. Humans claim, deliver, get paid after verification on existing escrow. No earnings promises.
 
 ## Auth
 
@@ -1311,8 +1503,8 @@ Canonical site is **https://crewpay.dev** (\`app.crewpay.dev\` has no DNS).
 ## Launch platforms (UNSIGNED)
 
 - \`platform\` on \`POST /api/agent/launch/unsigned\` and MCP \`crew_build_unsigned\` defaults to \`pumpfun\` (unchanged).
-- \`bags\` — Bags.fm on Solana via the public API. Requires \`BAGS_API_KEY\`. Hired KOL crew + launching agent + treasury are fee claimers (60/15/rest; 5% referrer when bound). Bags caps claimers at 100; crews above 7 claimers attach the Bags public LUT.
-- \`zora\` — Zora content coins on Base. Off unless \`ZORA_ENABLED\` is set. Creator rewards go to a 0xSplits contract (60% to the KOL crew, 15% to the launching agent, 25% to the treasury). CrewPay is the platform referrer. Base Sepolia by default; \`ZORA_CHAIN=base\` for mainnet. Returns unsigned EIP-1559 txs (split, then create).
+- \`bags\` — Bags.fm is **recommended** when \`BAGS_API_KEY\` is set. Still opt-in — do not switch the API default off pumpfun. Hired KOL crew + launching agent + treasury are fee claimers (60/15/rest; 5% referrer when bound). Bags caps claimers at 100; crews above 7 claimers attach the Bags public LUT.
+- \`zora\` — Zora content coins on Base. Off unless \`ZORA_ENABLED\` is set. Creator rewards (0.50%) go to a 0xSplits contract (60% to the KOL crew, 15% to the launching agent, 25% to the treasury). The separate 0.20% platform referral is paid to \`ZORA_PLATFORM_REFERRER\` (defaults to the treasury 0x address today — it does **not** flow through 0xSplits). Routing it into the 60/15/25 split would mean passing the predicted split as \`platformReferrer\` at create; CrewPay does **not** change on-chain addresses. Base Sepolia by default; \`ZORA_CHAIN=base\` for mainnet. Returns unsigned EIP-1559 txs (split, then create).
 - Same KOL order on every platform: explicit \`crew[]\` first, Autohire second. \`optInOnly\` optional and off by default.
 - Sign locally, then \`POST /api/agent/launch/submit\` / \`crew_submit_signed\` (pass the same \`platform\`).
 
@@ -1341,6 +1533,29 @@ Agents can hire CrewPay via Agent Commerce Protocol v2 jobs when \`ACP_ENABLED=1
 - **25%** to the treasury — or **20%** when the agent key has a KOL referral
 - **5%** referrer KOL (only when \`referralCode\` was bound at claim-key; on-chain recipient)
 - Non-referred stays **60/15/25**. Buyback cron not live yet. Invite: \`https://crewpay.dev/r/<code>\`
+- The launching agent does **not** receive the 60% crew slice.
+
+## Post-launch kit
+
+Every CrewPay-launched coin gets a public page at \`${SITE_URL}/coin/<mint>\` (name, ticker, image if public, chain/launchpad, contract + copy, hired KOL crew, socials if provided). Generated from existing launch records; no new secrets. Live list: ${SITE_URL}/coins and home “Live coins” (real launches + cached Dexscreener mcap; unknown = --).
+
+Kickoff extras (tucked on the coin page) spend **only this coin’s treasury share** of accrued creator fees (25%, or 20% when referred), minus spent/reserved:
+
+- Accrual is polled ~1–5 min from on-chain fee claims / sharing-config + remits, then cached. SOL/ETH → USD via a cached price feed (\`CREW_SOL_USD\` / \`CREW_ETH_USD\` override).
+- An item is eligible only when the remaining budget covers its **full** USD cost (precomputed “funded at” progress). Approval **reserves** that cost so nothing double-spends.
+- Defaults: Dexscreener Enhanced Token Info **$299** (configurable, public list price may change); custom website = **free** hosted \`${SITE_URL}/coin/<mint>\`; optional custom domain ~**$10** (\`KICKOFF_COST_CUSTOM_DOMAIN_USD\`).
+- \`CREW_KICKOFF_AUTO_USD\` (default 0 = off) auto-approves into a **payout queue** when fully covered. CrewPay does **not** auto-transfer treasury on-chain here.
+- Coin page timeline (vertical, mobile-first): Launched → crew hired → page live → first AI memes → graduated (Pump.fun) → **Featured on @CrewPayHQ** (unlocks on graduation; link once the post URL is stored) → traction → Dexscreener funded (%) → listed → own X (if configured) → custom domain. Real data only.
+- Graduation webhook: \`coin.graduated\`. Poll \`GET /api/coins/graduated-unfeatured\`, post from @CrewPayHQ **outside this repo**, then \`POST /api/coins/{mint}/featured\` with the status URL. CrewPay does **not** auto-post.
+- Fee map stays **60% KOL crew / 15% launching agent / 25% treasury** (or **60/15/5/20** with referrer). The launching agent does **not** receive the 60% crew slice. No earnings promises.
+
+Creative jobs reuse **jobs + escrow** (behind \`JOBS_ENABLED\`, test/devnet only — no mainnet):
+
+- Templates: **Meme pack**, **Banner/logo design**, **X account upkeep (N posts/week)**, **Website polish**
+- API: \`GET /api/jobs/templates\` · \`POST /api/jobs/coin\` · \`POST /api/jobs/coin/dry-run\` · \`GET /api/jobs/open?mint=\`
+- MCP: \`post_coin_job\` (template + mint + budget) · \`crew_job_templates\` · \`crew_job_list\`
+- Agents/creators post with escrowed budget; humans (KOLs/creators) claim, deliver, get paid after verification.
+- Dashboard lives on the coin page. No earnings promises.
 
 ## Optional docs
 
@@ -1359,7 +1574,7 @@ For: ${FRONTIER_MODELS.join('; ')}.
 
 ## What this is
 
-CrewPay lets an AI agent launch a Solana Pump.fun coin and permanently split creator fees (**60/15/25** default; **60/15/5/20** with KOL agent referral) — without using the browser desk. Buyback cron is not live yet. Always dry-run first; no price talk.
+CrewPay lets an AI agent launch a Solana Pump.fun coin and permanently split creator fees (**60/15/25** default; **60/15/5/20** with KOL agent referral) — without using the browser desk. Buyback cron is not live yet. Always dry-run first; no price talk. After launch, each coin has a public page at ${SITE_URL}/coin/<mint> and optional creative jobs (meme pack, banner/logo, X upkeep, website polish) on jobs+escrow (\`JOBS_ENABLED\`, test/devnet). The launching agent does not receive the 60% crew slice.
 
 Base URL: ${API_URL}
 Human site: ${SITE_URL}
@@ -1396,7 +1611,7 @@ GET ${SITE_URL}/robots.txt
 | x-launcher-key | launch / wire / lock (optional on crank) | Agent wallet secret (base58 or JSON byte array). Crank is permissionless — omit and server uses CREW_OPS_KEY when set. |
 | x-idempotency-key | optional | Prevents duplicate launches on retry |
 
-UNSIGNED platforms (same endpoints / MCP tools): \`platform\` defaults to \`pumpfun\`. \`bags\` needs \`BAGS_API_KEY\` (Solana fee claimers: 60% to the KOL crew, 15% to the launching agent, 25% to the treasury). \`zora\` needs \`ZORA_ENABLED\` (Base EIP-1559; 0xSplits payout + CrewPay platform referrer). Manual \`crew[]\` first, Autohire second. \`optInOnly\` off by default.
+UNSIGNED platforms (same endpoints / MCP tools): \`platform\` defaults to \`pumpfun\` (unchanged). Bags.fm is **recommended** when \`BAGS_API_KEY\` is set — still opt-in, not the default. \`zora\` needs \`ZORA_ENABLED\` (Base EIP-1559; 0xSplits 60/15/25 for the 0.50% creator reward). The 0.20% Zora platform referral is paid to \`ZORA_PLATFORM_REFERRER\` (treasury 0x today; does **not** go through 0xSplits). CrewPay does **not** change on-chain addresses. Manual \`crew[]\` first, Autohire second. \`optInOnly\` off by default.
 
 Virtuals ACP v2: \`GET /api/platforms\` → \`acp.enabled\` (false unless \`ACP_ENABLED=1\`). Offerings \`crewpay_autohire_kol_crew\` ($0.25) and \`crewpay_launch_with_crew\` ($1.00, unsigned + \`crew_submit_signed\`). \`ACP_INPROCESS=1\` embeds the listener in crewpay-api; else \`services/acp-provider\`. Paying wallet = identity. Do not log \`ACP_SIGNER_KEY\`.
 
@@ -1495,9 +1710,38 @@ Returns planned crew, fee map, SOL estimate, warnings — **no mint, no secret r
 - Treat HTTP 202 / feeShareLocked=false as incomplete — follow \`nextSteps\` / wire fees before celebrating
 - Prefer atomic create+fee-lock; if a warning says follow-up fee lock, snipers may have skimmed early fees
 
+## Post-launch kit (jobs + escrow, test/devnet)
+
+Public coin page (no auth): \`${SITE_URL}/coin/<mint>\` — built from existing launch records (name, ticker, image/socials if public, chain/launchpad, contract, hired KOL crew). Live list: GET ${API_URL}/api/coins/live. Kit: GET ${API_URL}/api/coins/<mint>/kit.
+
+Kickoff budget = this mint’s treasury share (25% or 20%) of accrued creator fees (cached 1–5 min poll of remits + on-chain fee-sharing) minus spent/reserved. Items unlock only when fully covered (Dexscreener Enhanced Token Info default $299, price may change; hosted website free; custom domain default ~$10). Approval reserves USD. No automatic on-chain treasury transfers. SOL/ETH converted with a cached FX feed.
+
+Graduation webhook: \`coin.graduated\`. Poll \`GET ${API_URL}/api/coins/graduated-unfeatured\`, post from @CrewPayHQ **outside this repo**, then \`POST ${API_URL}/api/coins/{mint}/featured\` with the status URL. CrewPay does **not** auto-post. Timeline: Featured on @CrewPayHQ sits immediately after Graduated and unlocks on graduation.
+
+Creative presets (behind \`JOBS_ENABLED\`; MCP \`post_coin_job\`; \`POST /api/jobs/coin\`):
+
+\`\`\`http
+GET ${API_URL}/api/jobs/templates
+POST ${API_URL}/api/jobs/coin
+Content-Type: application/json
+x-crew-api-key: $CREW_AGENT_API_KEY
+
+{
+  "mint": "<mint>",
+  "template": "meme-pack",
+  "chainId": "solana-devnet",
+  "asset": "SOL",
+  "budget": 3
+}
+\`\`\`
+
+Templates: \`meme-pack\` · \`banner-logo\` · \`x-upkeep\` (set \`postsPerWeek\`) · \`website-polish\`.
+Humans claim / submit URLs / agent verifies (\`approve: true\` or content checks) / payout via existing escrow rails (sim or solana-devnet unsigned). **No mainnet. No earnings promises.** Launch fee map unchanged: **60% hired KOL crew / 15% launching agent / 25% treasury** (or 60/15/5/20 with referrer). The launching agent does not receive the 60% crew slice.
+
 ## Related human product
 
 Desk UI: ${SITE_URL}
+Coin page: ${SITE_URL}/coin/<mint>
 Product brief: see repository PRODUCT.md (Agent API section)
 `
 }

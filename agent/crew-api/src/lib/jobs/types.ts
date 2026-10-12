@@ -23,13 +23,24 @@ export type JobStatus =
   | 'closed'
   | 'expired'
 
+export type CoinJobDeliverable =
+  | 'meme-pack'
+  | 'banner-logo'
+  | 'x-upkeep'
+  | 'website-polish'
+  | 'x-post'
+
 export type CampaignRules = {
   requiredTicker?: string
   requiredLink?: string
   minPostAgeHours?: number
-  platform?: 'x'
+  platform?: 'x' | 'any'
   /** Optional auto-release window; after this time from submit, agent can auto-release. */
   autoReleaseAfterHours?: number
+  /** Creative / post-launch kit deliverable (jobs + escrow). */
+  deliverableKind?: CoinJobDeliverable
+  minUrls?: number
+  postsPerWeek?: number
 }
 
 export type JobBase = {
@@ -48,6 +59,9 @@ export type JobBase = {
   escrowRef?: string | null
   createdAt: number
   updatedAt: number
+  /** CrewPay-launched mint this job is for (post-launch kit). */
+  mint?: string
+  templateId?: string
 }
 
 export type CampaignJob = JobBase & {

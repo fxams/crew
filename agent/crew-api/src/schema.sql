@@ -45,6 +45,11 @@ CREATE TABLE IF NOT EXISTS coins (
   unlocked_expired BOOLEAN NOT NULL DEFAULT false,
   admin_revoked BOOLEAN,
   agent_key_id TEXT,
+  featured_x_url TEXT,
+  featured_x_at TIMESTAMPTZ,
+  featured_x_set_by TEXT,
+  graduated_at TIMESTAMPTZ,
+  graduated_via TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -53,6 +58,9 @@ CREATE INDEX IF NOT EXISTS coins_launcher_idx ON coins (launcher);
 CREATE INDEX IF NOT EXISTS coins_launched_at_idx ON coins (launched_at DESC);
 CREATE INDEX IF NOT EXISTS coins_ticker_idx ON coins (ticker);
 CREATE INDEX IF NOT EXISTS coins_agent_key_id_idx ON coins (agent_key_id) WHERE agent_key_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS coins_graduated_unfeatured_idx
+  ON coins (graduated_at ASC)
+  WHERE graduated_at IS NOT NULL AND (featured_x_url IS NULL OR featured_x_url = '');
 
 CREATE TABLE IF NOT EXISTS coin_crew (
   mint TEXT NOT NULL REFERENCES coins (mint) ON DELETE CASCADE,

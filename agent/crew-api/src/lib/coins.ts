@@ -38,6 +38,13 @@ export type ApiCoin = {
   agentKeyId?: string
   /** Launch venue inferred from trade URL / mint (pumpfun default). */
   platform?: LaunchPlatform
+  /** @CrewPayHQ status URL, set by admin/API after an external post. */
+  featuredXUrl?: string
+  featuredXAt?: number
+  featuredXSetBy?: string
+  /** First time CrewPay observed Pump.fun graduation. */
+  graduatedAt?: number
+  graduatedVia?: string
 }
 
 export type ListCoinsOpts = {
@@ -98,6 +105,11 @@ function rowToCoin(row: Record<string, unknown>, crew: ApiCrewMember[]): ApiCoin
       pumpUrl: String(row.pump_url || ''),
       mint: String(row.mint || ''),
     }),
+    featuredXUrl: row.featured_x_url ? String(row.featured_x_url) : undefined,
+    featuredXAt: row.featured_x_at ? new Date(String(row.featured_x_at)).getTime() : undefined,
+    featuredXSetBy: row.featured_x_set_by ? String(row.featured_x_set_by) : undefined,
+    graduatedAt: row.graduated_at ? new Date(String(row.graduated_at)).getTime() : undefined,
+    graduatedVia: row.graduated_via ? String(row.graduated_via) : undefined,
   }
 }
 

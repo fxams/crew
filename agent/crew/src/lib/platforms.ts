@@ -17,6 +17,8 @@ export type LaunchVenue = {
   enabled: boolean
   status: LaunchVenueStatus
   caption?: string
+  /** Hint only — desk default stays pumpfun. */
+  recommended?: boolean
   tradeHost: string
   explorer: 'solscan' | 'basescan'
   note: string
@@ -45,9 +47,11 @@ export const FALLBACK_LAUNCH_VENUES: LaunchVenue[] = [
     chain: 'solana',
     enabled: true,
     status: 'live',
+    caption: 'recommended',
+    recommended: true,
     tradeHost: 'bags.fm',
     explorer: 'solscan',
-    note: 'Unsigned Solana fee-claimer launches.',
+    note: 'Recommended Solana venue (desk default stays Pump.fun). Unsigned fee-claimer launches.',
   },
   {
     id: 'zora',
@@ -226,6 +230,7 @@ function normalizeVenue(raw: Partial<LaunchVenue> & { id?: string; chain?: strin
     enabled,
     status,
     caption,
+    recommended: raw.recommended ?? fallback.recommended,
     tradeHost: raw.tradeHost || fallback.tradeHost,
     explorer: raw.explorer === 'basescan' ? 'basescan' : fallback.explorer,
     note: raw.note || fallback.note,
@@ -290,8 +295,8 @@ export function unsignedVenueHint(venue: LaunchVenue): string {
   }
   if (venue.id === 'bags') {
     return venue.enabled
-      ? 'Bags.fm is live via Agent unsigned. Connect Solana for launcherPubkey; sign in your agent.'
-      : 'Bags.fm is soon unless the API enables it.'
+      ? 'Recommended Solana venue. Bags.fm is live via Agent unsigned. Desk default stays Pump.fun.'
+      : 'Bags.fm is recommended when the API enables it (BAGS_API_KEY). Default stays Pump.fun.'
   }
   return 'Default Pump.fun — sign with your Solana wallet.'
 }
