@@ -36,7 +36,7 @@ function keysEqual(got: string, expected: string): boolean {
 }
 
 export type AgentAuthContext = {
-  source: 'env' | 'db' | 'x402'
+  source: 'env' | 'db' | 'x402' | 'feature-allowlist'
   fingerprint: string
   launchesPerHour?: number
   keyId?: string

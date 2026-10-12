@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { featuredXHandle, parseFeaturedXUrl } from './featured.js'
+import { assertCanSetFeatured, featuredXHandle, parseFeaturedXUrl } from './featured.js'
 
 describe('featured @CrewPayHQ URL', () => {
   afterEach(() => {
@@ -18,6 +18,27 @@ describe('featured @CrewPayHQ URL', () => {
     expect(() => parseFeaturedXUrl('https://example.com/CrewPayHQ/status/1')).toThrow(/x\.com/)
     expect(() => parseFeaturedXUrl('https://x.com/CrewPayHQ')).toThrow(/status/)
     expect(() => parseFeaturedXUrl('http://x.com/CrewPayHQ/status/1')).toThrow(/https/)
+  })
+
+  it('only stores a featured URL after graduation', () => {
+    expect(() =>
+      assertCanSetFeatured({
+        coin: { graduatedAt: undefined },
+        url: 'https://x.com/CrewPayHQ/status/1',
+      }),
+    ).toThrow(/graduation/)
+    expect(
+      assertCanSetFeatured({
+        coin: { graduatedAt: 1_700_000_000_000 },
+        url: 'https://x.com/CrewPayHQ/status/99',
+      }).url,
+    ).toBe('https://x.com/CrewPayHQ/status/99')
+    expect(() =>
+      assertCanSetFeatured({
+        coin: { graduatedAt: 1 },
+        url: 'https://x.com/notcrew/status/99',
+      }),
+    ).toThrow(/CrewPayHQ/)
   })
 
   it('handle is configurable', () => {

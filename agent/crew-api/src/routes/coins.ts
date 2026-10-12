@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { sendInternalError } from '../lib/http-error.js'
 import { z } from 'zod'
 import { requireApiKey } from '../lib/auth.js'
+import { requireFeaturedOpsKey } from '../lib/featured-auth.js'
 import {
   getCoin,
   listCoins,
@@ -94,7 +95,7 @@ coinsRouter.get('/coins', async (req, res) => {
   }
 })
 
-coinsRouter.get('/coins/graduated-unfeatured', requireApiKey, async (req, res) => {
+coinsRouter.get('/coins/graduated-unfeatured', requireFeaturedOpsKey, async (req, res) => {
   try {
     const limit = Number(req.query.limit || 50)
     const coins = await listGraduatedUnfeatured(limit)
@@ -117,7 +118,7 @@ coinsRouter.get('/coins/graduated-unfeatured', requireApiKey, async (req, res) =
   }
 })
 
-coinsRouter.post('/coins/:mint/featured', requireApiKey, async (req, res) => {
+coinsRouter.post('/coins/:mint/featured', requireFeaturedOpsKey, async (req, res) => {
   try {
     const mint = String(req.params.mint || '').trim()
     const url = String((req.body as { url?: string; featuredXUrl?: string })?.url

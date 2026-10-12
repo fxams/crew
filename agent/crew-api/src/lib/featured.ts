@@ -47,6 +47,18 @@ export function parseFeaturedXUrl(raw: string): { url: string; handle: string; s
   }
 }
 
+export function assertCanSetFeatured(opts: {
+  coin: { graduatedAt?: number } | null
+  url: string
+  requireGraduated?: boolean
+}): { url: string; handle: string; statusId: string } {
+  if (!opts.coin) throw new Error('Not found')
+  if (opts.requireGraduated !== false && !opts.coin.graduatedAt) {
+    throw new Error('Featured post unlocks after graduation — coin is not marked graduated yet')
+  }
+  return parseFeaturedXUrl(opts.url)
+}
+
 export async function setCoinFeaturedX(opts: {
   mint: string
   url: string
@@ -54,11 +66,12 @@ export async function setCoinFeaturedX(opts: {
   requireGraduated?: boolean
 }): Promise<ApiCoin> {
   const coin = await getCoin(opts.mint)
+  const parsed = assertCanSetFeatured({
+    coin,
+    url: opts.url,
+    requireGraduated: opts.requireGraduated,
+  })
   if (!coin) throw new Error('Not found')
-  if (opts.requireGraduated !== false && !coin.graduatedAt) {
-    throw new Error('Featured post unlocks after graduation — coin is not marked graduated yet')
-  }
-  const parsed = parseFeaturedXUrl(opts.url)
   const now = Date.now()
   await query(
     `UPDATE coins

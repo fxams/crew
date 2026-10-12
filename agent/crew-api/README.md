@@ -23,8 +23,8 @@ Legacy alias: https://crewpay-api.onrender.com (see `agent/crew/DOMAINS.md` for 
 | GET | `/api/board` | public |
 | GET | `/api/coins` | public |
 | GET | `/api/coins/live` | public (Dexscreener-cached mcap; unknown = null) |
-| GET | `/api/coins/graduated-unfeatured` | `x-crew-api-key` — graduates with no @CrewPayHQ URL |
-| POST | `/api/coins/:mint/featured` | `x-crew-api-key` — store @CrewPayHQ status URL (does not tweet) |
+| GET | `/api/coins/graduated-unfeatured` | featured-ops key — graduates with no @CrewPayHQ URL |
+| POST | `/api/coins/:mint/featured` | featured-ops key — store @CrewPayHQ status URL (does not tweet) |
 | GET | `/api/coins/:mint` | public coin page source |
 | GET | `/api/coins/:mint/kit` | public post-launch kit (AI crew, jobs, kickoff budget) |
 | PUT | `/api/coins` | `x-crew-api-key` |
@@ -171,7 +171,8 @@ npm run dev
 |----------|---------|
 | `DATABASE_URL` | Postgres |
 | `CREW_API_KEY` | Board write auth (may match `VITE_CREW_API_KEY`) |
-| `CREW_AGENT_API_KEY` | Agent Autohire/launch auth (server-only; required in prod) |
+| `CREW_AGENT_API_KEY` | Agent Autohire/launch auth (server-only; required in prod). Also authorizes featured-ops routes. |
+| `CREW_FEATURE_AGENT_KEYS_SHA256` | Featured-ops allowlist: comma-separated sha256 hex of dedicated per-agent keys for `GET /api/coins/graduated-unfeatured` and `POST /api/coins/:mint/featured`. Ordinary self-serve keys are rejected. DB `agent_keys.ops=true` is also accepted. |
 | `CREW_BUYBACK_WALLET` | 25% fee-share recipient (required for launches) |
 | `RPC_URL` | Mainnet RPC for agent launches / buyback |
 | `CREW_AGENT_LAUNCHER_KEY` | Optional shared launcher secret |

@@ -12,12 +12,19 @@ export type AgentKeyRow = {
   requireApproval: boolean
   /** KOL referral code bound at claim — immutable once set. */
   referralCode: string | null
+  /** Featured-ops role: may call graduated-unfeatured + featured URL write. */
+  ops: boolean
   createdAt: number
   lastUsedAt: number | null
 }
 
-function hashKey(raw: string): string {
+/** sha256 hex of a raw agent key (same digest as CREW_FEATURE_AGENT_KEYS_SHA256). */
+export function hashAgentKey(raw: string): string {
   return createHash('sha256').update(raw).digest('hex')
+}
+
+function hashKey(raw: string): string {
+  return hashAgentKey(raw)
 }
 
 function fingerprint(raw: string): string {
@@ -55,6 +62,7 @@ export async function createAgentKey(opts: {
       ownerWallet,
       requireApproval: false,
       referralCode,
+      ops: false,
       createdAt: Date.now(),
       lastUsedAt: null,
     },
@@ -68,13 +76,13 @@ export async function listAgentKeys(opts?: {
   const { rows } = opts?.keyId
     ? await query(
         `SELECT id, label, fingerprint, launches_per_hour, active, owner_wallet, require_approval,
-                referral_code, created_at, last_used_at
+                referral_code, COALESCE(ops, false) AS ops, created_at, last_used_at
          FROM agent_keys WHERE id = $1 LIMIT 1`,
         [opts.keyId],
       )
     : await query(
         `SELECT id, label, fingerprint, launches_per_hour, active, owner_wallet, require_approval,
-                referral_code, created_at, last_used_at
+                referral_code, COALESCE(ops, false) AS ops, created_at, last_used_at
          FROM agent_keys ORDER BY created_at DESC LIMIT 100`,
       )
   return rows.map((r) => ({
@@ -86,6 +94,7 @@ export async function listAgentKeys(opts?: {
     ownerWallet: r.owner_wallet ? String(r.owner_wallet) : null,
     requireApproval: Boolean(r.require_approval),
     referralCode: r.referral_code ? String(r.referral_code) : null,
+    ops: Boolean(r.ops),
     createdAt: new Date(String(r.created_at)).getTime(),
     lastUsedAt: r.last_used_at ? new Date(String(r.last_used_at)).getTime() : null,
   }))
@@ -161,11 +170,13 @@ export async function matchAgentKey(
   fingerprint: string
   launchesPerHour: number
   requireApproval: boolean
+  ops: boolean
 } | null> {
   if (!raw || raw.length < 16) return null
   const keyHash = hashKey(raw)
   const { rows } = await query(
-    `SELECT id, fingerprint, launches_per_hour, COALESCE(require_approval, false) AS require_approval
+    `SELECT id, fingerprint, launches_per_hour, COALESCE(require_approval, false) AS require_approval,
+            COALESCE(ops, false) AS ops
      FROM agent_keys
      WHERE active = true AND key_hash = $1 LIMIT 1`,
     [keyHash],
@@ -178,6 +189,7 @@ export async function matchAgentKey(
     fingerprint: String(row.fingerprint),
     launchesPerHour: Number(row.launches_per_hour),
     requireApproval: Boolean(row.require_approval),
+    ops: Boolean(row.ops),
   }
 }
 
