@@ -19,6 +19,7 @@ import { AgentsApiPage } from "./components/AgentsApiPage";
 import { ProofPage } from "./components/ProofPage";
 import { ClaimPage } from "./components/ClaimPage";
 import { TryCrewCard } from "./components/TryCrewCard";
+import { HomeFeeMap } from "./components/HomeFeeMap";
 import { KolProfilePage } from "./components/KolProfilePage";
 import { KolRegisterPage } from "./components/KolRegisterPage";
 import { TopKolsPage } from "./components/TopKolsPage";
@@ -1555,52 +1556,9 @@ export default function App() {
             Who gets paid.
           </h2>
           <p className="section-sub">
-            Every launch locks fee-shares on-chain. Default Agent Hire composition:
+            Every launch locks fee-shares on-chain. Agent Hire composition:
           </p>
-          <div className="home-fee-map">
-            <div
-              className="home-fee-bar"
-              role="img"
-              aria-label={`${100 - PLATFORM_BUYBACK_BPS / 100 - MODE_DESK_BPS.agent / 100}% hired KOL crew, ${MODE_DESK_BPS.agent / 100}% launching agent, ${PLATFORM_BUYBACK_BPS / 100}% treasury`}
-            >
-              <span
-                className="home-fee-seg is-treasury"
-                style={{ width: `${PLATFORM_BUYBACK_BPS / 100}%` }}
-              />
-              <span
-                className="home-fee-seg is-launcher"
-                style={{ width: `${MODE_DESK_BPS.agent / 100}%` }}
-              />
-              <span
-                className="home-fee-seg is-kols"
-                style={{
-                  width: `${100 - PLATFORM_BUYBACK_BPS / 100 - MODE_DESK_BPS.agent / 100}%`,
-                }}
-              />
-            </div>
-            <div className="home-fee-legend">
-              <div>
-                <strong>{PLATFORM_BUYBACK_BPS / 100}%</strong>
-                <span>Treasury (20% if referred)</span>
-                <em>CrewPay treasury — buyback cron not live</em>
-              </div>
-              <div>
-                <strong>{MODE_DESK_BPS.agent / 100}%</strong>
-                <span>Launching agent</span>
-                <em>Ops cut to the launching wallet — not the 60% crew slice</em>
-              </div>
-              <div>
-                <strong>{KOL_REFERRAL_CUT_PCT}%</strong>
-                <span>Referrer KOL</span>
-                <em>Only when the agent claimed a key with your code</em>
-              </div>
-              <div>
-                <strong>{100 - PLATFORM_BUYBACK_BPS / 100 - MODE_DESK_BPS.agent / 100}%</strong>
-                <span>Hired KOL crew</span>
-                <em>Split across hired crew seats</em>
-              </div>
-            </div>
-          </div>
+          <HomeFeeMap />
         </section>
 
         <section className="section section-tight" id="referrals" aria-labelledby="home-ref-title">

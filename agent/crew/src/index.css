@@ -1217,42 +1217,69 @@ a {
 }
 
 .home-fee-map {
+  --fee-crew: var(--acid);
+  --fee-agent: var(--amber);
+  --fee-referrer: #7dff9a;
+  --fee-treasury: #4ec4ff;
   display: grid;
   gap: 0.9rem;
   margin-top: 0.85rem;
   max-width: 52rem;
 }
 
+.home-fee-toggle {
+  margin: 0;
+}
+
 .home-fee-bar {
   display: flex;
   width: 100%;
-  height: 0.85rem;
+  height: 1.75rem;
   overflow: hidden;
   border: 1px solid rgba(200, 255, 61, 0.28);
   background: rgba(8, 16, 12, 0.65);
 }
 
 .home-fee-seg {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   height: 100%;
   min-width: 0;
+  flex-shrink: 0;
+  flex-basis: 0;
+  background: var(--fee-crew);
+}
+
+.home-fee-seg.is-crew {
+  background: var(--fee-crew);
+}
+
+.home-fee-seg.is-agent {
+  background: var(--fee-agent);
+}
+
+.home-fee-seg.is-referrer {
+  background: var(--fee-referrer);
 }
 
 .home-fee-seg.is-treasury {
-  background: var(--acid);
+  background: var(--fee-treasury);
 }
 
-.home-fee-seg.is-launcher {
-  background: var(--amber);
-}
-
-.home-fee-seg.is-kols {
-  background: linear-gradient(90deg, #7dff9a, #3dd68c);
+.home-fee-seg-label {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--acid-ink);
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .home-fee-legend {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
   gap: 0.75rem 1rem;
 }
 
@@ -1267,15 +1294,23 @@ a {
   font-size: clamp(1.6rem, 4vw, 2.1rem);
   line-height: 1;
   letter-spacing: -0.03em;
-  color: var(--acid);
+  color: var(--fee-crew);
 }
 
-.home-fee-legend > div:nth-child(2) strong {
-  color: var(--amber);
+.home-fee-legend > .is-crew strong {
+  color: var(--fee-crew);
 }
 
-.home-fee-legend > div:nth-child(3) strong {
-  color: #7dff9a;
+.home-fee-legend > .is-agent strong {
+  color: var(--fee-agent);
+}
+
+.home-fee-legend > .is-referrer strong {
+  color: var(--fee-referrer);
+}
+
+.home-fee-legend > .is-treasury strong {
+  color: var(--fee-treasury);
 }
 
 .home-fee-legend span {
@@ -4099,5 +4134,10 @@ a {
     width: 22px;
     height: 22px;
     font-size: 0.72rem;
+  }
+
+  .home-fee-toggle .plat-filter-btn {
+    min-height: 40px;
+    font-size: 0.8rem;
   }
 }
