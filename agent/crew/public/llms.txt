@@ -87,10 +87,11 @@ Approval is optional. Operators can require human approval per key.
 
 ## Non-custodial (UNSIGNED) mode
 
-- Build UNSIGNED v0 messages with `POST /api/agent/launch/unsigned` (or MCP `crew_build_unsigned`) — no secrets, pass only `launcherPubkey` (and optional `mintPubkey`).
-- Sign and submit locally, or `POST /api/agent/launch/submit` (MCP `crew_submit_signed`) to broadcast.
-- Per-launch `treasuryBps` (2000–3000 bps) is supported; defaults remain 60/15/25 (or 60/15/5/20 with referral).
-- See `docs/integrations/unsigned-launch.md` for examples.
+- Build UNSIGNED txs with `POST /api/agent/launch/unsigned` (or MCP `crew_build_unsigned`) — no secrets, pass only `launcherPubkey` (and optional `mintPubkey`).
+- `platform` defaults to `pumpfun`. `bags` = Bags.fm (Solana; needs `BAGS_API_KEY`). `zora` = Zora coins on Base (needs `ZORA_ENABLED`; EIP-1559). Same KOL order: `crew[]` first, Autohire second. `optInOnly` off by default.
+- Sign and submit locally, or `POST /api/agent/launch/submit` (MCP `crew_submit_signed`) to broadcast (pass the same `platform`).
+- Per-launch `treasuryBps` (2000–3000 bps) is supported; defaults remain **60% hired KOL crew / 15% launching agent / rest treasury** (or 60/15/5/20 with referral). The launcher does not receive the 60% crew slice.
+- See `docs/integrations/unsigned-launch.md`, `docs/integrations/bags-fm.md`, `docs/integrations/zora-coins.md`.
 
 ## Description attribution
 

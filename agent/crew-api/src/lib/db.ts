@@ -373,4 +373,17 @@ export async function migrate(): Promise<void> {
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['014_kol_csrf_cookie_pending_wallet'],
   )
+  await query(`
+    DO $mig$
+    BEGIN
+      IF to_regclass('public.kol_registrations') IS NOT NULL THEN
+        ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS evm_wallet TEXT;
+      END IF;
+    END
+    $mig$;
+  `)
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['015_kol_evm_wallet'],
+  )
 }

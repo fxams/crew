@@ -88,6 +88,11 @@ describe('agent discovery docs', () => {
     expect(llmsTxt()).toContain('/api/agent/crank')
     expect(llmsTxt()).toContain('60%')
     expect(llmsTxt()).toContain('not live yet')
+    expect(llmsTxt()).toContain('bags')
+    expect(llmsTxt()).toContain('zora')
+    expect(llmsTxt().toLowerCase()).not.toMatch(/launcher gets 60/)
+    expect(agentDiscoveryJson().endpoints['POST /api/agent/launch/unsigned']).toBeTruthy()
+    expect(openApiSpec().components.schemas.LaunchRequest.properties.platform).toBeTruthy()
     expect(openApiSpec().components.schemas.LaunchRequest.properties.description.maxLength).toBe(
       204,
     )

@@ -3,12 +3,14 @@
 Clawd asked for a non-custodial mode where the launcher’s private key never leaves the device. This document describes the HTTP API and MCP tools for building UNSIGNED transactions you can sign locally and submit yourself (or post back to CREW for broadcast).
 
 Scope:
-- Build v0 TransactionMessage(s) (base64) for:
-  - create (+ optional initial buy)
-  - fee-share open + lock (optional when holderKol or deferring a repair wire)
+- Build unsigned transactions for:
+  - **pumpfun** (default): v0 TransactionMessage(s) — create (+ optional initial buy) and fee-share open + lock
+  - **bags**: Bags.fm Solana txs (fee-share config, then create). Requires `BAGS_API_KEY`. See [bags-fm.md](./bags-fm.md).
+  - **zora**: EIP-1559 txs on Base (0xSplits, then Zora factory). Requires `ZORA_ENABLED`. See [zora-coins.md](./zora-coins.md).
 - No secrets sent to the API. You pass only `launcherPubkey` (and optionally your own `mintPubkey`).
-- Per-launch `treasuryBps` override allowed (2000–3000 bps). Defaults remain 60/15/(25 or 20+5 with referral).
-- Consent: set `optInOnly=true` to limit Autohire to registered KOLs. Explicit `crew[]` is rejected when any wallet is not registered and `optInOnly=true`.
+- Per-launch `treasuryBps` override allowed (2000–3000 bps). Defaults remain **60% hired KOL crew / 15% launching agent / rest treasury** (or 20%+5% referrer). The launching agent does not receive the 60% crew slice.
+- Consent: set `optInOnly=true` to limit Autohire to registered KOLs (default **off**). Explicit `crew[]` is rejected when any wallet is not registered and `optInOnly=true`.
+- KOL order is the same on every platform: manual `crew[]` first, Autohire second.
 
 ## HTTP API
 
@@ -26,6 +28,7 @@ x-crew-api-key: crew_ak_…
   "autoHire": { "seats": 5 },
   "optInOnly": true,
   "treasuryBps": 2500,
+  "platform": "pumpfun",
   "initialBuySol": 0,
   "launcherPubkey": "So11111111111111111111111111111111111111112"
   // optional "mintPubkey": "…"
@@ -89,8 +92,9 @@ Notes:
 
 ## MCP tools
 
-- crew_build_unsigned: mirrors the HTTP builder; returns steps with base64 messages.
-- crew_submit_signed: submit signed base64 transactions via the API (optional).
+- crew_build_unsigned: mirrors the HTTP builder; `platform` defaults to `pumpfun` (`bags`, `zora`).
+- crew_submit_signed: submit signed txs via the API (optional). Pass the same `platform`.
+- crew_list_kols: browse/select explicit crew before launching on any platform.
 
 Example (pseudocode):
 ```json
