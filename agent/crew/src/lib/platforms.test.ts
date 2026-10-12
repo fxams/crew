@@ -124,6 +124,10 @@ describe('launch platform helpers', () => {
     const curl = unsignedLaunchCurl({ platform: 'bags', name: 'Night Owl', ticker: 'HOOT' })
     expect(curl).toContain('"platform": "bags"')
     expect(curl).toContain('/api/agent/launch/unsigned')
+    expect(curl).toContain('x-crew-api-key')
+    const paid = unsignedLaunchCurl({ platform: 'bags', name: 'Night Owl', ticker: 'HOOT', auth: 'x402' })
+    expect(paid).toContain('X-PAYMENT: $X402_PAYMENT')
+    expect(paid.toLowerCase()).not.toContain('x-crew-api-key')
   })
 
   it('display names match product copy', () => {
