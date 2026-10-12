@@ -155,12 +155,12 @@ export class CrewPayClient {
     })
   }
 
-  /** Submit previously signed base64 transactions (create then lock). */
-  submitSigned(signed: string[]) {
+  /** Submit previously signed transactions (create then lock). Pass platform for Bags/Zora. */
+  submitSigned(signed: string[], platform: 'pumpfun' | 'bags' | 'zora' = 'pumpfun') {
     return this.fetch('/api/agent/launch/submit', {
       method: 'POST',
       auth: true,
-      body: JSON.stringify({ signed }),
+      body: JSON.stringify({ signed, platform }),
     })
   }
 }

@@ -29,7 +29,7 @@ metadata:
 
 Approval is optional. Operators can require human approval per key.
 
-Use this skill when launching **Solana / Pump.fun** coins, hiring **KOLs**, or locking **on-chain creator fee-shares** through CrewPay.
+Use this skill when launching **Solana / Pump.fun / Bags.fm** or **Zora (Base)** coins, hiring **KOLs**, or locking **on-chain creator fee-shares** through CrewPay. `platform` defaults to `pumpfun`. Bags needs `BAGS_API_KEY`; Zora needs `ZORA_ENABLED`.
 
 ## Why KOLs matter
 

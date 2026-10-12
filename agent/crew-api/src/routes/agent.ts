@@ -71,10 +71,18 @@ import { assertSafeHttpUrl } from '../lib/agent/safe-url.js'
 import { AGENT_EXAMPLES, errorIssues, errorMessage, normalizeAutoHireInput } from '../lib/agent/errors.js'
 import { parseLauncherKey, resolveOpsPayer } from '../lib/agent/send.js'
 import { solanaAddress } from '../lib/agent/solana-address.js'
+import { evmAddress, isEvmAddress } from '../lib/agent/evm-address.js'
 import { draftMentionFromRemit } from '../lib/kol-mentions.js'
 import { emitWebhookEvent } from '../lib/webhooks.js'
 import { buildCrewShareholders } from '../lib/agent/shareholders.js'
 import { buildUnsignedLaunchTransactions } from '../lib/agent/unsigned.js'
+import { buildBagsUnsignedLaunch } from '../lib/agent/bags.js'
+import { applyRegisteredEvmWallets, buildZoraUnsignedLaunch, resolveZoraCrewWallets } from '../lib/agent/zora.js'
+import {
+  assertPlatformReady,
+  getEvmTreasuryWallet,
+  parseLaunchPlatform,
+} from '../lib/agent/platforms.js'
 import { clampTreasuryBpsOverride, withCrewLaunchDescription } from '../lib/agent/constants.js'
 import { query } from '../lib/db.js'
 
@@ -91,12 +99,22 @@ const crewMemberSchema = z.object({
   wallet: solanaAddress,
   share: z.number().int().min(1).max(100),
   hireRole: z.enum(['caller', 'chart', 'raid', 'kol', 'dev']).optional(),
+  evmWallet: evmAddress.optional(),
+})
+
+const crewMemberSchemaFlexible = z.object({
+  handle: z.string().min(1).max(32),
+  wallet: z.string().min(20).max(64),
+  share: z.number().int().min(1).max(100),
+  hireRole: z.enum(['caller', 'chart', 'raid', 'kol', 'dev']).optional(),
+  evmWallet: evmAddress.optional(),
 })
 
 /**
  * Build UNSIGNED launch transactions (create + optional fee-share lock) for local signing.
  * Returns v0 message base64 with required signer pubkeys and a suggested order.
  * The caller may submit directly to Solana RPC or POST them back to our submit endpoint.
+ * `platform` defaults to pumpfun (existing behavior). bags = Bags.fm (Solana); zora = Zora coins (Base).
  */
 const unsignedLaunchSchema = z
   .object({
@@ -110,7 +128,7 @@ const unsignedLaunchSchema = z
     imageUrl: z.string().url().optional(),
     imageBase64: z.string().min(64).optional(),
     imageContentType: z.string().max(64).optional(),
-    crew: z.array(crewMemberSchema).min(1).max(MAX_CREW).optional(),
+    crew: z.array(crewMemberSchemaFlexible).min(1).max(100).optional(),
     autoHire: z
       .preprocess(
         normalizeAutoHireInput,
@@ -119,8 +137,9 @@ const unsignedLaunchSchema = z
       .optional(),
     optInOnly: z.boolean().optional().default(false),
     treasuryBps: z.number().int().min(2000).max(3000).optional(),
-    launcherPubkey: solanaAddress,
-    mintPubkey: solanaAddress.optional(),
+    platform: z.enum(['pumpfun', 'bags', 'zora']).optional().default('pumpfun'),
+    launcherPubkey: z.string().min(20).max(64),
+    mintPubkey: z.string().min(20).max(64).optional(),
   })
   .superRefine(refineLaunchBody)
 
@@ -132,33 +151,56 @@ agentRouter.post('/agent/launch/unsigned', requireAgentApiKey, async (req, res) 
     if (!applyRateLimit(res, `unsigned:ip:${ip}`, 60, 60_000)) return
 
     const body = unsignedLaunchSchema.parse(req.body)
+    const platform = parseLaunchPlatform(body.platform)
+    assertPlatformReady(platform)
+    if (platform === 'zora' && !isEvmAddress(body.launcherPubkey)) {
+      throw new Error('Zora launches require an EVM launcherPubkey (0x… on Base).')
+    }
+    if (platform !== 'zora') {
+      try {
+        // eslint-disable-next-line no-new
+        new (await import('@solana/web3.js')).PublicKey(body.launcherPubkey)
+      } catch {
+        throw new Error('launcherPubkey must be a Solana address for Pump.fun / Bags.fm.')
+      }
+    }
     const imageSha256 = await resolveLaunchImageSha(body)
     const keyId = req.crewAgentAuth?.keyId
     const boundRef = keyId ? await getAgentKeyReferral(keyId) : null
 
-    // Build crew via explicit or autohire
-    const maxSeats = maxCrewSeats({ hasAgentReferrer: Boolean(boundRef) })
+    // Manual pick first, Autohire second. optInOnly is optional and off by default.
+    const maxSeats = maxCrewSeats({ hasAgentReferrer: Boolean(boundRef), platform })
     let crew = body.crew?.length ? body.crew : undefined
+    const registered = await listRegisteredHireBoosts()
     if (!crew) {
       const requested = Math.max(1, Math.floor(body.autoHire?.seats ?? 5))
       const seats = Math.min(maxSeats, requested)
-      const registered = await listRegisteredHireBoosts()
       const plan = planNarrativeHires(
         { name: body.name, ticker: body.ticker, vibe: body.description },
         { limit: seats, registered, onlyRegistered: body.optInOnly },
       )
       crew = plan.crew
     }
+    if (platform === 'zora') {
+      crew = resolveZoraCrewWallets(applyRegisteredEvmWallets(crew, registered))
+    }
 
     // Optional consent enforcement for explicit crew
     if (body.optInOnly && crew && crew.length) {
-      const addrs = [...new Set(crew.map((m) => m.wallet))].filter((w) => w.length >= 32)
+      const addrs = [...new Set(crew.flatMap((m) => [m.wallet, m.evmWallet].filter(Boolean) as string[]))]
       if (addrs.length) {
-        const { rows } = await query<{ wallet: string }>(
-          `SELECT wallet FROM kol_registrations WHERE wallet = ANY ($1::text[])`,
+        const { rows } = await query<{ wallet: string; evm_wallet?: string | null }>(
+          `SELECT wallet, evm_wallet FROM kol_registrations WHERE wallet = ANY ($1::text[]) OR evm_wallet = ANY ($1::text[])`,
           [addrs],
+        ).catch(async () =>
+          query<{ wallet: string }>(`SELECT wallet FROM kol_registrations WHERE wallet = ANY ($1::text[])`, [addrs]),
         )
-        const have = new Set(rows.map((r) => String(r.wallet)))
+        const have = new Set(
+          rows.flatMap((r) => {
+            const extra = 'evm_wallet' in r && r.evm_wallet ? String(r.evm_wallet) : ''
+            return [String(r.wallet), extra].filter(Boolean)
+          }),
+        )
         const missing = addrs.filter((w) => !have.has(w))
         if (missing.length) {
           res.status(400).json({
@@ -170,53 +212,97 @@ agentRouter.post('/agent/launch/unsigned', requireAgentApiKey, async (req, res) 
       }
     }
 
-    // Build fee-share map to include in the lock step.
+    // Build fee-share map: 60% hired KOL crew / 15% launching agent / rest treasury (+ 5% referrer).
     const deskWallet = body.launcherPubkey
+    const chain = platform === 'zora' ? 'evm' : 'solana'
     const shareholders =
       crew && crew.length
         ? buildCrewShareholders(crew, body.mode || 'agent', {
             deskWallet,
-            agentReferrer: boundRef?.referrer
-              ? { wallet: boundRef.referrer.wallet, handle: boundRef.referrer.handle, code: boundRef.referrer.code }
-              : null,
+            platformWallet: platform === 'zora' ? getEvmTreasuryWallet() : undefined,
+            agentReferrer:
+              boundRef?.referrer && (platform !== 'zora' || isEvmAddress(boundRef.referrer.wallet))
+                ? { wallet: boundRef.referrer.wallet, handle: boundRef.referrer.handle, code: boundRef.referrer.code }
+                : null,
             treasuryBpsOverride: clampTreasuryBpsOverride(body.treasuryBps),
+            chain,
+            platform,
           })
         : null
 
-    // Upload metadata to IPFS (same rules as custodial path).
     const image = body.imageUrl
       ? ({ kind: 'url', url: body.imageUrl } as const)
       : ({ kind: 'base64', data: body.imageBase64!, contentType: body.imageContentType } as const)
     const vibe = withCrewLaunchDescription(body.description || '')
-    const { metadataUri } = await import('../lib/agent/ipfs.js').then((m) =>
-      m.uploadPumpMetadata({
+
+    let plan
+    if (platform === 'bags') {
+      const img = body.imageUrl ? undefined : await loadAgentImageBytes(image)
+      plan = await buildBagsUnsignedLaunch({
         name: body.name,
-        symbol: body.ticker.replace(/^\$/, '').toUpperCase(),
+        ticker: body.ticker.replace(/^\$/, '').toUpperCase(),
         description: vibe,
+        launcherPubkey: body.launcherPubkey,
+        shareholders: shareholders || [],
+        crew: crew || [],
+        initialBuySol: body.initialBuySol ?? 0,
+        imageUrl: body.imageUrl,
+        image: img,
         twitter: body.twitter?.trim() || undefined,
         website: body.website?.trim() || undefined,
-        image,
-      }),
-    )
-
-    const plan = await buildUnsignedLaunchTransactions({
-      name: body.name,
-      ticker: body.ticker.replace(/^\$/, '').toUpperCase(),
-      metadataUri,
-      launcherPubkey: body.launcherPubkey,
-      crewShareholders: shareholders ? shareholders.map((s) => ({ wallet: s.wallet, bps: s.bps })) : null,
-      initialBuySol: body.initialBuySol ?? 0,
-      mintPubkey: body.mintPubkey,
-    })
+      })
+    } else if (platform === 'zora') {
+      const { metadataUri } = await import('../lib/agent/ipfs.js').then((m) =>
+        m.uploadPumpMetadata({
+          name: body.name,
+          symbol: body.ticker.replace(/^\$/, '').toUpperCase(),
+          description: vibe,
+          twitter: body.twitter?.trim() || undefined,
+          website: body.website?.trim() || undefined,
+          image,
+        }),
+      )
+      plan = await buildZoraUnsignedLaunch({
+        name: body.name,
+        ticker: body.ticker.replace(/^\$/, '').toUpperCase(),
+        metadataUri,
+        launcherPubkey: body.launcherPubkey,
+        shareholders: shareholders || [],
+        initialBuySol: body.initialBuySol ?? 0,
+      })
+    } else {
+      const { metadataUri } = await import('../lib/agent/ipfs.js').then((m) =>
+        m.uploadPumpMetadata({
+          name: body.name,
+          symbol: body.ticker.replace(/^\$/, '').toUpperCase(),
+          description: vibe,
+          twitter: body.twitter?.trim() || undefined,
+          website: body.website?.trim() || undefined,
+          image,
+        }),
+      )
+      plan = await buildUnsignedLaunchTransactions({
+        name: body.name,
+        ticker: body.ticker.replace(/^\$/, '').toUpperCase(),
+        metadataUri,
+        launcherPubkey: body.launcherPubkey,
+        crewShareholders: shareholders ? shareholders.map((s) => ({ wallet: s.wallet, bps: s.bps })) : null,
+        initialBuySol: body.initialBuySol ?? 0,
+        mintPubkey: body.mintPubkey,
+      })
+    }
 
     res.json({
       ...plan,
+      platform,
       imageSha256,
       crew,
       shareholders,
       treasuryBps: clampTreasuryBpsOverride(body.treasuryBps) ?? 2500,
       tip:
-        'UNSIGNED build — sign and submit locally (or POST /api/agent/launch/submit with the signed base64). Messages expire with the blockhash; rebuild when expired.',
+        platform === 'zora'
+          ? 'UNSIGNED Zora EIP-1559 — sign split then zora_create; POST /api/agent/launch/submit { platform:"zora", signed:[hex…] }.'
+          : 'UNSIGNED build — sign and submit locally (or POST /api/agent/launch/submit with the signed base64). Messages expire with the blockhash; rebuild when expired.',
     })
   } catch (err) {
     res.status(400).json({ ok: false, error: errorMessage(err, 'unsigned build failed') })
@@ -224,8 +310,9 @@ agentRouter.post('/agent/launch/unsigned', requireAgentApiKey, async (req, res) 
 })
 
 const submitSignedSchema = z.object({
-  /** Base64-encoded signed transactions (v0 or legacy), in order: create, then lock. */
-  signed: z.array(z.string().min(64)).min(1).max(4),
+  /** Signed txs: Solana base64 (Pump/Bags) or EVM hex (Zora), in builder order. */
+  signed: z.array(z.string().min(64)).min(1).max(8),
+  platform: z.enum(['pumpfun', 'bags', 'zora']).optional().default('pumpfun'),
 })
 
 agentRouter.post('/agent/launch/submit', requireAgentApiKey, async (req, res) => {
@@ -235,19 +322,39 @@ agentRouter.post('/agent/launch/submit', requireAgentApiKey, async (req, res) =>
     if (!applyRateLimit(res, `unsigned-submit:key:${fp}`, 30, 60_000)) return
     if (!applyRateLimit(res, `unsigned-submit:ip:${ip}`, 60, 60_000)) return
     const body = submitSignedSchema.parse(req.body)
-    const connection = (await import('../lib/agent/send.js')).getConnection()
+    const platform = parseLaunchPlatform(body.platform)
     const sigs: string[] = []
-    for (const b64 of body.signed) {
-      const raw = Buffer.from(b64, 'base64')
-      const sig = await connection.sendRawTransaction(raw, {
-        skipPreflight: false,
-        preflightCommitment: 'confirmed',
-        maxRetries: 3,
-      })
-      sigs.push(sig)
+    if (platform === 'zora') {
+      assertPlatformReady('zora')
+      const { zoraRpcUrl } = await import('../lib/agent/platforms.js')
+      for (const raw of body.signed) {
+        const hex = raw.startsWith('0x') ? raw : `0x${Buffer.from(raw, 'base64').toString('hex')}`
+        const resRpc = await fetch(zoraRpcUrl(), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_sendRawTransaction', params: [hex] }),
+        })
+        const json = (await resRpc.json()) as { result?: string; error?: { message?: string } }
+        if (json.error?.message) throw new Error(json.error.message)
+        if (!json.result) throw new Error('Zora submit missing tx hash')
+        sigs.push(json.result)
+      }
+    } else {
+      if (platform === 'bags') assertPlatformReady('bags')
+      const connection = (await import('../lib/agent/send.js')).getConnection()
+      for (const b64 of body.signed) {
+        const raw = Buffer.from(b64, 'base64')
+        const sig = await connection.sendRawTransaction(raw, {
+          skipPreflight: false,
+          preflightCommitment: 'confirmed',
+          maxRetries: 3,
+        })
+        sigs.push(sig)
+      }
     }
     res.status(201).json({
       ok: true,
+      platform,
       signatures: sigs,
       tip: 'Submitted signed transactions. Always verify on chain and check feeShareLocked via /api/agent/status/:mint.',
     })
@@ -363,6 +470,7 @@ const launchBodySchema = z
      * From POST /api/agent/launch/dry-run (+ approval when required).
      */
     dryRunId: z.string().min(16).max(64).optional(),
+    platform: z.enum(['pumpfun', 'bags', 'zora']).optional().default('pumpfun'),
   })
   .superRefine(refineLaunchBody)
 
@@ -724,7 +832,16 @@ agentRouter.post('/agent/launch/dry-run', requireAgentApiKey, async (req, res) =
     }
 
     const body = launchBodySchema.parse(raw)
-    const launcherPubkey = body.launcherPubkey ? normalizeWallet(body.launcherPubkey) : null
+    const platform = parseLaunchPlatform(body.platform)
+    assertPlatformReady(platform)
+    const launcherPubkey =
+      platform === 'zora'
+        ? body.launcherPubkey
+          ? body.launcherPubkey.trim()
+          : null
+        : body.launcherPubkey
+          ? normalizeWallet(body.launcherPubkey)
+          : null
     if (requireApproval && !launcherPubkey) {
       res.status(400).json({
         ok: false,
@@ -753,6 +870,7 @@ agentRouter.post('/agent/launch/dry-run', requireAgentApiKey, async (req, res) =
     const approvalUrl = `${site}/approve/${rec.id}`
     res.json({
       ...result,
+      platform,
       imageSha256,
       launcherPubkey,
       policy: result.hirePlan?.policy || 'score',

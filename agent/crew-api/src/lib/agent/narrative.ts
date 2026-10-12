@@ -34,6 +34,8 @@ export type CrewMember = {
   wallet: string
   share: number
   hireRole?: HireRole
+  /** Base / EVM payout address — required for Zora when `wallet` is a Solana key. */
+  evmWallet?: string
 }
 
 export type HiredKol = {
@@ -58,6 +60,8 @@ export type RegisteredHireBoost = {
   /** lowercase handle without @ */
   handle: string
   wallet: string
+  /** Optional Base / EVM payout address for Zora launches. */
+  evmWallet?: string
   /** Optional extra ordering signal from registration. */
   followers?: number
   /** Optional ISO timestamp from registration. */

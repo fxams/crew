@@ -31,9 +31,10 @@ const mintSchema = z
 
 const crewMemberSchema = z.object({
   handle: z.string(),
-  wallet: z.string().min(32).max(64),
+  wallet: z.string().min(20).max(64),
   share: z.number().int().min(1).max(100),
   hireRole: z.enum(['caller', 'chart', 'raid', 'kol', 'dev']).optional(),
+  evmWallet: z.string().min(42).max(42).optional(),
 })
 
 /** Declared so Zod does not strip them — handlers hard-reject if present. */
@@ -82,23 +83,27 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Build UNSIGNED launch transactions',
       description:
-        'Create v0 transaction messages (base64) for create(+buy) and fee-share lock. Sign and submit locally, or call crew_submit_signed. Requires launcherPubkey; accepts crew[] or autohire seats. Optional treasuryBps 2000–3000.',
+        'Create UNSIGNED launch transactions. platform defaults to pumpfun (Solana v0 messages). bags = Bags.fm Solana fee-claimers (needs BAGS_API_KEY). zora = Zora content coins on Base (EIP-1559; needs ZORA_ENABLED). Prefer explicit crew[] from crew_list_kols; Autohire is fallback. optInOnly default off. Fee map: 60% hired KOL crew / 15% launching agent / rest treasury (5% referrer when bound). Optional treasuryBps 2000–3000.',
       inputSchema: {
         name: z.string().min(2).max(32),
         ticker: z.string().min(2).max(13),
         description: z.string().max(204).optional(),
         imageUrl: z.string().url().optional(),
         imageBase64: z.string().min(64).optional(),
-        seats: z.number().int().min(1).max(8).optional(),
+        seats: z.number().int().min(1).max(20).optional(),
         mode: z.enum(['agent', 'split', 'buyback', 'raid']).optional(),
         initialBuySol: z.number().min(0).max(10).optional(),
         twitter: z.string().max(128).optional(),
         website: z.string().url().optional(),
-        launcherPubkey: z.string().min(32).max(64),
-        mintPubkey: z.string().min(32).max(64).optional(),
+        launcherPubkey: z.string().min(20).max(64),
+        mintPubkey: z.string().min(20).max(64).optional(),
         optInOnly: z.boolean().optional(),
         treasuryBps: z.number().int().min(2000).max(3000).optional(),
-        crew: z.array(crewMemberSchema).min(1).max(8).optional(),
+        platform: z
+          .enum(['pumpfun', 'bags', 'zora'])
+          .optional()
+          .describe('Launch venue. Default pumpfun. bags=Bags.fm (Solana). zora=Zora coins (Base).'),
+        crew: z.array(crewMemberSchema).min(1).max(100).optional(),
         ...forbiddenSecretFields,
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
@@ -116,6 +121,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         initialBuySol: input.initialBuySol ?? 0,
         launcherPubkey: input.launcherPubkey,
         ...(input.optInOnly != null ? { optInOnly: input.optInOnly } : {}),
+        platform: input.platform || 'pumpfun',
       }
       if (input.imageUrl) body.imageUrl = input.imageUrl
       if (input.imageBase64) body.imageBase64 = input.imageBase64
@@ -140,9 +146,10 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Submit signed CREW launch transactions',
       description:
-        'Submit base64-encoded signed transactions (create then lock). Use after crew_build_unsigned when you prefer the API to broadcast.',
+        'Submit signed transactions from crew_build_unsigned. Pump.fun/Bags: Solana base64 (create then lock / fee-share then create). Zora: EIP-1559 hex (0xSplits then coin create). Pass platform to match the builder.',
       inputSchema: {
-        signed: z.array(z.string().min(64)).min(1).max(4),
+        signed: z.array(z.string().min(64)).min(1).max(8),
+        platform: z.enum(['pumpfun', 'bags', 'zora']).optional(),
       },
       annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: true },
     },
@@ -150,7 +157,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
       const data = await crewFetch(cfg, '/api/agent/launch/submit', {
         method: 'POST',
         auth: true,
-        body: JSON.stringify({ signed: input.signed }),
+        body: JSON.stringify({ signed: input.signed, platform: input.platform || 'pumpfun' }),
       })
       return asText(data)
     },
@@ -341,7 +348,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Browse CREW KOL directory',
       description:
-        'List/browse CREW KOL profiles (optionally filtered by q). Use this to select explicit crew wallets before launching. Autohire is a fallback/convenience.',
+        'List/browse CREW KOL profiles (optionally filtered by q). Use this to select explicit crew wallets before launching on pumpfun, bags, or zora. Manual pick first; Autohire is a fallback. For Zora, prefer registered evm_wallet / pass Base addresses.',
       inputSchema: {
         q: z.string().max(64).optional().describe('Optional: handle, pump username, or wallet substring'),
         limit: z.number().int().min(1).max(100).optional().describe('Max results (default 50)'),
@@ -415,7 +422,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Dry-run a CREW launch (no chain tx)',
       description:
-        'Dry-run a launch (default) or wire-fees (intent=wire-fees). Prefer explicit crew[] chosen from the directory; Autohire is a fallback. Returns dryRunId + approvalUrl. Requires CREW_AGENT_API_KEY.',
+        'Dry-run a launch (default) or wire-fees (intent=wire-fees). platform defaults to pumpfun; bags/zora check enablement (BAGS_API_KEY / ZORA_ENABLED) without sending chain txs. Prefer explicit crew[] from crew_list_kols; Autohire is a fallback. Returns dryRunId + approvalUrl. Requires CREW_AGENT_API_KEY.',
       inputSchema: {
         intent: z
           .enum(['launch', 'wire-fees'])
@@ -439,14 +446,15 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         mint: mintSchema.optional().describe('Required when intent=wire-fees'),
         launcherPubkey: z
           .string()
-          .min(32)
+          .min(20)
           .max(64)
           .optional()
           .describe('Optional public launcher address for balance check (never a secret)'),
         agentName: z.string().min(2).max(48).optional(),
         agentObjective: z.string().min(8).max(280).optional(),
         agentModel: z.string().max(48).optional(),
-        crew: z.array(crewMemberSchema).min(1).max(8).optional(),
+        crew: z.array(crewMemberSchema).min(1).max(100).optional(),
+        platform: z.enum(['pumpfun', 'bags', 'zora']).optional(),
         ...forbiddenSecretFields,
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
@@ -483,6 +491,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         mode: input.mode || 'agent',
         initialBuySol: input.initialBuySol ?? 0,
         holderKol: input.holderKol ?? false,
+        platform: input.platform || 'pumpfun',
         agent: {
           name: input.agentName || 'Crew MCP Agent',
           objective:

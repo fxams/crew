@@ -177,4 +177,39 @@ describe('seat caps (Pump 10-wallet)', () => {
       normalizeCrew(equalCrew(freshWallets(9)), 'agent', { maxSeats: MAX_CREW_UNREFERRED }),
     ).toThrow(/1–8/)
   })
+
+  it('Bags platform allows more than Pump’s 10 wallets and still totals 10000', () => {
+    const wallets = freshWallets(12)
+    const crew = normalizeCrew(equalCrew(wallets), 'agent', { maxSeats: 97 })
+    const shares = buildCrewShareholders(crew, 'agent', {
+      deskWallet: desk,
+      platformWallet: platform,
+      platform: 'bags',
+    })
+    expect(shares.reduce((s, r) => s + r.bps, 0)).toBe(10_000)
+    expect(shares.filter((s) => s.role === 'crew').reduce((s, r) => s + r.bps, 0)).toBe(6000)
+    expect(shares.find((s) => s.wallet === desk)?.bps).toBe(1500)
+    expect(new Set(shares.map((s) => s.wallet)).size).toBeGreaterThan(10)
+  })
+
+  it('Zora/EVM fee map is 60/15/25 with checksum wallets', () => {
+    const evmDesk = '0x1111111111111111111111111111111111111111'
+    const evmTreas = '0x2222222222222222222222222222222222222222'
+    const evmKol = '0x3333333333333333333333333333333333333333'
+    const crew = normalizeCrew(
+      [{ handle: '@z', wallet: evmKol, share: 100, hireRole: 'kol' }],
+      'agent',
+      { chain: 'evm' },
+    )
+    const shares = buildCrewShareholders(crew, 'agent', {
+      deskWallet: evmDesk,
+      platformWallet: evmTreas,
+      chain: 'evm',
+      platform: 'zora',
+    })
+    expect(shares.reduce((s, r) => s + r.bps, 0)).toBe(10_000)
+    expect(shares.find((s) => s.role === 'crew')?.bps).toBe(6000)
+    expect(shares.find((s) => s.wallet === evmDesk)?.bps).toBe(1500)
+    expect(shares.find((s) => s.wallet === evmTreas)?.bps).toBe(2500)
+  })
 })
