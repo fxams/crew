@@ -38,6 +38,7 @@ describe('agent discovery docs', () => {
     expect(spec.paths['/api/coins/graduated-unfeatured']).toBeTruthy()
     expect(spec.paths['/api/coins/{mint}/featured']).toBeTruthy()
     expect(spec.paths['/api/coins/{mint}/kit']).toBeTruthy()
+    expect(spec.paths['/api/coins/{mint}/logo']).toBeTruthy()
     expect(spec.paths['/api/jobs/templates']).toBeTruthy()
     expect(spec.paths['/api/jobs/coin']).toBeTruthy()
     expect(spec.paths['/api/jobs/coin/dry-run']).toBeTruthy()

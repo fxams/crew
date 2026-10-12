@@ -77,7 +77,7 @@ export function LiveCoins({
             return (
               <li key={c.mint}>
                 <Link className="live-coins-row" to={coinPagePath(c.mint)}>
-                  <CoinLogo src={c.imageUrl} ticker={c.ticker} size={compact ? 28 : 40} />
+                  <CoinLogo mint={c.mint} ticker={c.ticker} size={compact ? 28 : 40} />
                   <span className="live-coins-id">
                     <strong>${c.ticker}</strong>
                     <em>{c.name}</em>
