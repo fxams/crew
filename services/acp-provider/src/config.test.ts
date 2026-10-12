@@ -10,6 +10,7 @@ afterEach(() => {
     'ACP_CHAIN_ID',
     'ACP_SIGNER_KEY',
     'ACP_WALLET_ADDRESS',
+    'ACP_WALLET_ID',
     'ACP_PRICE_AUTOHIRE_USD',
     'ACP_PRICE_LAUNCH_USD',
     'ACP_ENTITY_ID',

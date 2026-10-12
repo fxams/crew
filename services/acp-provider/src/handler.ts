@@ -18,7 +18,7 @@ export type JobSession = {
     payer?: string
     payerAddress?: string
     buyer?: string
-  }
+  } | null
   entries?: JobRoomEntry[]
   setBudget: (token: unknown) => Promise<unknown>
   submit: (deliverable: string) => Promise<unknown>

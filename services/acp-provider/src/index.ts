@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
 import { assertReadyToConnect, loadConfig, type AcpConfig } from './config.js'
 import { loadDirectFulfillment } from './fulfill.js'
-import { createEntryHandler } from './handler.js'
+import { createEntryHandler, type JobSession as ProviderSession } from './handler.js'
 import { logError, logInfo } from './log.js'
 import { offeringRegistry } from './offerings.js'
 
@@ -29,33 +29,26 @@ function idleForever(): Promise<void> {
 
 async function startProvider(config: AcpConfig) {
   assertReadyToConnect(config)
-  const { AcpAgent, AlchemyEvmProviderAdapter, AssetToken } = await import(
+  const { AcpAgent, AssetToken, PrivyAlchemyEvmProviderAdapter } = await import(
     '@virtuals-protocol/acp-node-v2'
   )
-  const { base, baseSepolia } = await import('@account-kit/infra')
+  const { base, baseSepolia } = await import('viem/chains')
   const chain = config.chainId === 8453 ? base : baseSepolia
-  const adapterOpts: {
-    walletAddress: string
-    privateKey: string
-    entityId: number
-    chains: unknown[]
-    builderCode?: string
-  } = {
-    walletAddress: config.walletAddress,
-    privateKey: config.signerKey,
-    entityId: config.entityId,
+  const evmProvider = await PrivyAlchemyEvmProviderAdapter.create({
+    walletAddress: config.walletAddress as `0x${string}`,
+    walletId: config.walletId,
+    signerPrivateKey: config.signerKey,
     chains: [chain],
-  }
-  if (config.builderCode) adapterOpts.builderCode = config.builderCode
-  const adapter = await AlchemyEvmProviderAdapter.create(adapterOpts)
-  const agent = await AcpAgent.create({ provider: adapter })
+    ...(config.builderCode ? { builderCode: config.builderCode } : {}),
+  })
+  const agent = await AcpAgent.create({ evmProvider })
   const fulfillment = await loadDirectFulfillment()
   const onEntry = createEntryHandler({
     config,
     fulfillment,
     assetToken: { usdc: (amount, chainId) => AssetToken.usdc(amount, chainId) },
   })
-  agent.on('entry', onEntry)
+  agent.on('entry', (session, entry) => onEntry(session as unknown as ProviderSession, entry))
   await agent.start(() => {
     logInfo(`listening for ACP jobs chainId=${config.chainId}`)
   })

@@ -91,7 +91,7 @@ Register these on [app.virtuals.io](https://app.virtuals.io/acp/new) (you do thi
 ## Setup (operators)
 
 1. Register a provider agent on the [Virtuals Service Registry](https://app.virtuals.io/acp/new). CrewPay does not register this for you.
-2. On the agent page → **Signers** → **+ Add Signer**. Copy the signer key into `ACP_SIGNER_KEY`. Never commit it or paste it into chat.
+2. On the agent page → **Signers** → **+ Add Signer**. Copy the signer key into `ACP_SIGNER_KEY` and the wallet id into `ACP_WALLET_ID`. Never commit the key or paste it into chat.
 3. Add the two offerings above (name + requirements JSON + prices).
 4. Install crew-api deps (the worker calls `runAutohire` / `runUnsignedLaunch` directly):
 
@@ -110,7 +110,8 @@ Env:
 |---|---|---|
 | `ACP_ENABLED` | off | Worker connects only when `1` / `true` |
 | `ACP_CHAIN_ID` | `84532` | Base Sepolia. `8453` = Base |
-| `ACP_SIGNER_KEY` | — | Secret. Never logged |
+| `ACP_SIGNER_KEY` | — | Secret from **+ Add Signer**. Never logged |
+| `ACP_WALLET_ID` | — | Wallet id from the same Signers tab (required when enabled) |
 | `ACP_WALLET_ADDRESS` | derived | Agent wallet if not the signer EOA |
 | `ACP_PRICE_AUTOHIRE_USD` | `0.02` | `crewpay_autohire_kol_crew` |
 | `ACP_PRICE_LAUNCH_USD` | `0.10` | `crewpay_launch_with_crew` |
