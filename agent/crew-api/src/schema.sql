@@ -262,8 +262,16 @@ CREATE TABLE IF NOT EXISTS kol_oauth_states (
   cookie_sha256 TEXT,
   ip TEXT,
   evm_wallet TEXT,
+  -- SHA-256 of the wallet signature that started this attempt (bound into signed OAuth state).
+  signature_sha256 TEXT,
+  -- One-time use; callback sets this instead of deleting so a second hit can say "already used".
+  consumed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE INDEX IF NOT EXISTS kol_oauth_states_cookie_idx
+  ON kol_oauth_states (cookie_sha256)
+  WHERE cookie_sha256 IS NOT NULL AND consumed_at IS NULL;
 
 -- Ledger for referral points (airdrop-ready). register = join with code; hire = referred KOL fee-locked.
 CREATE TABLE IF NOT EXISTS kol_referral_events (

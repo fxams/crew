@@ -152,6 +152,7 @@ export function KolProfilePage() {
   const [evmBusy, setEvmBusy] = useState(false)
   const [evmMsg, setEvmMsg] = useState<string | null>(null)
   const justRegistered = params.get('registered') === '1'
+  const fromXOauth = params.get('from') === 'x'
   const viewingOwnDesk =
     Boolean(ownHandle) && ownHandle!.toLowerCase() === handle.toLowerCase()
 
@@ -356,7 +357,15 @@ export function KolProfilePage() {
         </div>
 
         {justRegistered && desk ? (
-          <p className="register-ok">Registered. This desk is yours.</p>
+          <div className="register-ok-block">
+            <p className="register-ok">Registered. This desk is yours.</p>
+            {fromXOauth ? (
+              <p className="hint register-check-hint">
+                If you started in a wallet browser (Phantom), return there and tap Check — this
+                page may have opened in Safari or the X app.
+              </p>
+            ) : null}
+          </div>
         ) : null}
         {error ? <p className="register-err">{error}</p> : null}
 

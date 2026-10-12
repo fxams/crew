@@ -11,6 +11,17 @@ import { KOL_DB } from './agent/narrative.js'
 import { assertEvmAddress, isEvmAddress } from './agent/evm-address.js'
 import { query } from './db.js'
 import { verifyWalletSignature } from './wallet-auth.js'
+import {
+  REGISTRATION_OAUTH_TTL_SEC,
+  SESSION_USED_ERROR,
+  cookieSha256,
+  registrationStateSecret,
+  resolveRegistrationOAuth,
+  sha256Hex,
+  signRegistrationOAuthState,
+  walletLinkedElsewhereError,
+  type StoredOAuthState,
+} from './kol-oauth-state.js'
 
 export const REGISTER_MESSAGE_PREFIX = 'CrewPay KOL registration'
 
@@ -222,9 +233,9 @@ export async function beginXAuth(opts: {
   evmWallet?: string
   /** Client IP at /register/start — stored for claim-time self-referral checks. */
   ip?: string
-  /** CSRF cookie value from /start; hashed into state row. */
+  /** Optional CSRF cookie; hashed into the state row as a fallback only. */
   regCookie?: string
-}): Promise<{ authorizeUrl: string }> {
+}): Promise<{ authorizeUrl: string; state: string; wallet: string; expiresAt: number }> {
   if (!xOAuthConfigured()) {
     throw new Error('X sign-in is not configured. Set X_CLIENT_ID and X_CLIENT_SECRET on crewpay-api.')
   }
@@ -271,15 +282,87 @@ export async function beginXAuth(opts: {
   }
 
   await query(`DELETE FROM kol_oauth_states WHERE created_at < now() - interval '15 minutes'`)
-  const state = randomBytes(16).toString('hex')
+  const sid = randomBytes(16).toString('hex')
   const codeVerifier = b64url(randomBytes(32))
   const ip = (opts.ip || '').trim().slice(0, 64) || null
-  const cookieSha = opts.regCookie ? createHash('sha256').update(opts.regCookie).digest('hex') : null
-  await query(
-    `INSERT INTO kol_oauth_states (state, code_verifier, wallet, referral_code, cookie_sha256, ip, evm_wallet) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    [state, codeVerifier, wallet, referralCode, cookieSha, ip, evmWallet],
+  const cookieSha = opts.regCookie ? cookieSha256(opts.regCookie) : null
+  const sigSha = sha256Hex(opts.signature.trim())
+  const exp = Math.floor(Date.now() / 1000) + REGISTRATION_OAUTH_TTL_SEC
+  const state = signRegistrationOAuthState(
+    {
+      v: 1,
+      sid,
+      w: wallet,
+      sh: sigSha,
+      exp,
+      ...(referralCode ? { r: referralCode } : {}),
+      ...(evmWallet ? { e: evmWallet } : {}),
+    },
+    registrationStateSecret(),
   )
-  return { authorizeUrl: buildXAuthorizeUrl({ state, codeVerifier }) }
+  await query(
+    `INSERT INTO kol_oauth_states (
+       state, code_verifier, wallet, referral_code, cookie_sha256, ip, evm_wallet, signature_sha256
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [sid, codeVerifier, wallet, referralCode, cookieSha, ip, evmWallet, sigSha],
+  )
+  return {
+    authorizeUrl: buildXAuthorizeUrl({ state, codeVerifier }),
+    state,
+    wallet,
+    expiresAt: exp * 1000,
+  }
+}
+
+function mapOAuthRow(r: Record<string, unknown> | undefined): StoredOAuthState | null {
+  if (!r?.state || !r.code_verifier || !r.wallet) return null
+  const createdAtMs =
+    r.created_at instanceof Date ? r.created_at.getTime() : Date.parse(String(r.created_at || ''))
+  let consumedAtMs: number | null = null
+  if (r.consumed_at) {
+    consumedAtMs =
+      r.consumed_at instanceof Date ? r.consumed_at.getTime() : Date.parse(String(r.consumed_at))
+    if (!Number.isFinite(consumedAtMs)) consumedAtMs = null
+  }
+  return {
+    sid: String(r.state),
+    codeVerifier: String(r.code_verifier),
+    wallet: String(r.wallet),
+    sigSha256: r.signature_sha256 ? String(r.signature_sha256) : null,
+    referralCode: r.referral_code ? String(r.referral_code) : null,
+    evmWallet: r.evm_wallet ? String(r.evm_wallet) : null,
+    cookieSha256: r.cookie_sha256 ? String(r.cookie_sha256) : null,
+    ip: r.ip ? String(r.ip) : null,
+    createdAtMs: Number.isFinite(createdAtMs) ? createdAtMs : 0,
+    consumedAtMs,
+  }
+}
+
+const OAUTH_STATE_SELECT = `state, code_verifier, wallet, referral_code, cookie_sha256, ip, evm_wallet, signature_sha256, created_at, consumed_at`
+
+async function loadOAuthStateBySid(sid: string): Promise<StoredOAuthState | null> {
+  const { rows } = await query(`SELECT ${OAUTH_STATE_SELECT} FROM kol_oauth_states WHERE state = $1`, [
+    sid,
+  ])
+  return mapOAuthRow(rows[0] as Record<string, unknown> | undefined)
+}
+
+async function loadOAuthStateByCookieSha(sha: string): Promise<StoredOAuthState | null> {
+  const { rows } = await query(
+    `SELECT ${OAUTH_STATE_SELECT} FROM kol_oauth_states
+     WHERE cookie_sha256 = $1 AND consumed_at IS NULL
+     ORDER BY created_at DESC LIMIT 1`,
+    [sha],
+  )
+  return mapOAuthRow(rows[0] as Record<string, unknown> | undefined)
+}
+
+async function consumeOAuthState(sid: string): Promise<boolean> {
+  const { rowCount } = await query(
+    `UPDATE kol_oauth_states SET consumed_at = now() WHERE state = $1 AND consumed_at IS NULL`,
+    [sid],
+  )
+  return (rowCount || 0) > 0
 }
 
 type XUser = {
@@ -356,37 +439,28 @@ export async function completeXCallback(
   state: string,
   opts?: { regCookie?: string; headers?: Record<string, unknown> },
 ): Promise<KolRegistration> {
-  const { rows } = await query(
-    `DELETE FROM kol_oauth_states WHERE state = $1 RETURNING code_verifier, wallet, referral_code, cookie_sha256, ip, evm_wallet`,
-    [state],
-  )
-  const row = rows[0] as {
-    code_verifier?: string
-    wallet?: string
-    referral_code?: string | null
-    cookie_sha256?: string | null
-    ip?: string | null
-    evm_wallet?: string | null
-  } | undefined
-  if (!row?.code_verifier || !row.wallet) {
-    throw new Error('Sign-in session expired. Connect your wallet and try again.')
+  const resolved = await resolveRegistrationOAuth({
+    stateParam: state,
+    regCookie: opts?.regCookie,
+    secret: registrationStateSecret(),
+    getBySid: loadOAuthStateBySid,
+    getByCookieSha: loadOAuthStateByCookieSha,
+  })
+  if (!resolved.ok) {
+    throw new Error(resolved.error)
   }
-  const wantCookie = (row.cookie_sha256 || '').trim()
-  const gotCookie = (opts?.regCookie || '').trim()
-  if (!wantCookie || !gotCookie) {
-    throw new Error('Missing registration cookie. Start again and allow cookies for crewpay.dev.')
+  const consumed = await consumeOAuthState(resolved.row.sid)
+  if (!consumed) {
+    throw new Error(SESSION_USED_ERROR)
   }
-  const gotHash = createHash('sha256').update(gotCookie).digest('hex')
-  if (gotHash !== wantCookie) {
-    throw new Error('Registration cookie mismatch — refresh and start again.')
-  }
+  const row = resolved.row
   const registerIp = (row.ip || '').trim().slice(0, 64) || null
   const evmWallet =
-    row.evm_wallet && isEvmAddress(row.evm_wallet)
-      ? assertEvmAddress(String(row.evm_wallet), 'evmWallet')
+    row.evmWallet && isEvmAddress(row.evmWallet)
+      ? assertEvmAddress(String(row.evmWallet), 'evmWallet')
       : null
 
-  const accessToken = await exchangeCode(code, row.code_verifier)
+  const accessToken = await exchangeCode(code, row.codeVerifier)
   const user = await fetchXMe(accessToken)
   let profileImageUrl = user.profile_image_url || null
   if (isDefaultXProfileImage(profileImageUrl)) {
@@ -395,12 +469,12 @@ export async function completeXCallback(
   const metrics = user.public_metrics || {}
 
   // Prevent linking conflicts across accounts (same wallet used elsewhere).
-  const conflict = await query(
-    `SELECT x_user_id FROM kol_registrations WHERE wallet = $1 AND x_user_id <> $2 LIMIT 1`,
+  const conflict = await query<{ x_user_id: string; x_username: string }>(
+    `SELECT x_user_id, x_username FROM kol_registrations WHERE wallet = $1 AND x_user_id <> $2 LIMIT 1`,
     [row.wallet, user.id],
   )
   if (conflict.rows.length) {
-    throw new Error('This Solana wallet is already linked to a different X account.')
+    throw new Error(walletLinkedElsewhereError(String(conflict.rows[0]!.x_username || 'that account')))
   }
 
   const prior = new Set<string>()
@@ -426,8 +500,8 @@ export async function completeXCallback(
     prev?.referral_code || (await allocateReferralCode(user.username, user.id))
   // Direct referral only — set once on first registration, never overwrite.
   let referredBy: string | null = prev?.referred_by_code || null
-  if (!referredBy && row.referral_code) {
-    const ref = normalizeReferralCode(row.referral_code)
+  if (!referredBy && row.referralCode) {
+    const ref = normalizeReferralCode(row.referralCode)
     if (ref && ref !== normalizeReferralCode(ownCode)) {
       const ok = await query<{ referral_code: string; wallet: string; x_user_id: string }>(
         `SELECT referral_code, wallet, x_user_id FROM kol_registrations
