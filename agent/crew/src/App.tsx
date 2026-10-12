@@ -27,7 +27,10 @@ import { PlatformBadge } from "./components/PlatformBadge";
 import { PlatformFilter } from "./components/PlatformFilter";
 import { PlatformSelect } from "./components/PlatformSelect";
 import { TradeLinks } from "./components/TradeLinks";
-import { useLaunchVenues } from "./lib/use-launch-venues";
+import { X402Chip } from "./components/X402Chip";
+import { AuthChoice, type AgentAuth } from "./components/AuthChoice";
+import { useLaunchDiscovery } from "./lib/use-launch-venues";
+import { x402PayLabel } from "./lib/x402";
 import {
   inferLaunchPlatform,
   unsignedLaunchCurl,
@@ -247,7 +250,8 @@ export default function App() {
   const hirePlanRef = useRef<HTMLDivElement | null>(null);
   const coins = desk.coins;
   const remits = desk.remits;
-  const venues = useLaunchVenues();
+  const { venues, x402 } = useLaunchDiscovery();
+  const [agentAuth, setAgentAuth] = useState<AgentAuth>("key");
   const [platFilter, setPlatFilter] = useState<LaunchPlatform | "all">("all");
   const launchPlatform: LaunchPlatform = draft.platform || "pumpfun";
   const phantomLaunch = launchPlatform === "pumpfun";
@@ -1484,6 +1488,7 @@ export default function App() {
                 {venues.map((v) => (
                   <PlatformBadge key={v.id} platform={v.id} />
                 ))}
+                <X402Chip x402={x402} />
               </div>
               <div className="hero-actions">
                 <Link className="btn btn-primary hero-cta-register" to="/register">
@@ -1616,7 +1621,10 @@ export default function App() {
             Claim a key, Autohire KOLs from your narrative, dry-run, then launch on Pump.fun,
             Bags.fm, or Zora with fee-shares locked. MCP and HTTP — no Phantom on the agent side.
           </p>
-          <p className="agents-x402-note">Pay per call with x402, no API key</p>
+          <div className="agents-x402-row">
+            <X402Chip x402={x402} />
+            <p className="agents-x402-note">{x402PayLabel(x402)} — no API key</p>
+          </div>
           <div className="agents-teaser-actions">
             <Link className="btn btn-primary" to="/agents">
               Agent API docs
@@ -2196,6 +2204,7 @@ export default function App() {
                   venues.find((v) => v.id === launchPlatform) || venues[0],
                 )}
               />
+              <AuthChoice x402={x402} value={agentAuth} onChange={setAgentAuth} />
               {phantomLaunch ? (
                 <div className="field">
                   <label>Wallet</label>
@@ -2721,6 +2730,8 @@ export default function App() {
                       name: draft.name,
                       ticker: draft.ticker,
                       description: draft.vibe,
+                      auth: agentAuth,
+                      paymentHeader: x402.requestHeader,
                     })}
                   </pre>
                 </details>

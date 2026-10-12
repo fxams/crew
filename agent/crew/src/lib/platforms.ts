@@ -1,6 +1,7 @@
 /** Launch venues (Pump.fun / Bags.fm / Zora). Prefer discovery JSON over hardcoding. */
 
 import { CREW_AGENT_API_URL, CREW_PUBLIC_API_URL } from './config'
+import { FALLBACK_X402, x402FromDoc, type X402Info } from './x402'
 
 export const LAUNCH_PLATFORMS = ['pumpfun', 'bags', 'zora'] as const
 export type LaunchPlatform = (typeof LAUNCH_PLATFORMS)[number]
@@ -294,36 +295,62 @@ async function getJson(url: string): Promise<unknown> {
   return res.json()
 }
 
-/**
- * Read supported venues from GET /api/platforms, then GET /api/agent, then OpenAPI enum.
- * Never throws — always returns a three-venue list. Fallback keeps Zora off.
- */
-export async function fetchLaunchVenues(): Promise<LaunchVenue[]> {
+export type LaunchDiscovery = {
+  venues: LaunchVenue[]
+  x402: X402Info
+}
+
+let inflightDiscovery: Promise<LaunchDiscovery> | null = null
+
+async function fetchLaunchDiscoveryUncached(): Promise<LaunchDiscovery> {
   const bases = [CREW_AGENT_API_URL.replace(/\/$/, ''), CREW_PUBLIC_API_URL]
+  let x402 = FALLBACK_X402
   for (const base of [...new Set(bases)]) {
     try {
       const payload = await getJson(`${base}/api/platforms`)
+      x402 = x402FromDoc(payload)
       const fromPayload = venuesFromPlatformsPayload(payload)
-      if (fromPayload) return fromPayload
+      if (fromPayload) return { venues: fromPayload, x402 }
     } catch {
       /* try discovery */
     }
     try {
       const discovery = await getJson(`${base}/api/agent`)
+      x402 = x402FromDoc(discovery)
       const fromDiscovery = venuesFromDiscovery(discovery)
-      if (fromDiscovery) return fromDiscovery
+      if (fromDiscovery) return { venues: fromDiscovery, x402 }
     } catch {
       /* try openapi */
     }
     try {
       const openapi = await getJson(`${base}/openapi.json`)
       const fromSpec = venuesFromOpenApi(openapi)
-      if (fromSpec) return fromSpec
+      if (fromSpec) return { venues: fromSpec, x402 }
     } catch {
       /* next base */
     }
   }
-  return FALLBACK_LAUNCH_VENUES
+  return { venues: FALLBACK_LAUNCH_VENUES, x402 }
+}
+
+/**
+ * Read venues + x402 from GET /api/platforms, then GET /api/agent, then OpenAPI enum.
+ * Never throws — venues fallback keeps Zora off; x402 fallback is $0.10 / $0.02 USDC.
+ */
+export function fetchLaunchDiscovery(): Promise<LaunchDiscovery> {
+  if (inflightDiscovery) return inflightDiscovery
+  inflightDiscovery = fetchLaunchDiscoveryUncached().finally(() => {
+    inflightDiscovery = null
+  })
+  return inflightDiscovery
+}
+
+/**
+ * Read supported venues from GET /api/platforms, then GET /api/agent, then OpenAPI enum.
+ * Never throws — always returns a three-venue list. Fallback keeps Zora off.
+ */
+export async function fetchLaunchVenues(): Promise<LaunchVenue[]> {
+  return (await fetchLaunchDiscovery()).venues
 }
 
 export function unsignedLaunchCurl(opts: {
@@ -331,13 +358,19 @@ export function unsignedLaunchCurl(opts: {
   name?: string
   ticker?: string
   description?: string
+  auth?: 'key' | 'x402'
+  paymentHeader?: string
 }): string {
   const name = (opts.name || 'Desk Cat').slice(0, 32)
   const ticker = (opts.ticker || 'DCAT').slice(0, 13)
   const description = (opts.description || 'ai agent hires kols').slice(0, 204)
+  const authHeader =
+    opts.auth === 'x402'
+      ? `-H "${opts.paymentHeader || 'X-PAYMENT'}: $X402_PAYMENT" \\`
+      : `-H "x-crew-api-key: $CREW_AGENT_API_KEY" \\`
   return `curl -sS ${CREW_PUBLIC_API_URL}/api/agent/launch/unsigned \\
   -H "content-type: application/json" \\
-  -H "x-crew-api-key: $CREW_AGENT_API_KEY" \\
+  ${authHeader}
   -d '{
     "platform": "${opts.platform}",
     "name": ${JSON.stringify(name)},
