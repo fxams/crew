@@ -1,6 +1,7 @@
 import { SITE_URL } from './agent/discovery.js'
 import { assertSafeHttpUrl } from './agent/safe-url.js'
 import type { ApiCoin } from './coins.js'
+import { getFxRates } from './fx.js'
 
 export type PublicCoinMeta = {
   imageUrl?: string
@@ -23,7 +24,12 @@ export type PublicCoinPage = ApiCoin &
     launchpadLabel: string
   }
 
-const META_TTL_MS = 15 * 60_000
+/** Quote cache ~1–2 min. Images/socials ride along so the board stays coherent. */
+export const COIN_META_TTL_MS = 90_000
+export const DEX_TOKEN_BATCH = 30
+const PUMP_SUPPLY = 1_000_000_000
+const PUMP_DECIMALS = 6
+
 const metaCache = new Map<string, { at: number; meta: PublicCoinMeta }>()
 
 const META_HOSTS = new Set([
@@ -31,6 +37,13 @@ const META_HOSTS = new Set([
   'frontend-api-v3.pump.fun',
   'api.dexscreener.com',
 ])
+
+type FetchJson = (url: string) => Promise<unknown | null>
+let fetchJsonImpl: FetchJson = defaultFetchJson
+
+export function setCoinMetaFetch(fn: FetchJson | null) {
+  fetchJsonImpl = fn || defaultFetchJson
+}
 
 export function coinPageUrl(mint: string): string {
   return `${SITE_URL}/coin/${mint}`
@@ -73,11 +86,16 @@ function chainFor(coin: ApiCoin): PublicCoinPage['chain'] {
   return 'solana'
 }
 
-async function fetchJson(url: string): Promise<unknown | null> {
-  const parsed = new URL(url)
+async function defaultFetchJson(url: string): Promise<unknown | null> {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return null
+  }
   if (!META_HOSTS.has(parsed.hostname.toLowerCase())) return null
   const ctrl = new AbortController()
-  const t = setTimeout(() => ctrl.abort(), 2500)
+  const t = setTimeout(() => ctrl.abort(), 4_000)
   try {
     const res = await fetch(url, {
       signal: ctrl.signal,
@@ -92,109 +110,189 @@ async function fetchJson(url: string): Promise<unknown | null> {
   }
 }
 
-function fromPumpPayload(data: unknown): PublicCoinMeta {
-  if (!data || typeof data !== 'object') return {}
-  const o = data as Record<string, unknown>
-  const g = detectPumpGraduation(o)
-  return {
-    imageUrl: safeHttps(o.image_uri || o.imageUri || o.image),
-    twitter: normalizeTwitter(o.twitter || o.twitter_url),
-    website: safeHttps(o.website),
-    telegram: safeHttps(o.telegram),
-    graduated: g.graduated || undefined,
-    graduatedVia: g.via || undefined,
+function fetchJson(url: string): Promise<unknown | null> {
+  return fetchJsonImpl(url)
+}
+
+export function dexChainId(coin: { platform?: string; pumpUrl?: string }): string {
+  if (coin.platform === 'zora') return 'base'
+  return 'solana'
+}
+
+export function chunkMints(mints: string[], size = DEX_TOKEN_BATCH): string[][] {
+  const out: string[][] = []
+  const n = Math.max(1, size)
+  for (let i = 0; i < mints.length; i += n) out.push(mints.slice(i, i + n))
+  return out
+}
+
+export function dexTokensV1Url(chainId: string, mints: string[]): string {
+  return `https://api.dexscreener.com/tokens/v1/${encodeURIComponent(chainId)}/${mints
+    .map((m) => encodeURIComponent(m))
+    .join(',')}`
+}
+
+function tokenMatches(addr: unknown, mint: string): boolean {
+  if (typeof addr !== 'string' || !addr) return false
+  if (addr === mint) return true
+  if (mint.startsWith('0x') || addr.startsWith('0x')) return addr.toLowerCase() === mint.toLowerCase()
+  return false
+}
+
+function asPairs(data: unknown): Record<string, unknown>[] {
+  if (Array.isArray(data)) {
+    return data.filter((p): p is Record<string, unknown> => Boolean(p) && typeof p === 'object')
   }
+  if (data && typeof data === 'object') {
+    const pairs = (data as { pairs?: unknown }).pairs
+    if (Array.isArray(pairs)) {
+      return pairs.filter((p): p is Record<string, unknown> => Boolean(p) && typeof p === 'object')
+    }
+  }
+  return []
 }
 
-function detectPumpGraduation(o: Record<string, unknown>): { graduated: boolean; via: string | null } {
-  if (o.complete === true || o.complete === 'true') return { graduated: true, via: 'pump-complete' }
-  const ray = o.raydium_pool || o.raydiumPool
-  if (typeof ray === 'string' && ray.trim()) return { graduated: true, via: 'raydium' }
-  const swap = o.pump_swap || o.pumpSwap || o.pump_swap_pool
-  if (typeof swap === 'string' && swap.trim()) return { graduated: true, via: 'pumpswap' }
-  if (swap === true) return { graduated: true, via: 'pumpswap' }
-  return { graduated: false, via: null }
+function pairTokenAddress(p: Record<string, unknown>, key: 'baseToken' | 'quoteToken'): string {
+  const tok = p[key]
+  if (!tok || typeof tok !== 'object') return ''
+  const addr = (tok as { address?: unknown }).address
+  return typeof addr === 'string' ? addr : ''
 }
 
-function fromDexPayload(data: unknown): PublicCoinMeta {
-  if (!data || typeof data !== 'object') return {}
-  const o = data as Record<string, unknown>
-  const pairs = Array.isArray(o.pairs) ? o.pairs : []
-  const ranked = pairs
-    .filter((p): p is Record<string, unknown> => Boolean(p) && typeof p === 'object')
-    .sort(
-      (a, b) =>
-        Number(b.marketCap || b.fdv || 0) - Number(a.marketCap || a.fdv || 0),
-    )
+function pairMatchesMint(p: Record<string, unknown>, mint: string): boolean {
+  return tokenMatches(pairTokenAddress(p, 'baseToken'), mint) || tokenMatches(pairTokenAddress(p, 'quoteToken'), mint)
+}
+
+function pairMcap(p: Record<string, unknown>): number {
+  const mcap = Number(p.marketCap ?? p.fdv)
+  return Number.isFinite(mcap) && mcap > 0 ? mcap : 0
+}
+
+function socialHandle(socials: Record<string, unknown>[], kind: 'twitter' | 'telegram'): string | undefined {
+  const hit = socials.find((s) => {
+    const type = String(s.type || s.platform || '').toLowerCase()
+    return type === kind || (kind === 'twitter' && (type === 'x' || type === 'twitter'))
+  })
+  if (!hit) return undefined
+  if (typeof hit.url === 'string') return hit.url
+  if (typeof hit.handle === 'string') return hit.handle
+  return undefined
+}
+
+function fromDexPairs(pairs: Record<string, unknown>[]): PublicCoinMeta {
+  const ranked = [...pairs].sort((a, b) => pairMcap(b) - pairMcap(a))
   const first = ranked[0] || null
+  if (!first) return {}
   const info =
-    first && first.info && typeof first.info === 'object'
-      ? (first.info as Record<string, unknown>)
-      : null
+    first.info && typeof first.info === 'object' ? (first.info as Record<string, unknown>) : null
   const socials = Array.isArray(info?.socials) ? (info?.socials as Record<string, unknown>[]) : []
-  const twitter = socials.find((s) => String(s.type || '').toLowerCase() === 'twitter')
-  const telegram = socials.find((s) => String(s.type || '').toLowerCase() === 'telegram')
   const websites = Array.isArray(info?.websites) ? (info?.websites as Record<string, unknown>[]) : []
-  const vol = first?.volume && typeof first.volume === 'object' ? (first.volume as Record<string, unknown>) : null
+  const vol = first.volume && typeof first.volume === 'object' ? (first.volume as Record<string, unknown>) : null
   const volumeUsd = Number(vol?.h24)
-  const mcap = Number(first?.marketCap ?? first?.fdv)
   const chg =
-    first?.priceChange && typeof first.priceChange === 'object'
+    first.priceChange && typeof first.priceChange === 'object'
       ? Number((first.priceChange as Record<string, unknown>).h24)
       : NaN
-  const dexId = first ? String(first.dexId || '').toLowerCase() : ''
+  const dexId = String(first.dexId || '').toLowerCase()
   const graduatedDex =
     dexId === 'pumpswap' || dexId === 'pump-swap'
       ? 'pumpswap'
       : dexId === 'raydium'
         ? 'raydium'
         : null
-  return {
+  return cleanMeta({
     imageUrl: safeHttps(info?.imageUrl),
-    twitter: normalizeTwitter(twitter?.url),
+    twitter: normalizeTwitter(socialHandle(socials, 'twitter')),
     website: safeHttps(websites[0]?.url),
-    telegram: safeHttps(telegram?.url),
+    telegram: safeHttps(socialHandle(socials, 'telegram')),
     volumeUsd: Number.isFinite(volumeUsd) ? volumeUsd : undefined,
-    marketCapUsd: Number.isFinite(mcap) && mcap > 0 ? mcap : undefined,
+    marketCapUsd: pairMcap(first) || undefined,
     priceChange24h: Number.isFinite(chg) ? chg : undefined,
     graduated: graduatedDex ? true : undefined,
     graduatedVia: graduatedDex || undefined,
     dexId: dexId || undefined,
-  }
+  })
 }
 
-/** Public metadata (image/socials) from pump.fun / DexScreener — no secrets. */
-export async function enrichPublicCoinMeta(coin: {
-  mint: string
-  pumpUrl?: string
-  platform?: string
-}): Promise<PublicCoinMeta> {
-  const cached = metaCache.get(coin.mint)
-  if (cached && Date.now() - cached.at < META_TTL_MS) return cached.meta
+/** Parse Dexscreener `/tokens/v1/{chain}/{mints}` (array) or legacy `{ pairs }`. */
+export function parseDexTokenQuotes(data: unknown, mint?: string): PublicCoinMeta {
+  let pairs = asPairs(data)
+  if (mint) pairs = pairs.filter((p) => pairMatchesMint(p, mint))
+  return fromDexPairs(pairs)
+}
 
-  let meta: PublicCoinMeta = {}
-  const pumpish = (coin.platform || 'pumpfun') !== 'zora'
-  if (pumpish) {
-    meta = fromPumpPayload(
-      await fetchJson(`https://frontend-api-v3.pump.fun/coins/${encodeURIComponent(coin.mint)}`),
-    )
+export function indexDexQuotes(data: unknown): Map<string, PublicCoinMeta> {
+  const byMint = new Map<string, Record<string, unknown>[]>()
+  for (const p of asPairs(data)) {
+    const mint = pairTokenAddress(p, 'baseToken')
+    if (!mint) continue
+    const list = byMint.get(mint) || []
+    list.push(p)
+    byMint.set(mint, list)
   }
-  const dex = fromDexPayload(
-    await fetchJson(`https://api.dexscreener.com/latest/dex/tokens/${encodeURIComponent(coin.mint)}`),
-  )
-  meta = {
-    imageUrl: meta.imageUrl || dex.imageUrl,
-    twitter: meta.twitter || dex.twitter,
-    website: meta.website || dex.website,
-    telegram: meta.telegram || dex.telegram,
-    volumeUsd: meta.volumeUsd ?? dex.volumeUsd,
-    marketCapUsd: meta.marketCapUsd ?? dex.marketCapUsd,
-    priceChange24h: meta.priceChange24h ?? dex.priceChange24h,
-    graduated: meta.graduated || dex.graduated,
-    graduatedVia: meta.graduatedVia || dex.graduatedVia,
-    dexId: dex.dexId,
-  }
+  const map = new Map<string, PublicCoinMeta>()
+  for (const [mint, pairs] of byMint) map.set(mint, fromDexPairs(pairs))
+  return map
+}
 
+/** Pump bonding-curve mcap from virtual reserves × SOL/USD. Never invents a SOL price. */
+export function pumpCurveMarketCapUsd(
+  o: Record<string, unknown>,
+  solUsd: number | null | undefined,
+): number | undefined {
+  if (solUsd == null || !Number.isFinite(solUsd) || solUsd <= 0) return undefined
+  const vs = Number(o.virtual_sol_reserves ?? o.virtualSolReserves)
+  const vt = Number(o.virtual_token_reserves ?? o.virtualTokenReserves)
+  if (!Number.isFinite(vs) || !Number.isFinite(vt) || vs <= 0 || vt <= 0) return undefined
+  const priceSol = vs / 1e9 / (vt / 10 ** PUMP_DECIMALS)
+  const mcapUsd = priceSol * PUMP_SUPPLY * solUsd
+  return Number.isFinite(mcapUsd) && mcapUsd > 0 ? mcapUsd : undefined
+}
+
+export function parsePumpCoinMeta(
+  data: unknown,
+  opts?: { solUsd?: number | null },
+): PublicCoinMeta {
+  if (!data || typeof data !== 'object') return {}
+  const o = data as Record<string, unknown>
+  const g = detectPumpGraduation(o)
+  const usd = Number(o.usd_market_cap ?? o.usdMarketCap)
+  let marketCapUsd: number | undefined
+  if (Number.isFinite(usd) && usd > 0) marketCapUsd = usd
+  if (marketCapUsd == null) {
+    const raw = Number(o.market_cap ?? o.marketCap)
+    if (Number.isFinite(raw) && raw >= 1_000) marketCapUsd = raw
+  }
+  if (marketCapUsd == null) marketCapUsd = pumpCurveMarketCapUsd(o, opts?.solUsd)
+  return cleanMeta({
+    imageUrl: safeHttps(o.image_uri || o.imageUri || o.image),
+    twitter: normalizeTwitter(o.twitter || o.twitter_url),
+    website: safeHttps(o.website),
+    telegram: safeHttps(o.telegram),
+    marketCapUsd,
+    graduated: g.graduated || undefined,
+    graduatedVia: g.via || undefined,
+  })
+}
+
+/** Launch metadata (image/socials) wins; Dexscreener quotes win when present. */
+export function mergePublicCoinMeta(launch: PublicCoinMeta, quote: PublicCoinMeta): PublicCoinMeta {
+  return cleanMeta({
+    imageUrl: launch.imageUrl || quote.imageUrl,
+    twitter: launch.twitter || quote.twitter,
+    website: launch.website || quote.website,
+    telegram: launch.telegram || quote.telegram,
+    volumeUsd: quote.volumeUsd ?? launch.volumeUsd,
+    holders: launch.holders ?? quote.holders,
+    marketCapUsd: quote.marketCapUsd ?? launch.marketCapUsd,
+    priceChange24h: quote.priceChange24h ?? launch.priceChange24h,
+    graduated: launch.graduated || quote.graduated,
+    graduatedVia: launch.graduatedVia || quote.graduatedVia,
+    dexId: quote.dexId || launch.dexId,
+  })
+}
+
+function cleanMeta(meta: PublicCoinMeta): PublicCoinMeta {
   const cleaned: PublicCoinMeta = {}
   if (meta.imageUrl) cleaned.imageUrl = meta.imageUrl
   if (meta.twitter) cleaned.twitter = meta.twitter
@@ -207,8 +305,109 @@ export async function enrichPublicCoinMeta(coin: {
   if (meta.graduated) cleaned.graduated = true
   if (meta.graduatedVia) cleaned.graduatedVia = meta.graduatedVia
   if (meta.dexId) cleaned.dexId = meta.dexId
-  metaCache.set(coin.mint, { at: Date.now(), meta: cleaned })
   return cleaned
+}
+
+function detectPumpGraduation(o: Record<string, unknown>): { graduated: boolean; via: string | null } {
+  if (o.complete === true || o.complete === 'true') return { graduated: true, via: 'pump-complete' }
+  const ray = o.raydium_pool || o.raydiumPool
+  if (typeof ray === 'string' && ray.trim()) return { graduated: true, via: 'raydium' }
+  const swap = o.pump_swap || o.pumpSwap || o.pump_swap_pool
+  if (typeof swap === 'string' && swap.trim()) return { graduated: true, via: 'pumpswap' }
+  if (swap === true) return { graduated: true, via: 'pumpswap' }
+  return { graduated: false, via: null }
+}
+
+async function fetchDexBatches(
+  chainId: string,
+  mints: string[],
+): Promise<Map<string, PublicCoinMeta>> {
+  const out = new Map<string, PublicCoinMeta>()
+  if (!mints.length) return out
+  const batches = await Promise.all(
+    chunkMints(mints).map((batch) => fetchJson(dexTokensV1Url(chainId, batch))),
+  )
+  for (const data of batches) {
+    for (const [mint, meta] of indexDexQuotes(data)) out.set(mint, meta)
+  }
+  return out
+}
+
+async function fetchPumpMeta(
+  mint: string,
+  solUsd: number | null,
+): Promise<PublicCoinMeta> {
+  return parsePumpCoinMeta(
+    await fetchJson(`https://frontend-api-v3.pump.fun/coins/${encodeURIComponent(mint)}`),
+    { solUsd },
+  )
+}
+
+/** Batched Dexscreener `/tokens/v1` quotes + Pump bonding-curve fallback. */
+export async function enrichPublicCoinMetas(
+  coins: { mint: string; pumpUrl?: string; platform?: string }[],
+  now = Date.now(),
+): Promise<Map<string, PublicCoinMeta>> {
+  const out = new Map<string, PublicCoinMeta>()
+  const stale: typeof coins = []
+  for (const coin of coins) {
+    const cached = metaCache.get(coin.mint)
+    if (cached && now - cached.at < COIN_META_TTL_MS) out.set(coin.mint, cached.meta)
+    else stale.push(coin)
+  }
+  if (!stale.length) return out
+
+  const byChain = new Map<string, typeof stale>()
+  for (const coin of stale) {
+    const chain = dexChainId(coin)
+    const list = byChain.get(chain) || []
+    list.push(coin)
+    byChain.set(chain, list)
+  }
+
+  const dexByMint = new Map<string, PublicCoinMeta>()
+  await Promise.all(
+    [...byChain.entries()].map(async ([chain, group]) => {
+      const quotes = await fetchDexBatches(
+        chain,
+        group.map((c) => c.mint),
+      )
+      for (const [mint, meta] of quotes) dexByMint.set(mint, meta)
+    }),
+  )
+
+  const pumpish = stale.filter((c) => (c.platform || 'pumpfun') !== 'zora')
+  let solUsd: number | null = null
+  if (pumpish.length) {
+    const needCurve = pumpish.some((c) => !dexByMint.get(c.mint)?.marketCapUsd)
+    if (needCurve) {
+      solUsd = (await getFxRates(now).catch(() => null))?.solUsd ?? null
+    }
+  }
+  const pumpByMint = new Map<string, PublicCoinMeta>()
+  await Promise.all(
+    pumpish.map(async (coin) => {
+      const meta = await fetchPumpMeta(coin.mint, solUsd)
+      pumpByMint.set(coin.mint, meta)
+    }),
+  )
+
+  for (const coin of stale) {
+    const merged = mergePublicCoinMeta(pumpByMint.get(coin.mint) || {}, dexByMint.get(coin.mint) || {})
+    metaCache.set(coin.mint, { at: now, meta: merged })
+    out.set(coin.mint, merged)
+  }
+  return out
+}
+
+/** Public metadata (image/socials/quotes) from pump.fun / DexScreener — no secrets. */
+export async function enrichPublicCoinMeta(coin: {
+  mint: string
+  pumpUrl?: string
+  platform?: string
+}): Promise<PublicCoinMeta> {
+  const map = await enrichPublicCoinMetas([coin])
+  return map.get(coin.mint) || {}
 }
 
 export function toPublicCoinPage(coin: ApiCoin, meta: PublicCoinMeta = {}): PublicCoinPage {

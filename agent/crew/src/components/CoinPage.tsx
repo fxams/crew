@@ -5,6 +5,7 @@ import { coinMintFromPath, kolProfilePath } from '../lib/routes'
 import { COIN_JOB_TEMPLATES } from '../lib/coin-jobs'
 import { loadBoard } from '../lib/store'
 import { PlatformBadge } from './PlatformBadge'
+import { CoinLogo } from './CoinLogo'
 import { inferLaunchPlatform, tradeLabel } from '../lib/platforms'
 
 type Coin = {
@@ -196,13 +197,13 @@ export function CoinPage() {
         {coin ? (
           <>
             <header className="coin-hero">
-              {coin.imageUrl ? (
-                <img className="coin-hero-img" src={coin.imageUrl} alt="" width={88} height={88} />
-              ) : (
-                <span className="coin-hero-img coin-hero-fallback" aria-hidden>
-                  {(coin.ticker || '?').slice(0, 1)}
-                </span>
-              )}
+              <CoinLogo
+                src={coin.imageUrl}
+                ticker={coin.ticker}
+                className="coin-hero-img"
+                fallbackClassName="coin-hero-img coin-hero-fallback"
+                size={88}
+              />
               <div className="coin-hero-copy">
                 <p className="coin-ticker">${coin.ticker}</p>
                 <h1 className="section-title coin-name">{coin.name}</h1>
