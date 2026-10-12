@@ -2240,18 +2240,20 @@ export default function App() {
                       : "Bags.fm is live via Agent unsigned. This desk copies the request; sign in your agent."
                 }
               />
-              <div className="field">
-                <label>Wallet</label>
-                <button
-                  type="button"
-                  className={`btn btn-wide${connected ? " btn-ghost" : " btn-primary"}`}
-                  onClick={() => setVisible(true)}
-                >
-                  {connected
-                    ? `Connected · ${shortAddr(wallet.publicKey!.toBase58())}`
-                    : "Connect Phantom"}
-                </button>
-              </div>
+              {phantomLaunch ? (
+                <div className="field">
+                  <label>Wallet</label>
+                  <button
+                    type="button"
+                    className={`btn btn-wide${connected ? " btn-ghost" : " btn-primary"}`}
+                    onClick={() => setVisible(true)}
+                  >
+                    {connected
+                      ? `Connected · ${shortAddr(wallet.publicKey!.toBase58())}`
+                      : "Connect Phantom"}
+                  </button>
+                </div>
+              ) : null}
 
               <div className="row-2">
                 <div className="field">
@@ -2798,6 +2800,7 @@ export default function App() {
                     {result?.name || draft.name || "name"}
                   </h3>
                   <p>{result?.vibe || draft.vibe || "Add a vibe."}</p>
+                  <PlatformBadge platform={launchPlatform} />
                 </div>
               </div>
 

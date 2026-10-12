@@ -62,6 +62,20 @@ export function TryCrewCard() {
           {busy ? 'Picking…' : 'Pick my crew'}
         </button>
       </form>
+      <div className="plat-filter" aria-label="Launch venues">
+        {venues.map((v) => (
+          <button
+            key={v.id}
+            type="button"
+            className={`plat-filter-btn${platform === v.id ? ' is-on' : ''}`}
+            disabled={!v.enabled}
+            onClick={() => setPlatform(v.id)}
+            title={v.caption || v.note || v.name}
+          >
+            {v.name}
+          </button>
+        ))}
+      </div>
       {err ? <p className="register-err">{err}</p> : null}
       {hires ? (
         <ol className="try-crew-list">
@@ -76,21 +90,6 @@ export function TryCrewCard() {
       ) : (
         <p className="hint">See which KOLs an agent would hire for your coin and what share each gets. Nothing is created.</p>
       )}
-      <div className="plat-filter" aria-label="Launch venues">
-        {venues.map((v) => (
-          <button
-            key={v.id}
-            type="button"
-            className={`plat-filter-btn${platform === v.id ? ' is-on' : ''}`}
-            disabled={!v.enabled}
-            onClick={() => setPlatform(v.id)}
-            title={v.caption || v.name}
-          >
-            {v.name}
-            {v.caption ? ` · ${v.caption}` : ''}
-          </button>
-        ))}
-      </div>
       <details className="details-quiet">
         <summary>Agent unsigned · {venues.find((v) => v.id === platform)?.name}</summary>
         <pre>{unsignedLaunchCurl({ platform, name })}</pre>

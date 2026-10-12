@@ -94,6 +94,8 @@ describe('launch platform helpers', () => {
 
   it('fee copy names hired KOL crew, never the launcher 60%', () => {
     expect(LAUNCH_FEE_MAP_COPY).toMatch(/hired KOL crew/)
+    expect(LAUNCH_FEE_MAP_COPY).toMatch(/15% launching agent/)
+    expect(LAUNCH_FEE_MAP_COPY).toMatch(/rest treasury/)
     expect(LAUNCH_FEE_MAP_COPY.toLowerCase()).not.toMatch(/launcher gets 60/)
     expect(FALLBACK_LAUNCH_VENUES).toHaveLength(3)
     const curl = unsignedLaunchCurl({ platform: 'bags', name: 'Night Owl', ticker: 'HOOT' })
