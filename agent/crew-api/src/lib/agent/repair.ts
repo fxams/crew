@@ -345,6 +345,11 @@ export async function crankRemitsForAgent(opts: {
   mint: string
   /** Fee payer — distributeCreatorFeesV2 is permissionless; any funded wallet works. */
   payer: import('@solana/web3.js').Keypair
+  /**
+   * When true (server-paid cranks), getMinimumDistributableFee must succeed
+   * and report canDistribute — do not soft-skip view failures.
+   */
+  requireMinFee?: boolean
 }): Promise<{ ok: true; signature: string; mint: string; swept: boolean }> {
   const mint = new PublicKey(opts.mint.trim())
   const connection = getConnection()
@@ -367,7 +372,14 @@ export async function crankRemitsForAgent(opts: {
     }
   } catch (err) {
     if (err instanceof Error && /No distributable/.test(err.message)) throw err
-    /* view sim optional — still try build+send */
+    if (opts.requireMinFee) {
+      throw new Error(
+        err instanceof Error
+          ? `getMinimumDistributableFee failed: ${err.message}`
+          : 'getMinimumDistributableFee failed',
+      )
+    }
+    /* view sim optional for caller-paid — still try build+send */
   }
   const built = await online.buildDistributeCreatorFeesInstructions(mint, {
     quoteMint: NATIVE_MINT,
