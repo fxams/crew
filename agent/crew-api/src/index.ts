@@ -11,6 +11,7 @@ import { kolsRouter } from './routes/kols.js'
 import { proofRouter } from './routes/proof.js'
 import { webhooksRouter } from './routes/webhooks.js'
 import { jobsRouter } from './routes/jobs.js'
+import { maybeStartAcpInProcess } from './lib/acp-inprocess.js'
 
 const port = Number(process.env.PORT || 10000)
 const allowedOrigins = (process.env.CORS_ORIGINS || 'https://app.crewpay.dev,https://crewpay.dev,http://localhost:5173,http://127.0.0.1:4173')
@@ -84,6 +85,7 @@ async function main() {
 
   app.listen(port, () => {
     console.log(`crew-api listening on :${port}`)
+    void maybeStartAcpInProcess()
   })
 }
 

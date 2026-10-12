@@ -173,6 +173,8 @@ npm run dev
 | `CREW_BUYBACK_PRIVATE_KEY` | Buyback cron only |
 | `CREW_BUYBACK_MINT` | Buyback cron only |
 | `CORS_ORIGINS` | Browser origins |
+| `ACP_INPROCESS` | When `1`, start the ACP listener in this process (still no-op unless `ACP_ENABLED=1`) |
+| `ACP_ENABLED` | When `1`, the ACP listener may connect (default off) |
 
 ## Buyback cron secrets
 

@@ -16,7 +16,7 @@ Register these on [app.virtuals.io](https://app.virtuals.io/acp/new) (you do thi
     "name": "crewpay_autohire_kol_crew",
     "description": "Hire a KOL crew for an existing token via CrewPay Autohire. Deliverable is crew list JSON. Fee map 60% hired KOL crew / 15% launching agent / rest treasury.",
     "slaMinutes": 15,
-    "priceUsd": 0.02,
+    "priceUsd": 0.25,
     "requirements": {
       "type": "object",
       "required": ["mint", "platform", "budget"],
@@ -55,7 +55,7 @@ Register these on [app.virtuals.io](https://app.virtuals.io/acp/new) (you do thi
     "name": "crewpay_launch_with_crew",
     "description": "Build unsigned launch transactions (crew_build_unsigned) plus crew_submit_signed instructions. CrewPay never holds the launcher key. Fee map 60% hired KOL crew / 15% launching agent / rest treasury.",
     "slaMinutes": 30,
-    "priceUsd": 0.1,
+    "priceUsd": 1.00,
     "requirements": {
       "type": "object",
       "required": ["name", "ticker"],
@@ -93,7 +93,11 @@ Register these on [app.virtuals.io](https://app.virtuals.io/acp/new) (you do thi
 1. Register a provider agent on the [Virtuals Service Registry](https://app.virtuals.io/acp/new). CrewPay does not register this for you.
 2. On the agent page → **Signers** → **+ Add Signer**. Copy the signer key into `ACP_SIGNER_KEY` and the wallet id into `ACP_WALLET_ID`. Never commit the key or paste it into chat.
 3. Add the two offerings above (name + requirements JSON + prices).
-4. Install crew-api deps (the worker calls `runAutohire` / `runUnsignedLaunch` directly):
+4. Listen one of two ways (still a complete no-op unless `ACP_ENABLED=1`):
+
+**In-process on crewpay-api** (no extra Render worker): set `ACP_INPROCESS=1` plus the ACP env on the existing `crewpay-api` service.
+
+**Standalone worker:**
 
 ```bash
 npm ci --prefix agent/crew-api
@@ -109,12 +113,13 @@ Env:
 | Var | Default | Role |
 |---|---|---|
 | `ACP_ENABLED` | off | Worker connects only when `1` / `true` |
+| `ACP_INPROCESS` | off | When `1`, **crewpay-api** starts this listener in its own process (still no-op unless `ACP_ENABLED=1`). Avoids a separate Render worker. |
 | `ACP_CHAIN_ID` | `84532` | Base Sepolia. `8453` = Base |
 | `ACP_SIGNER_KEY` | — | Secret from **+ Add Signer**. Never logged |
 | `ACP_WALLET_ID` | — | Wallet id from the same Signers tab (required when enabled) |
 | `ACP_WALLET_ADDRESS` | derived | Agent wallet if not the signer EOA |
-| `ACP_PRICE_AUTOHIRE_USD` | `0.02` | `crewpay_autohire_kol_crew` |
-| `ACP_PRICE_LAUNCH_USD` | `0.10` | `crewpay_launch_with_crew` |
+| `ACP_PRICE_AUTOHIRE_USD` | `0.25` | `crewpay_autohire_kol_crew` |
+| `ACP_PRICE_LAUNCH_USD` | `1.00` | `crewpay_launch_with_crew` |
 
 ## Lifecycle
 

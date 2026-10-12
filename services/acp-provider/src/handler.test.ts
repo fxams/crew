@@ -41,7 +41,7 @@ describe('ACP job lifecycle', () => {
       content: JSON.stringify(autohireReq),
     })
     expect(session.setBudget).toHaveBeenCalledTimes(1)
-    expect(usdc).toHaveBeenCalledWith(0.02, 84532)
+    expect(usdc).toHaveBeenCalledWith(0.25, 84532)
     expect(session.sendMessage).not.toHaveBeenCalled()
 
     const bad = mockSession()

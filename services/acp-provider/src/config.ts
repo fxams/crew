@@ -3,6 +3,9 @@ import { privateKeyToAccount } from 'viem/accounts'
 export const OFFERING_AUTOHIRE = 'crewpay_autohire_kol_crew'
 export const OFFERING_LAUNCH = 'crewpay_launch_with_crew'
 
+export const DEFAULT_ACP_PRICE_AUTOHIRE_USD = 0.25
+export const DEFAULT_ACP_PRICE_LAUNCH_USD = 1
+
 export type AcpConfig = {
   enabled: boolean
   chainId: number
@@ -71,8 +74,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AcpConfig {
     walletId: (env.ACP_WALLET_ID || '').trim(),
     entityId: Math.floor(numEnv(env, 'ACP_ENTITY_ID', 1)),
     builderCode: (env.ACP_BUILDER_CODE || '').trim(),
-    priceAutohireUsd: numEnv(env, 'ACP_PRICE_AUTOHIRE_USD', 0.02),
-    priceLaunchUsd: numEnv(env, 'ACP_PRICE_LAUNCH_USD', 0.1),
+    priceAutohireUsd: numEnv(env, 'ACP_PRICE_AUTOHIRE_USD', DEFAULT_ACP_PRICE_AUTOHIRE_USD),
+    priceLaunchUsd: numEnv(env, 'ACP_PRICE_LAUNCH_USD', DEFAULT_ACP_PRICE_LAUNCH_USD),
   }
 }
 
