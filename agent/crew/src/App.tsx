@@ -22,6 +22,16 @@ import { TryCrewCard } from "./components/TryCrewCard";
 import { KolProfilePage } from "./components/KolProfilePage";
 import { KolRegisterPage } from "./components/KolRegisterPage";
 import { TopKolsPage } from "./components/TopKolsPage";
+import { PlatformBadge } from "./components/PlatformBadge";
+import { PlatformFilter } from "./components/PlatformFilter";
+import { PlatformSelect } from "./components/PlatformSelect";
+import { TradeLinks } from "./components/TradeLinks";
+import { useLaunchVenues } from "./lib/use-launch-venues";
+import {
+  inferLaunchPlatform,
+  unsignedLaunchCurl,
+  type LaunchPlatform,
+} from "./lib/platforms";
 import { apiConfigured, pushModeAction, pushRemits, fetchProof } from "./lib/api";
 import { evaluateDipGate } from "./lib/desk-rules";
 import { executeBuybackFire, executeRaidClaim } from "./lib/mode-execute";
@@ -49,8 +59,6 @@ import {
   simulateBuybackFire,
   simulateFeeAccrual,
   simulateRaidClaim,
-  solscanTokenUrl,
-  solscanTxUrl,
 } from "./lib/desk-actions";
 import {
   CREW_EDGES,
@@ -237,6 +245,21 @@ export default function App() {
   const hirePlanRef = useRef<HTMLDivElement | null>(null);
   const coins = desk.coins;
   const remits = desk.remits;
+  const venues = useLaunchVenues();
+  const [platFilter, setPlatFilter] = useState<LaunchPlatform | "all">("all");
+  const launchPlatform: LaunchPlatform = draft.platform || "pumpfun";
+  const phantomLaunch = launchPlatform === "pumpfun";
+  const visibleCoins = useMemo(
+    () =>
+      platFilter === "all"
+        ? coins
+        : coins.filter(
+            (c) =>
+              inferLaunchPlatform({ platform: c.platform, pumpUrl: c.pumpUrl, mint: c.mint }) ===
+              platFilter,
+          ),
+    [coins, platFilter],
+  );
   const setCoins = (next: CoinRecord[]) => setDesk((d) => ({ ...d, coins: next }));
   const setRemits = (next: RemitRecord[]) => setDesk((d) => ({ ...d, remits: next }));
 
@@ -773,6 +796,23 @@ export default function App() {
   }
 
   async function onLaunch() {
+    if (!phantomLaunch) {
+      const curl = unsignedLaunchCurl({
+        platform: launchPlatform,
+        name: draft.name,
+        ticker: draft.ticker,
+        description: draft.vibe,
+      });
+      try {
+        await navigator.clipboard.writeText(curl);
+        setStatus(
+          `${venues.find((v) => v.id === launchPlatform)?.name || launchPlatform} launches via the Agent unsigned API — curl copied.`,
+        );
+      } catch {
+        setStatus("Bags.fm and Zora launch via POST /api/agent/launch/unsigned — see Agent API.");
+      }
+      return;
+    }
     if (!isLaunchReady(draft)) {
       setError(`Fill required fields: ${getLaunchBlockers(draft).slice(0, 3).join(", ")}`);
       return;
@@ -1260,13 +1300,15 @@ export default function App() {
   }
 
   const tape = [...tapeItems, ...tapeItems];
-  const launchLabel = busy
-    ? "Signing…"
-    : !launchReady
-      ? "Fill required fields"
-      : connected
-        ? "Launch on mainnet"
-        : "Connect & launch";
+  const launchLabel = !phantomLaunch
+    ? `Copy unsigned · ${venues.find((v) => v.id === launchPlatform)?.name || launchPlatform}`
+    : busy
+      ? "Signing…"
+      : !launchReady
+        ? "Fill required fields"
+        : connected
+          ? "Launch on mainnet"
+          : "Connect & launch";
 
   const buyback = draft.buybackRule ?? DEFAULT_BUYBACK;
   const quests = draft.raidQuests ?? DEFAULT_RAID_QUESTS;
@@ -1430,11 +1472,17 @@ export default function App() {
                 <span>gets paid.</span>
               </motion.h1>
               <p className="hero-copy">
-                Your AI agent launches a Pump.fun coin in three API calls. CrewPay picks a KOL crew
-                that fits the narrative and locks <em>60% of creator fees</em> to them on-chain, so the
-                people who can move a coin share in it. Agent keeps <em>15%</em>, treasury{" "}
-                <em>25%</em> (<em>60/15/5/20</em> when a KOL referred the agent). Buyback cron is not live yet.
+                Your AI agent launches a coin in three API calls — Pump.fun, Bags.fm, or Zora.
+                CrewPay picks a KOL crew that fits the narrative and locks{" "}
+                <em>60% of creator fees</em> to the hired crew on-chain. Launching agent keeps{" "}
+                <em>15%</em>, rest treasury (<em>60/15/5/20</em> when a KOL referred the agent).
+                Buyback cron is not live yet.
               </p>
+              <div className="plat-hero-row" aria-label="Launch venues">
+                {venues.map((v) => (
+                  <PlatformBadge key={v.id} platform={v.id} />
+                ))}
+              </div>
               <div className="hero-actions">
                 <Link className="btn btn-primary hero-cta-register" to="/register">
                   Register as Crew to get Paid
@@ -1512,7 +1560,7 @@ export default function App() {
             <div
               className="home-fee-bar"
               role="img"
-              aria-label={`${PLATFORM_BUYBACK_BPS / 100}% treasury, ${MODE_DESK_BPS.agent / 100}% launcher, ${100 - PLATFORM_BUYBACK_BPS / 100 - MODE_DESK_BPS.agent / 100}% KOLs`}
+              aria-label={`${100 - PLATFORM_BUYBACK_BPS / 100 - MODE_DESK_BPS.agent / 100}% hired KOL crew, ${MODE_DESK_BPS.agent / 100}% launching agent, ${PLATFORM_BUYBACK_BPS / 100}% treasury`}
             >
               <span
                 className="home-fee-seg is-treasury"
@@ -1537,8 +1585,8 @@ export default function App() {
               </div>
               <div>
                 <strong>{MODE_DESK_BPS.agent / 100}%</strong>
-                <span>Launcher / agent</span>
-                <em>Ops cut to the launching wallet</em>
+                <span>Launching agent</span>
+                <em>Ops cut to the launching wallet — not the 60% crew slice</em>
               </div>
               <div>
                 <strong>{KOL_REFERRAL_CUT_PCT}%</strong>
@@ -1547,8 +1595,8 @@ export default function App() {
               </div>
               <div>
                 <strong>{100 - PLATFORM_BUYBACK_BPS / 100 - MODE_DESK_BPS.agent / 100}%</strong>
-                <span>Hired KOLs</span>
-                <em>Split across Autohired crew seats</em>
+                <span>Hired KOL crew</span>
+                <em>Split across hired crew seats</em>
               </div>
             </div>
           </div>
@@ -1584,7 +1632,7 @@ export default function App() {
             <article className="step">
               <div className="step-num">01</div>
               <h3>Agent launches</h3>
-              <p>Token + narrative. Optional buy.</p>
+              <p>Pump.fun, Bags.fm, or Zora. Optional buy.</p>
             </article>
             <article className="step">
               <div className="step-num">02</div>
@@ -1606,9 +1654,8 @@ export default function App() {
           <p className="section-label">Agent API</p>
           <h2 className="section-title">Agents hire. Launches print.</h2>
           <p className="section-sub">
-            Claim a key, Autohire KOLs from your narrative, dry-run, then launch with fee-shares
-            locked. MCP and HTTP — no Phantom on the agent side. Humans join later via Crew
-            register.
+            Claim a key, Autohire KOLs from your narrative, dry-run, then launch on Pump.fun,
+            Bags.fm, or Zora with fee-shares locked. MCP and HTTP — no Phantom on the agent side.
           </p>
           <div className="agents-teaser-actions">
             <Link className="btn btn-primary" to="/agents">
@@ -1811,8 +1858,13 @@ export default function App() {
               </div>
               <div className="coin-desk-body">
                 <p className="hint">
-                  {selectedCoin.vibe || "No vibe."} · mainnet ·{" "}
-                  {shortAddr(selectedCoin.mint)}
+                  {selectedCoin.vibe || "No vibe."} ·{" "}
+                  <PlatformBadge
+                    platform={selectedCoin.platform}
+                    pumpUrl={selectedCoin.pumpUrl}
+                    mint={selectedCoin.mint}
+                  />{" "}
+                  · {shortAddr(selectedCoin.mint)}
                   {selectedCoin.feeShareSignature
                     ? " · fees locked"
                     : " · fees NOT locked — crew unpaid"}
@@ -2022,34 +2074,12 @@ export default function App() {
                           ) : null}
                         </>
                       ) : null}
-                      <a
-                        className="btn btn-ghost btn-sm"
-                        href={selectedCoin.pumpUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        pump.fun
-                      </a>
-                      {solscanTokenUrl(selectedCoin.mint) ? (
-                        <a
-                          className="btn btn-ghost btn-sm"
-                          href={solscanTokenUrl(selectedCoin.mint)!}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Solscan
-                        </a>
-                      ) : null}
-                      {solscanTxUrl(selectedCoin.signature) ? (
-                        <a
-                          className="btn btn-ghost btn-sm"
-                          href={solscanTxUrl(selectedCoin.signature)!}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Tx
-                        </a>
-                      ) : null}
+                      <TradeLinks
+                        mint={selectedCoin.mint}
+                        pumpUrl={selectedCoin.pumpUrl}
+                        platform={selectedCoin.platform}
+                        signature={selectedCoin.signature}
+                      />
                       {!selectedCoin.feeShareSignature ? (
                         selectedCoin.holderKol ? (
                           <span className="hint">Use Lock holder KOLs above (one-shot).</span>
@@ -2091,11 +2121,15 @@ export default function App() {
                 <h3>Crank remits</h3>
                 <span>mainnet</span>
               </div>
+              <PlatformFilter venues={venues} value={platFilter} onChange={setPlatFilter} />
               <div className="crank-list">
-                {coins.slice(0, 8).map((c) => (
+                {visibleCoins.slice(0, 8).map((c) => (
                   <div className="crank-row" key={c.mint}>
                     <div>
-                      <strong>${c.ticker}</strong>
+                      <strong>
+                        ${c.ticker}{" "}
+                        <PlatformBadge platform={c.platform} pumpUrl={c.pumpUrl} mint={c.mint} />
+                      </strong>
                       <p>
                         {shortAddr(c.mint)}
                         {c.feeShareSignature ? "" : " · fees open"}
@@ -2153,7 +2187,7 @@ export default function App() {
         <section className="section section-tight section-ahead" id="ahead" aria-label="Where we're headed">
           <p className="section-label">Where we&apos;re headed</p>
           <p className="section-sub ahead-copy">
-            Pump.fun launches are just the start. We&apos;re building toward a world where AI agents hire people for
+            Pump.fun, Bags.fm, and Zora launches are just the start. We&apos;re building toward a world where AI agents hire people for
             all kinds of work, and both get paid onchain automatically.
           </p>
         </section>
@@ -2174,7 +2208,7 @@ export default function App() {
             <h1 className="section-title">Hire crew. Launch.</h1>
             <p className="section-sub">
               Name the token, Autohire 1–{MAX_CREW} KOLs from the narrative, lock fee-shares, then
-              launch. Agents use the same path via API.
+              launch. Pump.fun signs with Phantom. Bags.fm and Zora use the Agent unsigned API.
             </p>
           </div>
 
@@ -2194,18 +2228,32 @@ export default function App() {
 
           <div className="launch">
             <div className="panel form form-compact">
-              <div className="field">
-                <label>Wallet</label>
-                <button
-                  type="button"
-                  className={`btn btn-wide${connected ? " btn-ghost" : " btn-primary"}`}
-                  onClick={() => setVisible(true)}
-                >
-                  {connected
-                    ? `Connected · ${shortAddr(wallet.publicKey!.toBase58())}`
-                    : "Connect Phantom"}
-                </button>
-              </div>
+              <PlatformSelect
+                venues={venues}
+                value={launchPlatform}
+                onChange={(id) => setDraft((prev) => ({ ...prev, platform: id }))}
+                hint={
+                  phantomLaunch
+                    ? "Default Pump.fun — Phantom signs on Solana."
+                    : launchPlatform === "zora"
+                      ? "Zora is testnet / soon unless the API enables it. Unsigned EIP-1559 — crew wallets must be 0x."
+                      : "Bags.fm is live via Agent unsigned. This desk copies the request; sign in your agent."
+                }
+              />
+              {phantomLaunch ? (
+                <div className="field">
+                  <label>Wallet</label>
+                  <button
+                    type="button"
+                    className={`btn btn-wide${connected ? " btn-ghost" : " btn-primary"}`}
+                    onClick={() => setVisible(true)}
+                  >
+                    {connected
+                      ? `Connected · ${shortAddr(wallet.publicKey!.toBase58())}`
+                      : "Connect Phantom"}
+                  </button>
+                </div>
+              ) : null}
 
               <div className="row-2">
                 <div className="field">
@@ -2708,11 +2756,24 @@ export default function App() {
                 </p>
               ) : null}
 
+              {!phantomLaunch ? (
+                <details className="details-quiet">
+                  <summary>Unsigned request</summary>
+                  <pre>
+                    {unsignedLaunchCurl({
+                      platform: launchPlatform,
+                      name: draft.name,
+                      ticker: draft.ticker,
+                      description: draft.vibe,
+                    })}
+                  </pre>
+                </details>
+              ) : null}
               <button
                 className="btn btn-primary btn-wide desktop-launch"
                 type="button"
                 onClick={() => void onLaunch()}
-                disabled={busy || !launchReady}
+                disabled={phantomLaunch ? busy || !launchReady : false}
               >
                 {launchLabel}
               </button>
@@ -2739,6 +2800,7 @@ export default function App() {
                     {result?.name || draft.name || "name"}
                   </h3>
                   <p>{result?.vibe || draft.vibe || "Add a vibe."}</p>
+                  <PlatformBadge platform={launchPlatform} />
                 </div>
               </div>
 
@@ -2873,14 +2935,12 @@ export default function App() {
                     >
                       Open desk
                     </button>
-                    <a
-                      className="btn btn-ghost btn-sm"
-                      href={result.pumpUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      pump.fun
-                    </a>
+                    <TradeLinks
+                      mint={result.mint}
+                      pumpUrl={result.pumpUrl}
+                      platform={result.platform}
+                      signature={result.signature}
+                    />
                   </div>
                 </motion.div>
               ) : null}
@@ -3050,10 +3110,10 @@ export default function App() {
               navigate("/launch");
               return;
             }
-            if (!launchReady) return;
+            if (phantomLaunch && !launchReady) return;
             void onLaunch();
           }}
-          disabled={isLaunchPage ? busy || !launchReady : false}
+          disabled={isLaunchPage ? (phantomLaunch ? busy || !launchReady : false) : false}
         >
           {isLaunchPage ? launchLabel : "Launch coin"}
         </button>

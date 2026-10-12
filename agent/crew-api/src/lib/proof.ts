@@ -207,6 +207,7 @@ const roleTotals = sumByRole(classified)
       launchedAt: c.launchedAt,
       pumpUrl: c.pumpUrl,
       launcher: c.launcher,
+      platform: c.platform || 'pumpfun',
     })),
     modeActions,
   }

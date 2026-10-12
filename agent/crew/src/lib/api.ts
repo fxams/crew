@@ -130,6 +130,7 @@ export type ProofBundle = {
     launchedAt: number
     pumpUrl: string
     launcher: string
+    platform?: string
   }[]
   modeActions: {
     id: string

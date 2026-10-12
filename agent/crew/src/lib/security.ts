@@ -7,6 +7,12 @@ import type {
   RaidQuest,
   RemitRecord,
 } from './types'
+import {
+  inferLaunchPlatform,
+  isAllowedTradeUrl,
+  parseLaunchPlatform,
+  tradeUrl,
+} from './platforms'
 
 const ALLOWED_RPC_HOSTS = new Set([
   'api.mainnet-beta.solana.com',
@@ -138,13 +144,25 @@ export function sanitizeCoin(raw: unknown): CoinRecord | null {
     feeShareSignature: asString(r.feeShareSignature, 128) || undefined,
     launchedAt: Math.max(0, Number(r.launchedAt) || 0),
     launcher: asString(r.launcher, 64),
-    pumpUrl: asString(r.pumpUrl, 200).startsWith('https://')
-      ? asString(r.pumpUrl, 200)
-      : `https://pump.fun/coin/${mint}`,
+    pumpUrl: (() => {
+      const raw = asString(r.pumpUrl, 240)
+      const platform = inferLaunchPlatform({
+        platform: asString(r.platform, 16),
+        pumpUrl: raw,
+        mint,
+      })
+      if (isAllowedTradeUrl(raw)) return raw
+      return tradeUrl(platform, mint)
+    })(),
     buybackRule: sanitizeBuyback(r.buybackRule),
     raidQuests: sanitizeQuests(r.raidQuests),
     agent: sanitizeAgent(r.agent),
     holderKol: Boolean(r.holderKol),
+    platform: inferLaunchPlatform({
+      platform: asString(r.platform, 16),
+      pumpUrl: asString(r.pumpUrl, 240),
+      mint,
+    }),
   }
 }
 
@@ -222,6 +240,7 @@ export function sanitizeDraft(raw: unknown): LaunchDraft {
     raidQuests: safeMode === 'raid' ? sanitizeQuests(r.raidQuests) : undefined,
     agent: safeMode === 'agent' ? sanitizeAgent(r.agent) : undefined,
     holderKol: Boolean(r.holderKol),
+    platform: parseLaunchPlatform(asString(r.platform, 16) || undefined),
   }
 }
 
