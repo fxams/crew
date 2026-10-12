@@ -25,6 +25,7 @@ import {
   getSignatureSlot,
   sendInstructions,
   sendJitoBundle,
+  signatureIsConfirmed,
 } from './send.js'
 import {
   getAgentKeyReferral,
@@ -38,6 +39,8 @@ import {
   normalizeCrew,
 } from './shareholders.js'
 import { assertSafeHttpUrl } from './safe-url.js'
+import { pollAdminRevokedOnChain } from './fee-lock-integrity.js'
+import { allowSequentialFeeLock, atomicRetryableError } from './atomic-policy.js'
 
 export type AgentLaunchInput = {
   name: string
@@ -69,6 +72,8 @@ export type AgentLaunchResult =
       feeShareSignature?: string
       /** false when mint exists but CREW fee-share was not locked — agents must handle. */
       feeShareLocked: boolean
+      /** On-chain sharing-config.adminRevoked after updateFeeSharesV2. */
+      adminRevoked?: boolean
       pumpUrl: string
       launcher: string
       crew: Array<CrewMember & { effectiveBps?: number }>
@@ -98,10 +103,22 @@ export type AgentLaunchResult =
         launcher: string
         pumpUrl: string
         holderKol?: boolean
+        adminRevoked?: boolean
+        unlockedExpired?: boolean
         agent?: { name: string; objective: string; model: string }
       }
     }
-  | { ok: false; error: string }
+  | { ok: false; error: string; retryable?: boolean }
+
+/**
+ * Wait for the lock tx to index, then re-read sharing-config. Never report
+ * feeShareLocked=true while RPC still shows unlocked / missing config.
+ */
+async function confirmFeeLock(mint: PublicKey, lockSignature: string): Promise<boolean> {
+  const sigOk = await signatureIsConfirmed(lockSignature, 20_000)
+  if (!sigOk) return false
+  return pollAdminRevokedOnChain(mint)
+}
 
 function normalizeTicker(raw: string): string {
   return raw.trim().toUpperCase().replace(/^\$/, '')
@@ -449,6 +466,12 @@ export async function launchForAgent(
     ownerWallet?: string | null
     /** Override 15% launching-agent wallet (x402 payer when chain-compatible). */
     deskWallet?: string | null
+    /**
+     * From an approved dry-run plan (autoHire). When set, skip narrative re-plan
+     * so spend uses the same crew the human approved.
+     */
+    plannedCrew?: CrewMember[]
+    plannedHirePlan?: NarrativeHirePlan | null
   },
 ): Promise<AgentLaunchResult> {
   try {
@@ -494,10 +517,19 @@ export async function launchForAgent(
       : opts?.ownerWallet
         ? await getAgentReferralByOwnerWallet(opts.ownerWallet)
         : null
-    const { crew, hirePlan } = await resolveCrew(
-      { ...input, mode },
-      { hasAgentReferrer: Boolean(boundRef) },
-    )
+    const maxSeats = maxCrewSeats({
+      hasAgentReferrer: Boolean(boundRef),
+      mode,
+    })
+    const { crew, hirePlan } = opts?.plannedCrew?.length
+      ? {
+          crew: normalizeCrew(opts.plannedCrew, mode, { maxSeats }),
+          hirePlan: opts.plannedHirePlan ?? undefined,
+        }
+      : await resolveCrew(
+          { ...input, mode },
+          { hasAgentReferrer: Boolean(boundRef) },
+        )
     const vibe = withCrewLaunchDescription(vibeRaw)
     const agentRef = await resolveLaunchAgentReferrer({
       keyId: opts?.agentKeyId,
@@ -546,10 +578,7 @@ export async function launchForAgent(
     })
     /** Always present — null when explicit crew[] (not Autohire). */
     const hirePlanOut: NarrativeHirePlan | null = hirePlan ?? null
-    const atomicRequired =
-      input.atomicRequired === true ||
-      process.env.CREW_ATOMIC_REQUIRED === '1' ||
-      process.env.CREW_ATOMIC_REQUIRED === 'true'
+    const sequentialOk = allowSequentialFeeLock(input.atomicRequired)
 
     const connection = getConnection()
     const lamports = await connection.getBalance(launcher.publicKey, 'confirmed')
@@ -677,12 +706,14 @@ export async function launchForAgent(
           getSignatureBlockTimeMs(signature),
         ])
         launchedAt = createBlockMs ?? launchedAt
+        const adminRevoked = await confirmFeeLock(mintKp.publicKey, feeShareSignature)
         return {
           ok: true,
           mint: mintStr,
           signature,
           feeShareSignature,
-          feeShareLocked: true,
+          feeShareLocked: adminRevoked,
+          adminRevoked,
           pumpUrl,
           launcher: deskWallet,
           crew: crewWithBps,
@@ -693,11 +724,14 @@ export async function launchForAgent(
           createSlot,
           lockSlot,
           preLockCreatorFeesLamports: 0,
-          warning: `Atomic via Jito (${engine}).`,
+          warning: adminRevoked
+            ? `Atomic via Jito (${engine}).`
+            : `Atomic via Jito (${engine}) but adminRevoked not confirmed — call crew_status / crew_wire_fees.`,
           coin: {
             ...coinBaseFields,
             signature,
             feeShareSignature,
+            adminRevoked,
             launchedAt,
           },
         }
@@ -717,12 +751,14 @@ export async function launchForAgent(
         })
         const slot = await getSignatureSlot(signature)
         launchedAt = (await getSignatureBlockTimeMs(signature)) ?? launchedAt
+        const adminRevoked = await confirmFeeLock(mintKp.publicKey, signature)
         return {
           ok: true,
           mint: mintStr,
           signature,
           feeShareSignature: signature,
-          feeShareLocked: true,
+          feeShareLocked: adminRevoked,
+          adminRevoked,
           pumpUrl,
           launcher: deskWallet,
           crew: crewWithBps,
@@ -733,10 +769,14 @@ export async function launchForAgent(
           createSlot: slot,
           lockSlot: slot,
           preLockCreatorFeesLamports: 0,
+          warning: adminRevoked
+            ? undefined
+            : 'Atomic v0 landed but adminRevoked not confirmed — call crew_status / crew_wire_fees.',
           coin: {
             ...coinBaseFields,
             signature,
             feeShareSignature: signature,
+            adminRevoked,
             launchedAt,
           },
         }
@@ -745,11 +785,8 @@ export async function launchForAgent(
           atomicErr instanceof Error ? atomicErr.message : 'atomic create+fee-share failed'
         atomicFailures.push(`single-tx: ${atomicMsg}`)
         console.warn('Agent launch single-tx atomic failed', atomicMsg)
-        if (atomicRequired) {
-          return {
-            ok: false,
-            error: `Atomic fee-lock required (CREW_ATOMIC_REQUIRED=1). Failures: ${atomicFailures.join(' · ')}. Set CREW_LOOKUP_TABLE / check Jito egress from Render.`,
-          }
+        if (!sequentialOk) {
+          return atomicRetryableError(atomicFailures)
         }
       }
 
@@ -781,12 +818,14 @@ export async function launchForAgent(
             createSlot,
             lockSlot,
           })
+          const adminRevoked = await confirmFeeLock(mintKp.publicKey, feeShareSignature)
           return {
             ok: true,
             mint: mintStr,
             signature,
             feeShareSignature,
-            feeShareLocked: true,
+            feeShareLocked: adminRevoked,
+            adminRevoked,
             pumpUrl,
             launcher: deskWallet,
             crew: crewWithBps,
@@ -805,11 +844,13 @@ export async function launchForAgent(
                 ? `preLockCreatorFeesLamports=${preLockCreatorFeesLamports}.`
                 : '',
               `Atomic failures: ${atomicFailures.join(' · ') || 'unknown'}.`,
-              'Jito needs encoding=base64; set CREW_LOOKUP_TABLE for v0+ALT; atomicRequired/CREW_ATOMIC_REQUIRED=1 to refuse this fallback.',
+              'Jito needs encoding=base64; set CREW_LOOKUP_TABLE for v0+ALT.',
+              'CREW_ATOMIC_FALLBACK=1 enabled this sequential path — snipers may skim the ~2s window.',
+              adminRevoked ? '' : 'adminRevoked not confirmed on-chain — not marking locked.',
             ]
               .filter(Boolean)
               .join(' '),
-            coin: { ...coinBase, feeShareSignature },
+            coin: { ...coinBase, feeShareSignature, adminRevoked },
           }
         } catch (feeErr) {
           const feeMsg = feeErr instanceof Error ? feeErr.message : 'fee-share failed'

@@ -393,6 +393,7 @@ export async function getKolReferralStats(walletRaw: string): Promise<KolReferra
      FROM coins c
      INNER JOIN agent_keys ak ON ak.id = c.agent_key_id
      WHERE lower(ak.referral_code) = $1
+       AND c.fee_share_signature IS NOT NULL
      ORDER BY c.launched_at DESC
      LIMIT 200`,
     [code],
@@ -410,6 +411,7 @@ export async function getKolReferralStats(walletRaw: string): Promise<KolReferra
   const { rows: refFeeRows } = await query(
     `SELECT COALESCE(SUM(r.amount_sol), 0) AS total, COUNT(*)::int AS n
      FROM remits r
+     INNER JOIN coins c ON c.mint = r.mint AND c.fee_share_signature IS NOT NULL
      INNER JOIN coin_shareholders cs
        ON cs.mint = r.mint AND cs.wallet = r.wallet AND cs.role = 'agent-referral'
      WHERE r.wallet = $1`,
@@ -418,6 +420,7 @@ export async function getKolReferralStats(walletRaw: string): Promise<KolReferra
   const { rows: crewFeeRows } = await query(
     `SELECT COALESCE(SUM(r.amount_sol), 0) AS total, COUNT(*)::int AS n
      FROM remits r
+     INNER JOIN coins c ON c.mint = r.mint AND c.fee_share_signature IS NOT NULL
      INNER JOIN coin_shareholders cs
        ON cs.mint = r.mint AND cs.wallet = r.wallet
       AND cs.role IN ('crew', 'kol')

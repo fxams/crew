@@ -4,6 +4,7 @@ import {
   inferLaunchPlatformFromCoin,
   type LaunchPlatform,
 } from './agent/platforms.js'
+import { shouldMarkUnlockedExpired } from './agent/fee-lock-integrity.js'
 
 export type ApiCrewMember = {
   handle: string
@@ -29,10 +30,19 @@ export type ApiCoin = {
   raidQuests?: unknown
   agent?: unknown
   holderKol?: boolean
+  /** holderKol unlocked ≥24h — do not count toward proof/leaderboards/referral. */
+  unlockedExpired?: boolean
+  /** On-chain sharing-config adminRevoked after fee-share lock. */
+  adminRevoked?: boolean
   /** agent_keys.id that performed the launch (self-serve attribution). */
   agentKeyId?: string
   /** Launch venue inferred from trade URL / mint (pumpfun default). */
   platform?: LaunchPlatform
+}
+
+export type ListCoinsOpts = {
+  /** When true, omit coins with null fee_share_signature (holderKol / HTTP 202). */
+  feeShareLockedOnly?: boolean
 }
 
 export type ApiRemit = {
@@ -51,6 +61,19 @@ export type ApiRemit = {
 }
 
 function rowToCoin(row: Record<string, unknown>, crew: ApiCrewMember[]): ApiCoin {
+  const launchedAt = new Date(String(row.launched_at)).getTime()
+  const feeShareSignature = row.fee_share_signature
+    ? String(row.fee_share_signature)
+    : undefined
+  const holderKol = Boolean(row.holder_kol)
+  const unlockedExpired =
+    Boolean(row.unlocked_expired) ||
+    shouldMarkUnlockedExpired({
+      holderKol,
+      feeShareSignature,
+      launchedAt,
+      unlockedExpired: Boolean(row.unlocked_expired),
+    })
   return {
     id: String(row.id),
     mint: String(row.mint),
@@ -60,22 +83,43 @@ function rowToCoin(row: Record<string, unknown>, crew: ApiCrewMember[]): ApiCoin
     mode: String(row.mode),
     crew,
     signature: String(row.signature || ''),
-    feeShareSignature: row.fee_share_signature
-      ? String(row.fee_share_signature)
-      : undefined,
-    launchedAt: new Date(String(row.launched_at)).getTime(),
+    feeShareSignature,
+    launchedAt,
     launcher: String(row.launcher),
     pumpUrl: String(row.pump_url),
     buybackRule: row.buyback_rule ?? undefined,
     raidQuests: row.raid_quests ?? undefined,
     agent: row.agent ?? undefined,
-    holderKol: Boolean(row.holder_kol),
+    holderKol,
+    unlockedExpired,
+    adminRevoked: row.admin_revoked == null ? undefined : Boolean(row.admin_revoked),
     agentKeyId: row.agent_key_id ? String(row.agent_key_id) : undefined,
     platform: inferLaunchPlatformFromCoin({
       pumpUrl: String(row.pump_url || ''),
       mint: String(row.mint || ''),
     }),
   }
+}
+
+/** Persist unlocked_expired when holderKol has been open ≥24h. */
+async function syncUnlockedExpired(coin: ApiCoin): Promise<ApiCoin> {
+  if (!shouldMarkUnlockedExpired({ ...coin, unlockedExpired: false })) {
+    return coin
+  }
+  try {
+    await query(
+      `UPDATE coins
+       SET unlocked_expired = true, updated_at = now()
+       WHERE mint = $1
+         AND holder_kol = true
+         AND fee_share_signature IS NULL
+         AND unlocked_expired IS DISTINCT FROM true`,
+      [coin.mint],
+    )
+  } catch {
+    /* best-effort — column may not exist until migrate 018 */
+  }
+  return { ...coin, unlockedExpired: true }
 }
 
 async function loadCrew(mint: string, client?: PoolClient): Promise<ApiCrewMember[]> {
@@ -98,15 +142,23 @@ async function loadCrew(mint: string, client?: PoolClient): Promise<ApiCrewMembe
   }))
 }
 
-export async function listCoins(limit = 100): Promise<ApiCoin[]> {
+export async function listCoins(
+  limit = 100,
+  opts?: ListCoinsOpts,
+): Promise<ApiCoin[]> {
+  const lockedOnly = Boolean(opts?.feeShareLockedOnly)
   const { rows } = await query(
-    `SELECT * FROM coins ORDER BY launched_at DESC LIMIT $1`,
+    lockedOnly
+      ? `SELECT * FROM coins
+         WHERE fee_share_signature IS NOT NULL
+         ORDER BY launched_at DESC LIMIT $1`
+      : `SELECT * FROM coins ORDER BY launched_at DESC LIMIT $1`,
     [Math.min(200, Math.max(1, limit))],
   )
   const out: ApiCoin[] = []
   for (const row of rows) {
     const crew = await loadCrew(String(row.mint))
-    out.push(rowToCoin(row as Record<string, unknown>, crew))
+    out.push(await syncUnlockedExpired(rowToCoin(row as Record<string, unknown>, crew)))
   }
   return out
 }
@@ -123,7 +175,7 @@ export async function listCoinsByAgentKey(
   const out: ApiCoin[] = []
   for (const row of rows) {
     const crew = await loadCrew(String(row.mint))
-    out.push(rowToCoin(row as Record<string, unknown>, crew))
+    out.push(await syncUnlockedExpired(rowToCoin(row as Record<string, unknown>, crew)))
   }
   return out
 }
@@ -132,18 +184,21 @@ export async function getCoin(mint: string): Promise<ApiCoin | null> {
   const { rows } = await query(`SELECT * FROM coins WHERE mint = $1`, [mint])
   if (!rows[0]) return null
   const crew = await loadCrew(mint)
-  return rowToCoin(rows[0] as Record<string, unknown>, crew)
+  return syncUnlockedExpired(rowToCoin(rows[0] as Record<string, unknown>, crew))
 }
 
 export async function upsertCoin(coin: ApiCoin): Promise<ApiCoin> {
+  const unlockedExpired = Boolean(coin.feeShareSignature)
+    ? false
+    : shouldMarkUnlockedExpired(coin) || Boolean(coin.unlockedExpired)
   await withTransaction(async (client) => {
     await client.query(
       `INSERT INTO coins (
          mint, id, name, ticker, vibe, mode, signature, fee_share_signature,
          launched_at, launcher, pump_url, buyback_rule, raid_quests, agent, holder_kol,
-         agent_key_id, updated_at
+         unlocked_expired, admin_revoked, agent_key_id, updated_at
        ) VALUES (
-         $1,$2,$3,$4,$5,$6,$7,$8, to_timestamp($9/1000.0), $10,$11,$12::jsonb,$13::jsonb,$14::jsonb,$15,$16, now()
+         $1,$2,$3,$4,$5,$6,$7,$8, to_timestamp($9/1000.0), $10,$11,$12::jsonb,$13::jsonb,$14::jsonb,$15,$16,$17,$18, now()
        )
        ON CONFLICT (mint) DO UPDATE SET
          id = EXCLUDED.id,
@@ -160,6 +215,11 @@ export async function upsertCoin(coin: ApiCoin): Promise<ApiCoin> {
          raid_quests = EXCLUDED.raid_quests,
          agent = EXCLUDED.agent,
          holder_kol = EXCLUDED.holder_kol,
+         unlocked_expired = CASE
+           WHEN COALESCE(EXCLUDED.fee_share_signature, coins.fee_share_signature) IS NOT NULL THEN false
+           ELSE EXCLUDED.unlocked_expired OR coins.unlocked_expired
+         END,
+         admin_revoked = COALESCE(EXCLUDED.admin_revoked, coins.admin_revoked),
          agent_key_id = COALESCE(EXCLUDED.agent_key_id, coins.agent_key_id),
          updated_at = now()`,
       [
@@ -178,6 +238,8 @@ export async function upsertCoin(coin: ApiCoin): Promise<ApiCoin> {
         coin.raidQuests ? JSON.stringify(coin.raidQuests) : null,
         coin.agent ? JSON.stringify(coin.agent) : null,
         Boolean(coin.holderKol),
+        unlockedExpired,
+        coin.adminRevoked == null ? null : Boolean(coin.adminRevoked),
         coin.agentKeyId || null,
       ],
     )
@@ -198,10 +260,14 @@ export async function upsertCoin(coin: ApiCoin): Promise<ApiCoin> {
 
 export async function listRemits(
   limit = 200,
-  opts?: { mint?: string },
+  opts?: { mint?: string; feeShareLockedOnly?: boolean },
 ): Promise<ApiRemit[]> {
   const safeLimit = Math.min(500, Math.max(1, limit))
   const mint = opts?.mint?.trim()
+  const lockedOnly = Boolean(opts?.feeShareLockedOnly)
+  const lockJoin = lockedOnly
+    ? 'INNER JOIN coins c ON c.mint = r.mint AND c.fee_share_signature IS NOT NULL'
+    : ''
   // Join shareholder role for attribution. A wallet may have multiple rows in
   // coin_shareholders for a mint historically, but normalization ensures there
   // is at most one canonical role per wallet (crew/platform/desk/agent-referral).
@@ -211,6 +277,7 @@ export async function listRemits(
          FROM remits r
          LEFT JOIN coin_shareholders cs
            ON cs.mint = r.mint AND cs.wallet = r.wallet
+         ${lockJoin}
          WHERE r.mint = $1
          ORDER BY r.at DESC
          LIMIT $2`,
@@ -221,6 +288,7 @@ export async function listRemits(
          FROM remits r
          LEFT JOIN coin_shareholders cs
            ON cs.mint = r.mint AND cs.wallet = r.wallet
+         ${lockJoin}
          ORDER BY r.at DESC
          LIMIT $1`,
         [safeLimit],

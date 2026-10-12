@@ -266,7 +266,9 @@ export function ProofPage() {
                   <span role="cell">
                     <PlatformBadge platform={c.platform} pumpUrl={c.pumpUrl} mint={c.mint} />
                   </span>
-                  <span role="cell">{c.feeShareLocked ? 'locked' : 'open'}</span>
+                  <span role="cell">
+                    {c.feeShareLocked ? 'locked' : 'fees NOT locked'}
+                  </span>
                   <span role="cell">{shortAddr(c.mint)}</span>
                   <span role="cell">
                     <a href={c.pumpUrl} target="_blank" rel="noreferrer">
