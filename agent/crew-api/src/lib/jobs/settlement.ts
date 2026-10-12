@@ -1,6 +1,8 @@
 import { randomBytes } from 'node:crypto'
 import { nowMs } from './types.js'
 import { buildUnsignedSolanaTransfer } from './solana-unsigned.js'
+import { flopEnabled, isFlopChainId, isFlopRailName } from './flop-config.js'
+import { sharedFlopRail } from './flop-rail.js'
 
 export type SettlementContext = {
   chainId: string
@@ -171,6 +173,10 @@ export function railFor(chainId: string | undefined, preferred?: string): Settle
   const name = (preferred || '').trim().toLowerCase()
   if (name === 'solana-devnet') return new SolanaDevnetSettlementRail()
   if (name === 'sim') return new SimulatedSettlementRail()
+  // FLOP / tclk rail: explicit name, or chainId when FLOP_ENABLED (off by default).
+  if (isFlopRailName(name) || (flopEnabled() && isFlopChainId(chainId))) {
+    return sharedFlopRail()
+  }
   // Default per chainId: devnet stub for solana-devnet; sim elsewhere
   if (chainId === 'solana-devnet') return new SolanaDevnetSettlementRail()
   if (chainId?.startsWith('evm:base-sepolia')) return new EvmSepoliaSettlementRail()
