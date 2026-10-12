@@ -3813,6 +3813,9 @@ a {
   display: grid;
   gap: 0.6rem;
 }
+.try-crew .plat-filter {
+  margin: 0;
+}
 .try-crew-form {
   display: flex;
   gap: 0.45rem;

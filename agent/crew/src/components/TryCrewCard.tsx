@@ -49,19 +49,6 @@ export function TryCrewCard() {
   return (
     <aside className="hero-token try-crew" aria-label="Try Autohire">
       <p className="section-label">Try Autohire · no wallet</p>
-      <form onSubmit={(e) => void run(e)} className="try-crew-form">
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Coin idea, e.g. Night Owl, owl meme coin"
-          maxLength={120}
-          aria-label="Coin idea"
-        />
-        <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>
-          {busy ? 'Picking…' : 'Pick my crew'}
-        </button>
-      </form>
       <div className="plat-filter" aria-label="Launch venues">
         {venues.map((v) => (
           <button
@@ -76,6 +63,19 @@ export function TryCrewCard() {
           </button>
         ))}
       </div>
+      <form onSubmit={(e) => void run(e)} className="try-crew-form">
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Coin idea, e.g. Night Owl, owl meme coin"
+          maxLength={120}
+          aria-label="Coin idea"
+        />
+        <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>
+          {busy ? 'Picking…' : 'Pick my crew'}
+        </button>
+      </form>
       {err ? <p className="register-err">{err}</p> : null}
       {hires ? (
         <ol className="try-crew-list">
