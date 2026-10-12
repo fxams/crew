@@ -149,7 +149,4 @@ export function apiKeyFingerprint(req: Request): string {
   return createHash('sha256').update(got).digest('hex').slice(0, 16)
 }
 
-export function clientIp(req: Request): string {
-  const xf = (req.header('x-forwarded-for') || '').split(',')[0]?.trim()
-  return xf || req.ip || 'unknown'
-}
+export { clientIp } from './client-ip.js'
