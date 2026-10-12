@@ -10,6 +10,7 @@ import { kolRegisterRouter } from './routes/kol-register.js'
 import { kolsRouter } from './routes/kols.js'
 import { proofRouter } from './routes/proof.js'
 import { webhooksRouter } from './routes/webhooks.js'
+import { jobsRouter } from './routes/jobs.js'
 
 const port = Number(process.env.PORT || 10000)
 const allowedOrigins = (process.env.CORS_ORIGINS || 'https://app.crewpay.dev,https://crewpay.dev,http://localhost:5173,http://127.0.0.1:4173')
@@ -46,12 +47,19 @@ async function main() {
   app.use('/api', agentRouter)
   app.use('/api', proofRouter)
   app.use('/api', webhooksRouter)
+  const jobsEnabled =
+    (process.env.JOBS_ENABLED || '').trim().toLowerCase() === '1' ||
+    (process.env.JOBS_ENABLED || '').trim().toLowerCase() === 'true'
+  if (jobsEnabled) {
+    app.use('/api', jobsRouter)
+  }
 
   app.get('/', (_req, res) => {
     res.json({
       service: 'crew-api',
       docs: '/api/healthz',
       agent: '/api/agent',
+      jobs: jobsEnabled ? '/api/jobs/open' : undefined,
       proof: '/api/proof',
       buybacks: '/api/buybacks',
       webhooks: '/api/webhooks',

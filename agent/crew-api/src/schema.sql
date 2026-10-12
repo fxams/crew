@@ -283,3 +283,46 @@ CREATE UNIQUE INDEX IF NOT EXISTS kol_referral_events_hire_uidx
   WHERE event_type = 'hire' AND mint IS NOT NULL;
 CREATE INDEX IF NOT EXISTS kol_referral_events_referrer_idx
   ON kol_referral_events (lower(referrer_code), created_at DESC);
+
+-- Jobs + escrow (test/devnet; future persistence)
+CREATE TABLE IF NOT EXISTS jobs (
+  id TEXT PRIMARY KEY,
+  type TEXT NOT NULL CHECK (type IN ('campaign')),
+  created_by TEXT NOT NULL,
+  chain_id TEXT NOT NULL,
+  asset TEXT NOT NULL,
+  budget NUMERIC(32, 0) NOT NULL DEFAULT 0, -- base units (lamports-like)
+  per_proof_amount NUMERIC(32, 0) NOT NULL DEFAULT 0,
+  max_proofs INT NOT NULL DEFAULT 0,
+  per_kol_cap INT NOT NULL DEFAULT 0,
+  deadline TIMESTAMPTZ NOT NULL,
+  rules JSONB NOT NULL DEFAULT '{}'::jsonb,
+  status TEXT NOT NULL DEFAULT 'created',
+  escrow_ref TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS job_claims (
+  id TEXT PRIMARY KEY,
+  job_id TEXT NOT NULL REFERENCES jobs (id) ON DELETE CASCADE,
+  kol_handle TEXT,
+  kol_wallet TEXT NOT NULL,
+  kol_chain_id TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'claimed',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS job_submissions (
+  id TEXT PRIMARY KEY,
+  claim_id TEXT NOT NULL REFERENCES job_claims (id) ON DELETE CASCADE,
+  urls TEXT[] NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  verified_at TIMESTAMPTZ,
+  verification JSONB
+);
+
+CREATE INDEX IF NOT EXISTS jobs_deadline_status_idx ON jobs (deadline, status);
+CREATE INDEX IF NOT EXISTS job_claims_job_idx ON job_claims (job_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS job_submissions_claim_idx ON job_submissions (claim_id, created_at DESC);
