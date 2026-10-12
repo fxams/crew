@@ -85,7 +85,9 @@ async function main() {
 
   app.listen(port, () => {
     console.log(`crew-api listening on :${port}`)
-    void maybeStartAcpInProcess()
+    void maybeStartAcpInProcess().catch((err) => {
+      console.error('[acp] in-process listener failed; API continues', err)
+    })
   })
 }
 

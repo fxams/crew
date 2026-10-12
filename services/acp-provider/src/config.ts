@@ -1,5 +1,3 @@
-import { privateKeyToAccount } from 'viem/accounts'
-
 export const OFFERING_AUTOHIRE = 'crewpay_autohire_kol_crew'
 export const OFFERING_LAUNCH = 'crewpay_launch_with_crew'
 
@@ -33,44 +31,37 @@ function numEnv(env: NodeJS.ProcessEnv, name: string, fallback: number): number 
   return n
 }
 
-function normalizePrivateKey(raw: string): `0x${string}` {
-  const v = raw.trim()
-  if (!v) return '' as `0x${string}`
+/**
+ * Privy P-256 authorization key from Virtuals "Add Signer"
+ * (`signerPrivateKey` / `authorizationPrivateKey` on acp-node-v2).
+ * Accept as given — not a 32-byte secp256k1 hex key. Never log it.
+ */
+function readSignerKey(raw: string | undefined): string {
+  return (raw || '').trim()
+}
+
+function normalizeWalletAddress(raw: string | undefined): `0x${string}` | '' {
+  const v = (raw || '').trim()
+  if (!v) return ''
   const hex = v.startsWith('0x') ? v : `0x${v}`
-  if (!/^0x[0-9a-fA-F]{64}$/.test(hex)) {
-    throw new Error('ACP_SIGNER_KEY must be a 32-byte hex key')
+  if (!/^0x[0-9a-fA-F]{40}$/.test(hex)) {
+    throw new Error('ACP_WALLET_ADDRESS must be a 0x EVM address')
   }
   return hex as `0x${string}`
 }
 
-function deriveWallet(signerKey: string): `0x${string}` | '' {
-  if (!signerKey) return ''
-  try {
-    return privateKeyToAccount(signerKey as `0x${string}`).address
-  } catch {
-    return ''
-  }
-}
-
-/** Load env. Never log ACP_SIGNER_KEY. */
+/** Load env. Never log ACP_SIGNER_KEY. Does not derive a wallet from the signer. */
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AcpConfig {
   const enabled = flagOn(env.ACP_ENABLED)
   const chainId = Math.floor(numEnv(env, 'ACP_CHAIN_ID', 84532))
   if (env.ACP_CHAIN_ID !== undefined && env.ACP_CHAIN_ID.trim() && chainId <= 0) {
     throw new Error('ACP_CHAIN_ID must be a positive integer (84532 Base Sepolia, 8453 Base)')
   }
-  const signerKey = enabled ? normalizePrivateKey(env.ACP_SIGNER_KEY || '') : ''
-  const explicit = (env.ACP_WALLET_ADDRESS || '').trim()
-  const walletAddress = (
-    explicit
-      ? (explicit.startsWith('0x') ? explicit : `0x${explicit}`)
-      : deriveWallet(signerKey)
-  ) as `0x${string}` | ''
   return {
     enabled,
     chainId,
-    signerKey,
-    walletAddress,
+    signerKey: enabled ? readSignerKey(env.ACP_SIGNER_KEY) : '',
+    walletAddress: normalizeWalletAddress(env.ACP_WALLET_ADDRESS),
     walletId: (env.ACP_WALLET_ID || '').trim(),
     entityId: Math.floor(numEnv(env, 'ACP_ENTITY_ID', 1)),
     builderCode: (env.ACP_BUILDER_CODE || '').trim(),
@@ -92,7 +83,7 @@ export function assertReadyToConnect(config: AcpConfig): void {
     throw new Error('ACP_SIGNER_KEY is required when ACP_ENABLED=1')
   }
   if (!config.walletAddress) {
-    throw new Error('ACP_WALLET_ADDRESS is required (or a valid ACP_SIGNER_KEY to derive it)')
+    throw new Error('ACP_WALLET_ADDRESS is required when ACP_ENABLED=1 (do not derive from the Privy signer key)')
   }
   if (!config.walletId) {
     throw new Error(
