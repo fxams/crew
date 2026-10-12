@@ -219,6 +219,9 @@ export function listLaunchVenues(): LaunchVenue[] {
 
 const ACP_OFFERING_IDS = ['crewpay_autohire_kol_crew', 'crewpay_launch_with_crew'] as const
 
+export const DEFAULT_ACP_PRICE_AUTOHIRE_USD = 0.25
+export const DEFAULT_ACP_PRICE_LAUNCH_USD = 1
+
 export function acpEnabled(): boolean {
   const v = (process.env.ACP_ENABLED || '').trim().toLowerCase()
   return v === '1' || v === 'true' || v === 'yes' || v === 'on'
@@ -271,13 +274,13 @@ export function acpPublicJson() {
     chain: acpChainLabel(chainId),
     offerings: [...ACP_OFFERING_IDS],
     pricesUsd: {
-      crewpay_autohire_kol_crew: acpPriceUsd('ACP_PRICE_AUTOHIRE_USD', 0.02),
-      crewpay_launch_with_crew: acpPriceUsd('ACP_PRICE_LAUNCH_USD', 0.1),
+      crewpay_autohire_kol_crew: acpPriceUsd('ACP_PRICE_AUTOHIRE_USD', DEFAULT_ACP_PRICE_AUTOHIRE_USD),
+      crewpay_launch_with_crew: acpPriceUsd('ACP_PRICE_LAUNCH_USD', DEFAULT_ACP_PRICE_LAUNCH_USD),
     },
     feeMap: LAUNCH_FEE_MAP_COPY,
     note: acpEnabled()
-      ? 'Hire CrewPay via Virtuals ACP v2 jobs. Worker listens when ACP_ENABLED=1. Non-custodial launch stays unsigned.'
-      : 'Off unless ACP_ENABLED=1. Separate worker: services/acp-provider.',
+      ? 'Hire CrewPay via Virtuals ACP v2 jobs. Listens when ACP_ENABLED=1 (ACP_INPROCESS=1 embeds the listener in crewpay-api). Non-custodial launch stays unsigned.'
+      : 'Off unless ACP_ENABLED=1. Set ACP_INPROCESS=1 on crewpay-api to listen in-process, or run services/acp-provider.',
   }
 }
 

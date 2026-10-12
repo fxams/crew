@@ -59,7 +59,8 @@ services:
     plan: starter
     region: oregon
     autoDeployTrigger: commit
-    buildCommand: npm ci && npm run build
+    # Install + compile services/acp-provider so ACP_INPROCESS=1 can embed the listener.
+    buildCommand: npm ci --include=dev --prefix ../../services/acp-provider && npm run build --prefix ../../services/acp-provider && npm ci && npm run build
     startCommand: npm run migrate && npm run start
     healthCheckPath: /api/healthz
     # Custom domain: CNAME api → crewpay-api.onrender.com (Namecheap / DNS)

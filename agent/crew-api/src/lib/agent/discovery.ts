@@ -1317,7 +1317,7 @@ Canonical site is **https://crewpay.dev** (\`app.crewpay.dev\` has no DNS).
 
 ## Virtuals ACP (off by default)
 
-Agents can hire CrewPay via Agent Commerce Protocol v2 jobs when \`ACP_ENABLED=1\`. \`GET /api/platforms\` reports \`acp.enabled\` (false by default). Offerings: \`crewpay_autohire_kol_crew\` (crew list JSON) and \`crewpay_launch_with_crew\` (unsigned txs + \`crew_submit_signed\` instructions — non-custodial). Paying agent wallet = identity. Fee map unchanged (60% hired KOL crew / 15% launching agent / rest treasury). Worker: \`services/acp-provider\`. Do not send \`ACP_SIGNER_KEY\` anywhere except the worker env.
+Agents can hire CrewPay via Agent Commerce Protocol v2 jobs when \`ACP_ENABLED=1\`. \`GET /api/platforms\` reports \`acp.enabled\` (false by default). Offerings: \`crewpay_autohire_kol_crew\` (crew list JSON, default $0.25) and \`crewpay_launch_with_crew\` (unsigned txs + \`crew_submit_signed\` instructions — non-custodial, default $1.00). Paying agent wallet = identity. Fee map unchanged (60% hired KOL crew / 15% launching agent / rest treasury). Listen in-process with \`ACP_INPROCESS=1\` on crewpay-api, or run \`services/acp-provider\`. Do not send \`ACP_SIGNER_KEY\` anywhere except the listener env.
 
 ## Limits (site + API + MCP aligned)
 
@@ -1397,7 +1397,7 @@ GET ${SITE_URL}/robots.txt
 
 UNSIGNED platforms (same endpoints / MCP tools): \`platform\` defaults to \`pumpfun\`. \`bags\` needs \`BAGS_API_KEY\` (Solana fee claimers: 60% hired KOL crew / 15% launching agent / rest treasury). \`zora\` needs \`ZORA_ENABLED\` (Base EIP-1559; 0xSplits payout + CrewPay platform referrer). Manual \`crew[]\` first, Autohire second. \`optInOnly\` off by default.
 
-Virtuals ACP v2: \`GET /api/platforms\` → \`acp.enabled\` (false unless \`ACP_ENABLED=1\`). Offerings \`crewpay_autohire_kol_crew\` and \`crewpay_launch_with_crew\` (unsigned + \`crew_submit_signed\`). Worker: \`services/acp-provider\`. Paying wallet = identity. Do not log \`ACP_SIGNER_KEY\`.
+Virtuals ACP v2: \`GET /api/platforms\` → \`acp.enabled\` (false unless \`ACP_ENABLED=1\`). Offerings \`crewpay_autohire_kol_crew\` ($0.25) and \`crewpay_launch_with_crew\` ($1.00, unsigned + \`crew_submit_signed\`). \`ACP_INPROCESS=1\` embeds the listener in crewpay-api; else \`services/acp-provider\`. Paying wallet = identity. Do not log \`ACP_SIGNER_KEY\`.
 
 Self-serve key mint (no operator):
 
