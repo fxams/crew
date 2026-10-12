@@ -25,6 +25,68 @@ import {
 
 export const REGISTER_MESSAGE_PREFIX = 'CrewPay KOL registration'
 
+/** Unsigned wallet switches stay pending this long unless the current wallet signs. */
+export const WALLET_CHANGE_PENDING_MS = 48 * 60 * 60_000
+const WALLET_CHANGE_SIG_TTL_MS = 10 * 60_000
+
+export function buildWalletChangeMessage(newWallet: string, timestamp: number): string {
+  return `crew-kol-wallet-change:${newWallet}:${timestamp}`
+}
+
+export type WalletChangeDecision = {
+  action: 'set' | 'pending'
+  wallet: string
+  pendingWallet: string | null
+  pendingUntil: Date | null
+}
+
+/**
+ * Bind a KOL re-registration wallet switch to the currently linked wallet.
+ * Signed OAuth state is still the source of truth for the callback; this only
+ * queues the payout-wallet change.
+ */
+export function decideWalletChange(opts: {
+  currentWallet: string
+  newWallet: string
+  nowMs?: number
+  changeSignature?: string
+  changeTimestamp?: number
+}): WalletChangeDecision {
+  const now = opts.nowMs ?? Date.now()
+  if (!opts.currentWallet || opts.currentWallet === opts.newWallet) {
+    return {
+      action: 'set',
+      wallet: opts.newWallet,
+      pendingWallet: null,
+      pendingUntil: null,
+    }
+  }
+  const ts = Number(opts.changeTimestamp)
+  const fresh = Number.isFinite(ts) && Math.abs(now - ts) <= WALLET_CHANGE_SIG_TTL_MS
+  const okSig =
+    fresh &&
+    Boolean(opts.changeSignature) &&
+    verifyWalletSignature({
+      wallet: opts.currentWallet,
+      message: buildWalletChangeMessage(opts.newWallet, ts),
+      signatureBase58: String(opts.changeSignature),
+    })
+  if (okSig) {
+    return {
+      action: 'set',
+      wallet: opts.newWallet,
+      pendingWallet: null,
+      pendingUntil: null,
+    }
+  }
+  return {
+    action: 'pending',
+    wallet: opts.currentWallet,
+    pendingWallet: opts.newWallet,
+    pendingUntil: new Date(now + WALLET_CHANGE_PENDING_MS),
+  }
+}
+
 /**
  * Agent-key referral: % of total creator fees (from treasury) when agents claim with your code.
  * Not a KOL-seat carve — that program was removed.
@@ -52,6 +114,9 @@ export type KolRegistration = {
   wallet: string
   /** Optional Base / EVM address — required to be paid on Zora launches. */
   evmWallet: string | null
+  /** Wallet requested via OAuth but not yet signed by the current linked wallet. */
+  pendingWallet?: string | null
+  pendingUntil?: string | null
   /** Directory / previously linked wallets — desk earnings include these. */
   priorWallets: string[]
   /** Unique shareable code — every registered KOL has one. */
@@ -525,27 +590,22 @@ export async function completeXCallback(
   const referredFollowers = Number(metrics.followers_count || 0)
   // Wallet change handling: if existing row has a different wallet, do not overwrite
   // unless the current wallet signed an approval (crew-kol-wallet-change:{newWallet}:{ts}).
+  // Signed OAuth state remains the callback source of truth (cookie is fallback only).
   let applyWallet = row.wallet
   let pendingWallet: string | null = null
   let pendingUntil: Date | null = null
   if (prev?.wallet && prev.wallet !== row.wallet) {
     const tsHeader = (opts?.headers?.['x-crew-timestamp'] as string | undefined)?.trim() || ''
     const sigHeader = (opts?.headers?.['x-crew-signature'] as string | undefined)?.trim() || ''
-    const approveMsg = `crew-kol-wallet-change:${row.wallet}:${tsHeader}`
-    const ts = Number(tsHeader)
-    const fresh = Number.isFinite(ts) && Math.abs(Date.now() - ts) <= 10 * 60_000
-    const okSig =
-      fresh &&
-      verifyWalletSignature({
-        wallet: String(prev.wallet),
-        message: approveMsg,
-        signatureBase58: sigHeader,
-      })
-    if (!okSig) {
-      applyWallet = prev.wallet
-      pendingWallet = row.wallet
-      pendingUntil = new Date(Date.now() + 48 * 60 * 60_000)
-    }
+    const decision = decideWalletChange({
+      currentWallet: String(prev.wallet),
+      newWallet: row.wallet,
+      changeSignature: sigHeader || undefined,
+      changeTimestamp: tsHeader ? Number(tsHeader) : undefined,
+    })
+    applyWallet = decision.wallet
+    pendingWallet = decision.pendingWallet
+    pendingUntil = decision.pendingUntil
   }
 
   await query(
@@ -631,6 +691,8 @@ function mapReg(r: Record<string, unknown>, rank: number): KolRegistration {
     description: String(r.description || ''),
     wallet: String(r.wallet),
     evmWallet: r.evm_wallet ? String(r.evm_wallet) : null,
+    pendingWallet: r.pending_wallet ? String(r.pending_wallet) : null,
+    pendingUntil: r.pending_until ? new Date(String(r.pending_until)).toISOString() : null,
     priorWallets: Array.isArray(r.prior_wallets)
       ? (r.prior_wallets as unknown[]).filter((w): w is string => typeof w === 'string')
       : [],
