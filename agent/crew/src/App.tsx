@@ -86,7 +86,7 @@ import { formatSol, formatSolSigned } from "./lib/format-sol";
 import type { HireRole } from "./lib/types";
 import { launchCrew } from "./lib/launch";
 import { useOwnRegisteredHandle } from "./lib/registered-kol";
-import { isAdminKickoffPath, isAgentsPath, isApprovePath, isClaimPath, isCoinPath, isCoinsPath, isKolsPath, isLaunchPath, isOnepagerPath, isProofPath, isReferralPath, isRegisterPath, kolHandleFromPath, kolProfilePath, referralCodeFromPath } from "./lib/routes";
+import { isAdminKickoffPath, isAgentsPath, isApprovePath, isClaimPath, isCoinPath, isCoinsPath, isHomePath, isKolsPath, isLaunchPath, isOnepagerPath, isProofPath, isReferralPath, isRegisterPath, kolHandleFromPath, kolProfilePath, referralCodeFromPath } from "./lib/routes";
 import { ApprovePage } from "./components/ApprovePage";
 import { CoinPage } from "./components/CoinPage";
 import { CoinsPage } from "./components/CoinsPage";
@@ -182,6 +182,7 @@ export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const path = location.pathname.replace(/\/+$/, "") || "/";
+  const isHomePage = isHomePath(path);
   const isLaunchPage = isLaunchPath(path);
   const isKolsPage = isKolsPath(path);
   const referralInviteCode = referralCodeFromPath(path);
@@ -1399,6 +1400,12 @@ export default function App() {
           </Link>
           <nav className="nav-links" aria-label="Site">
             <Link
+              className={isHomePage ? "nav-link-home is-active-nav-text" : "nav-link-home"}
+              to="/"
+            >
+              Home
+            </Link>
+            <Link
               className={isAgentsPage ? "is-active-nav-text" : undefined}
               to="/agents"
             >
@@ -1416,7 +1423,7 @@ export default function App() {
                 className={isRegisterPage || isKolsPage ? "is-active-nav-text" : undefined}
                 to="/register"
               >
-                Crew
+                KOL
               </Link>
             )}
             <Link
@@ -1431,7 +1438,12 @@ export default function App() {
             >
               Proof
             </Link>
-            <a className="nav-link-x" href={CREW_X_URL} target="_blank" rel="noreferrer">
+            <a
+              className="nav-link-x"
+              href={CREW_X_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               X
             </a>
           </nav>
@@ -1498,7 +1510,7 @@ export default function App() {
               <PlatformChipRow venues={venues} x402={x402} acp={acp} />
               <div className="hero-actions">
                 <Link className="btn btn-primary hero-cta-register" to="/register">
-                  Register as Crew to get Paid
+                  Register as KOL to get Paid
                 </Link>
                 <Link className="btn btn-ghost" to="/launch">
                   Launch with crew
