@@ -1,4 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+vi.mock('../agent-referral.js', () => ({
+  getAgentKeyReferral: vi.fn(async () => null),
+  getAgentReferralByOwnerWallet: vi.fn(async () => null),
+}))
+
 import { runAutohire } from './autohire-run.js'
 
 describe('runAutohire (x402 / ACP path)', () => {
