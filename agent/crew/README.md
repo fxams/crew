@@ -6,7 +6,7 @@ Production Pump.fun fee desk on **Solana mainnet**.
 
 ## What it does
 
-1. Connect Phantom
+1. Connect a wallet (Phantom, Solflare, Backpack, Coinbase, MetaMask, Rainbow, …)
 2. Create a Pump coin on mainnet
 3. Tag up to 5 X / Pump handles — wallets auto-fill from Pump.fun’s user DB when linked
 4. Pick a desk mode: **Fee Split**, **Dip Buyback**, **Raid Pool**, or **Agent Hire**
@@ -25,6 +25,7 @@ npm run dev
 ```
 
 Optional: copy `.env.example` → `.env` and set `VITE_RPC_URL` to a dedicated RPC.
+Set `VITE_WALLETCONNECT_PROJECT_ID` (or `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`) to enable WalletConnect QR / mobile deep-link. Without it, injected and Wallet Standard wallets still work.
 
 ## Test / build
 

@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { useAccount } from "wagmi";
+import { ConnectButton } from "./components/ConnectButton";
+import { useConnectModal } from "./components/ConnectModal";
 import {
   DEFAULT_DRAFT,
   DESK_MODES,
@@ -170,7 +172,8 @@ function initialDraft(): LaunchDraft {
 
 export default function App() {
   const wallet = useWallet();
-  const { setVisible } = useWalletModal();
+  const { address: evmAddress } = useAccount();
+  const { open: openConnect } = useConnectModal();
   const location = useLocation();
   const navigate = useNavigate();
   const path = location.pathname.replace(/\/+$/, "") || "/";
@@ -809,6 +812,8 @@ export default function App() {
         name: draft.name,
         ticker: draft.ticker,
         description: draft.vibe,
+        launcherPubkey:
+          launchPlatform === "zora" ? evmAddress : wallet.publicKey?.toBase58(),
       });
       try {
         await navigator.clipboard.writeText(curl);
@@ -825,8 +830,8 @@ export default function App() {
       return;
     }
     if (!connected) {
-      setVisible(true);
-      setError("Connect Phantom to launch on Solana mainnet.");
+      openConnect({ preferred: "solana", platform: launchPlatform });
+      setError("Connect a Solana wallet to launch on mainnet.");
       return;
     }
 
@@ -834,7 +839,7 @@ export default function App() {
     setError(null);
     setLaunchFollowUp(null);
     setDeskMessage(null);
-    setStatus("Uploading metadata → approve Phantom quickly (~60s blockhash)…");
+    setStatus("Uploading metadata → approve in your wallet quickly (~60s blockhash)…");
     setResult(null);
     setSelectedCoin(null);
     setCopied(null);
@@ -848,7 +853,7 @@ export default function App() {
       const msg = response.error || "Launch failed.";
       setError(
         /load failed|failed to fetch/i.test(msg)
-          ? "Metadata upload failed. Approve the Phantom storage signature, then try again."
+          ? "Metadata upload failed. Approve the wallet storage signature, then try again."
           : msg,
       );
       return;
@@ -878,8 +883,8 @@ export default function App() {
 
   async function onWireFees(coin: CoinRecord) {
     if (!connected) {
-      setVisible(true);
-      setDeskMessage({ kind: "error", text: "Connect Phantom to wire crew fees." });
+      openConnect({ preferred: "solana", platform: "pumpfun" });
+      setDeskMessage({ kind: "error", text: "Connect a Solana wallet to wire crew fees." });
       return;
     }
     setWiring(coin.mint);
@@ -917,8 +922,8 @@ export default function App() {
   async function onLockHolderKols() {
     if (!selectedCoin) return;
     if (!connected) {
-      setVisible(true);
-      setDeskMessage({ kind: "error", text: "Connect Phantom to lock holder KOLs." });
+      openConnect({ preferred: "solana", platform: "pumpfun" });
+      setDeskMessage({ kind: "error", text: "Connect a Solana wallet to lock holder KOLs." });
       return;
     }
     if (!holderScan?.matches.length) {
@@ -971,8 +976,8 @@ export default function App() {
 
   async function onAdoptMint() {
     if (!connected) {
-      setVisible(true);
-      setDeskMessage({ kind: "error", text: "Connect Phantom to adopt a mint." });
+      openConnect({ preferred: "solana", platform: "pumpfun" });
+      setDeskMessage({ kind: "error", text: "Connect a Solana wallet to adopt a mint." });
       return;
     }
     const mint = adoptMint.trim();
@@ -1038,8 +1043,8 @@ export default function App() {
 
   async function onCrank(mint: string, ticker: string) {
     if (!connected) {
-      setVisible(true);
-      setDeskMessage({ kind: "error", text: "Connect Phantom to crank remits." });
+      openConnect({ preferred: "solana", platform: "pumpfun" });
+      setDeskMessage({ kind: "error", text: "Connect a Solana wallet to crank remits." });
       return;
     }
     const coin = coins.find((c) => c.mint === mint);
@@ -1138,7 +1143,7 @@ export default function App() {
   async function onFireBuyback(force = false) {
     if (!selectedCoin) return;
     if (!wallet.publicKey) {
-      setVisible(true);
+      openConnect({ preferred: "solana", platform: "pumpfun" });
       return;
     }
     setActing(true);
@@ -1226,7 +1231,7 @@ export default function App() {
   async function onRaidClaim(questId?: string) {
     if (!selectedCoin) return;
     if (!wallet.publicKey) {
-      setVisible(true);
+      openConnect({ preferred: "solana", platform: "pumpfun" });
       return;
     }
     setActing(true);
@@ -1416,21 +1421,7 @@ export default function App() {
             </a>
           </nav>
           <div className="nav-actions">
-            <button
-              type="button"
-              className={`btn btn-ghost btn-nav wallet-btn${connected ? " is-on" : ""}`}
-              title={connected ? "Disconnect wallet" : "Connect wallet"}
-              aria-label={connected ? "Disconnect wallet" : "Connect wallet"}
-              onClick={() => {
-                if (connected) {
-                  void wallet.disconnect();
-                  return;
-                }
-                setVisible(true);
-              }}
-            >
-              {connected ? shortAddr(wallet.publicKey!.toBase58()) : "Connect"}
-            </button>
+            <ConnectButton platform={launchPlatform} evmChain={venues.find((v) => v.id === launchPlatform)?.chain} />
             <Link
               className={`btn btn-primary btn-nav${isLaunchPage ? " is-active-nav" : ""}`}
               to="/launch"
@@ -1784,7 +1775,7 @@ export default function App() {
             <div className="feed">
               {feed.length === 0 ? (
                 <p className="hint score-empty">
-                  No launches yet. Connect Phantom and ship a crew coin on mainnet.
+                  No launches yet. Connect a wallet and ship a crew coin on mainnet.
                 </p>
               ) : (
                 feed.map((item) => (
@@ -2172,7 +2163,7 @@ export default function App() {
             <h1 className="section-title">Hire crew. Launch.</h1>
             <p className="section-sub">
               Name the token, Autohire 1–{MAX_CREW} KOLs from the narrative, lock fee-shares, then
-              launch. Pump.fun signs with Phantom. Bags.fm and Zora use the Agent unsigned API.
+              launch. Pump.fun signs in your Solana wallet. Bags.fm and Zora use the Agent unsigned API.
             </p>
           </div>
 
@@ -2201,20 +2192,15 @@ export default function App() {
                 )}
               />
               <AuthChoice x402={x402} value={agentAuth} onChange={setAgentAuth} />
-              {phantomLaunch ? (
-                <div className="field">
-                  <label>Wallet</label>
-                  <button
-                    type="button"
-                    className={`btn btn-wide${connected ? " btn-ghost" : " btn-primary"}`}
-                    onClick={() => setVisible(true)}
-                  >
-                    {connected
-                      ? `Connected · ${shortAddr(wallet.publicKey!.toBase58())}`
-                      : "Connect Phantom"}
-                  </button>
-                </div>
-              ) : null}
+              <div className="field">
+                <label>Wallet</label>
+                <ConnectButton
+                  wide
+                  platform={launchPlatform}
+                  evmChain={venues.find((v) => v.id === launchPlatform)?.chain}
+                  idleLabel="Connect wallet"
+                />
+              </div>
 
               <div className="row-2">
                 <div className="field">
@@ -2728,6 +2714,10 @@ export default function App() {
                       description: draft.vibe,
                       auth: agentAuth,
                       paymentHeader: x402.requestHeader,
+                      launcherPubkey:
+                        launchPlatform === "zora"
+                          ? evmAddress
+                          : wallet.publicKey?.toBase58(),
                     })}
                   </pre>
                 </details>

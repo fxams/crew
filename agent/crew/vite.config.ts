@@ -31,7 +31,7 @@ export default defineConfig(() => {
     react(),
   ],
   optimizeDeps: {
-    include: ['buffer', 'process', 'bn.js', 'crypto', 'stream'],
+    include: ['buffer', 'process', 'bn.js', 'crypto', 'stream', 'wagmi', 'viem', '@tanstack/react-query'],
   },
   build: {
     outDir: 'dist',
@@ -48,7 +48,11 @@ export default defineConfig(() => {
           groups: [
             {
               name: 'solana',
-              test: /node_modules[\\/](?:@solana|@pump-fun|bn\.js|bs58)/,
+              test: /node_modules[\\/](?:@solana|@solana-mobile|@pump-fun|bn\.js|bs58)/,
+            },
+            {
+              name: 'evm',
+              test: /node_modules[\\/](?:wagmi|viem|@wagmi|@walletconnect|@reown|@coinbase|@tanstack)/,
             },
             {
               name: 'irys',

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { useWalletModal } from '@solana/wallet-adapter-react-ui'
+import { useAccount } from 'wagmi'
+import { useConnectModal } from './ConnectModal'
+import { detectInjected, isMobileUserAgent, phantomBrowseUrl, solflareBrowseUrl } from '../lib/wallet'
 import bs58 from 'bs58'
 import { CREW_VERSION, KOL_REFERRAL_CUT_PCT } from '../lib/config'
 import { formatSol } from '../lib/format-sol'
@@ -64,14 +66,14 @@ function normalizeRef(raw: string | null): string {
 
 type PaidRow = { handle: string; totalSol: number; remits: number; tickers: string[] }
 
-/** Mobile browsers without an injected wallet: offer "open in Phantom". */
-function phantomBrowseUrl(): string | null {
+/** Mobile browsers without an injected wallet: offer Phantom / Solflare universal links. */
+function mobileBrowseLinks(): { phantom: string; solflare: string } | null {
   if (typeof window === 'undefined') return null
-  const w = window as unknown as { solana?: unknown; phantom?: unknown; backpack?: unknown; solflare?: unknown }
-  if (w.solana || w.phantom || w.backpack || w.solflare) return null
-  if (!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '')) return null
+  if (detectInjected(window).solana) return null
+  if (!isMobileUserAgent(navigator.userAgent)) return null
   const here = window.location.href
-  return `https://phantom.app/ul/browse/${encodeURIComponent(here)}?ref=${encodeURIComponent(window.location.origin)}`
+  const origin = window.location.origin
+  return { phantom: phantomBrowseUrl(here, origin), solflare: solflareBrowseUrl(here, origin) }
 }
 
 function PaidByAgents() {
@@ -152,7 +154,8 @@ function HiredLookup() {
 
 export function KolRegisterPage() {
   const wallet = useWallet()
-  const { setVisible } = useWalletModal()
+  const { address: evmAddress } = useAccount()
+  const { open: openConnect } = useConnectModal()
   const [params] = useSearchParams()
   const [board, setBoard] = useState<Registration[]>([])
   const [tape, setTape] = useState<Registration[]>([])
@@ -230,13 +233,17 @@ export function KolRegisterPage() {
     if (fromUrl) setRefInput(fromUrl)
   }, [params])
 
+  useEffect(() => {
+    if (evmAddress && !evmWallet.trim()) setEvmWallet(evmAddress)
+  }, [evmAddress, evmWallet])
+
   async function onRegister() {
     if (alreadyRegistered && ownHandle) {
       return
     }
     setError(null)
     if (!wallet.publicKey || !wallet.signMessage) {
-      setVisible(true)
+      openConnect({ preferred: 'solana' })
       setError('Connect a Solana wallet that can sign messages.')
       return
     }
@@ -455,15 +462,18 @@ export function KolRegisterPage() {
             </p>
           ) : null}
 
-          {!connected && phantomBrowseUrl() ? (
+          {!connected && mobileBrowseLinks() ? (
             <p className="hint register-mobile-hint">
               On a phone without a wallet extension?{' '}
-              <a href={phantomBrowseUrl()!}>Open this page in Phantom</a> to connect and sign.
+              <a href={mobileBrowseLinks()!.phantom}>Open in Phantom</a>
+              {' · '}
+              <a href={mobileBrowseLinks()!.solflare}>Open in Solflare</a>
+              {' '}to connect and sign.
             </p>
           ) : null}
           <div className="register-actions">
             {!connected ? (
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setVisible(true)}>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => openConnect({ preferred: 'solana' })}>
                 Connect wallet
               </button>
             ) : null}
