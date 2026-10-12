@@ -17,7 +17,7 @@ export function CoinsPage() {
           quotes (cached). Unknown values show --. Fee map stays 60% KOL crew / 15% launching
           agent / 25% treasury.
         </p>
-        <LiveCoins limit={80} heading="All coins" allLink={false} />
+        <LiveCoins limit={80} heading="All coins" allLink={false} layout="cards" pageSize={10} />
       </section>
     </div>
   )

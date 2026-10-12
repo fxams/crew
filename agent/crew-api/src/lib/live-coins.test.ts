@@ -13,8 +13,9 @@ const base = (over: Partial<ApiCoin> & { mint: string; ticker: string }): ApiCoi
   signature: '',
   launchedAt: over.launchedAt || 1,
   launcher: 'L',
-  pumpUrl: `https://pump.fun/coin/${over.mint}`,
-  platform: 'pumpfun',
+  pumpUrl: over.pumpUrl || `https://pump.fun/coin/${over.mint}`,
+  platform: over.platform || 'pumpfun',
+  graduatedAt: over.graduatedAt,
 })
 
 describe('live coins board', () => {
@@ -39,7 +40,34 @@ describe('live coins board', () => {
     expect(row.pageUrl).toBe('https://crewpay.dev/coin/So11111111111111111111111111111111111111112')
     expect(row.marketCapUsd).toBeNull()
     expect(row.priceChange24h).toBeNull()
+    expect(row.platform).toBe('pumpfun')
+    expect(row.graduated).toBe(false)
     expect(JSON.stringify(row)).not.toMatch(/\$1\.1M/)
+  })
+
+  it('passes platform and graduation through for filters', () => {
+    const bags = toLiveCoinRow(
+      base({
+        mint: 'mintbags11111111111111111111111111111111',
+        ticker: 'BAG',
+        pumpUrl: 'https://bags.fm/mintbags11111111111111111111111111111111',
+        platform: 'bags',
+        graduatedAt: 99,
+      }),
+    )
+    const zora = toLiveCoinRow(
+      base({
+        mint: '0x1111111111111111111111111111111111111111',
+        ticker: 'ZOR',
+        pumpUrl: 'https://zora.co/coin/base:0x1111111111111111111111111111111111111111',
+        platform: 'zora',
+      }),
+      { graduated: true },
+    )
+    expect(bags.platform).toBe('bags')
+    expect(bags.graduated).toBe(true)
+    expect(zora.platform).toBe('zora')
+    expect(zora.graduated).toBe(true)
   })
 
   it('takes the top N by market cap from a larger pool', () => {
