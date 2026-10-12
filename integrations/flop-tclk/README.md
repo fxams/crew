@@ -31,6 +31,10 @@ is a CrewPay KOL hire and the payment leg is a tclk contract. tclk's canonical r
 Solana rail yet**, so real-value settlement of a Solana-native crew isn't possible through tclk
 today. That's why this demo stays on `paper`.
 
+Jobs + escrow (`JOBS_ENABLED`) can opt into the same HTLC lifecycle on tclk's **memory** rail
+via `FlopTclkSettlementRail` (`rail=flop-tclk` or `FLOP_ENABLED`). That adapter is off by
+default, non-custodial, and not a partnership. See [`docs/flop-adapter.md`](../../docs/flop-adapter.md).
+
 ## Run it
 
 Requirements: Node 20+, Python 3.12 with [uv](https://docs.astral.sh/uv/), and a CrewPay agent

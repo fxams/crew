@@ -1,37 +1,51 @@
-### FLOP Network adapter (tclk HTLC mapping)
+# FLOP / tclk settlement rail
 
-This module adds a FLOP rail adapter that maps a tclk-style HTLC lifecycle onto CrewPay's job escrow states:
+Independent community adapter. Not a partnership or endorsement. No branding.
 
-- fund → lock (HTLC created on rail)
-- accept → off-rail acknowledgement (verifies `verifyLock`)
-- submit → off-rail work artifact reference
-- verify → off-rail check
-- release → claim (reveal preimage)
-- refund/timeout → refund after `refundAfterMs`
+Maps tclk HTLC lock / reveal / refund onto CrewPay's `SettlementRail` from the jobs + escrow system (`agent/crew-api/src/lib/jobs/settlement.ts`).
 
-Status mapping:
-- locked → funded/accepted/submitted/verified (depending on off-rail steps)
-- claimed → released
-- refunded → refunded
-- if locked and now ≥ `refundAfterMs` → timed_out
+## Mapping
 
-Configuration (off by default):
-- `FLOP_ENABLED=false` by default. Set `true` when wiring into a host that will decide rails dynamically.
-- `FLOP_RAIL=memory` to use the tclk memory rail (default in tests).
-- `FLOP_RPC_URL` and `FLOP_CHAIN_ID` are reserved for the future `flop-htlc` rail. Not used today.
+| CrewPay job / rail step | tclk memory rail |
+|---|---|
+| `fund` | `MemoryRail.lock` (hash lock created) |
+| `lock` / `verifyFunding` | `MemoryRail.verifyLock` |
+| accept / submit / verify | Off-rail (jobs store + HTTP routes) |
+| `release` | unsigned `tclk:reveal` — client holds the preimage |
+| `reveal` (local / tests) | `MemoryRail.claim` |
+| `refund` / timeout | `MemoryRail.refund` after `refundAfterMs` |
 
-Non-custodial:
-- The adapter never transmits private keys or preimages to CrewPay services.
-- In tests, the preimage is generated and kept locally; `release` requires the caller to provide it.
+Job HTTP states stay `created → funded → assigned → submitted → verified → paid | refunded`.
 
-Current state:
-- Runs on the tclk memory rail when available; otherwise falls back to a local, test-only in-memory HTLC shim with the same semantics.
-- The FLOP testnet RPC and canonical `flop-htlc` bindings are not public yet; the code throws if `FLOP_RAIL=flop-htlc` is selected.
+## Flags (all off by default)
 
-Tests:
-- Vitest suite under `agent/crew/src/lib/adapters/flop/flop-adapter.test.ts` exercises both success (release) and timeout/refund paths on the memory rail.
+Jobs endpoints remain behind `JOBS_ENABLED`. The FLOP rail is not the default.
 
-Disclaimer:
-- This is an independent, community-maintained integration. It does not imply any partnership or endorsement.
-- No FLOP branding or logos are used.
+| Env | Default | Role |
+|---|---|---|
+| `FLOP_ENABLED` | unset / false | When true, `chainId=flop-testnet` (or `FLOP_CHAIN_ID`) selects this rail |
+| `JOBS_RAIL` / `POST /fund` `rail` | — | Set `flop-tclk` (or `flop`, `tclk-memory`) to opt in explicitly |
+| `FLOP_RAIL` | `memory` | `memory` uses `@flop-labs/tclk` `MemoryRail`. `flop-htlc` is reserved |
+| `FLOP_RPC_URL` | unset | When set (with `FLOP_RAIL=flop-htlc`), points at the future testnet RPC |
+| `FLOP_CHAIN_ID` | `flop-testnet` | Logical / future public chain id |
 
+Selecting `flop-htlc` or setting `FLOP_RPC_URL` without a published binding throws. Unset those to stay on the memory rail.
+
+## Non-custodial
+
+The API never accepts private keys, seeds, or hash-lock preimages. `release` returns an unsigned reveal payload. Tests keep a preimage in-process only when `retainPreimageForTests` is set on the rail constructor — that helper is not an HTTP surface.
+
+## Files
+
+- `agent/crew-api/src/lib/jobs/flop-rail.ts` — `FlopTclkSettlementRail` implements `SettlementRail`
+- `agent/crew-api/src/lib/jobs/flop-config.ts` — flags + secret rejection
+- `agent/crew-api/src/lib/jobs/settlement.ts` — `railFor(...)` wiring
+- `agent/crew-api/src/lib/jobs/flop-rail.test.ts` — memory-rail tests
+- `integrations/flop-tclk/` — existing paper-rail demo / harness (unchanged choreography)
+
+## When the FLOP testnet RPC is public
+
+1. Set `FLOP_RPC_URL` and `FLOP_CHAIN_ID` to the published values.
+2. Implement the `flop-htlc` client behind `FLOP_RAIL=flop-htlc` (unsigned lock / claim / refund).
+3. Add a gated integration test that talks to the live RPC (not the default CI path).
+4. Keep memory-rail tests as the hermetic suite.

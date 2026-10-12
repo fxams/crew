@@ -58,7 +58,7 @@ Adapter interface (test-only implementation first):
 Notes:
 - Solana first: devnet or simulated program stub; final mainnet requires an audited program PDA model.
 - EVM stubs: Base/Ethereum placeholders; real release/refund need audited escrow contracts.
-- TCLK rails: future alternative settlement leg (integrations/flop-tclk), mappable via the same interface.
+- TCLK rails: `FlopTclkSettlementRail` implements the adapter on tclk's memory rail (opt-in; `docs/flop-adapter.md`). `flop-htlc` waits on a public testnet RPC.
 
 ## Proof-of-work verification (campaigns)
 
@@ -130,15 +130,24 @@ All endpoints are test-only; simulated or devnet-only. Do not touch existing lau
   - KYC/AML and fraud controls as applicable by jurisdiction.
   - Clear ToS and disclosures; no implicit employment relationships.
 
-## Mapping to TCLK (later)
+## Mapping to TCLK
 
-- Add a TCLK settlement rail implementing the adapter (fund/lock/release/refund/verifyFunding).
-- Encode campaign payouts as TCLK flows (alternative settlement leg), preserving per-proof caps and deadlines.
+`FlopTclkSettlementRail` (`agent/crew-api/src/lib/jobs/flop-rail.ts`) implements `SettlementRail`:
+
+- `fund` → tclk `MemoryRail.lock` (hash lock)
+- `lock` / `verifyFunding` → `verifyLock`
+- `release` → unsigned `tclk:reveal` (client-held preimage; API never takes secrets)
+- `refund` → `MemoryRail.refund` after `refundAfterMs`
+
+Opt-in only: `rail=flop-tclk` or `FLOP_ENABLED` + `chainId=flop-testnet`. Memory rail until `FLOP_RPC_URL` / `FLOP_CHAIN_ID` point at a published testnet; `flop-htlc` is reserved and throws until that binding exists. Independent community adapter — not a partnership.
+
+See `docs/flop-adapter.md`.
 
 ## Flags and safety
 
 - `JOBS_ENABLED` (default off) gates endpoints and MCP tools.
 - `JOBS_RAIL` may default to 'sim' in dev/tests.
+- `FLOP_ENABLED` (default off) selects the tclk memory rail for `flop-testnet`; `FLOP_RPC_URL` / `FLOP_CHAIN_ID` reserved for later.
 - All code is test/devnet only in this step; no mainnet funds moved.
 
 ## Addendum: Non-custodial rails and multichain defaults (v0 update)

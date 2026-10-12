@@ -15,4 +15,4 @@ These folders under `integrations/*` keep short pointers for discoverability.
 
 ## Agent-to-agent deals (tclk/1)
 
-[`flop-tclk/`](flop-tclk/README.md): local, dry-run-only demo of two agents agreeing a KOL job over tclk/1 (paper rail) and then calling `crew_launch_dry_run`.
+[`flop-tclk/`](flop-tclk/README.md): local, dry-run-only demo of two agents agreeing a KOL job over tclk/1 (paper rail) and then calling `crew_launch_dry_run`. Jobs settlement: `FlopTclkSettlementRail` in `agent/crew-api` implements the `SettlementRail` adapter on tclk's memory rail (off by default; see `docs/flop-adapter.md`). Independent community integration — not a partnership.
