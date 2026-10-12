@@ -91,3 +91,31 @@ export function dryRunIdFromApprovePath(pathname: string): string | null {
 export function isApprovePath(pathname: string): boolean {
   return Boolean(dryRunIdFromApprovePath(pathname))
 }
+
+/** Public post-launch coin page: `/coin/:mint` (Solana base58 or EVM 0x). */
+export function coinMintFromPath(pathname: string): string | null {
+  const path = normalizePath(pathname)
+  const match = path.match(
+    /(?:^|\/)coin\/([1-9A-HJ-NP-Za-km-z]{32,64}|0x[a-fA-F0-9]{40})$/,
+  )
+  return match?.[1] ?? null
+}
+
+export function coinPagePath(mint: string): string {
+  return `/coin/${encodeURIComponent(mint.trim())}`
+}
+
+export function isCoinPath(pathname: string): boolean {
+  return Boolean(coinMintFromPath(pathname))
+}
+
+/** All-coins board: `/coins` (not `/coin/:mint`). */
+export function isCoinsPath(pathname: string): boolean {
+  const path = normalizePath(pathname)
+  return path === '/coins' || path.endsWith('/coins')
+}
+
+export function isAdminKickoffPath(pathname: string): boolean {
+  const path = normalizePath(pathname)
+  return path === '/admin/kickoff' || path.endsWith('/admin/kickoff')
+}

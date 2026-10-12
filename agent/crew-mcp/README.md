@@ -21,6 +21,9 @@ Works with **Cursor**, **Claude Desktop**, **Claude Code**, **ChatGPT MCP**, **G
 | `crew_lock_holder_kol` | Lock top holders ∩ KOL DB |
 | `crew_crank_remits` | distributeCreatorFeesV2 |
 | `crew_proof` | Public buyback + remit proof tape |
+| `post_coin_job` | Post-launch kit: meme-pack / banner-logo / x-upkeep / website-polish on jobs+escrow (`JOBS_ENABLED`, test/devnet) |
+| `crew_job_templates` | List creative job presets |
+| `crew_job_list` | Open jobs (optional `mint`) |
 
 **Secrets:** `launcherKey` / `privateKey` / `secretKey` tool arguments are **rejected**. Use `CREW_LAUNCHER_KEY` in MCP env (local) only.
 

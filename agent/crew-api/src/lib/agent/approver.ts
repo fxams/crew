@@ -77,3 +77,20 @@ export async function assertWalletMayApprove(opts: {
     throw new Error('Wallet is not on the approver allowlist')
   }
 }
+
+/** Kickoff admin: allowlisted operator wallet only (no launcher check, no new secrets). */
+export function assertAllowlistedApprover(walletRaw: string, allowlist?: string[]): string {
+  const wallet = normalizeWallet(walletRaw)
+  if (!wallet) throw new Error('Invalid admin wallet')
+  const allow =
+    allowlist !== undefined
+      ? allowlist.map((w) => normalizeWallet(w)).filter((w): w is string => Boolean(w))
+      : resolveApproverAllowlist()
+  if (allow.length === 0) {
+    throw new Error('Approvals disabled — set CREWPAY_APPROVER_WALLETS')
+  }
+  if (!allow.includes(wallet)) {
+    throw new Error('Wallet is not on the approver allowlist')
+  }
+  return wallet
+}

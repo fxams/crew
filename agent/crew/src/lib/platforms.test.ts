@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  DEFAULT_LAUNCH_PLATFORM,
   FALLBACK_LAUNCH_VENUES,
   LAUNCH_FEE_MAP_COPY,
   explorerLabel,
@@ -123,6 +124,8 @@ describe('launch platform helpers', () => {
     expect(LAUNCH_FEE_MAP_COPY.toLowerCase()).not.toMatch(/launcher gets 60/)
     expect(LAUNCH_FEE_MAP_COPY).not.toMatch(/rest treasury/)
     expect(FALLBACK_LAUNCH_VENUES).toHaveLength(3)
+    expect(FALLBACK_LAUNCH_VENUES.find((v) => v.id === 'bags')?.caption).toBe('recommended')
+    expect(DEFAULT_LAUNCH_PLATFORM).toBe('pumpfun')
     const curl = unsignedLaunchCurl({ platform: 'bags', name: 'Night Owl', ticker: 'HOOT' })
     expect(curl).toContain('"platform": "bags"')
     expect(curl).toContain('/api/agent/launch/unsigned')

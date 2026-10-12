@@ -11,9 +11,11 @@ import { kolsRouter } from './routes/kols.js'
 import { proofRouter } from './routes/proof.js'
 import { webhooksRouter } from './routes/webhooks.js'
 import { jobsRouter } from './routes/jobs.js'
+import { postLaunchRouter } from './routes/post-launch.js'
 import { maybeStartAcpInProcess } from './lib/acp-inprocess.js'
 import { configureTrustProxy } from './lib/client-ip.js'
 import { probeJitoEngines } from './lib/agent/jito.js'
+import { startFeeAccrualPoller } from './lib/fee-accrual.js'
 
 const port = Number(process.env.PORT || 10000)
 const allowedOrigins = (process.env.CORS_ORIGINS || 'https://app.crewpay.dev,https://crewpay.dev,http://localhost:5173,http://127.0.0.1:4173')
@@ -60,6 +62,7 @@ async function main() {
   app.use(healthRouter)
   app.use(discoveryRouter)
   app.use('/api', healthRouter)
+  app.use('/api', postLaunchRouter)
   app.use('/api', coinsRouter)
   app.use('/api', kolsRouter)
   app.use('/api', kolRegisterRouter)
@@ -115,6 +118,7 @@ async function main() {
     void maybeStartAcpInProcess().catch((err) => {
       console.error('[acp] in-process listener failed; API continues', err)
     })
+    startFeeAccrualPoller()
   })
 }
 

@@ -273,12 +273,76 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
       'crew_job_list',
       {
         title: 'List open jobs (test/devnet only)',
-        description: 'List open/funded campaign jobs. Test-only; behind JOBS_ENABLED.',
+        description: 'List open/funded campaign jobs. Test-only; behind JOBS_ENABLED. Optional mint filter.',
+        inputSchema: {
+          mint: z.string().min(32).max(64).optional().describe('Filter jobs for a CrewPay-launched mint'),
+        },
+        annotations: { readOnlyHint: true, openWorldHint: true },
+      },
+      async (input) => {
+        const q = input.mint ? `?mint=${encodeURIComponent(input.mint)}` : ''
+        const data = await crewFetch(cfg, `/api/jobs/open${q}`)
+        return asText(data)
+      },
+    )
+    server.registerTool(
+      'crew_job_templates',
+      {
+        title: 'List post-launch creative job templates',
+        description:
+          'Presets for a launched coin: meme-pack, banner-logo, x-upkeep (N posts/week), website-polish. Jobs + escrow, test/devnet. No earnings promises.',
         inputSchema: {},
         annotations: { readOnlyHint: true, openWorldHint: true },
       },
       async () => {
-        const data = await crewFetch(cfg, '/api/jobs/open')
+        const data = await crewFetch(cfg, '/api/jobs/templates')
+        return asText(data)
+      },
+    )
+    server.registerTool(
+      'post_coin_job',
+      {
+        title: 'Post a creative job for a CrewPay-launched coin',
+        description:
+          'One-click template on the existing jobs+escrow system: meme-pack, banner-logo, x-upkeep, website-polish. Agents post with escrowed budget; humans claim, deliver, get paid after verification. Test/devnet only — mainnet chain ids are rejected. Public coin page: https://crewpay.dev/coin/<mint>. No earnings promises. Launch fee map stays 60% KOL crew / 15% launching agent / 25% treasury.',
+        inputSchema: {
+          mint: z.string().min(32).max(64).describe('Coin mint from a CrewPay launch'),
+          template: z
+            .enum(['meme-pack', 'banner-logo', 'x-upkeep', 'website-polish'])
+            .describe('Creative job preset'),
+          chainId: z
+            .enum(['solana-devnet', 'evm:base-sepolia', 'flop-testnet'])
+            .describe('Test/devnet only'),
+          asset: z.enum(['SOL', 'USDC', 'ETH', 'USDT']).describe('Payout asset'),
+          budget: z.number().positive().optional().describe('Total budget (test units)'),
+          perProofAmount: z.number().positive().optional(),
+          postsPerWeek: z.number().int().min(1).max(21).optional().describe('X upkeep: posts per week'),
+          deadlineHours: z.number().int().min(1).max(720).optional(),
+          ticker: z.string().max(16).optional(),
+          fund: z.boolean().optional().describe('If true, fund sim/flop-tclk escrow (never mainnet)'),
+          dryRun: z.boolean().optional().describe('If true, plan only — do not persist'),
+        },
+        annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: false },
+      },
+      async (input) => {
+        const body: Record<string, unknown> = {
+          mint: input.mint,
+          template: input.template,
+          chainId: input.chainId,
+          asset: input.asset,
+        }
+        if (input.budget != null) body.budget = input.budget
+        if (input.perProofAmount != null) body.perProofAmount = input.perProofAmount
+        if (input.postsPerWeek != null) body.postsPerWeek = input.postsPerWeek
+        if (input.deadlineHours != null) body.deadlineHours = input.deadlineHours
+        if (input.ticker) body.ticker = input.ticker
+        if (input.fund) body.fund = true
+        const path = input.dryRun ? '/api/jobs/coin/dry-run' : '/api/jobs/coin'
+        const data = await crewFetch(cfg, path, {
+          method: 'POST',
+          auth: true,
+          body: JSON.stringify(body),
+        })
         return asText(data)
       },
     )

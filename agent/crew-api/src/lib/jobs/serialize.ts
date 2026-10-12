@@ -1,0 +1,24 @@
+import { formatAmountFromBigint, type Job } from './types.js'
+
+/** JSON-safe job (bigint amounts → display numbers). */
+export function jobToJson(job: Job) {
+  return {
+    id: job.id,
+    type: job.type,
+    createdBy: job.createdBy,
+    chainId: job.chainId,
+    asset: job.asset,
+    budget: formatAmountFromBigint(job.budget),
+    perProofAmount: formatAmountFromBigint(job.perProofAmount),
+    maxProofs: job.maxProofs,
+    perKOLCap: job.perKOLCap,
+    deadline: job.deadline,
+    rules: job.rules,
+    status: job.status,
+    escrowRef: job.escrowRef ?? null,
+    createdAt: job.createdAt,
+    updatedAt: job.updatedAt,
+    mint: job.mint,
+    templateId: job.templateId,
+  }
+}

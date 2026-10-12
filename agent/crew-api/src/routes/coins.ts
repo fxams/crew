@@ -16,6 +16,10 @@ import { isPlatformTreasury, readPlatformBuybackWallet } from '../lib/agent/cons
 import { requireApiKeyOrWallet, requireWalletSignatureOnly } from '../lib/wallet-auth.js'
 import { issueBoardNonce } from '../lib/board-nonces.js'
 import { assertSafeHttpUrl } from '../lib/agent/safe-url.js'
+import { coinPageUrl, enrichPublicCoinMeta, toPublicCoinPage, type PublicCoinMeta } from '../lib/coin-page.js'
+import { listLiveCoins } from '../lib/live-coins.js'
+import { featuredPublic, listGraduatedUnfeatured, setCoinFeaturedX } from '../lib/featured.js'
+import { detectGraduation, recordGraduationIfNew } from '../lib/graduation.js'
 import { fetchPumpBondingCurveCreator } from '../lib/pump-creator.js'
 import { assertRemitOnChain } from '../lib/remits-chain.js'
 
@@ -90,6 +94,57 @@ coinsRouter.get('/coins', async (req, res) => {
   }
 })
 
+coinsRouter.get('/coins/graduated-unfeatured', requireApiKey, async (req, res) => {
+  try {
+    const limit = Number(req.query.limit || 50)
+    const coins = await listGraduatedUnfeatured(limit)
+    res.json({
+      ok: true,
+      coins: coins.map((c) => ({
+        mint: c.mint,
+        name: c.name,
+        ticker: c.ticker,
+        pageUrl: coinPageUrl(c.mint),
+        pumpUrl: c.pumpUrl,
+        graduatedAt: c.graduatedAt,
+        graduatedVia: c.graduatedVia,
+        featuredXUrl: null,
+      })),
+      note: 'Pump.fun graduates without a @CrewPayHQ post URL yet. External routine posts, then POST /api/coins/:mint/featured. CrewPay does not auto-post.',
+    })
+  } catch (err) {
+    sendInternalError(res, err, 'graduated-unfeatured')
+  }
+})
+
+coinsRouter.post('/coins/:mint/featured', requireApiKey, async (req, res) => {
+  try {
+    const mint = String(req.params.mint || '').trim()
+    const url = String((req.body as { url?: string; featuredXUrl?: string })?.url
+      || (req.body as { featuredXUrl?: string })?.featuredXUrl
+      || '')
+    const setBy = req.crewAgentAuth?.keyId || req.crewAgentAuth?.fingerprint || 'api-key'
+    const coin = await setCoinFeaturedX({ mint, url, setBy })
+    res.json({ ok: true, featured: featuredPublic(coin), autoPosted: false })
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err instanceof Error ? err.message : 'featured failed' })
+  }
+})
+
+coinsRouter.get('/coins/live', async (req, res) => {
+  try {
+    const limit = Number(req.query.limit || 40)
+    const coins = await listLiveCoins(limit)
+    res.json({
+      ok: true,
+      coins,
+      note: 'CrewPay launches only. Market cap and 24h change from public Dexscreener (cached). Unknown fields are null — UI shows --.',
+    })
+  } catch (err) {
+    sendInternalError(res, err, 'live coins')
+  }
+})
+
 coinsRouter.get('/coins/:mint', async (req, res) => {
   try {
     const coin = await getCoin(req.params.mint)
@@ -97,7 +152,18 @@ coinsRouter.get('/coins/:mint', async (req, res) => {
       res.status(404).json({ error: 'Not found' })
       return
     }
-    res.json({ coin })
+    const meta = await enrichPublicCoinMeta(coin).catch(() => ({} as PublicCoinMeta))
+    if (meta.graduated) {
+      const rec = await recordGraduationIfNew(coin, {
+        graduated: true,
+        via: meta.graduatedVia || 'observed',
+      }).catch(() => null)
+      if (rec?.graduatedAt) {
+        coin.graduatedAt = rec.graduatedAt
+        coin.graduatedVia = rec.via || coin.graduatedVia
+      }
+    }
+    res.json({ coin: toPublicCoinPage(coin, meta) })
   } catch (err) {
     sendInternalError(res, err, 'get coin')
   }
