@@ -12,6 +12,10 @@ export const BAGS_MAX_CLAIMERS = 100
 /** LUT required above this many claimers (Bags fee-share config OpenAPI). */
 export const BAGS_MAX_CLAIMERS_NON_LUT = 7
 export const BAGS_PUBLIC_LUT = 'Eq1EVs15EAWww1YtPTtWPzJRLPJoS6VYP9oW9SbNr3yp'
+/** Default Meteora/Bags config type — @bagsfm/bags-sdk always sends this on POST /fee-share/config. */
+export const BAGS_DEFAULT_CONFIG_TYPE = 'fa29606e-5e48-4c37-827f-4b03d58ee23d'
+/** Config creation funds deployer accounts; Bags simulates against payer SOL (~0.05 SOL). */
+export const BAGS_MIN_FEE_SHARE_SOL = 0.05
 export const BAGS_API_BASE_DEFAULT = 'https://public-api-v2.bags.fm/api/v1'
 export const BAGS_COIN_URL = (mint: string) => `https://bags.fm/${mint}`
 

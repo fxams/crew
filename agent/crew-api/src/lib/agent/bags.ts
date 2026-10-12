@@ -1,12 +1,14 @@
-import { VersionedTransaction } from '@solana/web3.js'
+import { PublicKey, VersionedTransaction } from '@solana/web3.js'
 import bs58 from 'bs58'
 import type { CrewMember } from './narrative.js'
 import type { Shareholder } from './shareholders.js'
 import type { UnsignedLaunchPlan, UnsignedStep } from './unsigned.js'
 import {
   BAGS_COIN_URL,
+  BAGS_DEFAULT_CONFIG_TYPE,
   BAGS_MAX_CLAIMERS,
   BAGS_MAX_CLAIMERS_NON_LUT,
+  BAGS_MIN_FEE_SHARE_SOL,
   BAGS_PUBLIC_LUT,
   assertBagsEnabled,
   bagsApiBase,
@@ -21,6 +23,57 @@ let bagsHttp: BagsHttp = globalThis.fetch as BagsHttp
 
 export function setBagsHttpForTests(fn: BagsHttp | null): void {
   bagsHttp = fn || (globalThis.fetch as BagsHttp)
+}
+
+export type BagsLamportsFn = (wallet: string) => Promise<number>
+let bagsLamportsForTests: BagsLamportsFn | null = null
+
+export function setBagsLamportsForTests(fn: BagsLamportsFn | null): void {
+  bagsLamportsForTests = fn
+}
+
+const FEE_SHARE_UNFUNDED_HINT =
+  `Bags fee-share config creation funds on-chain deployer accounts and simulates against the payer. Fund launcherPubkey with ~${BAGS_MIN_FEE_SHARE_SOL} SOL and retry. If the wallet is funded, this is a Bags-side failure — retry, or launch on pumpfun.`
+
+export function assertSolanaPubkey(value: string, label: string): string {
+  try {
+    return new PublicKey(value).toBase58()
+  } catch {
+    throw new Error(`Invalid Solana ${label}: ${String(value).slice(0, 12)}…`)
+  }
+}
+
+function pickBagsErrorDetail(json: unknown, text: string): string {
+  if (json && typeof json === 'object') {
+    const obj = json as Record<string, unknown>
+    for (const key of ['error', 'response', 'message']) {
+      const v = obj[key]
+      if (typeof v === 'string' && v.trim()) return v.trim()
+    }
+  }
+  const snippet = text.trim().slice(0, 180)
+  return snippet && snippet !== '{"success":false}' ? snippet : ''
+}
+
+export function bagsApiFailureMessage(path: string, status: number, json: unknown, text: string): string {
+  const detail = pickBagsErrorDetail(json, text)
+  const base = detail
+    ? `Bags API ${path} failed (${status}): ${detail}`
+    : `Bags API ${path} failed (${status})`
+  if (status >= 500 && path.includes('fee-share/config')) {
+    return `${base}. ${FEE_SHARE_UNFUNDED_HINT}`
+  }
+  return base
+}
+
+async function readPayerLamports(wallet: string): Promise<number | null> {
+  if (bagsLamportsForTests) return bagsLamportsForTests(wallet)
+  try {
+    const { getConnection } = await import('./send.js')
+    return await getConnection().getBalance(new PublicKey(wallet), 'confirmed')
+  } catch {
+    return null
+  }
 }
 
 async function bagsRequest<T>(path: string, init: RequestInit & { apiKey: string }): Promise<T> {
@@ -42,11 +95,7 @@ async function bagsRequest<T>(path: string, init: RequestInit & { apiKey: string
     throw new Error(`Bags API ${path} returned non-JSON (${res.status}): ${text.slice(0, 180)}`)
   }
   if (!res.ok || (json && typeof json === 'object' && 'success' in json && json.success === false)) {
-    const err =
-      json && typeof json === 'object' && 'error' in json && json.error
-        ? String(json.error)
-        : `Bags API ${path} failed (${res.status})`
-    throw new Error(err)
+    throw new Error(bagsApiFailureMessage(path, res.status, json, text))
   }
   if (json && typeof json === 'object' && 'response' in json) {
     return (json as { response: T }).response
@@ -113,6 +162,61 @@ export function assertBagsClaimerLimit(claimers: string[]): void {
   }
 }
 
+/** Canonicalize wallets, merge duplicate claimers, require unique keys + 10_000 bps. */
+export function normalizeBagsClaimers(
+  claimers: string[],
+  basisPoints: number[],
+): { claimers: string[]; basisPoints: number[] } {
+  if (claimers.length !== basisPoints.length) {
+    throw new Error('Bags claimersArray and basisPointsArray must align.')
+  }
+  const merged = new Map<string, number>()
+  const order: string[] = []
+  for (let i = 0; i < claimers.length; i++) {
+    const wallet = assertSolanaPubkey(claimers[i]!, 'claimer')
+    const bps = Math.floor(Number(basisPoints[i]))
+    if (!Number.isFinite(bps) || bps < 0 || bps > 10_000) {
+      throw new Error(`Bags basis point ${bps} is out of range 0–10000.`)
+    }
+    if (!merged.has(wallet)) order.push(wallet)
+    merged.set(wallet, (merged.get(wallet) || 0) + bps)
+  }
+  const outClaimers = order
+  const outBps = order.map((w) => merged.get(w)!)
+  const total = outBps.reduce((s, n) => s + n, 0)
+  if (total !== 10_000) throw new Error(`Bags basisPointsArray must total 10000 (got ${total}).`)
+  assertBagsClaimerLimit(outClaimers)
+  return { claimers: outClaimers, basisPoints: outBps }
+}
+
+/** HTTP body matching current Bags OpenAPI + @bagsfm/bags-sdk createBagsFeeShareConfig. */
+export function bagsFeeShareConfigBody(opts: {
+  payer: string
+  baseMint: string
+  claimers: string[]
+  basisPoints: number[]
+}): {
+  body: Record<string, unknown>
+  payer: string
+  claimers: string[]
+  basisPoints: number[]
+  usedLookupTable: boolean
+} {
+  const payer = assertSolanaPubkey(opts.payer, 'payer')
+  const baseMint = assertSolanaPubkey(opts.baseMint, 'baseMint')
+  const { claimers, basisPoints } = normalizeBagsClaimers(opts.claimers, opts.basisPoints)
+  const usedLookupTable = claimers.length > BAGS_MAX_CLAIMERS_NON_LUT
+  const body: Record<string, unknown> = {
+    payer,
+    baseMint,
+    claimersArray: claimers,
+    basisPointsArray: basisPoints,
+    bagsConfigType: BAGS_DEFAULT_CONFIG_TYPE,
+  }
+  if (usedLookupTable) body.additionalLookupTables = [BAGS_PUBLIC_LUT]
+  return { body, payer, claimers, basisPoints, usedLookupTable }
+}
+
 export async function createBagsTokenInfo(opts: {
   apiKey: string
   name: string
@@ -157,22 +261,12 @@ export async function createBagsFeeShareConfig(opts: {
   steps: UnsignedStep[]
   usedLookupTable: boolean
 }> {
-  assertBagsClaimerLimit(opts.claimers)
-  if (opts.claimers.length !== opts.basisPoints.length) {
-    throw new Error('Bags claimersArray and basisPointsArray must align.')
-  }
-  const total = opts.basisPoints.reduce((s, n) => s + n, 0)
-  if (total !== 10_000) throw new Error(`Bags basisPointsArray must total 10000 (got ${total}).`)
-
-  const usedLookupTable = opts.claimers.length > BAGS_MAX_CLAIMERS_NON_LUT
-  const body: Record<string, unknown> = {
-    payer: opts.payer,
-    baseMint: opts.baseMint,
-    claimersArray: opts.claimers,
-    basisPointsArray: opts.basisPoints,
-  }
-  if (usedLookupTable) {
-    body.additionalLookupTables = [BAGS_PUBLIC_LUT]
+  const { body, payer, usedLookupTable } = bagsFeeShareConfigBody(opts)
+  const lamports = await readPayerLamports(payer)
+  if (lamports === 0) {
+    throw new Error(
+      `Bags fee-share config cannot be built: launcher ${payer} has 0 SOL. ${FEE_SHARE_UNFUNDED_HINT}`,
+    )
   }
   const cfg = await bagsRequest<{
     needsCreation: boolean
@@ -188,7 +282,7 @@ export async function createBagsFeeShareConfig(opts: {
   })
   if (!cfg?.meteoraConfigKey) throw new Error('Bags fee-share config missing meteoraConfigKey.')
   const steps = cfg.needsCreation
-    ? flattenBagsTransactions(cfg, opts.payer, 'fee_share_config')
+    ? flattenBagsTransactions(cfg, payer, 'fee_share_config')
     : []
   return {
     needsCreation: Boolean(cfg.needsCreation),
