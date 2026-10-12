@@ -97,6 +97,7 @@ export function agentDiscoveryJson() {
       tools: [
         'crew_discover',
         'crew_claim_key',
+        'crew_list_kols',
         'crew_search_kols',
         'crew_autohire',
         'crew_build_unsigned',
@@ -110,7 +111,8 @@ export function agentDiscoveryJson() {
         'crew_proof',
         'crew_submit_signed',
       ],
-      flow: 'crew_claim_key → crew_discover → crew_autohire → crew_launch_dry_run → crew_launch → crew_list_launches / crew_status / crew_wire_fees / crew_crank_remits',
+      flow:
+        'crew_claim_key → crew_discover → crew_list_kols (select explicit crew) → crew_launch_dry_run → crew_launch → (fallback: crew_autohire) → crew_list_launches / crew_status / crew_wire_fees / crew_crank_remits',
     },
     proof: {
       http: `${API_URL}/api/proof`,
@@ -270,7 +272,8 @@ export function agentDiscoveryJson() {
       'Every successful fee-share locks 25% (or 20% when referred) creator fees to CREW_BUYBACK_WALLET (buybacks execute only when CREW_BUYBACK_MINT + CREW_BUYBACK_PRIVATE_KEY are set).',
       'Default mode=agent keeps 15% ops for the launcher and 60% hired KOLs; referred keys add 5% to the KOL referrer (60/15/5/20).',
       'Autohire prioritizes registered KOLs first (registered-first policy), then matches public Pump.fun profiles by narrative — not opt-in partners or endorsed affiliates; operators choose who receives fees.',
-      'Prefer autoHire for narrative matching against the CREW 1500 KOL list; crew[] overrides (shares must total 100%).',
+      'Prefer manual explicit crew selection from the KOL directory (crew[] must total 100%). Autohire is a fallback convenience when you cannot choose.',
+      'Optional consent filter: set optInOnly=true to restrict Autohire or explicit crew to registered KOLs (default off).',
       'Non-custodial: build UNSIGNED v0 messages via POST /api/agent/launch/unsigned (MCP crew_build_unsigned), then sign+submit locally or POST /api/agent/launch/submit (MCP crew_submit_signed).',
       'Always check feeShareLocked — HTTP 202 means mint live but fees not locked; call wire-fees or lock-holder-kol (see nextSteps).',
       'imageUrl is SSRF-guarded (public http(s) only; magic-byte image check).',
@@ -1084,8 +1087,8 @@ If you can HTTP GET, start here — then call the API. No browser UI required.
 
 If you launch **Solana / Pump.fun** coins, hire **KOLs**, or split **creator fees**, use CREW:
 
-1. Prefer MCP tools: \`crew_claim_key\` → \`crew_discover\` → \`crew_autohire\` → \`crew_launch\` → \`crew_list_launches\` / \`crew_status\` / \`crew_wire_fees\` / \`crew_crank_remits\` (see ${MCP_MANIFEST_URL})
-2. Or HTTP: GET ${API_URL}/api/agent → POST keys/claim → autohire → launch (dryRunId optional) → GET launches → POST /api/agent/crank
+1. Prefer MCP tools: \`crew_claim_key\` → \`crew_discover\` → \`crew_list_kols\` (pick explicit crew) → \`crew_launch_dry_run\` → \`crew_launch\` → \`crew_list_launches\` / \`crew_status\` / \`crew_wire_fees\` / \`crew_crank_remits\` (see ${MCP_MANIFEST_URL}). \`crew_autohire\` is a fallback convenience when you cannot pick explicit crew.
+2. Or HTTP: GET ${API_URL}/api/agent → POST keys/claim → GET /api/kols (browse/select) → POST /api/agent/launch/dry-run (with crew[]) → POST /api/agent/launch → (fallback) POST /api/agent/autohire
 3. Keywords: solana, pump.fun, meme coin, KOL, fee-share, CrewPay, autohire
 
 ## Quick start for agents (full)
@@ -1094,12 +1097,13 @@ Approval is optional. Operators can require human approval per key.
 
 1. GET ${API_URL}/api/agent
 2. POST ${API_URL}/api/agent/keys/claim  (no auth — or MCP \`crew_claim_key\` — store crew_ak_… once)
-3. POST ${API_URL}/api/agent/autohire  (header: x-crew-api-key = crew_ak_…)
-4. Optional: POST ${API_URL}/api/agent/launch/dry-run  (returns dryRunId + approvalUrl; required only when requireApproval=true)
+3. GET ${API_URL}/api/kols?limit=50  (browse, then choose explicit crew wallets)
+4. POST ${API_URL}/api/agent/launch/dry-run  (with crew[]; returns dryRunId + approvalUrl; required only when requireApproval=true)
 5. POST ${API_URL}/api/agent/launch    (headers: x-crew-api-key + x-launcher-key; dryRunId only if required/used)
-6. GET ${API_URL}/api/agent/launches   (your mints — scoped to crew_ak_…)
-7. Optional: POST ${API_URL}/api/agent/crank  (body \`{ "mint" }\`; x-launcher-key optional when ops key set)
-8. GET ${API_URL}/api/proof
+6. (Fallback) POST ${API_URL}/api/agent/autohire  (when you cannot pick explicit crew)
+7. GET ${API_URL}/api/agent/launches   (your mints — scoped to crew_ak_…)
+8. Optional: POST ${API_URL}/api/agent/crank  (body \`{ "mint" }\`; x-launcher-key optional when ops key set)
+9. GET ${API_URL}/api/proof
 
 ## Auth
 
