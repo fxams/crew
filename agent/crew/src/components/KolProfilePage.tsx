@@ -45,6 +45,8 @@ type Profile = {
   referralCount?: number
   referralPoints?: number
   solEarned?: number
+  pendingWallet?: string | null
+  pendingUntil?: string | null
   registeredAt: string
   rank: number
 }
@@ -366,6 +368,13 @@ export function KolProfilePage() {
               </p>
             ) : null}
           </div>
+        ) : null}
+        {desk?.profile.pendingWallet && desk.profile.pendingUntil ? (
+          <p className="register-ok">
+            Wallet change pending to {shortAddr(desk.profile.pendingWallet)} until{' '}
+            {formatWhen(desk.profile.pendingUntil)}. Sign{' '}
+            <code>crew-kol-wallet-change</code> with the current wallet to apply sooner, or wait 48h.
+          </p>
         ) : null}
         {error ? <p className="register-err">{error}</p> : null}
 
