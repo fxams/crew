@@ -210,6 +210,7 @@ CREATE TABLE IF NOT EXISTS kol_registrations (
   referral_points INT NOT NULL DEFAULT 0,
   -- Client IP at first registration (self-referral claim checks).
   register_ip TEXT,
+  evm_wallet TEXT,
   registered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   stats_refreshed_at TIMESTAMPTZ NOT NULL DEFAULT now()

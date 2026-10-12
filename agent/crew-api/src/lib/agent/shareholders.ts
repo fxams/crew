@@ -9,6 +9,12 @@ import {
   PUMP_MAX_SHAREHOLDERS,
   type DeskMode,
 } from './constants.js'
+import { assertEvmAddress } from './evm-address.js'
+import {
+  BAGS_MAX_CLAIMERS,
+  type LaunchPlatform,
+  maxClaimersForPlatform,
+} from './platforms.js'
 import type { CrewMember } from './narrative.js'
 
 export type Shareholder = {
@@ -34,8 +40,11 @@ export function normalizeShareholderRole(role?: string | null): string {
   return r || 'crew'
 }
 
-export function assertWallet(value: string): string {
+export type AddressChain = 'solana' | 'evm'
+
+export function assertWallet(value: string, chain: AddressChain = 'solana'): string {
   const w = value.trim()
+  if (chain === 'evm') return assertEvmAddress(w, 'wallet')
   try {
     return new PublicKey(w).toBase58()
   } catch {
@@ -61,7 +70,17 @@ export function maxCrewSeats(opts: {
   mode?: DeskMode
   /** Referrer wallet is also a crew seat — no extra Pump wallet. */
   referrerInCrew?: boolean
+  platform?: LaunchPlatform
 }): number {
+  const platform = opts.platform || 'pumpfun'
+  if (platform === 'bags') {
+    const reserved = 2 + (opts.hasAgentReferrer && !opts.referrerInCrew ? 1 : 0)
+    return Math.max(1, BAGS_MAX_CLAIMERS - reserved)
+  }
+  if (platform === 'zora') {
+    const reserved = 2 + (opts.hasAgentReferrer && !opts.referrerInCrew ? 1 : 0)
+    return Math.max(1, 40 - reserved)
+  }
   const mode = opts.mode || 'agent'
   if (mode !== 'agent') return MAX_CREW_UNREFERRED
   if (opts.referrerInCrew) return MAX_CREW_UNREFERRED
@@ -101,18 +120,19 @@ function mergeShare(
 export function agentReferrerDualRoleHandles(
   crew: CrewMember[],
   agentReferrerWallet: string | null | undefined,
+  chain: AddressChain = 'solana',
 ): string[] {
   if (!agentReferrerWallet) return []
   let ref: string
   try {
-    ref = assertWallet(agentReferrerWallet)
+    ref = assertWallet(agentReferrerWallet, chain)
   } catch {
     return []
   }
   return crew
     .filter((m) => {
       try {
-        return assertWallet(m.wallet) === ref
+        return assertWallet(m.wallet, chain) === ref
       } catch {
         return false
       }
@@ -157,15 +177,30 @@ export function buildCrewShareholders(
     agentReferrer?: AgentReferrerInput | null
     /** Optional per-launch treasury override in bps (defaults to PLATFORM_BUYBACK_BPS). Clamped server-side. */
     treasuryBpsOverride?: number | null
+    /** Solana (Pump/Bags) or EVM (Zora / 0xSplits). */
+    chain?: AddressChain
+    /** Cap unique recipients (Pump 10, Bags 100, Zora/0xSplits 100). */
+    maxShareholders?: number
+    platform?: LaunchPlatform
   },
 ): Shareholder[] {
-  const deskWallet = assertWallet(opts.deskWallet)
-  const platformWallet = assertWallet(opts.platformWallet || getPlatformBuybackWallet())
+  const chain = opts.chain || 'solana'
+  const cap =
+    opts.maxShareholders ??
+    maxClaimersForPlatform(opts.platform || (chain === 'evm' ? 'zora' : 'pumpfun'))
+  if (chain === 'evm' && !opts.platformWallet) {
+    throw new Error('EVM fee-share requires platformWallet (Zora treasury / 0xSplits recipient).')
+  }
+  const deskWallet = assertWallet(opts.deskWallet, chain)
+  const platformWallet = assertWallet(
+    opts.platformWallet || getPlatformBuybackWallet(),
+    chain,
+  )
 
   let agentReferrerWallet: string | null = null
   let agentReferrerHandle = '@referrer'
   if (opts.agentReferrer?.wallet) {
-    agentReferrerWallet = assertWallet(opts.agentReferrer.wallet)
+    agentReferrerWallet = assertWallet(opts.agentReferrer.wallet, chain)
     if (opts.agentReferrer.handle) {
       agentReferrerHandle = opts.agentReferrer.handle.startsWith('@')
         ? opts.agentReferrer.handle
@@ -173,7 +208,7 @@ export function buildCrewShareholders(
     }
   }
 
-  const dualHandles = agentReferrerDualRoleHandles(crew, agentReferrerWallet)
+  const dualHandles = agentReferrerDualRoleHandles(crew, agentReferrerWallet, chain)
   const dualRole = Boolean(agentReferrerWallet) && dualHandles.length > 0
   const separateReferrer = Boolean(agentReferrerWallet) && !dualRole
 
@@ -181,12 +216,13 @@ export function buildCrewShareholders(
     hasAgentReferrer: separateReferrer,
     referrerInCrew: dualRole,
     mode,
+    platform: opts.platform || (chain === 'evm' ? 'zora' : 'pumpfun'),
   })
   if (crew.length > maxSeats) {
     throw new Error(
       separateReferrer
-        ? `Crew has ${crew.length} seats — referred launches allow at most ${maxSeats} (Pump cap ${PUMP_MAX_SHAREHOLDERS}: crew + agent + referrer + treasury).`
-        : `Crew has ${crew.length} seats — max ${maxSeats} for this fee map (Pump cap ${PUMP_MAX_SHAREHOLDERS} wallets).`,
+        ? `Crew has ${crew.length} seats — referred launches allow at most ${maxSeats} (recipient cap ${cap}: crew + agent + referrer + treasury).`
+        : `Crew has ${crew.length} seats — max ${maxSeats} for this fee map (recipient cap ${cap} wallets).`,
     )
   }
 
@@ -199,7 +235,7 @@ export function buildCrewShareholders(
     const crewPoolBps = 10_000 - platformBps - deskBps
     if (crewPoolBps < 0) throw new Error('Platform + desk reserves exceed 100% of fees.')
     const raw = allocateCrewPool(crew, crewPoolBps)
-    const refRow = raw.find((r) => assertWallet(r.wallet) === agentReferrerWallet)
+    const refRow = raw.find((r) => assertWallet(r.wallet, chain) === agentReferrerWallet)
     const crewSeatBps = refRow?.bps ?? 0
     const target = Math.max(crewSeatBps, AGENT_REFERRAL_BPS)
     let platformFinal = platformBps
@@ -222,7 +258,7 @@ export function buildCrewShareholders(
     }
     for (const row of raw) {
       if (row.bps <= 0) continue
-      const w = assertWallet(row.wallet)
+      const w = assertWallet(row.wallet, chain)
       if (w === agentReferrerWallet && target > crewSeatBps) {
         // Topped up to referral floor — attribute as agent-referral for earnings.
         mergeShare(staged, w, row.bps, 'agent-referral', agentReferrerHandle)
@@ -232,9 +268,9 @@ export function buildCrewShareholders(
     }
 
     const uniqueWallets = new Set(staged.map((s) => s.wallet)).size
-    if (uniqueWallets > PUMP_MAX_SHAREHOLDERS) {
+    if (uniqueWallets > cap) {
       throw new Error(
-        `Fee-share has ${uniqueWallets} wallets — Pump allows ${PUMP_MAX_SHAREHOLDERS}. Reduce crew seats.`,
+        `Fee-share has ${uniqueWallets} wallets — this platform allows ${cap}. Reduce crew seats.`,
       )
     }
     const total = staged.reduce((s, r) => s + r.bps, 0)
@@ -270,14 +306,14 @@ export function buildCrewShareholders(
   }
   for (const row of raw) {
     if (row.bps <= 0) continue
-    mergeShare(staged, assertWallet(row.wallet), row.bps, 'crew', row.handle)
+    mergeShare(staged, assertWallet(row.wallet, chain), row.bps, 'crew', row.handle)
   }
 
   const uniqueWallets = new Set(staged.map((s) => s.wallet)).size
-  if (uniqueWallets > PUMP_MAX_SHAREHOLDERS) {
+  if (uniqueWallets > cap) {
     throw new Error(
-      `Fee-share has ${uniqueWallets} wallets — Pump allows ${PUMP_MAX_SHAREHOLDERS}. Reduce crew seats` +
-        (separateReferrer ? ' (referred max 7).' : '.'),
+      `Fee-share has ${uniqueWallets} wallets — this platform allows ${cap}. Reduce crew seats` +
+        (separateReferrer && cap === PUMP_MAX_SHAREHOLDERS ? ' (referred max 7).' : '.'),
     )
   }
 
@@ -289,9 +325,10 @@ export function buildCrewShareholders(
 export function normalizeCrew(
   crew: CrewMember[],
   mode: DeskMode,
-  opts?: { maxSeats?: number },
+  opts?: { maxSeats?: number; chain?: AddressChain },
 ): CrewMember[] {
   const maxSeats = opts?.maxSeats ?? MAX_CREW_UNREFERRED
+  const chain = opts?.chain || 'solana'
   if (crew.length < 1 || crew.length > maxSeats) {
     throw new Error(`Crew must have 1–${maxSeats} members.`)
   }
@@ -306,14 +343,17 @@ export function normalizeCrew(
     const share = Math.round(Number(member.share) || 0)
     if (share <= 0 || share > 100) throw new Error(`Bad share for ${handle}`)
     shareSum += share
-    const wallet = assertWallet(member.wallet)
+    const wallet = assertWallet(member.wallet, chain)
     if (seenWallets.has(wallet)) throw new Error(`Duplicate wallet ${wallet}`)
     seenWallets.add(wallet)
     const hireRole = member.hireRole
     if (mode === 'agent' && !hireRole) {
       throw new Error(`Assign hireRole for ${handle} in agent mode.`)
     }
-    out.push({ handle, wallet, share, hireRole })
+    const evmWallet = member.evmWallet?.trim()
+      ? assertEvmAddress(member.evmWallet, 'evmWallet')
+      : undefined
+    out.push({ handle, wallet, share, hireRole, evmWallet })
   }
   if (shareSum !== 100) throw new Error(`Crew shares must total 100% (now ${shareSum}%).`)
   return out

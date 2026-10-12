@@ -4,25 +4,56 @@ import BN from 'bn.js'
 import { OnlinePumpSdk, PumpSdk, getBuyTokenAmountFromSolAmount } from './pump.js'
 import { getConnection } from './send.js'
 import { PUMP_COIN_URL } from './constants.js'
-import type { CrewMember } from './narrative.js'
+import type { LaunchPlatform } from './platforms.js'
+
+export type UnsignedStepKind =
+  | 'create'
+  | 'lock'
+  | 'create_and_buy'
+  | 'fee_share_config'
+  | 'split'
+  | 'zora_create'
+
+export type UnsignedEncoding = 'message-v0' | 'solana-tx' | 'eip1559'
+
+export type Eip1559Tx = {
+  type: 2
+  chainId: number
+  to: string
+  data: string
+  value: string
+  nonce: number
+  gas: string
+  maxFeePerGas: string
+  maxPriorityFeePerGas: string
+}
 
 export type UnsignedStep = {
-  kind: 'create' | 'lock' | 'create_and_buy'
+  kind: UnsignedStepKind
   messageBase64: string
+  transactionBase64?: string
   recentBlockhash: string
   lastValidBlockHeight: number
   requiredSigners: string[]
   v: 0
+  encoding?: UnsignedEncoding
+  tx?: Eip1559Tx
+  note?: string
 }
 
 export type UnsignedLaunchPlan = {
   ok: true
+  platform?: LaunchPlatform
   mint: string
   pumpUrl: string
+  coinUrl?: string
   steps: UnsignedStep[]
   launcher: string
   createdAt: number
   note?: string
+  encoding?: UnsignedEncoding
+  warnings?: string[]
+  splitAddress?: string
 }
 
 export async function buildUnsignedLaunchTransactions(opts: {
@@ -153,11 +184,14 @@ export async function buildUnsignedLaunchTransactions(opts: {
   const mintStr = mint.toBase58()
   return {
     ok: true,
+    platform: 'pumpfun',
     mint: mintStr,
     pumpUrl: PUMP_COIN_URL(mintStr),
+    coinUrl: PUMP_COIN_URL(mintStr),
     steps,
     launcher: launcher.toBase58(),
     createdAt: Date.now(),
+    encoding: 'message-v0',
   }
 }
 
