@@ -8,6 +8,6 @@ describe('tx expiry errors', () => {
         'Signature 52ngPYbrgeLMyGSo9n84hCGykKk9PMZiKaLdh1FnUefbQJMucqyPKMypJgWb8roXfeJepRzV9eJocCEwVxiWQ72v has expired: block height exceeded.',
       ),
     )
-    expect(msg).toMatch(/expired|60s|Phantom|Solscan/i)
+    expect(msg).toMatch(/expired|60s|wallet|Solscan/i)
   })
 })

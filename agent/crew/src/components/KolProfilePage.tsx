@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { useWallet } from '@solana/wallet-adapter-react'
+import { useAccount } from 'wagmi'
 import bs58 from 'bs58'
 import {
   CREW_VERSION,
@@ -134,6 +135,7 @@ export function KolProfilePage() {
   const handle = kolHandleFromPath(pathname) || ''
   const [params] = useSearchParams()
   const wallet = useWallet()
+  const { address: evmAddress } = useAccount()
   const ownHandle = useOwnRegisteredHandle(wallet.publicKey?.toBase58())
   const [desk, setDesk] = useState<Desk | null>(null)
   const [missing, setMissing] = useState(false)
@@ -191,6 +193,12 @@ export function KolProfilePage() {
       cancelled = true
     }
   }, [handle])
+
+  useEffect(() => {
+    if (evmAddress) {
+      setEvmInput((prev) => (prev.trim() ? prev : evmAddress))
+    }
+  }, [evmAddress])
 
   useEffect(() => {
     if (!desk?.profile) {

@@ -290,10 +290,10 @@ export function unsignedVenueHint(venue: LaunchVenue): string {
   }
   if (venue.id === 'bags') {
     return venue.enabled
-      ? 'Bags.fm is live via Agent unsigned. This desk copies the request; sign in your agent.'
+      ? 'Bags.fm is live via Agent unsigned. Connect Solana for launcherPubkey; sign in your agent.'
       : 'Bags.fm is soon unless the API enables it.'
   }
-  return 'Default Pump.fun — Phantom signs on Solana.'
+  return 'Default Pump.fun — sign with your Solana wallet.'
 }
 
 async function getJson(url: string): Promise<unknown> {
@@ -371,6 +371,7 @@ export function unsignedLaunchCurl(opts: {
   description?: string
   auth?: 'key' | 'x402'
   paymentHeader?: string
+  launcherPubkey?: string | null
 }): string {
   const name = (opts.name || 'Desk Cat').slice(0, 32)
   const ticker = (opts.ticker || 'DCAT').slice(0, 13)
@@ -379,6 +380,8 @@ export function unsignedLaunchCurl(opts: {
     opts.auth === 'x402'
       ? `-H "${opts.paymentHeader || 'X-PAYMENT'}: $X402_PAYMENT" \\`
       : `-H "x-crew-api-key: $CREW_AGENT_API_KEY" \\`
+  const fallback = opts.platform === 'zora' ? '0xYOUR_EVM_PUBKEY' : 'YOUR_SOLANA_PUBKEY'
+  const launcher = (opts.launcherPubkey || '').trim() || fallback
   return `curl -sS ${CREW_PUBLIC_API_URL}/api/agent/launch/unsigned \\
   -H "content-type: application/json" \\
   ${authHeader}
@@ -389,7 +392,7 @@ export function unsignedLaunchCurl(opts: {
     "description": ${JSON.stringify(description)},
     "mode": "agent",
     "imageUrl": "https://example.com/cat.png",
-    "launcherPubkey": "${opts.platform === 'zora' ? '0xYOUR_EVM_PUBKEY' : 'YOUR_SOLANA_PUBKEY'}",
+    "launcherPubkey": "${launcher}",
     "autoHire": { "seats": 5 }
   }'`
 }

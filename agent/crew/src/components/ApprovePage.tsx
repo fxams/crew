@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { useWalletModal } from '@solana/wallet-adapter-react-ui'
+import { useConnectModal } from './ConnectModal'
 import bs58 from 'bs58'
 import { CREW_AGENT_API_URL } from '../lib/config'
 import { dryRunIdFromApprovePath } from '../lib/routes'
@@ -34,7 +34,7 @@ export function ApprovePage() {
   const { pathname } = useLocation()
   const dryRunId = dryRunIdFromApprovePath(pathname) || ''
   const wallet = useWallet()
-  const { setVisible } = useWalletModal()
+  const { open: openConnect } = useConnectModal()
   const [data, setData] = useState<DryRunView | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -75,8 +75,8 @@ export function ApprovePage() {
 
   async function onApprove() {
     if (!wallet.publicKey || !wallet.signMessage) {
-      setVisible(true)
-      setError('Connect a wallet to approve (agent API keys cannot approve).')
+      openConnect({ preferred: 'solana' })
+      setError('Connect a Solana wallet to approve (agent API keys cannot approve).')
       return
     }
     setBusy(true)
@@ -192,7 +192,11 @@ export function ApprovePage() {
 
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '1rem' }}>
               {!wallet.publicKey ? (
-                <button type="button" className="btn btn-primary" onClick={() => setVisible(true)}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => openConnect({ preferred: 'solana' })}
+                >
                   Connect wallet to approve
                 </button>
               ) : (

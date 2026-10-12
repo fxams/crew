@@ -153,7 +153,7 @@ async function uploadViaPinata(input: IpfsUploadInput): Promise<IpfsUploadResult
 async function uploadViaIrys(input: IpfsUploadInput): Promise<IpfsUploadResult> {
   const wallet = input.wallet
   if (!wallet?.publicKey || !wallet.signMessage) {
-    throw new Error('Connect Phantom to upload coin metadata.')
+    throw new Error('Connect a Solana wallet to upload coin metadata.')
   }
 
   const { WebUploader } = await import('@irys/web-upload')
@@ -234,7 +234,7 @@ export async function uploadPumpMetadata(input: IpfsUploadInput): Promise<IpfsUp
     // Never surface raw Safari "Load failed" to the desk.
     if (isNetworkBlocked(err) || /load failed|failed to fetch/i.test(detail)) {
       throw new Error(
-        'Metadata upload failed. Approve the Phantom storage signature (Irys), or set VITE_PINATA_JWT.',
+        'Metadata upload failed. Approve the wallet storage signature (Irys), or set VITE_PINATA_JWT.',
       )
     }
     throw new Error(detail)
