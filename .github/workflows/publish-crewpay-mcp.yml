@@ -1,5 +1,7 @@
 # Publish agent/crew-mcp to npm when package.json version changes on main.
-# Requires repository secret NPM_TOKEN (npmjs automation token with publish access).
+# Prefers npm trusted publishing (OIDC + provenance). Falls back to NPM_TOKEN
+# so mcp.crewpay.dev package publishes keep working until Trusted Publisher
+# is configured on npmjs.com → GitHub Actions (fxams/crew, this workflow).
 name: publish-crewpay-mcp
 
 on:
@@ -11,6 +13,10 @@ on:
       - '.github/workflows/publish-crewpay-mcp.yml'
   workflow_dispatch:
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -18,8 +24,8 @@ jobs:
       run:
         working-directory: agent/crew-mcp
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
@@ -30,13 +36,17 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "NPM_TOKEN secret not set — skip publish (git install still works: npx -y github:fxams/crew#path:agent/crew-mcp)"
-            exit 0
-          fi
           VERSION=$(node -p "require('./package.json').version")
           if npm view "crewpay-mcp@$VERSION" version 2>/dev/null; then
             echo "crewpay-mcp@$VERSION already on npm — skip"
             exit 0
           fi
-          npm publish --access public
+          if npm publish --provenance --access public; then
+            exit 0
+          fi
+          if [ -n "$NODE_AUTH_TOKEN" ]; then
+            npm publish --access public
+            exit 0
+          fi
+          echo "Trusted publishing failed and NPM_TOKEN unset — skip publish (git install still works: npx -y github:fxams/crew#path:agent/crew-mcp)"
+          exit 0

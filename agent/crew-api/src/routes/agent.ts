@@ -71,6 +71,7 @@ import {
 } from '../lib/agent/repair.js'
 import { assertSafeHttpUrl } from '../lib/agent/safe-url.js'
 import { AGENT_EXAMPLES, errorIssues, errorMessage, normalizeAutoHireInput } from '../lib/agent/errors.js'
+import { sendInternalError } from '../lib/http-error.js'
 import { parseLauncherKey, resolveOpsPayer } from '../lib/agent/send.js'
 import { solanaAddress } from '../lib/agent/solana-address.js'
 import { evmAddress } from '../lib/agent/evm-address.js'
@@ -1177,7 +1178,7 @@ agentRouter.get('/agent/keys', requireAgentApiKey, async (req, res) => {
     const keys = await listAgentKeys(keyId ? { keyId } : undefined)
     res.json({ ok: true, scoped: Boolean(keyId), keys })
   } catch (err) {
-    res.status(500).json({ error: errorMessage(err, 'list keys failed') })
+    sendInternalError(res, err, 'list keys')
   }
 })
 
@@ -1448,7 +1449,7 @@ agentRouter.delete('/agent/keys/:id', requireAgentApiKey, async (req, res) => {
     }
     res.json({ ok: true })
   } catch (err) {
-    res.status(500).json({ error: errorMessage(err, 'revoke failed') })
+    sendInternalError(res, err, 'revoke key')
   }
 })
 

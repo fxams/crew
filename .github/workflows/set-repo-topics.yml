@@ -11,6 +11,9 @@ on:
     paths:
       - '.github/workflows/set-repo-topics.yml'
 
+permissions:
+  contents: read
+
 jobs:
   topics:
     runs-on: ubuntu-latest
