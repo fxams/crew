@@ -156,9 +156,7 @@ function ConnectModal() {
         key,
         name,
         icon: wallet.adapter.icon,
-        installed:
-          wallet.readyState === WalletReadyState.Installed ||
-          wallet.readyState === WalletReadyState.Loadable,
+        installed: wallet.readyState === WalletReadyState.Installed,
         mobile: /mobile|mwa|android/i.test(name),
         wallet,
       })
@@ -187,19 +185,27 @@ function ConnectModal() {
       if (seen.has(key)) continue
       const isWc = /walletconnect/i.test(name) || connector.id === 'walletConnect'
       if (isWc && !showWalletConnect) continue
+      const isGenericInjected = connector.id === 'injected'
+      if (isGenericInjected) continue
+      const isSdk =
+        connector.id === 'coinbaseWallet' ||
+        connector.id === 'walletConnect' ||
+        connector.type === 'coinbaseWallet'
+      const isEip6963 = Boolean(rdns) && !isSdk
       seen.add(key)
       rows.push({
         key,
         name: isWc ? WALLETCONNECT_LISTED.name : name,
         icon: typeof connector.icon === 'string' ? connector.icon : undefined,
-        installed: Boolean(connector.icon) || name !== 'Injected',
+        installed: isEip6963,
         connectorUid: connector.uid,
         walletConnect: isWc,
       })
     }
-    if (injected.evm && !rows.some((r) => r.installed && !r.walletConnect)) {
+    if (injected.evm) {
       const injectedConnector = connectors.find((c) => c.id === 'injected')
-      if (injectedConnector && !rows.some((r) => r.connectorUid === injectedConnector.uid)) {
+      const already = rows.some((r) => r.installed && !r.walletConnect)
+      if (injectedConnector && !already) {
         rows.unshift({
           key: 'injected',
           name: injectedEvmLabel(typeof window === 'undefined' ? null : window),
