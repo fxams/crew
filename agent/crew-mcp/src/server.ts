@@ -115,7 +115,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         mode: input.mode || 'agent',
         initialBuySol: input.initialBuySol ?? 0,
         launcherPubkey: input.launcherPubkey,
-        optInOnly: input.optInOnly ?? true,
+        ...(input.optInOnly != null ? { optInOnly: input.optInOnly } : {}),
       }
       if (input.imageUrl) body.imageUrl = input.imageUrl
       if (input.imageBase64) body.imageBase64 = input.imageBase64
@@ -256,7 +256,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Search CREW KOL directory',
       description:
-        'Search the CREW KOL / Pump profile directory by handle or wallet. Public Pump.fun profiles — not opt-in partners.',
+        'Search the CREW KOL / Pump profile directory by handle or wallet. Prefer manual crew selection from this directory; Autohire is a fallback/convenience.',
       inputSchema: {
         q: z.string().min(1).max(64).describe('Handle, pump username, or wallet substring'),
         limit: z.number().int().min(1).max(50).optional().describe('Max results (default 20)'),
@@ -270,12 +270,37 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     },
   )
 
+  // Browse KOLs (optional q), for manual crew selection
+  server.registerTool(
+    'crew_list_kols',
+    {
+      title: 'Browse CREW KOL directory',
+      description:
+        'List/browse CREW KOL profiles (optionally filtered by q). Use this to select explicit crew wallets before launching. Autohire is a fallback/convenience.',
+      inputSchema: {
+        q: z.string().max(64).optional().describe('Optional: handle, pump username, or wallet substring'),
+        limit: z.number().int().min(1).max(100).optional().describe('Max results (default 50)'),
+        offset: z.number().int().min(0).optional().describe('Offset for pagination (default 0)'),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ q, limit, offset }) => {
+      const params = new URLSearchParams()
+      if (q) params.set('q', q)
+      if (limit != null) params.set('limit', String(limit))
+      if (offset != null) params.set('offset', String(offset))
+      const qs = params.toString() ? `?${params.toString()}` : ''
+      const data = await crewFetch(cfg, `/api/kols${qs}`)
+      return asText(data)
+    },
+  )
+
   server.registerTool(
     'crew_autohire',
     {
       title: 'Narrative Autohire KOLs',
       description:
-        'Preview CREW narrative Autohire: match a Solana / Pump.fun token name, ticker, and vibe to the top KOL pack (wallets, roles, shares, reasons). No on-chain tx. Public Pump wallets — not endorsed affiliates. Works without a key (keyless preview); with CREW_AGENT_API_KEY / x-crew-api-key it uses your key and referral binding.',
+        'Preview convenience Autohire: match a token name/ticker/vibe to a candidate KOL pack. Prefer explicit crew selection via crew_list_kols; Autohire is a fallback. Works keyless for previews.',
       inputSchema: {
         name: z.string().max(32).optional().describe('Token name (2–32 on launch)'),
         ticker: z.string().max(13).optional().describe('Token ticker (2–13 on launch)'),
@@ -325,7 +350,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Dry-run a CREW launch (no chain tx)',
       description:
-        'Dry-run a launch (default) or wire-fees (intent=wire-fees). Returns dryRunId + approvalUrl (no approve secret). Operator opens approvalUrl and wallet-signs before spend. Launch dry-run binds image sha256. Requires CREW_AGENT_API_KEY.',
+        'Dry-run a launch (default) or wire-fees (intent=wire-fees). Prefer explicit crew[] chosen from the directory; Autohire is a fallback. Returns dryRunId + approvalUrl. Requires CREW_AGENT_API_KEY.',
       inputSchema: {
         intent: z
           .enum(['launch', 'wire-fees'])
@@ -588,7 +613,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Launch Pump coin via CrewPay (MAINNET)',
       description:
-        'MAINNET launch: create a Solana Pump.fun coin with on-chain fee-shares (60% KOL crew / 15% launching agent / 25% CrewPay treasury; or 60/15/5/20 when the API key was claimed with a KOL referral_code). Buyback cron is not live yet. Prefers atomic create+fee-lock. Approval is optional. Operators can require human approval per key (then pass dryRunId from crew_launch_dry_run after approvalUrl). Requires CREW_AGENT_API_KEY + CREW_LAUNCHER_KEY in MCP env (never tool args). Check feeShareLocked — HTTP 202 needs crew_wire_fees.',
+        'MAINNET launch: Prefer explicit crew[] (from crew_list_kols). Autohire is a fallback convenience. Creates a Pump.fun coin with on-chain fee-shares (60/15/25 default; 60/15/5/20 with referral). Approval optional; requires CREW_AGENT_API_KEY + CREW_LAUNCHER_KEY. Check feeShareLocked.',
       inputSchema: {
         dryRunId: z
           .string()

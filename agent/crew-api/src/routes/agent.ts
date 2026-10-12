@@ -114,7 +114,7 @@ const unsignedLaunchSchema = z
         z.object({ seats: z.number().int().min(1).max(AUTOHIRE_SEATS_REQUEST_MAX).optional().default(5) }).optional(),
       )
       .optional(),
-    optInOnly: z.boolean().optional().default(true),
+    optInOnly: z.boolean().optional().default(false),
     treasuryBps: z.number().int().min(2000).max(3000).optional(),
     launcherPubkey: solanaAddress,
     mintPubkey: solanaAddress.optional(),
@@ -368,7 +368,7 @@ const autohireBodySchema = z.object({
   ticker: z.string().max(13).optional().default(''),
   description: z.string().max(USER_DESCRIPTION_MAX).optional().default(''),
   seats: z.number().int().min(1).max(AUTOHIRE_SEATS_REQUEST_MAX).optional().default(5),
-  optInOnly: z.boolean().optional().default(true),
+  optInOnly: z.boolean().optional().default(false),
 })
 
 function applyRateLimit(
@@ -508,7 +508,7 @@ async function handleQuickstart(
     const platformBps = platformBuybackBps(false)
     const deskBps = MODE_DESK_BPS.agent
     const crewPoolBps = 10_000 - platformBps - deskBps
-    const launchBody = { name, ticker, description, imageUrl: 'https://<your-public-image>.png', autoHire: true }
+    const launchBody = { name, ticker, description, imageUrl: 'https://<your-public-image>.png' }
     res.setHeader('Cache-Control', 'no-store')
     res.json({
       ok: true,
@@ -538,17 +538,31 @@ async function handleQuickstart(
         { step: 1, call: 'POST https://api.crewpay.dev/api/agent/keys/claim', body: {}, returns: 'crew_ak_… (store once)' },
         {
           step: 2,
-          call: 'POST https://api.crewpay.dev/api/agent/launch/dry-run',
-          headers: { 'x-crew-api-key': 'crew_ak_…' },
-          body: launchBody,
-          returns: 'final crew, fee map, cost — no SOL spent',
+          call: 'GET https://api.crewpay.dev/api/kols?limit=50',
+          headers: {},
+          body: null,
+          returns: 'browse KOLs — pick explicit crew wallets first (preferred)',
         },
         {
           step: 3,
+          call: 'POST https://api.crewpay.dev/api/agent/launch/dry-run',
+          headers: { 'x-crew-api-key': 'crew_ak_…' },
+          body: { ...launchBody, crew: [{ handle: '@alice', wallet: '<pubkey>', share: 50, hireRole: 'kol' }, { handle: '@bob', wallet: '<pubkey>', share: 50, hireRole: 'caller' }] },
+          returns: 'validate explicit crew, fee map, cost — no SOL spent',
+        },
+        {
+          step: 4,
           call: 'POST https://api.crewpay.dev/api/agent/launch',
           headers: { 'x-crew-api-key': 'crew_ak_…', 'x-launcher-key': '<launcher secret, env only>' },
-          body: launchBody,
+          body: { ...launchBody, crew: '…as above…' },
           returns: 'mint + feeShareLocked (MAINNET, spends SOL)',
+        },
+        {
+          step: 'Fallback',
+          call: 'POST https://api.crewpay.dev/api/agent/autohire',
+          headers: { 'x-crew-api-key': 'crew_ak_…' },
+          body: { name, ticker, description, seats },
+          returns: 'convenience Autohire plan when you cannot pick explicit crew',
         },
       ],
       mcp: { hosted: 'https://mcp.crewpay.dev/mcp', local: 'npx -y crewpay-mcp' },
