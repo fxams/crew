@@ -5,6 +5,7 @@ import {
   isClaimPath,
   isKolsPath,
   isLaunchPath,
+  isOnepagerPath,
   isProofPath,
   isReferralPath,
   isRegisterPath,
@@ -76,6 +77,18 @@ describe("isProofPath", () => {
     expect(isProofPath("/crew/proof")).toBe(true);
     expect(isProofPath("/")).toBe(false);
     expect(isProofPath("/agents")).toBe(false);
+  });
+});
+
+describe("isOnepagerPath", () => {
+  it("matches the public one-pager page, not the static assets", () => {
+    expect(isOnepagerPath("/onepager")).toBe(true);
+    expect(isOnepagerPath("/onepager/")).toBe(true);
+    expect(isOnepagerPath("/crew/onepager")).toBe(true);
+    expect(isOnepagerPath("/onepager.png")).toBe(false);
+    expect(isOnepagerPath("/onepager.pdf")).toBe(false);
+    expect(isOnepagerPath("/")).toBe(false);
+    expect(isOnepagerPath("/proof")).toBe(false);
   });
 });
 

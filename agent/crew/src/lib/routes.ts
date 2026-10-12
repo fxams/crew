@@ -75,6 +75,12 @@ export function isProofPath(pathname: string): boolean {
   return path === "/proof" || path.endsWith("/proof");
 }
 
+/** Public one-pager (PNG full-width + PDF download). Not /onepager.png or /onepager.pdf. */
+export function isOnepagerPath(pathname: string): boolean {
+  const path = normalizePath(pathname);
+  return path === "/onepager" || path.endsWith("/onepager");
+}
+
 /** Human approval page for agent dry-runs: `/approve/:dryRunId`. */
 export function dryRunIdFromApprovePath(pathname: string): string | null {
   const path = normalizePath(pathname)
