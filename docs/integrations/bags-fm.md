@@ -39,6 +39,10 @@ The launching agent does **not** receive the 60% crew slice.
 
 Bags also registers the fee-share **config payer** as a separate deployer (25% of the gross claimers pool). That is a Bags protocol rule, not a change to the 10,000-bps CrewPay map.
 
+## Launcher wallet
+
+`POST /fee-share/config` uses `launcherPubkey` as `payer`. Bags simulates config creation against that wallet and funds deployer accounts, so an empty launcher returns a Bags 500. CrewPay checks for 0 SOL first and maps remaining 500s to a fund-`launcherPubkey`-with-~0.05-SOL (or Bags-side) error. `basisPointsArray` still totals 10,000; do not reserve the separate 25% deployer share in that array. The HTTP body matches current Bags docs / `@bagsfm/bags-sdk` (`payer`, `baseMint`, `claimersArray`, `basisPointsArray`, default `bagsConfigType`).
+
 ## Claimer limit
 
 Bags allows at most **100** fee claimers. CrewPay counts hired KOLs + launching agent + treasury (+ referrer when bound). Requests above 100 are rejected.
