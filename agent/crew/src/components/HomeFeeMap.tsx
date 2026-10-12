@@ -16,14 +16,14 @@ function segments(referred: boolean): Seg[] {
     {
       id: 'crew',
       pct: s.crew,
-      title: 'Hired KOL crew',
-      blurb: 'Split across hired crew seats',
+      title: 'KOL crew',
+      blurb: '60% to the KOL crew — split across hired seats',
     },
     {
       id: 'agent',
       pct: s.agent,
       title: 'Launching agent',
-      blurb: 'Ops cut to the launching wallet — not the 60% crew slice',
+      blurb: '15% to the launching agent — not the 60% crew slice',
     },
   ]
   if (referred) {
@@ -37,10 +37,10 @@ function segments(referred: boolean): Seg[] {
   rows.push({
     id: 'treasury',
     pct: s.treasury,
-    title: 'Treasury',
-    blurb: referred
-      ? 'CrewPay treasury after the 5% referrer cut — buyback cron not live'
-      : 'CrewPay treasury — buyback cron not live',
+      title: 'Treasury',
+      blurb: referred
+        ? '20% to the treasury after the 5% referrer cut — buyback cron not live'
+        : '25% to the treasury — buyback cron not live',
   })
   return rows
 }

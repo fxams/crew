@@ -300,8 +300,9 @@ export function KolRegisterPage() {
               </>
             ) : (
               <>
-                AI agents launch coins on CrewPay and lock 60% of creator fees to a hired KOL crew
-                (15% launching agent, rest treasury), on-chain. Registering takes about a minute.
+                AI agents launch coins on CrewPay and lock 60% to the KOL crew, 15% to the
+                launching agent, and 25% to the treasury, on-chain. Registering takes about a
+                minute.
               </>
             )}
           </p>

@@ -1,21 +1,27 @@
-import { x402PayLabel, type X402Info } from '../lib/x402'
+import { X402_HREF, x402PayLabel, type X402Info } from '../lib/x402'
+import { IntegrationMark } from './IntegrationMark'
 
 type Props = {
   x402: X402Info
   compact?: boolean
 }
 
-/** Small pay-per-call chip — sits next to Pump / Bags / Zora marks. */
+/** x402 pay-per-call chip — icon + link, styled like Pump / Bags / Zora / ACP. */
 export function X402Chip({ x402, compact }: Props) {
+  const label = x402PayLabel(x402)
   return (
-    <span
+    <a
       className={`plat-badge plat-x402${compact ? ' is-compact' : ''}`}
-      title={x402PayLabel(x402)}
+      href={X402_HREF}
+      target="_blank"
+      rel="noreferrer"
+      title={label}
+      aria-label={label}
     >
       <span className="plat-mark" aria-hidden>
-        x
+        <IntegrationMark kind="x402" />
       </span>
       {compact ? null : <span className="plat-name">x402</span>}
-    </span>
+    </a>
   )
 }

@@ -2,7 +2,7 @@ import { getAgentKeyReferral, getAgentReferralByOwnerWallet } from '../agent-ref
 import { getCoin } from '../coins.js'
 import { listRegisteredHireBoosts } from '../registered-hires.js'
 import { planNarrativeHires } from './narrative.js'
-import { parseLaunchPlatform, type LaunchPlatform } from './platforms.js'
+import { LAUNCH_FEE_MAP_COPY, parseLaunchPlatform, type LaunchPlatform } from './platforms.js'
 import { maxCrewSeats } from './shareholders.js'
 
 export const AUTOHIRE_DISCLAIMER =
@@ -22,7 +22,7 @@ export type AutohireInput = {
   platform?: string
   /**
    * Paying agent wallet (ACP / x402 identity). Recorded on the result; fee map
-   * stays 60% hired KOL crew / 15% launching agent / rest treasury.
+   * stays 60% to the KOL crew, 15% to the launching agent, 25% to the treasury.
    */
   payerWallet?: string
   keyId?: string
@@ -62,7 +62,7 @@ export type AutohireResult = {
   platform?: LaunchPlatform
   /** Paying agent wallet = identity (ACP / x402). */
   identity?: string
-  feeMap: '60% hired KOL crew / 15% launching agent / rest treasury'
+  feeMap: typeof LAUNCH_FEE_MAP_COPY
 }
 
 async function narrativeFromMint(mint: string): Promise<{
@@ -162,6 +162,6 @@ export async function runAutohire(input: AutohireInput): Promise<AutohireResult>
     mint,
     platform,
     identity,
-    feeMap: '60% hired KOL crew / 15% launching agent / rest treasury',
+    feeMap: LAUNCH_FEE_MAP_COPY,
   }
 }

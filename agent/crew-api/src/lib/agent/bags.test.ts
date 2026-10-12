@@ -121,7 +121,7 @@ describe('Bags.fm unsigned launch', () => {
     expect(feeBody.basisPointsArray[1]).toBe(1500)
     expect(feeBody.basisPointsArray[2]).toBe(2500)
     expect(plan.note).not.toMatch(/launcher gets 60/i)
-    expect(plan.warnings?.join(' ')).toMatch(/60% hired KOL crew/)
+    expect(plan.warnings?.join(' ')).toMatch(/60% to the KOL crew/)
   })
 
   it('attaches a LUT when claimers exceed the non-LUT limit', async () => {

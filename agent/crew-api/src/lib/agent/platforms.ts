@@ -269,6 +269,7 @@ export function acpPublicJson() {
     id: 'acp' as const,
     name: 'Virtuals ACP',
     protocol: 'acp-v2',
+    href: 'https://app.virtuals.io/acp',
     enabled: acpEnabled(),
     chainId,
     chain: acpChainLabel(chainId),
@@ -354,7 +355,7 @@ export function explorerTxUrl(platform: LaunchPlatform, signature: string): stri
 }
 
 export const LAUNCH_FEE_MAP_COPY =
-  '60% hired KOL crew / 15% launching agent / rest treasury'
+  '60% to the KOL crew, 15% to the launching agent, 25% to the treasury'
 
 const TRADE_HOSTS: Record<LaunchPlatform, string[]> = {
   pumpfun: ['pump.fun', 'www.pump.fun'],

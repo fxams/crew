@@ -9,6 +9,7 @@ import {
   isAllowedTradeUrl,
   parseLaunchPlatform,
   platformDisplayName,
+  platformShortName,
   tradeLabel,
   tradeUrl,
   unsignedLaunchCurl,
@@ -115,11 +116,12 @@ describe('launch platform helpers', () => {
     expect(fromSpec?.find((v) => v.id === 'zora')?.caption).toBe('soon')
   })
 
-  it('fee copy names hired KOL crew, never the launcher 60%', () => {
-    expect(LAUNCH_FEE_MAP_COPY).toMatch(/hired KOL crew/)
-    expect(LAUNCH_FEE_MAP_COPY).toMatch(/15% launching agent/)
-    expect(LAUNCH_FEE_MAP_COPY).toMatch(/rest treasury/)
+  it('fee copy names KOL crew, launching agent, and 25% treasury — never the launcher 60%', () => {
+    expect(LAUNCH_FEE_MAP_COPY).toBe(
+      '60% to the KOL crew, 15% to the launching agent, 25% to the treasury',
+    )
     expect(LAUNCH_FEE_MAP_COPY.toLowerCase()).not.toMatch(/launcher gets 60/)
+    expect(LAUNCH_FEE_MAP_COPY).not.toMatch(/rest treasury/)
     expect(FALLBACK_LAUNCH_VENUES).toHaveLength(3)
     const curl = unsignedLaunchCurl({ platform: 'bags', name: 'Night Owl', ticker: 'HOOT' })
     expect(curl).toContain('"platform": "bags"')
@@ -134,6 +136,9 @@ describe('launch platform helpers', () => {
     expect(platformDisplayName('pumpfun')).toBe('Pump.fun')
     expect(platformDisplayName('bags')).toBe('Bags.fm')
     expect(platformDisplayName('zora')).toBe('Zora')
+    expect(platformShortName('pumpfun')).toBe('Pump')
+    expect(platformShortName('bags')).toBe('Bags')
+    expect(platformShortName('zora')).toBe('Zora')
   })
 
   it('Zora captions are Base / testnet / soon', () => {

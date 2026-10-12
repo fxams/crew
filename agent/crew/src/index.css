@@ -3942,6 +3942,18 @@ a {
   max-width: 100%;
 }
 
+a.plat-badge {
+  text-decoration: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+a.plat-badge:hover,
+a.plat-badge:focus-visible {
+  border-color: var(--acid);
+  color: var(--ink);
+}
+
 .plat-badge.is-compact {
   padding: 0.1rem;
 }
@@ -3960,6 +3972,12 @@ a {
   flex-shrink: 0;
 }
 
+.plat-mark-svg {
+  width: 0.62rem;
+  height: 0.62rem;
+  display: block;
+}
+
 .plat-bags .plat-mark {
   background: var(--amber);
   color: var(--acid-ink);
@@ -3970,19 +3988,22 @@ a {
   color: var(--acid-ink);
 }
 
-.plat-x402 {
-  color: var(--acid);
-  border-color: rgba(200, 255, 61, 0.35);
+.plat-x402 .plat-mark {
+  background: var(--ok);
+  color: var(--acid-ink);
 }
 
-.plat-x402 .plat-mark {
-  background: transparent;
-  border: 1px solid var(--acid);
-  color: var(--acid);
+.plat-acp .plat-mark {
+  background: #7c5cff;
+  color: #f7f4ff;
 }
 
 .plat-name {
   white-space: nowrap;
+}
+
+.plat-name-short {
+  display: none;
 }
 
 .plat-select .plat-option {
@@ -4061,6 +4082,7 @@ a {
 .plat-hero-row {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.35rem;
   margin: 0.55rem 0 0;
 }
@@ -4189,29 +4211,35 @@ a {
     font-size: 16px;
   }
 
-  /* Phantom in-app ~390px: hero + Try Autohire chips need a real tap target. */
-  .plat-hero-row,
+  /* Phantom in-app ~390px: 3+2 wrap, same-size chips, no leftover stretch. */
+  .plat-hero-row {
+    display: grid;
+    grid-template-columns: repeat(3, max-content);
+    justify-content: start;
+    gap: 0.4rem;
+  }
+
   .try-crew > .plat-chip-row {
     gap: 0.4rem;
   }
 
-  .plat-hero-row .plat-badge:not(.plat-x402),
+  .plat-hero-row .plat-badge,
   .try-crew > .plat-chip-row .plat-filter-btn {
-    flex: 1 1 0;
-    min-width: 0;
+    min-width: 4.6rem;
     min-height: 40px;
-    padding: 0.3rem 0.65rem 0.3rem 0.35rem;
-    gap: 0.4rem;
-    font-size: 0.875rem;
+    padding: 0.3rem 0.55rem 0.3rem 0.35rem;
+    gap: 0.35rem;
+    font-size: 0.8rem;
     letter-spacing: 0.02em;
     justify-content: center;
   }
 
-  .plat-hero-row .plat-badge.plat-x402 {
-    flex: 0 0 auto;
-    min-height: 32px;
-    padding: 0.2rem 0.5rem 0.2rem 0.28rem;
-    font-size: 0.72rem;
+  .plat-hero-row .plat-name-full {
+    display: none;
+  }
+
+  .plat-hero-row .plat-name-short {
+    display: inline;
   }
 
   .plat-hero-row .plat-mark,
@@ -4221,10 +4249,9 @@ a {
     font-size: 0.72rem;
   }
 
-  .plat-hero-row .plat-x402 .plat-mark {
-    width: 18px;
-    height: 18px;
-    font-size: 0.62rem;
+  .plat-hero-row .plat-mark-svg {
+    width: 0.72rem;
+    height: 0.72rem;
   }
 
   .auth-chip-row {
