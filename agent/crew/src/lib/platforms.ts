@@ -1,6 +1,7 @@
 /** Launch venues (Pump.fun / Bags.fm / Zora). Prefer discovery JSON over hardcoding. */
 
 import { CREW_AGENT_API_URL, CREW_PUBLIC_API_URL } from './config'
+import { FALLBACK_ACP, acpFromDoc, type AcpInfo } from './acp'
 import { FALLBACK_X402, x402FromDoc, type X402Info } from './x402'
 
 export const LAUNCH_PLATFORMS = ['pumpfun', 'bags', 'zora'] as const
@@ -24,7 +25,7 @@ export type LaunchVenue = {
 export const DEFAULT_LAUNCH_PLATFORM: LaunchPlatform = 'pumpfun'
 
 export const LAUNCH_FEE_MAP_COPY =
-  '60% hired KOL crew / 15% launching agent / rest treasury'
+  '60% to the KOL crew, 15% to the launching agent, 25% to the treasury'
 
 /** Fallback when discovery/OpenAPI is unreachable. Zora stays disabled (soon). Bags stays on (live). */
 export const FALLBACK_LAUNCH_VENUES: LaunchVenue[] = [
@@ -77,6 +78,12 @@ export function platformDisplayName(platform: LaunchPlatform): string {
   if (platform === 'bags') return 'Bags.fm'
   if (platform === 'zora') return 'Zora'
   return 'Pump.fun'
+}
+
+export function platformShortName(platform: LaunchPlatform): string {
+  if (platform === 'bags') return 'Bags'
+  if (platform === 'zora') return 'Zora'
+  return 'Pump'
 }
 
 export function platformMark(platform: LaunchPlatform): string {
@@ -298,6 +305,7 @@ async function getJson(url: string): Promise<unknown> {
 export type LaunchDiscovery = {
   venues: LaunchVenue[]
   x402: X402Info
+  acp: AcpInfo
 }
 
 let inflightDiscovery: Promise<LaunchDiscovery> | null = null
@@ -305,32 +313,35 @@ let inflightDiscovery: Promise<LaunchDiscovery> | null = null
 async function fetchLaunchDiscoveryUncached(): Promise<LaunchDiscovery> {
   const bases = [CREW_AGENT_API_URL.replace(/\/$/, ''), CREW_PUBLIC_API_URL]
   let x402 = FALLBACK_X402
+  let acp = FALLBACK_ACP
   for (const base of [...new Set(bases)]) {
     try {
       const payload = await getJson(`${base}/api/platforms`)
       x402 = x402FromDoc(payload)
+      acp = acpFromDoc(payload)
       const fromPayload = venuesFromPlatformsPayload(payload)
-      if (fromPayload) return { venues: fromPayload, x402 }
+      if (fromPayload) return { venues: fromPayload, x402, acp }
     } catch {
       /* try discovery */
     }
     try {
       const discovery = await getJson(`${base}/api/agent`)
       x402 = x402FromDoc(discovery)
+      acp = acpFromDoc(discovery)
       const fromDiscovery = venuesFromDiscovery(discovery)
-      if (fromDiscovery) return { venues: fromDiscovery, x402 }
+      if (fromDiscovery) return { venues: fromDiscovery, x402, acp }
     } catch {
       /* try openapi */
     }
     try {
       const openapi = await getJson(`${base}/openapi.json`)
       const fromSpec = venuesFromOpenApi(openapi)
-      if (fromSpec) return { venues: fromSpec, x402 }
+      if (fromSpec) return { venues: fromSpec, x402, acp }
     } catch {
       /* next base */
     }
   }
-  return { venues: FALLBACK_LAUNCH_VENUES, x402 }
+  return { venues: FALLBACK_LAUNCH_VENUES, x402, acp }
 }
 
 /**

@@ -78,7 +78,7 @@
         "operationId": "getLaunchPlatforms",
         "responses": {
           "200": {
-            "description": "pumpfun always on; bags if BAGS_API_KEY; zora if ZORA_ENABLED + 0x treasury. chain is solana, base, or base-sepolia. x402 object describes pay-per-call (off unless X402_ENABLED).",
+            "description": "pumpfun always on; bags if BAGS_API_KEY; zora if ZORA_ENABLED + 0x treasury. chain is solana, base, or base-sepolia. acp.enabled is false unless ACP_ENABLED=1. x402 object describes pay-per-call (off unless X402_ENABLED).",
             "content": {
               "application/json": {
                 "schema": {
@@ -277,7 +277,7 @@
           "agent"
         ],
         "summary": "Build UNSIGNED launch transactions (no secrets)",
-        "description": "platform defaults to pumpfun. bags = Bags.fm Solana (BAGS_API_KEY). zora = Zora coins on Base (ZORA_ENABLED, EIP-1559). Same KOL order: crew[] first, Autohire second. Fee map 60% hired KOL crew / 15% launching agent / rest treasury.",
+        "description": "platform defaults to pumpfun. bags = Bags.fm Solana (BAGS_API_KEY). zora = Zora coins on Base (ZORA_ENABLED, EIP-1559). Same KOL order: crew[] first, Autohire second. Fee map 60% to the KOL crew, 15% to the launching agent, 25% to the treasury.",
         "operationId": "postAgentLaunchUnsigned",
         "security": [
           {
@@ -1094,7 +1094,9 @@
         "required": [
           "ok",
           "default",
-          "venues"
+          "venues",
+          "acp",
+          "x402"
         ],
         "properties": {
           "ok": {
@@ -1117,6 +1119,59 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/LaunchVenue"
+            }
+          },
+          "acp": {
+            "type": "object",
+            "description": "Virtuals ACP v2 hire channel. enabled is false unless ACP_ENABLED=1.",
+            "required": [
+              "id",
+              "enabled"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "enum": [
+                  "acp"
+                ]
+              },
+              "name": {
+                "type": "string"
+              },
+              "protocol": {
+                "type": "string"
+              },
+              "href": {
+                "type": "string",
+                "format": "uri"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "chainId": {
+                "type": "integer"
+              },
+              "chain": {
+                "type": "string"
+              },
+              "offerings": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "pricesUsd": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "number"
+                }
+              },
+              "feeMap": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
             }
           }
         }

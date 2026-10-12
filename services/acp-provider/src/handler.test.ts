@@ -115,7 +115,7 @@ describe('ACP job lifecycle', () => {
       ok: true,
       steps: [{ kind: 'create', messageBase64: 'AAA' }],
       submitSigned: { tool: 'crew_submit_signed', http: 'POST /api/agent/launch/submit' },
-      feeMap: '60% hired KOL crew / 15% launching agent / rest treasury',
+      feeMap: '60% to the KOL crew, 15% to the launching agent, 25% to the treasury',
     }
     const fulfillment = {
       autohire: vi.fn(),

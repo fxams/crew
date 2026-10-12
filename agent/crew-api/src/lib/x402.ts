@@ -215,7 +215,7 @@ export function x402PublicDiscovery() {
     ],
     identity:
       'Payer wallet is the agent identity (15% launching-agent share when the chain matches; referral bound if that wallet already owns a referred key).',
-    feeMap: '60% hired KOL crew / 15% launching agent / rest treasury',
+    feeMap: '60% to the KOL crew, 15% to the launching agent, 25% to the treasury',
   }
 }
 

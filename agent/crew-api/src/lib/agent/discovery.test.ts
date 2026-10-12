@@ -116,7 +116,8 @@ describe('agent discovery docs', () => {
       'base',
       'base-sepolia',
     ])
-    expect(agentDiscoveryJson().platforms.feeMap).toMatch(/hired KOL crew/)
+    expect(agentDiscoveryJson().platforms.feeMap).toMatch(/60% to the KOL crew/)
+    expect(agentDiscoveryJson().platforms.feeMap).toMatch(/25% to the treasury/)
     expect(agentDiscoveryJson().platforms.feeMap.toLowerCase()).not.toMatch(/launcher gets 60/)
     expect(agentDiscoveryJson().platforms.acp.enabled).toBe(false)
     expect(agentDiscoveryJson().platforms.acp.offerings).toContain('crewpay_autohire_kol_crew')

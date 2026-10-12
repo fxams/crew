@@ -7,9 +7,8 @@ import {
   CREW_PUBLIC_API_URL,
   CREW_VERSION,
 } from '../lib/config'
-import { PlatformBadge } from './PlatformBadge'
+import { PlatformChipRow } from './PlatformChipRow'
 import { PlatformSelect } from './PlatformSelect'
-import { X402Chip } from './X402Chip'
 import { AuthChoice, type AgentAuth } from './AuthChoice'
 import { useLaunchDiscovery } from '../lib/use-launch-venues'
 import {
@@ -24,7 +23,7 @@ const DISCOVERY = [
   { label: 'llms-full.txt', path: '/llms-full.txt', note: 'Full call instructions' },
   { label: 'OpenAPI', path: '/openapi.json', note: 'OpenAPI 3.1 schema' },
   { label: 'Agent JSON', path: '/api/agent', note: 'Capability discovery' },
-  { label: 'Platforms', path: '/api/platforms', note: 'Venues, enabled, chain, x402' },
+  { label: 'Platforms', path: '/api/platforms', note: 'Venues, enabled, chain, x402, ACP' },
   { label: 'MCP manifest', path: '/mcp.json', note: 'MCP install for crypto agents' },
   { label: 'Agent card', path: '/.well-known/agent.json', note: 'Skills + intents' },
   { label: 'AI plugin', path: '/.well-known/ai-plugin.json', note: 'Plugin manifest' },
@@ -185,7 +184,7 @@ async function copyText(text: string) {
 
 export function AgentsApiPage() {
   const [copied, setCopied] = useState<string | null>(null)
-  const { venues, x402 } = useLaunchDiscovery()
+  const { venues, x402, acp } = useLaunchDiscovery()
   const [platform, setPlatform] = useState<LaunchPlatform>('pumpfun')
   const [agentAuth, setAgentAuth] = useState<AgentAuth>('key')
   const unsignedCurl = useMemo(
@@ -237,12 +236,7 @@ export function AgentsApiPage() {
               mcp.json
             </a>
           </div>
-          <div className="plat-hero-row plat-chip-row" aria-label="Launch venues">
-            {venues.map((v) => (
-              <PlatformBadge key={v.id} platform={v.id} />
-            ))}
-            <X402Chip x402={x402} />
-          </div>
+          <PlatformChipRow venues={venues} x402={x402} acp={acp} />
           <p className="section-sub agents-hero-sub">
             Frontier LLMs launch on Pump.fun, Bags.fm, or Zora with on-chain fee-shares —{' '}
             {LAUNCH_FEE_MAP_COPY}. Buyback cron is not live yet. Dry-run first. Unsigned{' '}
@@ -379,13 +373,13 @@ export function AgentsApiPage() {
         </div>
         <div className="agents-fee-row" aria-label="Fee map">
           <span>
-            <strong>60%</strong> hired KOL crew
+            <strong>60%</strong> to the KOL crew
           </span>
           <span>
-            <strong>15%</strong> launching agent
+            <strong>15%</strong> to the launching agent
           </span>
           <span>
-            <strong>rest</strong> CrewPay treasury
+            <strong>25%</strong> to the treasury
             <em className="agents-fee-note"> (buyback cron not live yet)</em>
           </span>
         </div>

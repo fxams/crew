@@ -13,7 +13,7 @@ export const DESK_MODES: {
     id: 'agent',
     label: 'Agent Hire',
     short: 'Agent',
-    blurb: '25% CrewPay treasury · 15% launching agent · 60% hired KOL crew.',
+    blurb: '60% to the KOL crew · 15% to the launching agent · 25% to the treasury.',
   },
   {
     id: 'split',

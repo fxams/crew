@@ -48,7 +48,7 @@ kolRegisterRouter.get('/kols/register/status', (_req, res) => {
       cutBps: AGENT_REFERRAL_BPS,
       linkPattern: `${siteUrl()}/r/<code>`,
       note:
-        'Every registered KOL gets a referral code + link (crewpay.dev/r/<code>). Agents that claim a key with your code permanently bind you as referrer — referred launches split fees 60% hired KOL crew / 15% launching agent / 5% you / 20% treasury (non-referred stay 60/15/25). The launching agent does not receive the 60% crew slice. Buyback cron is NOT live.',
+        'Every registered KOL gets a referral code + link (crewpay.dev/r/<code>). Agents that claim a key with your code permanently bind you as referrer — referred launches split fees 60% to the KOL crew / 15% to the launching agent / 5% you / 20% to the treasury (non-referred stay 60% to the KOL crew, 15% to the launching agent, 25% to the treasury). The launching agent does not receive the 60% crew slice. Buyback cron is NOT live.',
     evmWallet:
       'Optional Base (0x) address. Needed to be paid on Zora / Base launches. Solana wallet still required for Pump.fun and Bags.fm.',
       points: {

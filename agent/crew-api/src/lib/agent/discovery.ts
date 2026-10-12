@@ -314,7 +314,7 @@ export function agentDiscoveryJson() {
       'Prefer manual explicit crew selection from the KOL directory (crew[] must total 100%). Autohire is a fallback convenience when you cannot choose.',
       'Optional consent filter: set optInOnly=true to restrict Autohire or explicit crew to registered KOLs (default off).',
       'Non-custodial: build UNSIGNED txs via POST /api/agent/launch/unsigned (MCP crew_build_unsigned), then sign+submit locally or POST /api/agent/launch/submit (MCP crew_submit_signed). platform defaults to pumpfun; bags = Bags.fm (Solana, BAGS_API_KEY); zora = Zora coins on Base (ZORA_ENABLED, EIP-1559). Same KOL order: manual crew[] first, Autohire second.',
-      'Fee map is always 60% hired KOL crew / 15% launching agent / rest treasury (5% referrer when the agent key is referred). The launching agent does not receive the 60% crew slice.',
+      'Fee map is always 60% to the KOL crew, 15% to the launching agent, 25% to the treasury (5% referrer when the agent key is referred). The launching agent does not receive the 60% crew slice.',
       'x402: when X402_ENABLED, launch + autohire accept X-PAYMENT (USDC on Base/Solana) instead of an API key. 402 Payment Required lists accepts[]; successful settle returns X-PAYMENT-RESPONSE. Payer wallet is the agent identity. GET /api/platforms includes x402.',
       'Always check feeShareLocked — HTTP 202 means mint live but fees not locked; call wire-fees or lock-holder-kol (see nextSteps).',
       'imageUrl is SSRF-guarded (public http(s) only; magic-byte image check).',
@@ -526,7 +526,7 @@ export function openApiSpec() {
           tags: ['agent'],
           summary: 'Build UNSIGNED launch transactions (no secrets)',
           description:
-            'platform defaults to pumpfun. bags = Bags.fm Solana (BAGS_API_KEY). zora = Zora coins on Base (ZORA_ENABLED, EIP-1559). Same KOL order: crew[] first, Autohire second. Fee map 60% hired KOL crew / 15% launching agent / rest treasury.',
+            'platform defaults to pumpfun. bags = Bags.fm Solana (BAGS_API_KEY). zora = Zora coins on Base (ZORA_ENABLED, EIP-1559). Same KOL order: crew[] first, Autohire second. Fee map 60% to the KOL crew, 15% to the launching agent, 25% to the treasury.',
           operationId: 'postAgentLaunchUnsigned',
           security: [{ CrewApiKey: [] }, { X402Payment: [] }],
           requestBody: {
@@ -940,6 +940,7 @@ export function openApiSpec() {
                 id: { type: 'string', enum: ['acp'] },
                 name: { type: 'string' },
                 protocol: { type: 'string' },
+                href: { type: 'string', format: 'uri' },
                 enabled: { type: 'boolean' },
                 chainId: { type: 'integer' },
                 chain: { type: 'string' },
@@ -1311,13 +1312,13 @@ Canonical site is **https://crewpay.dev** (\`app.crewpay.dev\` has no DNS).
 
 - \`platform\` on \`POST /api/agent/launch/unsigned\` and MCP \`crew_build_unsigned\` defaults to \`pumpfun\` (unchanged).
 - \`bags\` — Bags.fm on Solana via the public API. Requires \`BAGS_API_KEY\`. Hired KOL crew + launching agent + treasury are fee claimers (60/15/rest; 5% referrer when bound). Bags caps claimers at 100; crews above 7 claimers attach the Bags public LUT.
-- \`zora\` — Zora content coins on Base. Off unless \`ZORA_ENABLED\` is set. Creator rewards go to a 0xSplits contract (60% hired KOL crew / 15% launching agent / rest treasury). CrewPay is the platform referrer. Base Sepolia by default; \`ZORA_CHAIN=base\` for mainnet. Returns unsigned EIP-1559 txs (split, then create).
+- \`zora\` — Zora content coins on Base. Off unless \`ZORA_ENABLED\` is set. Creator rewards go to a 0xSplits contract (60% to the KOL crew, 15% to the launching agent, 25% to the treasury). CrewPay is the platform referrer. Base Sepolia by default; \`ZORA_CHAIN=base\` for mainnet. Returns unsigned EIP-1559 txs (split, then create).
 - Same KOL order on every platform: explicit \`crew[]\` first, Autohire second. \`optInOnly\` optional and off by default.
 - Sign locally, then \`POST /api/agent/launch/submit\` / \`crew_submit_signed\` (pass the same \`platform\`).
 
 ## Virtuals ACP (off by default)
 
-Agents can hire CrewPay via Agent Commerce Protocol v2 jobs when \`ACP_ENABLED=1\`. \`GET /api/platforms\` reports \`acp.enabled\` (false by default). Offerings: \`crewpay_autohire_kol_crew\` (crew list JSON, default $0.25) and \`crewpay_launch_with_crew\` (unsigned txs + \`crew_submit_signed\` instructions — non-custodial, default $1.00). Paying agent wallet = identity. Fee map unchanged (60% hired KOL crew / 15% launching agent / rest treasury). Listen in-process with \`ACP_INPROCESS=1\` on crewpay-api, or run \`services/acp-provider\`. Do not send \`ACP_SIGNER_KEY\` anywhere except the listener env.
+Agents can hire CrewPay via Agent Commerce Protocol v2 jobs when \`ACP_ENABLED=1\` on Base mainnet. \`GET /api/platforms\` reports \`acp.enabled\` (false by default). Offerings: \`crewpay_autohire_kol_crew\` (crew list JSON, default $0.25) and \`crewpay_launch_with_crew\` (unsigned txs + \`crew_submit_signed\` instructions — non-custodial, default $1.00). Paying agent wallet = identity. Fee map unchanged (60% to the KOL crew, 15% to the launching agent, 25% to the treasury). Listen in-process with \`ACP_INPROCESS=1\` on crewpay-api, or run \`services/acp-provider\`. Do not send \`ACP_SIGNER_KEY\` anywhere except the listener env. Hire UI: https://app.virtuals.io/acp
 
 ## Limits (site + API + MCP aligned)
 
@@ -1335,9 +1336,9 @@ Agents can hire CrewPay via Agent Commerce Protocol v2 jobs when \`ACP_ENABLED=1
 
 ## Fee map (mode=agent)
 
-- **60%** hired KOL crew
-- **15%** launching agent
-- **25%** CrewPay treasury — or **20%** when the agent key has a KOL referral
+- **60%** to the KOL crew
+- **15%** to the launching agent
+- **25%** to the treasury — or **20%** when the agent key has a KOL referral
 - **5%** referrer KOL (only when \`referralCode\` was bound at claim-key; on-chain recipient)
 - Non-referred stays **60/15/25**. Buyback cron not live yet. Invite: \`https://crewpay.dev/r/<code>\`
 
@@ -1395,7 +1396,7 @@ GET ${SITE_URL}/robots.txt
 | x-launcher-key | launch / wire / lock (optional on crank) | Agent wallet secret (base58 or JSON byte array). Crank is permissionless — omit and server uses CREW_OPS_KEY when set. |
 | x-idempotency-key | optional | Prevents duplicate launches on retry |
 
-UNSIGNED platforms (same endpoints / MCP tools): \`platform\` defaults to \`pumpfun\`. \`bags\` needs \`BAGS_API_KEY\` (Solana fee claimers: 60% hired KOL crew / 15% launching agent / rest treasury). \`zora\` needs \`ZORA_ENABLED\` (Base EIP-1559; 0xSplits payout + CrewPay platform referrer). Manual \`crew[]\` first, Autohire second. \`optInOnly\` off by default.
+UNSIGNED platforms (same endpoints / MCP tools): \`platform\` defaults to \`pumpfun\`. \`bags\` needs \`BAGS_API_KEY\` (Solana fee claimers: 60% to the KOL crew, 15% to the launching agent, 25% to the treasury). \`zora\` needs \`ZORA_ENABLED\` (Base EIP-1559; 0xSplits payout + CrewPay platform referrer). Manual \`crew[]\` first, Autohire second. \`optInOnly\` off by default.
 
 Virtuals ACP v2: \`GET /api/platforms\` → \`acp.enabled\` (false unless \`ACP_ENABLED=1\`). Offerings \`crewpay_autohire_kol_crew\` ($0.25) and \`crewpay_launch_with_crew\` ($1.00, unsigned + \`crew_submit_signed\`). \`ACP_INPROCESS=1\` embeds the listener in crewpay-api; else \`services/acp-provider\`. Paying wallet = identity. Do not log \`ACP_SIGNER_KEY\`.
 

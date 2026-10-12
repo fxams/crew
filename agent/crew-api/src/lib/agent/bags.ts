@@ -284,7 +284,7 @@ export async function buildBagsUnsignedLaunch(opts: {
     )
   }
   warnings.push(
-    'Bags registers the fee-share config payer as a separate deployer (25% of the gross claimers pool). CrewPay still allocates the 10,000-bps claimers pool as 60% hired KOL crew / 15% launching agent / rest treasury (5% referrer when bound).',
+    'Bags registers the fee-share config payer as a separate deployer (25% of the gross claimers pool). CrewPay still allocates the 10,000-bps claimers pool as 60% to the KOL crew, 15% to the launching agent, 25% to the treasury (5% referrer when bound).',
   )
 
   return {

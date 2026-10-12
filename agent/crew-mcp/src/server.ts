@@ -84,7 +84,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Build UNSIGNED launch transactions',
       description:
-        'Create UNSIGNED launch transactions. platform defaults to pumpfun (Solana v0 messages). bags = Bags.fm Solana fee-claimers (needs BAGS_API_KEY). zora = Zora content coins on Base (EIP-1559; needs ZORA_ENABLED). Prefer explicit crew[] from crew_list_kols; Autohire is fallback. optInOnly default off. Fee map: 60% hired KOL crew / 15% launching agent / rest treasury (5% referrer when bound). Optional treasuryBps 2000–3000.',
+        'Create UNSIGNED launch transactions. platform defaults to pumpfun (Solana v0 messages). bags = Bags.fm Solana fee-claimers (needs BAGS_API_KEY). zora = Zora content coins on Base (EIP-1559; needs ZORA_ENABLED). Prefer explicit crew[] from crew_list_kols; Autohire is fallback. optInOnly default off. Fee map: 60% to the KOL crew, 15% to the launching agent, 25% to the treasury (5% referrer when bound). Optional treasuryBps 2000–3000.',
       inputSchema: {
         name: z.string().min(2).max(32),
         ticker: z.string().min(2).max(13),

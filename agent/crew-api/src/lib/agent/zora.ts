@@ -359,7 +359,7 @@ export async function buildZoraUnsignedLaunch(opts: {
         'split',
         splitTx,
         launcher,
-        'Create 0xSplits payout recipient (60% hired KOL crew / 15% launching agent / rest treasury). Sign+submit before the coin create.',
+        'Create 0xSplits payout recipient (60% to the KOL crew, 15% to the launching agent, 25% to the treasury). Sign+submit before the coin create.',
       ),
       eip1559Step(
         'zora_create',
@@ -373,7 +373,7 @@ export async function buildZoraUnsignedLaunch(opts: {
     encoding: 'eip1559',
     warnings: [
       `Zora ${network} (chainId ${chainId}) — no mainnet launch is performed by this builder.`,
-      'Creator rewards go to the 0xSplits contract (hired KOL crew 60% / launching agent 15% / rest treasury). CrewPay is set as platform referrer.',
+      'Creator rewards go to the 0xSplits contract (60% to the KOL crew / 15% to the launching agent / 25% to the treasury). CrewPay is set as platform referrer.',
     ],
     note: 'UNSIGNED Zora EIP-1559 txs — sign locally (type-2) in order: split, then zora_create. Submit hex signed txs via POST /api/agent/launch/submit { platform: "zora" }.',
   }

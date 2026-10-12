@@ -37,7 +37,7 @@ export function ReceiptCard({ coin, onCopy, copied }: Props) {
         ))}
       </div>
       <div className="receipt-foot">
-        <span>60% hired KOL crew · 15% launching agent · rest treasury</span>
+        <span>60% to the KOL crew · 15% to the launching agent · 25% to the treasury</span>
         <span>mainnet</span>
       </div>
       <button className="btn btn-ghost btn-sm receipt-copy" type="button" onClick={onCopy}>

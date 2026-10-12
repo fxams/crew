@@ -11,13 +11,15 @@ import {
 import { MAX_CREW } from './lib/config'
 
 describe('DESK_MODES copy', () => {
-  it('keeps honest 25% CrewPay treasury language on every mode', () => {
+  it('keeps honest 25% treasury language on every mode', () => {
     for (const mode of DESK_MODES) {
-      expect(mode.blurb).toMatch(/25% CrewPay treasury/)
+      expect(mode.blurb).toMatch(/25% (to the |CrewPay )?treasury/)
       expect(mode.blurb).not.toMatch(/CREW treasury fee-share|CREW buyback/)
       expect(mode.blurb.toLowerCase()).not.toMatch(/launcher gets 60/)
     }
-    expect(DESK_MODES.find((m) => m.id === 'agent')?.blurb).toMatch(/hired KOL crew/)
+    expect(DESK_MODES.find((m) => m.id === 'agent')?.blurb).toMatch(
+      /60% to the KOL crew · 15% to the launching agent · 25% to the treasury/,
+    )
     expect(DEFAULT_DRAFT.platform).toBe('pumpfun')
   })
 

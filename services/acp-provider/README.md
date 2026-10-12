@@ -4,7 +4,7 @@ Long-running [Virtuals ACP v2](https://www.npmjs.com/package/@virtuals-protocol/
 
 **Complete no-op unless `ACP_ENABLED=1`.** This package does not register an agent, generate keys, or touch funds.
 
-Fee split is unchanged: **60% hired KOL crew / 15% launching agent / rest treasury.** The paying agent wallet is identity (same as the x402 path). `crewpay_launch_with_crew` stays non-custodial — deliverable is unsigned txs plus `crew_submit_signed` instructions.
+Fee split is unchanged: **60% to the KOL crew, 15% to the launching agent, 25% to the treasury.** The paying agent wallet is identity (same as the x402 path). `crewpay_launch_with_crew` stays non-custodial — deliverable is unsigned txs plus `crew_submit_signed` instructions.
 
 ## Offerings
 
@@ -14,7 +14,7 @@ Register these on [app.virtuals.io](https://app.virtuals.io/acp/new) (you do thi
 [
   {
     "name": "crewpay_autohire_kol_crew",
-    "description": "Hire a KOL crew for an existing token via CrewPay Autohire. Deliverable is crew list JSON. Fee map 60% hired KOL crew / 15% launching agent / rest treasury.",
+    "description": "Hire a KOL crew for an existing token via CrewPay Autohire. Deliverable is crew list JSON. Fee map 60% to the KOL crew, 15% to the launching agent, 25% to the treasury.",
     "slaMinutes": 15,
     "priceUsd": 0.25,
     "requirements": {
@@ -53,7 +53,7 @@ Register these on [app.virtuals.io](https://app.virtuals.io/acp/new) (you do thi
   },
   {
     "name": "crewpay_launch_with_crew",
-    "description": "Build unsigned launch transactions (crew_build_unsigned) plus crew_submit_signed instructions. CrewPay never holds the launcher key. Fee map 60% hired KOL crew / 15% launching agent / rest treasury.",
+    "description": "Build unsigned launch transactions (crew_build_unsigned) plus crew_submit_signed instructions. CrewPay never holds the launcher key. Fee map 60% to the KOL crew, 15% to the launching agent, 25% to the treasury.",
     "slaMinutes": 30,
     "priceUsd": 1.00,
     "requirements": {

@@ -7,6 +7,7 @@ import { isEvmAddress } from './evm-address.js'
 import { loadAgentImageBytes, sha256ImageBytes } from './ipfs.js'
 import { planNarrativeHires, type CrewMember } from './narrative.js'
 import {
+  LAUNCH_FEE_MAP_COPY,
   assertPlatformReady,
   getEvmTreasuryWallet,
   parseLaunchPlatform,
@@ -58,7 +59,7 @@ export type UnsignedLaunchResult = UnsignedLaunchPlan & {
     body: { platform: LaunchPlatform; signed: string[] }
     note: string
   }
-  feeMap: '60% hired KOL crew / 15% launching agent / rest treasury'
+  feeMap: typeof LAUNCH_FEE_MAP_COPY
 }
 
 async function resolveLaunchImageSha(body: {
@@ -254,6 +255,6 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
         'Sign the unsigned steps locally with launcherPubkey. CrewPay never holds the key. ' +
         'Then POST /api/agent/launch/submit (MCP crew_submit_signed) with the same platform, or broadcast yourself.',
     },
-    feeMap: '60% hired KOL crew / 15% launching agent / rest treasury',
+    feeMap: LAUNCH_FEE_MAP_COPY,
   }
 }
