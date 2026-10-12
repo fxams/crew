@@ -85,8 +85,9 @@ Public mode: pass `x-crew-api-key` for writes. **Cannot launch with your wallet*
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `CREW_AGENT_API_KEY` | writes (private) | Server agent key |
+| `CREW_AGENT_API_KEY` | writes (private) | Server agent key (or pay with x402) |
 | `CREW_LAUNCHER_KEY` | launch/wire/lock/crank | Solana secret in env only |
+| `X402_EVM_PRIVATE_KEY` | no | Optional hex key — pay per call with Base USDC (x402) instead of an API key. Local env only. |
 | `CREW_API_URL` | no | Default `https://api.crewpay.dev` |
 | `CREW_MCP_HTTP` | no | `1` for Streamable HTTP |
 | `CREW_MCP_PUBLIC` | no | Default on for HTTP; set `0` to use shared env keys |
@@ -95,3 +96,4 @@ Public mode: pass `x-crew-api-key` for writes. **Cannot launch with your wallet*
 
 - Descriptions: user ≤204 chars; appends `Launched from CrewPay.dev platform` (final ≤240).
 - Canonical site: `https://crewpay.dev`.
+- **x402:** when the API has `X402_ENABLED`, local MCP with `X402_EVM_PRIVATE_KEY` pays USDC on Base (no `crew_ak_…` needed). Hosted MCP never uses a shared x402 wallet. Fee map remains 60% hired KOL crew / 15% launching agent / rest treasury.

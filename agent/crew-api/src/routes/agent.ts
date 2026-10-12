@@ -2,6 +2,11 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { apiKeyFingerprint, clientIp, readAgentKeyHeader, requireAgentApiKey } from '../lib/auth.js'
 import {
+  deskWalletFromAuth,
+  referralForAgentAuth,
+  requireAgentApiKeyOrX402,
+} from '../lib/x402-auth.js'
+import {
   createAgentKey,
   getOwnerWalletByKeyId,
   listAgentKeys,
@@ -11,7 +16,6 @@ import {
 import {
   agentReferralLink,
   assertReferralClaimAllowed,
-  getAgentKeyReferral,
   isSelfReferral,
   logReferralKeyClaim,
   resolveAgentReferrer,
@@ -143,7 +147,7 @@ const unsignedLaunchSchema = z
   })
   .superRefine(refineLaunchBody)
 
-agentRouter.post('/agent/launch/unsigned', requireAgentApiKey, async (req, res) => {
+agentRouter.post('/agent/launch/unsigned', requireAgentApiKeyOrX402, async (req, res) => {
   try {
     const fp = apiKeyFingerprint(req)
     const ip = clientIp(req)
@@ -165,8 +169,7 @@ agentRouter.post('/agent/launch/unsigned', requireAgentApiKey, async (req, res) 
       }
     }
     const imageSha256 = await resolveLaunchImageSha(body)
-    const keyId = req.crewAgentAuth?.keyId
-    const boundRef = keyId ? await getAgentKeyReferral(keyId) : null
+    const boundRef = await referralForAgentAuth(req.crewAgentAuth)
 
     // Manual pick first, Autohire second. optInOnly is optional and off by default.
     const maxSeats = maxCrewSeats({ hasAgentReferrer: Boolean(boundRef), platform })
@@ -213,8 +216,8 @@ agentRouter.post('/agent/launch/unsigned', requireAgentApiKey, async (req, res) 
     }
 
     // Build fee-share map: 60% hired KOL crew / 15% launching agent / rest treasury (+ 5% referrer).
-    const deskWallet = body.launcherPubkey
     const chain = platform === 'zora' ? 'evm' : 'solana'
+    const deskWallet = deskWalletFromAuth(req.crewAgentAuth, body.launcherPubkey, chain)
     const shareholders =
       crew && crew.length
         ? buildCrewShareholders(crew, body.mode || 'agent', {
@@ -315,7 +318,7 @@ const submitSignedSchema = z.object({
   platform: z.enum(['pumpfun', 'bags', 'zora']).optional().default('pumpfun'),
 })
 
-agentRouter.post('/agent/launch/submit', requireAgentApiKey, async (req, res) => {
+agentRouter.post('/agent/launch/submit', requireAgentApiKeyOrX402, async (req, res) => {
   try {
     const fp = apiKeyFingerprint(req)
     const ip = clientIp(req)
@@ -513,7 +516,7 @@ agentRouter.get('/agent', (_req, res) => {
   res.json(doc)
 })
 
-agentRouter.post('/agent/autohire', requireAgentApiKey, async (req, res) => {
+agentRouter.post('/agent/autohire', requireAgentApiKeyOrX402, async (req, res) => {
   try {
     const fp = apiKeyFingerprint(req)
     const ip = clientIp(req)
@@ -527,8 +530,7 @@ agentRouter.post('/agent/autohire', requireAgentApiKey, async (req, res) => {
       })
       return
     }
-    const keyId = req.crewAgentAuth?.keyId
-    const boundRef = keyId ? await getAgentKeyReferral(keyId) : null
+    const boundRef = await referralForAgentAuth(req.crewAgentAuth)
     const maxSeats = maxCrewSeats({ hasAgentReferrer: Boolean(boundRef) })
     const requested = body.seats
     const seats = Math.min(maxSeats, requested)
@@ -774,7 +776,7 @@ async function resolveLaunchImageSha(body: {
   return sha256ImageBytes(buf)
 }
 
-agentRouter.post('/agent/launch/dry-run', requireAgentApiKey, async (req, res) => {
+agentRouter.post('/agent/launch/dry-run', requireAgentApiKeyOrX402, async (req, res) => {
   try {
     const fp = apiKeyFingerprint(req)
     const ip = clientIp(req)
@@ -851,11 +853,21 @@ agentRouter.post('/agent/launch/dry-run', requireAgentApiKey, async (req, res) =
     }
     const imageSha256 = await resolveLaunchImageSha(body)
     const agentKeyId = req.crewAgentAuth?.keyId
-    const ownerWallet = agentKeyId ? await getOwnerWalletByKeyId(agentKeyId) : null
+    const ownerWallet =
+      (agentKeyId ? await getOwnerWalletByKeyId(agentKeyId) : null) ||
+      req.crewAgentAuth?.payerWallet ||
+      null
+    const chain = platform === 'zora' ? 'evm' : 'solana'
+    const deskWallet = launcherPubkey
+      ? deskWalletFromAuth(req.crewAgentAuth, launcherPubkey, chain)
+      : req.crewAgentAuth?.source === 'x402' && chain === 'solana'
+        ? deskWalletFromAuth(req.crewAgentAuth, '', chain) || undefined
+        : undefined
     const result = await dryRunLaunchForAgent(bodyToLaunchInput(body), {
       launcherPubkey: launcherPubkey || undefined,
       agentKeyId,
       ownerWallet,
+      deskWallet: deskWallet || undefined,
     })
     const bodyHash = hashLaunchBody(body as unknown as Record<string, unknown>, imageSha256)
     const rec = await createDryRun({
@@ -957,7 +969,7 @@ agentRouter.post('/agent/launch/dry-run/:id/approve', async (req, res) => {
   }
 })
 
-agentRouter.post('/agent/launch', requireAgentApiKey, async (req, res) => {
+agentRouter.post('/agent/launch', requireAgentApiKeyOrX402, async (req, res) => {
   try {
     const fp = apiKeyFingerprint(req)
     const ip = clientIp(req)
@@ -1026,10 +1038,19 @@ agentRouter.post('/agent/launch', requireAgentApiKey, async (req, res) => {
       return
     }
     const agentKeyId = req.crewAgentAuth?.keyId
-    const ownerWallet = agentKeyId ? await getOwnerWalletByKeyId(agentKeyId) : null
+    const ownerWallet =
+      (agentKeyId ? await getOwnerWalletByKeyId(agentKeyId) : null) ||
+      req.crewAgentAuth?.payerWallet ||
+      null
+    const deskWallet = deskWalletFromAuth(
+      req.crewAgentAuth,
+      launcher.publicKey.toBase58(),
+      'solana',
+    )
     let result = await launchForAgent(bodyToLaunchInput(body), launcher, {
       agentKeyId,
       ownerWallet,
+      deskWallet,
     })
     if (!result.ok) {
       res.status(400).json(result)

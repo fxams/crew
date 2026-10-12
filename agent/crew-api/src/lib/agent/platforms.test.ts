@@ -22,6 +22,9 @@ afterEach(() => {
     'ZORA_CHAIN',
     'ZORA_TREASURY_ADDRESS',
     'CREW_BUYBACK_WALLET_EVM',
+    'X402_ENABLED',
+    'X402_PAY_TO_EVM',
+    'X402_PAY_TO_SOL',
   ] as const) {
     if (saved[key] === undefined) delete process.env[key]
     else process.env[key] = saved[key]
@@ -105,6 +108,8 @@ describe('launch platforms', () => {
     expect(pub.ok).toBe(true)
     expect(pub.default).toBe('pumpfun')
     expect(pub.venues).toEqual(venues)
+    expect(pub.x402).toBeTruthy()
+    expect(pub.x402.enabled).toBe(false)
     expect(JSON.stringify(pub)).not.toMatch(/test-bags-key/)
   })
 

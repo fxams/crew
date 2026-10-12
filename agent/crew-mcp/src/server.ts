@@ -5,6 +5,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import * as z from 'zod/v4'
 import {
   asText,
+  cfgCanX402Pay,
   crewFetch,
   loadConfig,
   DEFAULT_API_URL,
@@ -206,8 +207,9 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         auth: {
           reads: 'crew_discover / crew_search_kols / crew_proof / crew_claim_key / crew_autohire (keyless preview) need no API key',
           writes: cfg.publicMode
-            ? 'Pass x-crew-api-key on the MCP HTTP request (or run locally with CREW_AGENT_API_KEY). Mint via crew_claim_key or POST /api/agent/keys/claim.'
-            : 'Set CREW_AGENT_API_KEY in MCP env (mint via crew_claim_key). Operator mint: POST /api/agent/keys.',
+            ? 'Pass x-crew-api-key on the MCP HTTP request (or run locally with CREW_AGENT_API_KEY or X402_EVM_PRIVATE_KEY). Mint via crew_claim_key or POST /api/agent/keys/claim.'
+            : 'Set CREW_AGENT_API_KEY in MCP env (mint via crew_claim_key), or X402_EVM_PRIVATE_KEY to pay per call with x402 (no key). Operator mint: POST /api/agent/keys.',
+          x402: 'Optional. Local MCP with X402_EVM_PRIVATE_KEY pays USDC on Base when the API returns 402. Hosted public MCP never uses a shared x402 wallet.',
           launcher: cfg.publicMode
             ? 'Public hosted MCP cannot launch with your wallet — run crewpay-mcp locally with CREW_LAUNCHER_KEY, or use REST x-launcher-key from your backend.'
             : 'Set CREW_LAUNCHER_KEY in MCP env — never pass Solana secrets as tool arguments.',
@@ -388,7 +390,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
     async (input) => {
-      if (!cfg.apiKey) {
+      if (!cfg.apiKey && !cfgCanX402Pay(cfg)) {
         // No key yet: use the read-only no-auth preview so first contact always works.
         const qs = new URLSearchParams({
           name: input.name || '',
@@ -400,7 +402,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         return asText({
           ...(preview as Record<string, unknown>),
           keyless: true,
-          tip: 'Keyless preview (no API key on this session). Call crew_claim_key to get crew_ak_…, then crew_launch_dry_run / crew_launch.',
+          tip: 'Keyless preview (no API key on this session). Call crew_claim_key to get crew_ak_…, or set X402_EVM_PRIVATE_KEY to pay per call, then crew_launch_dry_run / crew_launch.',
         })
       }
       const data = await crewFetch(cfg, '/api/agent/autohire', {

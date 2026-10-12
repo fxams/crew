@@ -1,3 +1,5 @@
+import { canX402Pay, createXPaymentHeader, type X402Accept } from './x402-pay.js'
+
 export const DEFAULT_API_URL = 'https://api.crewpay.dev'
 export const DEFAULT_SITE_URL = 'https://crewpay.dev'
 
@@ -10,6 +12,10 @@ export type CrewApiConfig = {
    * Clients must supply x-crew-api-key on the HTTP MCP request (session override).
    */
   publicMode?: boolean
+  /** Hex EVM key for Base USDC x402. Ignored in publicMode. Never a tool arg. */
+  x402EvmPrivateKey?: string
+  /** Test hook — return a ready X-PAYMENT header from 402 accepts[]. */
+  x402Pay?: (accepts: X402Accept[]) => Promise<string>
 }
 
 export function resolvePublicMode(explicit?: boolean): boolean {
@@ -29,6 +35,8 @@ export function loadConfig(overrides?: Partial<CrewApiConfig>): CrewApiConfig {
     process.env.CREW_AGENT_API_KEY?.trim() || process.env.CREW_API_KEY?.trim() || ''
   const envLauncher =
     process.env.CREW_LAUNCHER_KEY?.trim() || process.env.CREW_AGENT_LAUNCHER_KEY?.trim() || ''
+  const envX402 =
+    process.env.X402_EVM_PRIVATE_KEY?.trim() || process.env.X402_PRIVATE_KEY?.trim() || ''
 
   return {
     apiUrl: (overrides?.apiUrl || process.env.CREW_API_URL || DEFAULT_API_URL).replace(/\/$/, ''),
@@ -36,8 +44,26 @@ export function loadConfig(overrides?: Partial<CrewApiConfig>): CrewApiConfig {
     apiKey: overrides?.apiKey ?? (publicMode ? '' : envKey),
     // Never use a shared launcher secret on public hosted MCP.
     launcherKey: overrides?.launcherKey ?? (publicMode ? '' : envLauncher),
+    x402EvmPrivateKey: overrides?.x402EvmPrivateKey ?? (publicMode ? '' : envX402),
+    x402Pay: overrides?.x402Pay,
     publicMode,
   }
+}
+
+export function cfgCanX402Pay(cfg: CrewApiConfig): boolean {
+  return Boolean(cfg.x402Pay) || canX402Pay(cfg.x402EvmPrivateKey)
+}
+
+async function pay402(cfg: CrewApiConfig, json: unknown): Promise<string> {
+  const accepts =
+    json && typeof json === 'object' && 'accepts' in json && Array.isArray((json as { accepts: unknown }).accepts)
+      ? ((json as { accepts: X402Accept[] }).accepts)
+      : []
+  if (cfg.x402Pay) return cfg.x402Pay(accepts)
+  if (!cfg.x402EvmPrivateKey) {
+    throw new Error('x402 payment configured incorrectly — missing X402_EVM_PRIVATE_KEY')
+  }
+  return createXPaymentHeader({ accepts, evmPrivateKey: cfg.x402EvmPrivateKey })
 }
 
 export async function crewFetch(
@@ -55,14 +81,15 @@ export async function crewFetch(
     headers.set('content-type', 'application/json')
   }
   if (init?.auth) {
-    if (!cfg.apiKey) {
+    if (cfg.apiKey) {
+      headers.set('x-crew-api-key', cfg.apiKey)
+    } else if (!cfgCanX402Pay(cfg)) {
       throw new Error(
         cfg.publicMode
-          ? 'Missing API key — pass header x-crew-api-key on the MCP HTTP request (or run crewpay-mcp locally with CREW_AGENT_API_KEY). Mint via POST /api/agent/keys/claim.'
-          : 'Missing CREW_AGENT_API_KEY — set it in the MCP server env. Mint via POST /api/agent/keys/claim.',
+          ? 'Missing API key — pass header x-crew-api-key on the MCP HTTP request (or run crewpay-mcp locally with CREW_AGENT_API_KEY or X402_EVM_PRIVATE_KEY). Mint via POST /api/agent/keys/claim.'
+          : 'Missing CREW_AGENT_API_KEY — set it in the MCP server env, or set X402_EVM_PRIVATE_KEY to pay per call. Mint via POST /api/agent/keys/claim.',
       )
     }
-    headers.set('x-crew-api-key', cfg.apiKey)
   }
   if (init?.launcher) {
     const launcher = (cfg.launcherKey || '').trim()
@@ -79,14 +106,17 @@ export async function crewFetch(
     headers.set('x-idempotency-key', init.idempotencyKey)
   }
 
-  const res = await fetch(`${cfg.apiUrl}${path}`, { ...init, headers })
-  const text = await res.text()
-  let json: unknown = null
-  try {
-    json = text ? JSON.parse(text) : null
-  } catch {
-    json = { raw: text.slice(0, 500) }
+  const url = `${cfg.apiUrl}${path}`
+  let res = await fetch(url, { ...init, headers })
+  let { json, text } = await readJson(res)
+
+  if (res.status === 402 && init?.auth && !cfg.apiKey && cfgCanX402Pay(cfg) && !headers.has('X-PAYMENT')) {
+    const payment = await pay402(cfg, json)
+    headers.set('X-PAYMENT', payment)
+    res = await fetch(url, { ...init, headers })
+    ;({ json, text } = await readJson(res))
   }
+
   if (!res.ok) {
     const err =
       typeof json === 'object' && json && 'error' in json
@@ -109,6 +139,17 @@ export async function crewFetch(
     throw new Error(`CREW API ${res.status}: ${err}${retrySuffix}`)
   }
   return json
+}
+
+async function readJson(res: Response): Promise<{ json: unknown; text: string }> {
+  const text = await res.text()
+  let json: unknown = null
+  try {
+    json = text ? JSON.parse(text) : null
+  } catch {
+    json = { raw: text.slice(0, 500) }
+  }
+  return { json, text }
 }
 
 export function asText(data: unknown) {
