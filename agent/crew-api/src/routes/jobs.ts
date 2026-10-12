@@ -23,6 +23,7 @@ const chainIdSchema = z.enum([
   'evm:base-sepolia',
   'evm:base',
   'evm:ethereum',
+  'flop-testnet',
 ]) as unknown as z.ZodType<ChainId>
 
 const assetSchema = z.enum(['SOL', 'USDC', 'ETH', 'USDT']) as unknown as z.ZodType<AssetSymbol>

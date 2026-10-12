@@ -42,6 +42,14 @@ POST /api/jobs/:id/fund
 { "rail": "solana-devnet", "from": "YourCreatorWalletPubkey" }
 ```
 
+Optional tclk / FLOP memory rail (off by default; no value moved):
+
+```json
+{ "rail": "flop-tclk", "from": "payer-public-id" }
+```
+
+`release` on that rail returns an unsigned `tclk:reveal` payload. Do not send preimages or private keys. See `docs/flop-adapter.md`.
+
 Response
 
 ```json

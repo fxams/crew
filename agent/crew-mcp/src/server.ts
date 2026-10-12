@@ -223,7 +223,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
           'Plan a paid campaign job (multichain, per-proof payouts). Test/devnet only; no funds moved. Returns computed caps and plan. Behind JOBS_ENABLED.',
         inputSchema: {
           chainId: z
-            .enum(['solana-devnet', 'solana', 'evm:base-sepolia', 'evm:base', 'evm:ethereum'])
+            .enum(['solana-devnet', 'solana', 'evm:base-sepolia', 'evm:base', 'evm:ethereum', 'flop-testnet'])
             .describe('Target chain'),
           asset: z.enum(['SOL', 'USDC', 'ETH', 'USDT']).describe('Payout asset'),
           budget: z.number().positive().describe('Total budget (test units)'),

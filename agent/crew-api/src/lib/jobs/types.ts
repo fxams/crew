@@ -4,6 +4,8 @@ export type ChainId =
   | 'evm:base-sepolia'
   | 'evm:base'
   | 'evm:ethereum'
+  /** Logical id until the public FLOP testnet chain id is published (override with FLOP_CHAIN_ID). */
+  | 'flop-testnet'
 
 export type AssetSymbol = 'SOL' | 'USDC' | 'ETH' | 'USDT'
 

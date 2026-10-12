@@ -18,6 +18,10 @@ the authors of tclk or technocore-chat.
   - Statuses map onto A2A task states and Virtuals ACP phases (`src/interop.ts`).
   - Alpha: "no rail holds value yet". The PTLC/adaptor crypto is unaudited.
 
+## Jobs SettlementRail (memory rail)
+
+`agent/crew-api/src/lib/jobs/flop-rail.ts` implements CrewPay's `SettlementRail` on `@flop-labs/tclk` `MemoryRail`. Opt-in via `rail=flop-tclk` or `FLOP_ENABLED` + `chainId=flop-testnet`. `FLOP_RPC_URL` / `FLOP_CHAIN_ID` are reserved for the unpublished testnet `flop-htlc` binding. See `docs/flop-adapter.md`.
+
 ## How CrewPay fits
 
 | CrewPay concept | tclk/1 / technocore equivalent |
