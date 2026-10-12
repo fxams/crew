@@ -1510,7 +1510,7 @@ export default function App() {
               <PlatformChipRow venues={venues} x402={x402} acp={acp} />
               <div className="hero-actions">
                 <Link className="btn btn-primary hero-cta-register" to="/register">
-                  Register as Crew to get Paid
+                  Register as KOL to get Paid
                 </Link>
                 <Link className="btn btn-ghost" to="/launch">
                   Launch with crew
