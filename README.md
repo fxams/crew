@@ -92,7 +92,7 @@ This repo does **not** register an ACP agent, generate keys, or move funds.
 ### Operator setup
 
 1. Register a provider on [app.virtuals.io/acp/new](https://app.virtuals.io/acp/new).
-2. **Signers → + Add Signer.** Put the key in `ACP_SIGNER_KEY` and the wallet id in `ACP_WALLET_ID` (never logs, never commit).
+2. **Signers → + Add Signer.** Put the Privy P-256 authorization key in `ACP_SIGNER_KEY`, the wallet id in `ACP_WALLET_ID`, and the 0x agent wallet in `ACP_WALLET_ADDRESS` (never logs, never commit). The signer is not a 32-byte hex key and does not derive the wallet.
 3. Add the two offerings (full JSON in [`services/acp-provider/README.md`](./services/acp-provider/README.md)).
 4. `ACP_ENABLED=1` `ACP_CHAIN_ID=84532` and either `ACP_INPROCESS=1` on crewpay-api, or `npm start --prefix services/acp-provider`.
 

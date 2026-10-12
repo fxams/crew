@@ -65,29 +65,34 @@ async function startProvider(config: AcpConfig, fulfillment: Fulfillment) {
  * Does not call process.exit (safe to embed in crewpay-api).
  */
 export async function startAcpListener(opts?: StartAcpListenerOpts): Promise<AcpListenerHandle> {
-  const config = loadConfig()
-  if (!config.enabled) {
-    logInfo('ACP_ENABLED is off — listener is a no-op (not connecting to Virtuals ACP).')
+  try {
+    const config = loadConfig()
+    if (!config.enabled) {
+      logInfo('ACP_ENABLED is off — listener is a no-op (not connecting to Virtuals ACP).')
+      return { started: false, stop: async () => {} }
+    }
+    logInfo(
+      `starting offerings=${offeringRegistry({
+        autohireUsd: config.priceAutohireUsd,
+        launchUsd: config.priceLaunchUsd,
+      })
+        .map((o) => o.name)
+        .join(',')}`,
+    )
+    const fulfillment = fulfillmentFromOpts(opts) ?? (await loadDirectFulfillment())
+    const agent = await startProvider(config, fulfillment)
+    return {
+      started: true,
+      async stop() {
+        try {
+          await agent.stop()
+        } catch (err) {
+          logError('stop failed', err)
+        }
+      },
+    }
+  } catch (err) {
+    logError('startup failed — listener not connected', err)
     return { started: false, stop: async () => {} }
-  }
-  logInfo(
-    `starting offerings=${offeringRegistry({
-      autohireUsd: config.priceAutohireUsd,
-      launchUsd: config.priceLaunchUsd,
-    })
-      .map((o) => o.name)
-      .join(',')}`,
-  )
-  const fulfillment = fulfillmentFromOpts(opts) ?? (await loadDirectFulfillment())
-  const agent = await startProvider(config, fulfillment)
-  return {
-    started: true,
-    async stop() {
-      try {
-        await agent.stop()
-      } catch (err) {
-        logError('stop failed', err)
-      }
-    },
   }
 }
