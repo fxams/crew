@@ -25,6 +25,8 @@ export type CreateCampaignInput = {
   deadline: number
   rules: CampaignJob['rules']
   type?: CampaignJob['type']
+  mint?: string
+  templateId?: string
 }
 
 export class InMemoryJobStore {
@@ -59,16 +61,20 @@ export class InMemoryJobStore {
       escrowRef: null,
       createdAt: now,
       updatedAt: now,
+      mint: input.mint,
+      templateId: input.templateId,
     }
     this.jobs.set(id, job)
     return job
   }
 
-  listOpen(): Job[] {
+  listOpen(mint?: string): Job[] {
     const now = nowMs()
     const out: Job[] = []
+    const want = (mint || '').trim()
     for (const j of this.jobs.values()) {
       if (j.deadline <= now) continue
+      if (want && j.mint !== want) continue
       if (j.status === 'funded' || j.status === 'open' || j.status === 'assigned' || j.status === 'submitted') {
         out.push(j)
       }

@@ -445,4 +445,26 @@ export async function migrate(): Promise<void> {
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['018_fee_lock_integrity'],
   )
+  await query(`
+    DO $mig$
+    BEGIN
+      IF to_regclass('public.coins') IS NOT NULL THEN
+        ALTER TABLE coins ADD COLUMN IF NOT EXISTS featured_x_url TEXT;
+        ALTER TABLE coins ADD COLUMN IF NOT EXISTS featured_x_at TIMESTAMPTZ;
+        ALTER TABLE coins ADD COLUMN IF NOT EXISTS featured_x_set_by TEXT;
+        ALTER TABLE coins ADD COLUMN IF NOT EXISTS graduated_at TIMESTAMPTZ;
+        ALTER TABLE coins ADD COLUMN IF NOT EXISTS graduated_via TEXT;
+      END IF;
+    END
+    $mig$;
+  `)
+  await query(
+    `CREATE INDEX IF NOT EXISTS coins_graduated_unfeatured_idx
+     ON coins (graduated_at ASC)
+     WHERE graduated_at IS NOT NULL AND (featured_x_url IS NULL OR featured_x_url = '')`,
+  )
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['019_featured_graduation'],
+  )
 }

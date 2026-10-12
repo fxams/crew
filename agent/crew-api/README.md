@@ -22,6 +22,11 @@ Legacy alias: https://crewpay-api.onrender.com (see `agent/crew/DOMAINS.md` for 
 | GET | `/api/healthz` | public |
 | GET | `/api/board` | public |
 | GET | `/api/coins` | public |
+| GET | `/api/coins/live` | public (Dexscreener-cached mcap; unknown = null) |
+| GET | `/api/coins/graduated-unfeatured` | `x-crew-api-key` — graduates with no @CrewPayHQ URL |
+| POST | `/api/coins/:mint/featured` | `x-crew-api-key` — store @CrewPayHQ status URL (does not tweet) |
+| GET | `/api/coins/:mint` | public coin page source |
+| GET | `/api/coins/:mint/kit` | public post-launch kit (AI crew, jobs, kickoff budget) |
 | PUT | `/api/coins` | `x-crew-api-key` |
 | GET | `/api/remits` | public |
 | POST | `/api/remits` | `x-crew-api-key` |

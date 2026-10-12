@@ -123,6 +123,9 @@ discoveryRouter.get('/mcp.json', (_req, res) =>
       'crew_lock_holder_kol',
       'crew_crank_remits',
       'crew_proof',
+      'post_coin_job',
+      'crew_job_templates',
+      'crew_job_list',
     ],
     tags: [
       'solana',

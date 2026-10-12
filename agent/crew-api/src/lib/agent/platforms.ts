@@ -159,8 +159,10 @@ export type LaunchVenue = {
   chain: LaunchChain
   enabled: boolean
   status: LaunchVenueStatus
-  /** Short UI caption: Zora is "Base" / "testnet" / "soon". */
+  /** Short UI caption: Zora is "Base" / "testnet" / "soon". Bags may be "recommended". */
   caption?: string
+  /** Hint only — does not change \`platforms.default\` (still pumpfun). */
+  recommended?: boolean
   tradeHost: string
   explorer: 'solscan' | 'basescan'
   note: string
@@ -198,10 +200,11 @@ export function listLaunchVenues(): LaunchVenue[] {
       chain: 'solana',
       enabled: bagsOn,
       status: bagsOn ? 'live' : 'disabled',
-      caption: bagsOn ? undefined : 'soon',
+      caption: bagsOn ? 'recommended' : 'soon',
+      recommended: true,
       tradeHost: 'bags.fm',
       explorer: 'solscan',
-      note: 'Unsigned Solana fee-claimer launches. Requires BAGS_API_KEY.',
+      note: 'Recommended Solana venue (API default stays pumpfun). Unsigned fee-claimer launches. Requires BAGS_API_KEY.',
     },
     {
       id: 'zora',

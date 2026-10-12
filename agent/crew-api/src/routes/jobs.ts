@@ -14,6 +14,15 @@ import {
 import { defaultVerifier } from '../lib/jobs/verifier.js'
 import { railFor } from '../lib/jobs/settlement.js'
 import { jobsPlatformFeeBps, jobsPlatformFeeWallet } from '../lib/jobs/config.js'
+import {
+  applyCoinJobTemplate,
+  isCoinJobChainId,
+  isCoinJobTemplateId,
+  listCoinJobTemplates,
+} from '../lib/jobs/templates.js'
+import { jobToJson } from '../lib/jobs/serialize.js'
+import { coinPageUrl } from '../lib/coin-page.js'
+import { getCoin } from '../lib/coins.js'
 
 export const jobsRouter = Router()
 
@@ -33,7 +42,12 @@ const rulesSchema = z
     requiredTicker: z.string().min(1).max(24).optional(),
     requiredLink: z.string().url().max(256).optional(),
     minPostAgeHours: z.number().int().min(0).max(72).optional().default(0),
-    platform: z.enum(['x']).optional().default('x'),
+    platform: z.enum(['x', 'any']).optional().default('x'),
+    deliverableKind: z
+      .enum(['meme-pack', 'banner-logo', 'x-upkeep', 'website-polish', 'x-post'])
+      .optional(),
+    minUrls: z.number().int().min(1).max(32).optional(),
+    postsPerWeek: z.number().int().min(1).max(21).optional(),
   })
   .optional()
   .default({ platform: 'x', minPostAgeHours: 0 })
@@ -50,6 +64,25 @@ const createCampaignSchema = z.object({
   deadlineMs: z.number().int().positive().optional(),
   deadlineHours: z.number().int().min(1).max(720).optional(),
   rules: rulesSchema,
+  mint: z.string().min(32).max(64).optional(),
+  templateId: z.string().max(32).optional(),
+})
+
+const postCoinJobSchema = z.object({
+  mint: z.string().min(32).max(64),
+  template: z.enum(['meme-pack', 'banner-logo', 'x-upkeep', 'website-polish']),
+  chainId: chainIdSchema,
+  asset: assetSchema,
+  budget: z.number().positive().optional(),
+  perProofAmount: z.number().positive().optional(),
+  maxProofs: z.number().int().min(1).max(10_000).optional(),
+  perKOLCap: z.number().int().min(1).max(1000).optional(),
+  deadlineHours: z.number().int().min(1).max(720).optional(),
+  postsPerWeek: z.number().int().min(1).max(21).optional(),
+  ticker: z.string().min(1).max(16).optional(),
+  fund: z.boolean().optional(),
+  rail: z.string().max(32).optional(),
+  from: z.string().max(128).optional(),
 })
 
 function resolveDeadlineMs(input: { deadlineMs?: number; deadlineHours?: number }): number {
@@ -103,8 +136,10 @@ jobsRouter.post('/jobs/campaigns', requireAgentApiKey, (req, res) => {
       deadline: resolveDeadlineMs(body),
       rules: body.rules ?? { platform: 'x' },
       type: body.type,
+      mint: body.mint,
+      templateId: body.templateId,
     })
-    res.status(201).json({ ok: true, job })
+    res.status(201).json({ ok: true, job: jobToJson(job) })
   } catch (err) {
     res.status(400).json({ ok: false, error: err instanceof Error ? err.message : 'create failed' })
   }
@@ -129,15 +164,114 @@ jobsRouter.post('/jobs/:id/fund', requireAgentApiKey, async (req, res) => {
     job.status = vf.ok ? 'funded' : 'created'
     memoryJobs.setJob(job)
     const rec = memoryJobs.addFunding(job.id, rail.name, job.budget, vf.ok, vf.detail)
-    res.status(201).json({ ok: true, job, funding: rec, locked, verify: vf })
+    res.status(201).json({ ok: true, job: jobToJson(job), funding: rec, locked, verify: vf })
   } catch (err) {
     res.status(400).json({ ok: false, error: err instanceof Error ? err.message : 'fund failed' })
   }
 })
 
-jobsRouter.get('/jobs/open', (_req, res) => {
-  const list = memoryJobs.listOpen()
-  res.json({ ok: true, jobs: list })
+jobsRouter.get('/jobs/templates', (_req, res) => {
+  res.json({
+    ok: true,
+    templates: listCoinJobTemplates(),
+    note: 'Creative presets on the existing jobs + escrow flow. Test/devnet only. No earnings promises.',
+  })
+})
+
+jobsRouter.get('/jobs/open', (req, res) => {
+  const mint = typeof req.query.mint === 'string' ? req.query.mint.trim() : undefined
+  const list = memoryJobs.listOpen(mint)
+  res.json({ ok: true, jobs: list.map(jobToJson) })
+})
+
+function applyPostedCoinJob(body: z.infer<typeof postCoinJobSchema>, coin: { ticker: string; mint: string } | null) {
+  if (!isCoinJobChainId(body.chainId)) {
+    throw new Error('Coin jobs are test/devnet only (solana-devnet, evm:base-sepolia, flop-testnet)')
+  }
+  if (!isCoinJobTemplateId(body.template)) {
+    throw new Error('Unknown template')
+  }
+  return applyCoinJobTemplate({
+    template: body.template,
+    mint: body.mint,
+    ticker: body.ticker || coin?.ticker,
+    pageUrl: coinPageUrl(body.mint),
+    budget: body.budget,
+    perProofAmount: body.perProofAmount,
+    maxProofs: body.maxProofs,
+    perKOLCap: body.perKOLCap,
+    deadlineHours: body.deadlineHours,
+    postsPerWeek: body.postsPerWeek,
+    chainId: body.chainId,
+    asset: body.asset,
+  })
+}
+
+jobsRouter.post('/jobs/coin/dry-run', requireAgentApiKey, async (req, res) => {
+  try {
+    const body = postCoinJobSchema.parse(req.body ?? {})
+    const coin = await getCoin(body.mint).catch(() => null)
+    const plan = applyPostedCoinJob(body, coin)
+    res.json({
+      ok: true,
+      plan: {
+        ...plan,
+        pageUrl: coinPageUrl(body.mint),
+        ticker: coin?.ticker || body.ticker || null,
+        coinFound: Boolean(coin),
+      },
+      note: 'Dry-run only — not persisted. Settlement is devnet/simulated. No mainnet. No earnings promises.',
+    })
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err instanceof Error ? err.message : 'dry-run failed' })
+  }
+})
+
+jobsRouter.post('/jobs/coin', requireAgentApiKey, async (req, res) => {
+  try {
+    const body = postCoinJobSchema.parse(req.body ?? {})
+    const coin = await getCoin(body.mint).catch(() => null)
+    const plan = applyPostedCoinJob(body, coin)
+    const job = memoryJobs.createCampaign({
+      createdBy: req.crewAgentAuth?.keyId || req.crewAgentAuth?.fingerprint || 'unknown',
+      chainId: plan.chainId,
+      asset: plan.asset,
+      budget: parseAmountToBigint(plan.budget),
+      perProofAmount: parseAmountToBigint(plan.perProofAmount),
+      maxProofs: plan.maxProofs,
+      perKOLCap: plan.perKOLCap,
+      deadline: nowMs() + plan.deadlineHours * 60 * 60_000,
+      rules: plan.rules,
+      type: plan.type,
+      mint: plan.mint,
+      templateId: plan.templateId,
+    })
+    let funding: unknown
+    if (body.fund) {
+      const railName = (body.rail || process.env.JOBS_RAIL || 'sim').trim().toLowerCase()
+      if (railName !== 'sim' && railName !== 'flop-tclk') {
+        throw new Error('Optional fund on post_coin_job is sim/flop-tclk only (no mainnet)')
+      }
+      const rail = railFor(job.chainId, railName)
+      const ctx = { chainId: job.chainId, asset: job.asset }
+      const funded = await rail.fund(ctx, { amount: job.budget, from: body.from })
+      await rail.lock(ctx, funded.escrow)
+      const vf = await rail.verifyFunding(ctx, funded.escrow)
+      job.escrowRef = funded.escrow.ref || funded.escrow.id
+      job.status = vf.ok ? 'funded' : 'created'
+      memoryJobs.setJob(job)
+      funding = memoryJobs.addFunding(job.id, rail.name, job.budget, vf.ok, vf.detail)
+    }
+    res.status(201).json({
+      ok: true,
+      job: jobToJson(job),
+      funding: funding || null,
+      pageUrl: coinPageUrl(body.mint),
+      note: 'Created on the existing jobs + escrow flow. Humans claim, deliver, then get paid after verification. Test/devnet only.',
+    })
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err instanceof Error ? err.message : 'create failed' })
+  }
 })
 
 function buildClaimMessage(jobId: string, timestamp: number) {
@@ -255,16 +389,18 @@ jobsRouter.post('/jobs/:id/verify', requireAgentApiKey, async (req, res) => {
       return
     }
     const approve = Boolean(req.body && typeof req.body === 'object' && (req.body.approve === true))
-    const verifier = defaultVerifier()
+    const verifier = defaultVerifier(job.rules.deliverableKind)
     const vi = approve
       ? { ok: true, acceptedUrls: sub.urls.slice(0, 1), details: { approvedByAgent: true } }
       : await verifier.verify({
-          platform: 'x',
+          platform: job.rules.platform === 'any' ? 'any' : 'x',
           kolHandle: claim.kolHandle,
           urls: sub.urls,
           requiredTicker: job.rules.requiredTicker,
           requiredLink: job.rules.requiredLink,
           minPostAgeHours: job.rules.minPostAgeHours,
+          minUrls: job.rules.minUrls,
+          deliverableKind: job.rules.deliverableKind,
         })
     sub.verification = vi
     if (vi.ok) {
