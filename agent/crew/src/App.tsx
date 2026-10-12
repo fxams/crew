@@ -1562,7 +1562,7 @@ export default function App() {
 
       <div className="app-shell">
         <section className="section section-tight" id="live-coins" aria-labelledby="live-coins-title">
-          <LiveCoins limit={8} />
+          <LiveCoins limit={5} compact />
         </section>
       </div>
 

@@ -7,14 +7,21 @@ import {
   formatUsdCompact,
   type LiveCoinRow,
 } from '../lib/live-coins'
+import { CoinLogo } from './CoinLogo'
 
 type Props = {
   limit?: number
   heading?: string
   allLink?: boolean
+  compact?: boolean
 }
 
-export function LiveCoins({ limit = 8, heading = 'Live coins', allLink = true }: Props) {
+export function LiveCoins({
+  limit = 5,
+  heading = 'Live coins',
+  allLink = true,
+  compact = false,
+}: Props) {
   const [coins, setCoins] = useState<LiveCoinRow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -42,7 +49,10 @@ export function LiveCoins({ limit = 8, heading = 'Live coins', allLink = true }:
   }, [limit])
 
   return (
-    <section className="live-coins" aria-labelledby="live-coins-title">
+    <section
+      className={`live-coins${compact ? ' is-compact' : ''}`}
+      aria-labelledby="live-coins-title"
+    >
       <div className="live-coins-head">
         <h2 className="section-title" id="live-coins-title">
           {heading}
@@ -64,17 +74,10 @@ export function LiveCoins({ limit = 8, heading = 'Live coins', allLink = true }:
             const chg = formatPctChange(c.priceChange24h)
             const up = (c.priceChange24h || 0) > 0
             const down = (c.priceChange24h || 0) < 0
-            const initial = (c.ticker || '?').slice(0, 1).toUpperCase()
             return (
               <li key={c.mint}>
                 <Link className="live-coins-row" to={coinPagePath(c.mint)}>
-                  {c.imageUrl ? (
-                    <img className="live-coins-logo" src={c.imageUrl} alt="" width={40} height={40} />
-                  ) : (
-                    <span className="live-coins-logo live-coins-logo-fallback" aria-hidden>
-                      {initial}
-                    </span>
-                  )}
+                  <CoinLogo src={c.imageUrl} ticker={c.ticker} size={compact ? 28 : 40} />
                   <span className="live-coins-id">
                     <strong>${c.ticker}</strong>
                     <em>{c.name}</em>
@@ -88,11 +91,6 @@ export function LiveCoins({ limit = 8, heading = 'Live coins', allLink = true }:
             )
           })}
         </ul>
-      ) : null}
-      {allLink ? (
-        <p className="live-coins-see-all">
-          <Link to="/coins">See all coins</Link>
-        </p>
       ) : null}
     </section>
   )

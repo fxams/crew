@@ -1,6 +1,6 @@
 import type { ApiCoin } from './coins.js'
 import { listCoins } from './coins.js'
-import { coinPageUrl, enrichPublicCoinMeta, type PublicCoinMeta } from './coin-page.js'
+import { coinPageUrl, enrichPublicCoinMetas, type PublicCoinMeta } from './coin-page.js'
 import { recordGraduationIfNew } from './graduation.js'
 
 export type LiveCoinRow = {
@@ -40,11 +40,18 @@ export function toLiveCoinRow(coin: ApiCoin, meta: PublicCoinMeta = {}): LiveCoi
   }
 }
 
+export function takeLiveCoins(rows: LiveCoinRow[], limit: number): LiveCoinRow[] {
+  const take = Math.min(100, Math.max(1, Math.floor(Number(limit)) || 40))
+  return sortLiveCoins(rows).slice(0, take)
+}
+
 export async function listLiveCoins(limit = 40): Promise<LiveCoinRow[]> {
-  const coins = await listCoins(Math.min(100, Math.max(1, limit)))
+  // Load a pool, quote+sort by market cap, then slice. Home asks for 5.
+  const coins = await listCoins(100)
+  const metas = await enrichPublicCoinMetas(coins).catch(() => new Map<string, PublicCoinMeta>())
   const rows: LiveCoinRow[] = []
   for (const coin of coins) {
-    const meta = await enrichPublicCoinMeta(coin).catch(() => ({} as PublicCoinMeta))
+    const meta = metas.get(coin.mint) || {}
     if (meta.graduated && !coin.graduatedAt) {
       await recordGraduationIfNew(coin, {
         graduated: true,
@@ -53,5 +60,5 @@ export async function listLiveCoins(limit = 40): Promise<LiveCoinRow[]> {
     }
     rows.push(toLiveCoinRow(coin, meta))
   }
-  return sortLiveCoins(rows)
+  return takeLiveCoins(rows, limit)
 }
