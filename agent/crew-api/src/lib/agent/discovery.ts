@@ -292,6 +292,8 @@ export function agentDiscoveryJson() {
         'Featured-ops auth (CREW_AGENT_API_KEY, CREW_FEATURE_AGENT_KEYS_SHA256, or agent_keys.ops). Pump.fun graduates with no @CrewPayHQ post URL yet. External routine posts, then POST /api/coins/{mint}/featured. CrewPay does not auto-post.',
       'POST /api/coins/{mint}/featured':
         'Featured-ops auth. Store https://x.com/CrewPayHQ/status/<id> after an external post. Unlocks after graduation. Does not tweet.',
+      'GET /api/coins/{mint}/logo':
+        'Cached coin logo (pump.fun Pinata CDN → Pinata → nftstorage → ipfs.io). Long Cache-Control; letter avatar SVG on miss.',
       'GET /api/coins/{mint}':
         'Coin by mint (name, ticker, crew, trade URL, optional public image/socials). Public page: https://crewpay.dev/coin/{mint}',
       'GET /api/coins/{mint}/kit':
@@ -898,6 +900,19 @@ export function openApiSpec() {
           description:
             'Real launch records plus cached Dexscreener market cap / 24h change. Unknown quotes are null (UI shows --).',
           responses: { '200': { description: 'Live coin rows' } },
+        },
+      },
+      '/api/coins/{mint}/logo': {
+        get: {
+          tags: ['discovery'],
+          summary: 'Cached coin logo image',
+          operationId: 'getCoinLogo',
+          description:
+            'Resolves the mint’s public image CID and tries pump.mypinata.cloud, gateway.pinata.cloud, nftstorage.link, then ipfs.io. Disk-cached with long Cache-Control. Letter-avatar SVG if every gateway fails.',
+          parameters: [{ name: 'mint', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: {
+            '200': { description: 'image/png|jpeg|webp|gif or image/svg+xml letter avatar' },
+          },
         },
       },
       '/api/coins/{mint}/kit': {
@@ -1713,7 +1728,7 @@ Returns planned crew, fee map, SOL estimate, warnings — **no mint, no secret r
 
 ## Post-launch kit (jobs + escrow, test/devnet)
 
-Public coin page (no auth): \`${SITE_URL}/coin/<mint>\` — built from existing launch records (name, ticker, image/socials if public, chain/launchpad, contract, hired KOL crew). Live list: GET ${API_URL}/api/coins/live. Kit: GET ${API_URL}/api/coins/<mint>/kit.
+Public coin page (no auth): \`${SITE_URL}/coin/<mint>\` — built from existing launch records (name, ticker, image/socials if public, chain/launchpad, contract, hired KOL crew). Live list: GET ${API_URL}/api/coins/live. Logo (cached IPFS gateways): GET ${API_URL}/api/coins/<mint>/logo. Kit: GET ${API_URL}/api/coins/<mint>/kit.
 
 Kickoff budget = this mint’s treasury share (25% or 20%) of accrued creator fees (cached 1–5 min poll of remits + on-chain fee-sharing) minus spent/reserved. Items unlock only when fully covered (Dexscreener Enhanced Token Info default $299, price may change; hosted website free; custom domain default ~$10). Approval reserves USD. No automatic on-chain treasury transfers. SOL/ETH converted with a cached FX feed.
 

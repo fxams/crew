@@ -15,7 +15,7 @@ const IMAGE_MAGIC: Array<{ type: string; test: (b: Buffer) => boolean }> = [
   { type: 'image/gif', test: (b) => b.length >= 6 && (b.toString('ascii', 0, 6) === 'GIF87a' || b.toString('ascii', 0, 6) === 'GIF89a') },
 ]
 
-function sniffImageType(buf: Buffer): string | null {
+export function sniffImageType(buf: Buffer): string | null {
   for (const row of IMAGE_MAGIC) {
     if (row.test(buf)) return row.type
   }

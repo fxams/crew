@@ -198,7 +198,7 @@ export function CoinPage() {
           <>
             <header className="coin-hero">
               <CoinLogo
-                src={coin.imageUrl}
+                mint={coin.mint || mint}
                 ticker={coin.ticker}
                 className="coin-hero-img"
                 fallbackClassName="coin-hero-img coin-hero-fallback"
