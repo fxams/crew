@@ -183,9 +183,9 @@ export function KolRegisterPage() {
   const ownHandle = useOwnRegisteredHandle(connectedWallet, refreshTick)
   const registeredHandle = params.get('registered') === '1' ? params.get('handle') : null
   const deskHandle = registeredHandle || ownHandle
-  const alreadyRegistered = Boolean(ownHandle)
+  const alreadyRegistered = Boolean(ownHandle || registeredHandle)
   const referralCode = normalizeRef(refInput)
-  const showAgentSnippets = referralCode.length >= 2
+  const showAgentSnippets = !alreadyRegistered && referralCode.length >= 2
   const optionalsFilled = referralCode.length >= 2 || Boolean(evmWallet.trim())
 
   const claimKeySnippet = `curl -sS -X POST https://api.crewpay.dev/api/agent/keys/claim \\
@@ -376,16 +376,32 @@ export function KolRegisterPage() {
               <p className="section-label">Crew · v{CREW_VERSION}</p>
             </div>
             <h1 className="section-title">Join the crew.</h1>
-            <p className="section-sub">
-              Connect a Solana wallet, sign, then Register with X. About a minute.
-            </p>
-            {referralCode.length >= 2 ? (
-              <p className="register-invite-chip">
-                Invite code <strong>{referralCode}</strong>
+            {alreadyRegistered && deskHandle ? (
+              <p className="section-sub">
+                Registered KOLs, tape, and the leaderboard stay public.
               </p>
-            ) : null}
+            ) : (
+              <>
+                <p className="section-sub">
+                  Connect a Solana wallet, sign, then Register with X. About a minute.
+                </p>
+                {referralCode.length >= 2 ? (
+                  <p className="register-invite-chip">
+                    Invite code <strong>{referralCode}</strong>
+                  </p>
+                ) : null}
+              </>
+            )}
           </div>
 
+          {alreadyRegistered && deskHandle ? (
+            <div className="register-card register-card-done">
+              <p className="register-ok">
+                You&apos;re registered as @{deskHandle}.{' '}
+                <Link to={kolProfilePath(deskHandle)}>Open Desk</Link>
+              </p>
+            </div>
+          ) : (
           <div className="register-card">
             <ol className="register-steps">
               <li className={connected ? 'is-done' : ''}>
@@ -402,54 +418,40 @@ export function KolRegisterPage() {
               </li>
             </ol>
 
-            {!alreadyRegistered ? (
-              <details
-                className="register-more"
-                open={moreOpen || optionalsFilled}
-                onToggle={(e) => setMoreOpen((e.target as HTMLDetailsElement).open)}
-              >
-                <summary>Referral & EVM wallet (optional)</summary>
-                <label className="register-ref">
-                  <span>Referral code</span>
-                  <input
-                    type="text"
-                    value={refInput}
-                    onChange={(e) => setRefInput(e.target.value)}
-                    placeholder="friendscode"
-                    autoComplete="off"
-                    spellCheck={false}
-                    maxLength={24}
-                  />
-                  <em>Who referred you as a KOL (points). You get your own code after you register.</em>
-                </label>
-                <label className="register-ref register-evm">
-                  <span>EVM wallet</span>
-                  <input
-                    type="text"
-                    value={evmWallet}
-                    onChange={(e) => setEvmWallet(e.target.value)}
-                    placeholder="0x… Base address"
-                    autoComplete="off"
-                    spellCheck={false}
-                    maxLength={42}
-                  />
-                  <em>Needed for Zora / Base payouts. Pump.fun and Bags.fm still pay Solana.</em>
-                </label>
-              </details>
-            ) : null}
+            <details
+              className="register-more"
+              open={moreOpen || optionalsFilled}
+              onToggle={(e) => setMoreOpen((e.target as HTMLDetailsElement).open)}
+            >
+              <summary>Referral & EVM wallet (optional)</summary>
+              <label className="register-ref">
+                <span>Referral code</span>
+                <input
+                  type="text"
+                  value={refInput}
+                  onChange={(e) => setRefInput(e.target.value)}
+                  placeholder="friendscode"
+                  autoComplete="off"
+                  spellCheck={false}
+                  maxLength={24}
+                />
+                <em>Who referred you as a KOL (points). You get your own code after you register.</em>
+              </label>
+              <label className="register-ref register-evm">
+                <span>EVM wallet</span>
+                <input
+                  type="text"
+                  value={evmWallet}
+                  onChange={(e) => setEvmWallet(e.target.value)}
+                  placeholder="0x… Base address"
+                  autoComplete="off"
+                  spellCheck={false}
+                  maxLength={42}
+                />
+                <em>Needed for Zora / Base payouts. Pump.fun and Bags.fm still pay Solana.</em>
+              </label>
+            </details>
 
-            {deskHandle ? (
-              <p className="register-ok">
-                @{deskHandle} is on the board.{' '}
-                <Link to={kolProfilePath(deskHandle)}>Open desk</Link>
-              </p>
-            ) : null}
-            {alreadyRegistered && ownHandle ? (
-              <p className="hint register-switch-hint">
-                This wallet is linked to @{ownHandle}. To register a different X account, connect a
-                different Solana wallet.
-              </p>
-            ) : null}
             {awaitingX && !deskHandle ? (
               <p className="hint register-check-hint">{CHECK_HINT}</p>
             ) : null}
@@ -475,20 +477,14 @@ export function KolRegisterPage() {
                   Connect wallet
                 </button>
               ) : null}
-              {alreadyRegistered && ownHandle ? (
-                <Link className="btn btn-primary btn-sm" to={kolProfilePath(ownHandle)}>
-                  Open desk
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  disabled={busy || xOauth === false}
-                  onClick={() => void onRegister()}
-                >
-                  {busy ? 'Waiting for X…' : 'Register with X'}
-                </button>
-              )}
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                disabled={busy || xOauth === false}
+                onClick={() => void onRegister()}
+              >
+                {busy ? 'Waiting for X…' : 'Register with X'}
+              </button>
               {awaitingX ? (
                 <button
                   type="button"
@@ -501,6 +497,7 @@ export function KolRegisterPage() {
               ) : null}
             </div>
           </div>
+          )}
         </div>
 
         <div className="register-rest">

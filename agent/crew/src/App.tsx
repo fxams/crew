@@ -86,7 +86,8 @@ import { formatSol, formatSolSigned } from "./lib/format-sol";
 import type { HireRole } from "./lib/types";
 import { launchCrew } from "./lib/launch";
 import { useOwnRegisteredHandle } from "./lib/registered-kol";
-import { isAdminKickoffPath, isAgentsPath, isApprovePath, isClaimPath, isCoinPath, isCoinsPath, isHomePath, isKolsPath, isLaunchPath, isOnepagerPath, isProofPath, isReferralPath, isRegisterPath, kolHandleFromPath, kolProfilePath, referralCodeFromPath } from "./lib/routes";
+import { headerKolLinks } from "./lib/nav";
+import { isAdminKickoffPath, isAgentsPath, isApprovePath, isClaimPath, isCoinPath, isCoinsPath, isHomePath, isKolsPath, isLaunchPath, isOnepagerPath, isProofPath, isReferralPath, isRegisterPath, kolHandleFromPath, referralCodeFromPath } from "./lib/routes";
 import { ApprovePage } from "./components/ApprovePage";
 import { CoinPage } from "./components/CoinPage";
 import { CoinsPage } from "./components/CoinsPage";
@@ -1411,21 +1412,23 @@ export default function App() {
             >
               Agents
             </Link>
-            {ownRegisteredHandle ? (
+            {headerKolLinks(ownRegisteredHandle).map((item) => (
               <Link
-                className={isOwnDeskPage ? "is-active-nav-text" : undefined}
-                to={kolProfilePath(ownRegisteredHandle)}
+                key={item.label}
+                className={
+                  item.label === "Desk"
+                    ? isOwnDeskPage
+                      ? "is-active-nav-text"
+                      : undefined
+                    : isRegisterPage || isKolsPage
+                      ? "is-active-nav-text"
+                      : undefined
+                }
+                to={item.to}
               >
-                Desk
+                {item.label}
               </Link>
-            ) : (
-              <Link
-                className={isRegisterPage || isKolsPage ? "is-active-nav-text" : undefined}
-                to="/register"
-              >
-                KOL
-              </Link>
-            )}
+            ))}
             <Link
               className={isCoinsPage || isCoinPage ? "is-active-nav-text" : undefined}
               to="/coins"
