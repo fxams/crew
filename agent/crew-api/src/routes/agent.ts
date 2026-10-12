@@ -73,6 +73,10 @@ import { parseLauncherKey, resolveOpsPayer } from '../lib/agent/send.js'
 import { solanaAddress } from '../lib/agent/solana-address.js'
 import { draftMentionFromRemit } from '../lib/kol-mentions.js'
 import { emitWebhookEvent } from '../lib/webhooks.js'
+import { buildCrewShareholders } from '../lib/agent/shareholders.js'
+import { buildUnsignedLaunchTransactions } from '../lib/agent/unsigned.js'
+import { clampTreasuryBpsOverride, withCrewLaunchDescription } from '../lib/agent/constants.js'
+import { query } from '../lib/db.js'
 
 export const agentRouter = Router()
 
@@ -84,6 +88,169 @@ const crewMemberSchema = z.object({
   wallet: solanaAddress,
   share: z.number().int().min(1).max(100),
   hireRole: z.enum(['caller', 'chart', 'raid', 'kol', 'dev']).optional(),
+})
+
+/**
+ * Build UNSIGNED launch transactions (create + optional fee-share lock) for local signing.
+ * Returns v0 message base64 with required signer pubkeys and a suggested order.
+ * The caller may submit directly to Solana RPC or POST them back to our submit endpoint.
+ */
+const unsignedLaunchSchema = z
+  .object({
+    name: z.string().min(2).max(32),
+    ticker: z.string().min(2).max(13).regex(/^\$?[A-Za-z0-9]{2,13}$/),
+    description: z.string().max(USER_DESCRIPTION_MAX).optional().default(''),
+    mode: z.enum(['split', 'buyback', 'raid', 'agent']).optional().default('agent'),
+    twitter: z.string().max(128).optional(),
+    website: z.string().max(256).optional(),
+    initialBuySol: z.number().min(0).max(MAX_INITIAL_BUY_SOL).optional().default(0),
+    imageUrl: z.string().url().optional(),
+    imageBase64: z.string().min(64).optional(),
+    imageContentType: z.string().max(64).optional(),
+    crew: z.array(crewMemberSchema).min(1).max(MAX_CREW).optional(),
+    autoHire: z
+      .preprocess(
+        normalizeAutoHireInput,
+        z.object({ seats: z.number().int().min(1).max(AUTOHIRE_SEATS_REQUEST_MAX).optional().default(5) }).optional(),
+      )
+      .optional(),
+    optInOnly: z.boolean().optional().default(false),
+    treasuryBps: z.number().int().min(2000).max(3000).optional(),
+    launcherPubkey: solanaAddress,
+    mintPubkey: solanaAddress.optional(),
+  })
+  .superRefine(refineLaunchBody)
+
+agentRouter.post('/agent/launch/unsigned', requireAgentApiKey, async (req, res) => {
+  try {
+    const fp = apiKeyFingerprint(req)
+    const ip = clientIp(req)
+    if (!applyRateLimit(res, `unsigned:key:${fp}`, 30, 60_000)) return
+    if (!applyRateLimit(res, `unsigned:ip:${ip}`, 60, 60_000)) return
+
+    const body = unsignedLaunchSchema.parse(req.body)
+    const imageSha256 = await resolveLaunchImageSha(body)
+    const keyId = req.crewAgentAuth?.keyId
+    const boundRef = keyId ? await getAgentKeyReferral(keyId) : null
+
+    // Build crew via explicit or autohire
+    const maxSeats = maxCrewSeats({ hasAgentReferrer: Boolean(boundRef) })
+    let crew = body.crew?.length ? body.crew : undefined
+    if (!crew) {
+      const requested = Math.max(1, Math.floor(body.autoHire?.seats ?? 5))
+      const seats = Math.min(maxSeats, requested)
+      const registered = await listRegisteredHireBoosts()
+      const plan = planNarrativeHires(
+        { name: body.name, ticker: body.ticker, vibe: body.description },
+        { limit: seats, registered, onlyRegistered: body.optInOnly },
+      )
+      crew = plan.crew
+    }
+
+    // Optional consent enforcement for explicit crew
+    if (body.optInOnly && crew && crew.length) {
+      const addrs = [...new Set(crew.map((m) => m.wallet))].filter((w) => w.length >= 32)
+      if (addrs.length) {
+        const { rows } = await query<{ wallet: string }>(
+          `SELECT wallet FROM kol_registrations WHERE wallet = ANY ($1::text[])`,
+          [addrs],
+        )
+        const have = new Set(rows.map((r) => String(r.wallet)))
+        const missing = addrs.filter((w) => !have.has(w))
+        if (missing.length) {
+          res.status(400).json({
+            ok: false,
+            error: `optInOnly=true — these crew wallets are not registered: ${missing.join(', ')}`,
+          })
+          return
+        }
+      }
+    }
+
+    // Build fee-share map to include in the lock step.
+    const deskWallet = body.launcherPubkey
+    const shareholders =
+      crew && crew.length
+        ? buildCrewShareholders(crew, body.mode || 'agent', {
+            deskWallet,
+            agentReferrer: boundRef?.referrer
+              ? { wallet: boundRef.referrer.wallet, handle: boundRef.referrer.handle, code: boundRef.referrer.code }
+              : null,
+            treasuryBpsOverride: clampTreasuryBpsOverride(body.treasuryBps),
+          })
+        : null
+
+    // Upload metadata to IPFS (same rules as custodial path).
+    const image = body.imageUrl
+      ? ({ kind: 'url', url: body.imageUrl } as const)
+      : ({ kind: 'base64', data: body.imageBase64!, contentType: body.imageContentType } as const)
+    const vibe = withCrewLaunchDescription(body.description || '')
+    const { metadataUri } = await import('../lib/agent/ipfs.js').then((m) =>
+      m.uploadPumpMetadata({
+        name: body.name,
+        symbol: body.ticker.replace(/^\$/, '').toUpperCase(),
+        description: vibe,
+        twitter: body.twitter?.trim() || undefined,
+        website: body.website?.trim() || undefined,
+        image,
+      }),
+    )
+
+    const plan = await buildUnsignedLaunchTransactions({
+      name: body.name,
+      ticker: body.ticker.replace(/^\$/, '').toUpperCase(),
+      metadataUri,
+      launcherPubkey: body.launcherPubkey,
+      crewShareholders: shareholders ? shareholders.map((s) => ({ wallet: s.wallet, bps: s.bps })) : null,
+      initialBuySol: body.initialBuySol ?? 0,
+      mintPubkey: body.mintPubkey,
+    })
+
+    res.json({
+      ...plan,
+      imageSha256,
+      crew,
+      shareholders,
+      treasuryBps: clampTreasuryBpsOverride(body.treasuryBps) ?? 2500,
+      tip:
+        'UNSIGNED build — sign and submit locally (or POST /api/agent/launch/submit with the signed base64). Messages expire with the blockhash; rebuild when expired.',
+    })
+  } catch (err) {
+    res.status(400).json({ ok: false, error: errorMessage(err, 'unsigned build failed') })
+  }
+})
+
+const submitSignedSchema = z.object({
+  /** Base64-encoded signed transactions (v0 or legacy), in order: create, then lock. */
+  signed: z.array(z.string().min(64)).min(1).max(4),
+})
+
+agentRouter.post('/agent/launch/submit', requireAgentApiKey, async (req, res) => {
+  try {
+    const fp = apiKeyFingerprint(req)
+    const ip = clientIp(req)
+    if (!applyRateLimit(res, `unsigned-submit:key:${fp}`, 30, 60_000)) return
+    if (!applyRateLimit(res, `unsigned-submit:ip:${ip}`, 60, 60_000)) return
+    const body = submitSignedSchema.parse(req.body)
+    const connection = (await import('../lib/agent/send.js')).getConnection()
+    const sigs: string[] = []
+    for (const b64 of body.signed) {
+      const raw = Buffer.from(b64, 'base64')
+      const sig = await connection.sendRawTransaction(raw, {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+        maxRetries: 3,
+      })
+      sigs.push(sig)
+    }
+    res.status(201).json({
+      ok: true,
+      signatures: sigs,
+      tip: 'Submitted signed transactions. Always verify on chain and check feeShareLocked via /api/agent/status/:mint.',
+    })
+  } catch (err) {
+    res.status(400).json({ ok: false, error: errorMessage(err, 'submit failed') })
+  }
 })
 
 function refineLaunchBody(
@@ -201,6 +368,7 @@ const autohireBodySchema = z.object({
   ticker: z.string().max(13).optional().default(''),
   description: z.string().max(USER_DESCRIPTION_MAX).optional().default(''),
   seats: z.number().int().min(1).max(AUTOHIRE_SEATS_REQUEST_MAX).optional().default(5),
+  optInOnly: z.boolean().optional().default(false),
 })
 
 function applyRateLimit(
@@ -257,7 +425,7 @@ agentRouter.post('/agent/autohire', requireAgentApiKey, async (req, res) => {
     const registered = await listRegisteredHireBoosts()
     const plan = planNarrativeHires(
       { name: body.name, ticker: body.ticker, vibe: body.description },
-      { limit: seats, registered },
+      { limit: seats, registered, onlyRegistered: body.optInOnly },
     )
     const warnings: string[] = []
     if (seatsDropped > 0) {
@@ -276,6 +444,7 @@ agentRouter.post('/agent/autohire', requireAgentApiKey, async (req, res) => {
       match: plan.match,
       policy: plan.policy || 'score',
       registeredPreferred: registered.length,
+      optedInOnly: body.optInOnly,
       hires: plan.hires.map((h) => ({
         rank: h.hireRank,
         handle: `@${h.kol.x || h.kol.pump}`,
@@ -339,7 +508,7 @@ async function handleQuickstart(
     const platformBps = platformBuybackBps(false)
     const deskBps = MODE_DESK_BPS.agent
     const crewPoolBps = 10_000 - platformBps - deskBps
-    const launchBody = { name, ticker, description, imageUrl: 'https://<your-public-image>.png', autoHire: true }
+    const launchBody = { name, ticker, description, imageUrl: 'https://<your-public-image>.png' }
     res.setHeader('Cache-Control', 'no-store')
     res.json({
       ok: true,
@@ -369,17 +538,31 @@ async function handleQuickstart(
         { step: 1, call: 'POST https://api.crewpay.dev/api/agent/keys/claim', body: {}, returns: 'crew_ak_… (store once)' },
         {
           step: 2,
-          call: 'POST https://api.crewpay.dev/api/agent/launch/dry-run',
-          headers: { 'x-crew-api-key': 'crew_ak_…' },
-          body: launchBody,
-          returns: 'final crew, fee map, cost — no SOL spent',
+          call: 'GET https://api.crewpay.dev/api/kols?limit=50',
+          headers: {},
+          body: null,
+          returns: 'browse KOLs — pick explicit crew wallets first (preferred)',
         },
         {
           step: 3,
+          call: 'POST https://api.crewpay.dev/api/agent/launch/dry-run',
+          headers: { 'x-crew-api-key': 'crew_ak_…' },
+          body: { ...launchBody, crew: [{ handle: '@alice', wallet: '<pubkey>', share: 50, hireRole: 'kol' }, { handle: '@bob', wallet: '<pubkey>', share: 50, hireRole: 'caller' }] },
+          returns: 'validate explicit crew, fee map, cost — no SOL spent',
+        },
+        {
+          step: 4,
           call: 'POST https://api.crewpay.dev/api/agent/launch',
           headers: { 'x-crew-api-key': 'crew_ak_…', 'x-launcher-key': '<launcher secret, env only>' },
-          body: launchBody,
+          body: { ...launchBody, crew: '…as above…' },
           returns: 'mint + feeShareLocked (MAINNET, spends SOL)',
+        },
+        {
+          step: 'Fallback',
+          call: 'POST https://api.crewpay.dev/api/agent/autohire',
+          headers: { 'x-crew-api-key': 'crew_ak_…' },
+          body: { name, ticker, description, seats },
+          returns: 'convenience Autohire plan when you cannot pick explicit crew',
         },
       ],
       mcp: { hosted: 'https://mcp.crewpay.dev/mcp', local: 'npx -y crewpay-mcp' },

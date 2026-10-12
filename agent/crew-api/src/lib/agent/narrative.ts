@@ -211,6 +211,8 @@ export function planNarrativeHires(
     registered?: RegisteredHireBoost[]
     /** Handles never to hire (defaults to data/autohire-optout.json + AUTOHIRE_EXCLUDE_HANDLES). */
     optOut?: Set<string>
+    /** If true, fill seats only from registered KOLs. Defaults to false (registered-first). */
+    onlyRegistered?: boolean
   },
 ): NarrativeHirePlan {
   const optOut = opts?.optOut ?? autohireOptOuts()
@@ -486,9 +488,15 @@ export function planNarrativeHires(
   const pickedReg = greedyPick(registeredPool, takeRegistered, usedWallets)
   // Remaining seats: normal non-registered pool (exclude any wallets already picked).
   const nonRegisteredPool = scored.filter((s) => !s.registered && !usedWallets.has(s.kol.wallet))
-  const takeNormal = Math.max(0, limit - pickedReg.length)
-  const pickedNorm = takeNormal > 0 ? greedyPick(nonRegisteredPool, takeNormal, usedWallets) : []
-  const picked = [...pickedReg, ...pickedNorm]
+  let picked: Scored[]
+  if (opts?.onlyRegistered) {
+    // Strict consent: only use registered KOLs. If not enough registered seats, return fewer.
+    picked = pickedReg
+  } else {
+    const takeNormal = Math.max(0, limit - pickedReg.length)
+    const pickedNorm = takeNormal > 0 ? greedyPick(nonRegisteredPool, takeNormal, usedWallets) : []
+    picked = [...pickedReg, ...pickedNorm]
+  }
   const finalRoles = new Set<HireRole>()
   const shares = equalShares(picked.length)
   const hires: HiredKol[] = picked.map((p, i) => ({

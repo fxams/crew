@@ -76,6 +76,86 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     },
   )
 
+  // Build UNSIGNED transactions for non-custodial signing
+  server.registerTool(
+    'crew_build_unsigned',
+    {
+      title: 'Build UNSIGNED launch transactions',
+      description:
+        'Create v0 transaction messages (base64) for create(+buy) and fee-share lock. Sign and submit locally, or call crew_submit_signed. Requires launcherPubkey; accepts crew[] or autohire seats. Optional treasuryBps 2000–3000.',
+      inputSchema: {
+        name: z.string().min(2).max(32),
+        ticker: z.string().min(2).max(13),
+        description: z.string().max(204).optional(),
+        imageUrl: z.string().url().optional(),
+        imageBase64: z.string().min(64).optional(),
+        seats: z.number().int().min(1).max(8).optional(),
+        mode: z.enum(['agent', 'split', 'buyback', 'raid']).optional(),
+        initialBuySol: z.number().min(0).max(10).optional(),
+        twitter: z.string().max(128).optional(),
+        website: z.string().url().optional(),
+        launcherPubkey: z.string().min(32).max(64),
+        mintPubkey: z.string().min(32).max(64).optional(),
+        optInOnly: z.boolean().optional(),
+        treasuryBps: z.number().int().min(2000).max(3000).optional(),
+        crew: z.array(crewMemberSchema).min(1).max(8).optional(),
+        ...forbiddenSecretFields,
+      },
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async (input) => {
+      assertNoSecretToolArgs(input as Record<string, unknown>)
+      if (!input.imageUrl && !input.imageBase64) {
+        throw new Error('Provide imageUrl or imageBase64')
+      }
+      const body: Record<string, unknown> = {
+        name: input.name,
+        ticker: input.ticker,
+        description: input.description || '',
+        mode: input.mode || 'agent',
+        initialBuySol: input.initialBuySol ?? 0,
+        launcherPubkey: input.launcherPubkey,
+        ...(input.optInOnly != null ? { optInOnly: input.optInOnly } : {}),
+      }
+      if (input.imageUrl) body.imageUrl = input.imageUrl
+      if (input.imageBase64) body.imageBase64 = input.imageBase64
+      if (input.twitter) body.twitter = input.twitter
+      if (input.website) body.website = input.website
+      if (input.mintPubkey) body.mintPubkey = input.mintPubkey
+      if (input.treasuryBps != null) body.treasuryBps = input.treasuryBps
+      if (input.crew?.length) body.crew = input.crew
+      else body.autoHire = { seats: input.seats ?? 5 }
+      const data = await crewFetch(cfg, '/api/agent/launch/unsigned', {
+        method: 'POST',
+        auth: true,
+        body: JSON.stringify(body),
+      })
+      return asText(data)
+    },
+  )
+
+  // Submit previously built signed base64 transactions
+  server.registerTool(
+    'crew_submit_signed',
+    {
+      title: 'Submit signed CREW launch transactions',
+      description:
+        'Submit base64-encoded signed transactions (create then lock). Use after crew_build_unsigned when you prefer the API to broadcast.',
+      inputSchema: {
+        signed: z.array(z.string().min(64)).min(1).max(4),
+      },
+      annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: true },
+    },
+    async (input) => {
+      const data = await crewFetch(cfg, '/api/agent/launch/submit', {
+        method: 'POST',
+        auth: true,
+        body: JSON.stringify({ signed: input.signed }),
+      })
+      return asText(data)
+    },
+  )
+
   server.registerResource(
     'crew-llms',
     `${cfg.apiUrl}/llms.txt`,
@@ -241,7 +321,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Search CREW KOL directory',
       description:
-        'Search the CREW KOL / Pump profile directory by handle or wallet. Public Pump.fun profiles — not opt-in partners.',
+        'Search the CREW KOL / Pump profile directory by handle or wallet. Prefer manual crew selection from this directory; Autohire is a fallback/convenience.',
       inputSchema: {
         q: z.string().min(1).max(64).describe('Handle, pump username, or wallet substring'),
         limit: z.number().int().min(1).max(50).optional().describe('Max results (default 20)'),
@@ -255,12 +335,37 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     },
   )
 
+  // Browse KOLs (optional q), for manual crew selection
+  server.registerTool(
+    'crew_list_kols',
+    {
+      title: 'Browse CREW KOL directory',
+      description:
+        'List/browse CREW KOL profiles (optionally filtered by q). Use this to select explicit crew wallets before launching. Autohire is a fallback/convenience.',
+      inputSchema: {
+        q: z.string().max(64).optional().describe('Optional: handle, pump username, or wallet substring'),
+        limit: z.number().int().min(1).max(100).optional().describe('Max results (default 50)'),
+        offset: z.number().int().min(0).optional().describe('Offset for pagination (default 0)'),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ q, limit, offset }) => {
+      const params = new URLSearchParams()
+      if (q) params.set('q', q)
+      if (limit != null) params.set('limit', String(limit))
+      if (offset != null) params.set('offset', String(offset))
+      const qs = params.toString() ? `?${params.toString()}` : ''
+      const data = await crewFetch(cfg, `/api/kols${qs}`)
+      return asText(data)
+    },
+  )
+
   server.registerTool(
     'crew_autohire',
     {
       title: 'Narrative Autohire KOLs',
       description:
-        'Preview CREW narrative Autohire: match a Solana / Pump.fun token name, ticker, and vibe to the top KOL pack (wallets, roles, shares, reasons). No on-chain tx. Public Pump wallets — not endorsed affiliates. Works without a key (keyless preview); with CREW_AGENT_API_KEY / x-crew-api-key it uses your key and referral binding.',
+        'Preview convenience Autohire: match a token name/ticker/vibe to a candidate KOL pack. Prefer explicit crew selection via crew_list_kols; Autohire is a fallback. Works keyless for previews.',
       inputSchema: {
         name: z.string().max(32).optional().describe('Token name (2–32 on launch)'),
         ticker: z.string().max(13).optional().describe('Token ticker (2–13 on launch)'),
@@ -310,7 +415,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Dry-run a CREW launch (no chain tx)',
       description:
-        'Dry-run a launch (default) or wire-fees (intent=wire-fees). Returns dryRunId + approvalUrl (no approve secret). Operator opens approvalUrl and wallet-signs before spend. Launch dry-run binds image sha256. Requires CREW_AGENT_API_KEY.',
+        'Dry-run a launch (default) or wire-fees (intent=wire-fees). Prefer explicit crew[] chosen from the directory; Autohire is a fallback. Returns dryRunId + approvalUrl. Requires CREW_AGENT_API_KEY.',
       inputSchema: {
         intent: z
           .enum(['launch', 'wire-fees'])
@@ -573,7 +678,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Launch Pump coin via CrewPay (MAINNET)',
       description:
-        'MAINNET launch: create a Solana Pump.fun coin with on-chain fee-shares (60% KOL crew / 15% launching agent / 25% CrewPay treasury; or 60/15/5/20 when the API key was claimed with a KOL referral_code). Buyback cron is not live yet. Prefers atomic create+fee-lock. Approval is optional. Operators can require human approval per key (then pass dryRunId from crew_launch_dry_run after approvalUrl). Requires CREW_AGENT_API_KEY + CREW_LAUNCHER_KEY in MCP env (never tool args). Check feeShareLocked — HTTP 202 needs crew_wire_fees.',
+        'MAINNET launch: Prefer explicit crew[] (from crew_list_kols). Autohire is a fallback convenience. Creates a Pump.fun coin with on-chain fee-shares (60/15/25 default; 60/15/5/20 with referral). Approval optional; requires CREW_AGENT_API_KEY + CREW_LAUNCHER_KEY. Check feeShareLocked.',
       inputSchema: {
         dryRunId: z
           .string()
