@@ -96,6 +96,8 @@ describe('agent discovery docs', () => {
     expect(llmsTxt()).toContain('not live yet')
     expect(llmsTxt()).toContain('bags')
     expect(llmsTxt()).toContain('zora')
+    expect(llmsTxt()).toContain('ACP_ENABLED')
+    expect(llmsTxt()).toContain('crewpay_autohire_kol_crew')
     expect(llmsTxt().toLowerCase()).not.toMatch(/launcher gets 60/)
     expect(agentDiscoveryJson().endpoints['POST /api/agent/launch/unsigned']).toBeTruthy()
     expect(openApiSpec().components.schemas.LaunchRequest.properties.platform).toBeTruthy()
@@ -115,6 +117,10 @@ describe('agent discovery docs', () => {
     ])
     expect(agentDiscoveryJson().platforms.feeMap).toMatch(/hired KOL crew/)
     expect(agentDiscoveryJson().platforms.feeMap.toLowerCase()).not.toMatch(/launcher gets 60/)
+    expect(agentDiscoveryJson().platforms.acp.enabled).toBe(false)
+    expect(agentDiscoveryJson().platforms.acp.offerings).toContain('crewpay_autohire_kol_crew')
+    expect(openApiSpec().components.schemas.PlatformsResponse.required).toContain('acp')
+    expect(openApiSpec().components.schemas.PlatformsResponse.required).toContain('x402')
     expect(openApiSpec().components.schemas.LaunchRequest.properties.description.maxLength).toBe(
       204,
     )

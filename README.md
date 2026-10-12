@@ -62,3 +62,37 @@ See [`agent/crew/DEPLOY.md`](./agent/crew/DEPLOY.md) · [`agent/crew/PRODUCT.md`
 | `agent/crew` | Vite desk UI |
 | `agent/crew-api` | Agent API + proof + buyback cron |
 | `agent/crew-mcp` | MCP server (`crewpay-mcp`) |
+| `services/acp-provider` | Virtuals ACP v2 provider worker (no-op unless `ACP_ENABLED=1`) |
+
+## Virtuals ACP (agents hire CrewPay)
+
+`GET https://api.crewpay.dev/api/platforms` reports `acp.enabled` (false unless `ACP_ENABLED=1`) and `x402.enabled` (false unless `X402_ENABLED=1`). Separate ACP worker: [`services/acp-provider`](./services/acp-provider/README.md). Complete no-op until that flag is on. Paying agent wallet = identity. Fee map unchanged (60% hired KOL crew / 15% launching agent / rest treasury). Launch jobs stay non-custodial (unsigned txs + `crew_submit_signed`).
+
+This repo does **not** register an ACP agent, generate keys, or move funds.
+
+### Offerings
+
+```json
+[
+  {
+    "name": "crewpay_autohire_kol_crew",
+    "description": "Hire a KOL crew for an existing token via CrewPay Autohire. Deliverable is crew list JSON.",
+    "priceUsd": 0.02,
+    "requirements": { "required": ["mint", "platform", "budget"] }
+  },
+  {
+    "name": "crewpay_launch_with_crew",
+    "description": "Unsigned launch txs (crew_build_unsigned) plus crew_submit_signed instructions. Non-custodial.",
+    "priceUsd": 0.10,
+    "requirements": { "required": ["name", "ticker"] }
+  }
+]
+```
+
+### Operator setup
+
+1. Register a provider on [app.virtuals.io/acp/new](https://app.virtuals.io/acp/new).
+2. **Signers → + Add Signer.** Put the key in `ACP_SIGNER_KEY` and the wallet id in `ACP_WALLET_ID` (never logs, never commit).
+3. Add the two offerings (full JSON in [`services/acp-provider/README.md`](./services/acp-provider/README.md)).
+4. `ACP_ENABLED=1` `ACP_CHAIN_ID=84532` then `npm start --prefix services/acp-provider`.
+
