@@ -64,6 +64,47 @@ export async function assertAdminRevokedOnChain(mint: PublicKey | string): Promi
   return true
 }
 
+/** Backoff between sharing-config re-reads (~15s total) to ride RPC lag. */
+export function feeLockPollDelaysMs(): number[] {
+  return [400, 800, 1_200, 1_600, 2_000, 2_500, 3_000, 4_000]
+}
+
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms))
+}
+
+/**
+ * Poll sharing-config until admin is revoked. Returns false on timeout
+ * (caller must not mark the coin locked).
+ */
+export async function pollAdminRevokedOnChain(
+  mint: PublicKey | string,
+  opts?: {
+    delaysMs?: number[]
+    probe?: (mint: PublicKey) => Promise<boolean>
+  },
+): Promise<boolean> {
+  const mintPk = typeof mint === 'string' ? new PublicKey(mint.trim()) : mint
+  const delays = opts?.delaysMs ?? feeLockPollDelaysMs()
+  const probe =
+    opts?.probe ??
+    (async (m: PublicKey) => {
+      await assertAdminRevokedOnChain(m)
+      return true
+    })
+  for (let i = 0; i <= delays.length; i += 1) {
+    try {
+      if (await probe(mintPk)) return true
+    } catch {
+      /* RPC lag — sharing-config may not be indexed yet */
+    }
+    const wait = delays[i]
+    if (wait == null) break
+    await sleep(wait)
+  }
+  return false
+}
+
 export function shouldMarkUnlockedExpired(
   coin: {
     holderKol?: boolean

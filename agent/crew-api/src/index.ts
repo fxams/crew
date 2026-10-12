@@ -13,6 +13,7 @@ import { webhooksRouter } from './routes/webhooks.js'
 import { jobsRouter } from './routes/jobs.js'
 import { maybeStartAcpInProcess } from './lib/acp-inprocess.js'
 import { configureTrustProxy } from './lib/client-ip.js'
+import { probeJitoEngines } from './lib/agent/jito.js'
 
 const port = Number(process.env.PORT || 10000)
 const allowedOrigins = (process.env.CORS_ORIGINS || 'https://app.crewpay.dev,https://crewpay.dev,http://localhost:5173,http://127.0.0.1:4173')
@@ -101,6 +102,16 @@ async function main() {
 
   app.listen(port, () => {
     console.log(`crew-api listening on :${port}`)
+    void probeJitoEngines()
+      .then((h) => {
+        console.log(
+          `[jito] ${h.reachable}/${h.engines.length} engines reachable tip=${h.tipLamports} ok=${h.ok}`,
+          h.engines.map((e) => `${e.ok ? 'ok' : 'fail'} ${e.ms}ms`).join(' · '),
+        )
+      })
+      .catch((err) => {
+        console.warn('[jito] startup probe failed', err)
+      })
     void maybeStartAcpInProcess().catch((err) => {
       console.error('[acp] in-process listener failed; API continues', err)
     })

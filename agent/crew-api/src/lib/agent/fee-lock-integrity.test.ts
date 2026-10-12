@@ -5,6 +5,7 @@ import {
   HOLDER_KOL_UNLOCK_TTL_MS,
   adminRevokedFromSharingAccount,
   isFeeShareAdminRevoked,
+  pollAdminRevokedOnChain,
   shouldMarkUnlockedExpired,
 } from './fee-lock-integrity.js'
 
@@ -101,5 +102,30 @@ describe('fee-lock-integrity', () => {
         now,
       ),
     ).toBe(false)
+  })
+
+  it('polls sharing-config until adminRevoked (RPC lag)', async () => {
+    const mint = PublicKey.default
+    let hits = 0
+    const ok = await pollAdminRevokedOnChain(mint, {
+      delaysMs: [0, 0],
+      probe: async () => {
+        hits += 1
+        if (hits < 3) throw new Error('not indexed')
+        return true
+      },
+    })
+    expect(ok).toBe(true)
+    expect(hits).toBe(3)
+  })
+
+  it('does not mark locked when adminRevoked never confirms', async () => {
+    const ok = await pollAdminRevokedOnChain(PublicKey.default, {
+      delaysMs: [0],
+      probe: async () => {
+        throw new Error('still editable')
+      },
+    })
+    expect(ok).toBe(false)
   })
 })

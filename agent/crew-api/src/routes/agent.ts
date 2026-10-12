@@ -863,7 +863,7 @@ agentRouter.post('/agent/launch', requireAgentApiKeyOrX402, async (req, res) => 
       plannedHirePlan,
     })
     if (!result.ok) {
-      res.status(400).json(result)
+      res.status(result.retryable ? 503 : 400).json(result)
       return
     }
 

@@ -114,8 +114,9 @@ services:
         sync: false
       - key: X_CLIENT_SECRET
         sync: false
-      # Refuse sequential create→lock fallback (Jito bundle / v0+ALT only).
-      # Only enable once jito-bundle is reliable from Render egress.
+      # Refuse sequential create→lock unless CREW_ATOMIC_FALLBACK=1.
+      # Jito is retried across mainnet/amsterdam/frankfurt/ny/tokyo with timeouts.
+      # Probe: GET /health/jito (also logged at API startup).
       - key: CREW_ATOMIC_REQUIRED
         value: "1"
 
