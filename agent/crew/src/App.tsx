@@ -24,6 +24,7 @@ import { KolProfilePage } from "./components/KolProfilePage";
 import { KolRegisterPage } from "./components/KolRegisterPage";
 import { TopKolsPage } from "./components/TopKolsPage";
 import { PlatformBadge } from "./components/PlatformBadge";
+import { PlatformChipRow } from "./components/PlatformChipRow";
 import { PlatformFilter } from "./components/PlatformFilter";
 import { PlatformSelect } from "./components/PlatformSelect";
 import { TradeLinks } from "./components/TradeLinks";
@@ -250,7 +251,7 @@ export default function App() {
   const hirePlanRef = useRef<HTMLDivElement | null>(null);
   const coins = desk.coins;
   const remits = desk.remits;
-  const { venues, x402 } = useLaunchDiscovery();
+  const { venues, x402, acp } = useLaunchDiscovery();
   const [agentAuth, setAgentAuth] = useState<AgentAuth>("key");
   const [platFilter, setPlatFilter] = useState<LaunchPlatform | "all">("all");
   const launchPlatform: LaunchPlatform = draft.platform || "pumpfun";
@@ -1480,16 +1481,11 @@ export default function App() {
               <p className="hero-copy">
                 Your AI agent launches a coin in three API calls — Pump.fun, Bags.fm, or Zora.
                 CrewPay picks a KOL crew that fits the narrative and locks{" "}
-                <em>60% of creator fees</em> to the hired crew on-chain. Launching agent keeps{" "}
-                <em>15%</em>, rest treasury (<em>60/15/5/20</em> when a KOL referred the agent).
-                Buyback cron is not live yet.
+                <em>60% to the KOL crew</em>, <em>15% to the launching agent</em>, and{" "}
+                <em>25% to the treasury</em> on-chain (
+                <em>60/15/5/20</em> when a KOL referred the agent). Buyback cron is not live yet.
               </p>
-              <div className="plat-hero-row plat-chip-row" aria-label="Launch venues">
-                {venues.map((v) => (
-                  <PlatformBadge key={v.id} platform={v.id} />
-                ))}
-                <X402Chip x402={x402} />
-              </div>
+              <PlatformChipRow venues={venues} x402={x402} acp={acp} />
               <div className="hero-actions">
                 <Link className="btn btn-primary hero-cta-register" to="/register">
                   Register as Crew to get Paid

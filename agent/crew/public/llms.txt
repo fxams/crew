@@ -104,9 +104,13 @@ Canonical site is **https://crewpay.dev** (`app.crewpay.dev` has no DNS).
 
 - `platform` on `POST /api/agent/launch/unsigned` and MCP `crew_build_unsigned` defaults to `pumpfun` (unchanged).
 - `bags` — Bags.fm on Solana via the public API. Requires `BAGS_API_KEY`. Hired KOL crew + launching agent + treasury are fee claimers (60/15/rest; 5% referrer when bound). Bags caps claimers at 100; crews above 7 claimers attach the Bags public LUT.
-- `zora` — Zora content coins on Base. Off unless `ZORA_ENABLED` is set. Creator rewards go to a 0xSplits contract (60% hired KOL crew / 15% launching agent / rest treasury). CrewPay is the platform referrer. Base Sepolia by default; `ZORA_CHAIN=base` for mainnet. Returns unsigned EIP-1559 txs (split, then create).
+- `zora` — Zora content coins on Base. Off unless `ZORA_ENABLED` is set. Creator rewards go to a 0xSplits contract (60% to the KOL crew, 15% to the launching agent, 25% to the treasury). CrewPay is the platform referrer. Base Sepolia by default; `ZORA_CHAIN=base` for mainnet. Returns unsigned EIP-1559 txs (split, then create).
 - Same KOL order on every platform: explicit `crew[]` first, Autohire second. `optInOnly` optional and off by default.
 - Sign locally, then `POST /api/agent/launch/submit` / `crew_submit_signed` (pass the same `platform`).
+
+## Virtuals ACP (off by default)
+
+Agents can hire CrewPay via Agent Commerce Protocol v2 jobs when `ACP_ENABLED=1` on Base mainnet. `GET /api/platforms` reports `acp.enabled` (false by default). Offerings: `crewpay_autohire_kol_crew` (crew list JSON, default $0.25) and `crewpay_launch_with_crew` (unsigned txs + `crew_submit_signed` instructions — non-custodial, default $1.00). Paying agent wallet = identity. Fee map unchanged (60% to the KOL crew, 15% to the launching agent, 25% to the treasury). Listen in-process with `ACP_INPROCESS=1` on crewpay-api, or run `services/acp-provider`. Do not send `ACP_SIGNER_KEY` anywhere except the listener env. Hire UI: https://app.virtuals.io/acp
 
 ## Limits (site + API + MCP aligned)
 
@@ -124,9 +128,9 @@ Canonical site is **https://crewpay.dev** (`app.crewpay.dev` has no DNS).
 
 ## Fee map (mode=agent)
 
-- **60%** hired KOL crew
-- **15%** launching agent
-- **25%** CrewPay treasury — or **20%** when the agent key has a KOL referral
+- **60%** to the KOL crew
+- **15%** to the launching agent
+- **25%** to the treasury — or **20%** when the agent key has a KOL referral
 - **5%** referrer KOL (only when `referralCode` was bound at claim-key; on-chain recipient)
 - Non-referred stays **60/15/25**. Buyback cron not live yet. Invite: `https://crewpay.dev/r/<code>`
 

@@ -2,6 +2,8 @@
 
 import { CREW_PUBLIC_API_URL } from './config'
 
+export const X402_HREF = 'https://x402.org'
+
 export type X402Network = 'base' | 'solana'
 
 export type X402Prices = {

@@ -57,6 +57,8 @@ describe('x402 config', () => {
     expect(x402Enabled()).toBe(false)
     expect(x402Ready()).toBe(false)
     expect(x402PublicDiscovery().enabled).toBe(false)
+    expect(x402PublicDiscovery().feeMap).toMatch(/60% to the KOL crew/)
+    expect(x402PublicDiscovery().feeMap).toMatch(/25% to the treasury/)
     expect(x402PublicDiscovery().feeMap.toLowerCase()).not.toMatch(/launcher gets 60/)
   })
 

@@ -93,7 +93,7 @@ describe('Zora unsigned launch', () => {
     expect(splitRecipients.find((r) => r.address.toLowerCase() === agent)?.bps).toBe(1500)
     expect(splitRecipients.find((r) => r.address.toLowerCase() === treas)?.bps).toBe(2500)
     expect(plan.note).not.toMatch(/launcher gets 60/i)
-    expect(plan.warnings?.join(' ')).toMatch(/hired KOL crew 60%/)
+    expect(plan.warnings?.join(' ')).toMatch(/60% to the KOL crew/)
     expect(plan.warnings?.join(' ')).toMatch(/platform referrer/)
   })
 

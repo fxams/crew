@@ -19,7 +19,8 @@ describe('runAutohire (x402 / ACP path)', () => {
     expect(result.ok).toBe(true)
     expect(result.crew.length).toBeGreaterThan(0)
     expect(result.identity).toBe('0x1111111111111111111111111111111111111111')
-    expect(result.feeMap).toMatch(/hired KOL crew/)
+    expect(result.feeMap).toMatch(/60% to the KOL crew/)
+    expect(result.feeMap).toMatch(/25% to the treasury/)
     expect(result.disclaimer.toLowerCase()).toMatch(/not opt-in|not consent|listing/)
   })
 

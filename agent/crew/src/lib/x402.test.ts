@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   FALLBACK_X402,
+  X402_HREF,
   formatX402Networks,
   normalizeX402,
   pickX402Raw,
@@ -84,5 +85,6 @@ describe('x402 copy', () => {
     expect(x402SnippetNote(FALLBACK_X402)).toMatch(/402/)
     expect(x402SnippetNote(FALLBACK_X402)).toContain('X-PAYMENT')
     expect(x402SnippetNote(FALLBACK_X402).toLowerCase()).not.toMatch(/earnings|you will make|guaranteed/)
+    expect(X402_HREF).toBe('https://x402.org')
   })
 })

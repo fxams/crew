@@ -92,7 +92,7 @@ export function offeringRegistry(prices: {
     {
       name: OFFERING_AUTOHIRE,
       description:
-        'Hire a KOL crew for an existing token via CrewPay Autohire. Deliverable is crew list JSON. Fee map 60% hired KOL crew / 15% launching agent / rest treasury.',
+        'Hire a KOL crew for an existing token via CrewPay Autohire. Deliverable is crew list JSON. Fee map 60% to the KOL crew, 15% to the launching agent, 25% to the treasury.',
       slaMinutes: 15,
       priceUsd: prices.autohireUsd,
       requirements: {
@@ -132,7 +132,7 @@ export function offeringRegistry(prices: {
     {
       name: OFFERING_LAUNCH,
       description:
-        'Build unsigned launch transactions (crew_build_unsigned) plus crew_submit_signed instructions. CrewPay never holds the launcher key. Fee map 60% hired KOL crew / 15% launching agent / rest treasury.',
+        'Build unsigned launch transactions (crew_build_unsigned) plus crew_submit_signed instructions. CrewPay never holds the launcher key. Fee map 60% to the KOL crew, 15% to the launching agent, 25% to the treasury.',
       slaMinutes: 30,
       priceUsd: prices.launchUsd,
       requirements: {

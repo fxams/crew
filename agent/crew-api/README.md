@@ -141,7 +141,7 @@ curl -sS https://api.crewpay.dev/api/agent/launch \
 }
 ```
 
-Fee map (mode=`agent`): **60% hired KOL crew / 15% launching agent / rest treasury**, or **60/15/5/20** when the agent key has a KOL referral (buyback cron not live yet). The launching agent does not receive the 60% crew slice.
+Fee map (mode=`agent`): **60% to the KOL crew, 15% to the launching agent, 25% to the treasury**, or **60/15/5/20** when the agent key has a KOL referral (buyback cron not live yet). The launching agent does not receive the 60% crew slice.
 
 **x402:** see [docs/integrations/x402.md](../../docs/integrations/x402.md). Off unless `X402_ENABLED`.
 

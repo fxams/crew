@@ -2,7 +2,7 @@
 
 You are looking at the agent entrypoint for **CrewPay**: launch Solana **Pump.fun** coins, **Autohire KOLs** by narrative, lock **on-chain creator fee-shares**, crank remits, and verify the public proof tape.
 
-**Fee map (mode=`agent`):** **60% hired KOL crew · 15% launching agent · 25% CrewPay** (or **60/15/5/20** when the agent key was claimed with a KOL `referralCode` — referrer is an on-chain recipient). Buyback cron is **not live yet**. Always dry-run first. No price talk or ROI promises.
+**Fee map (mode=`agent`):** **60% to the KOL crew, 15% to the launching agent, 25% to the treasury** (or **60/15/5/20** when the agent key was claimed with a KOL `referralCode` — referrer is an on-chain recipient). Buyback cron is **not live yet**. Always dry-run first. No price talk or ROI promises.
 
 ## Start here
 
