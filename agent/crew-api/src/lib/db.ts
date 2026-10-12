@@ -85,7 +85,8 @@ export async function migrate(): Promise<void> {
       END IF;
       IF to_regclass('public.kol_oauth_states') IS NOT NULL THEN
         ALTER TABLE kol_oauth_states ADD COLUMN IF NOT EXISTS referral_code TEXT;
-        -- schema.sql indexes consumed_at; CREATE TABLE IF NOT EXISTS won't add these.
+        -- schema.sql indexes cookie_sha256 + consumed_at; CREATE TABLE IF NOT EXISTS won't add these.
+        ALTER TABLE kol_oauth_states ADD COLUMN IF NOT EXISTS cookie_sha256 TEXT;
         ALTER TABLE kol_oauth_states ADD COLUMN IF NOT EXISTS signature_sha256 TEXT;
         ALTER TABLE kol_oauth_states ADD COLUMN IF NOT EXISTS consumed_at TIMESTAMPTZ;
       END IF;
@@ -445,6 +446,8 @@ export async function migrate(): Promise<void> {
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['018_fee_lock_integrity'],
   )
+  // Featured / graduation columns — never CREATE INDEX these in schema.sql.
+  // Live coins tables predate #127; schema.sql CREATE TABLE IF NOT EXISTS is a no-op.
   await query(`
     DO $mig$
     BEGIN
