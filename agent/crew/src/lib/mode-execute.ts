@@ -28,7 +28,7 @@ function id(prefix: string) {
 
 async function sendWalletTx(wallet: WalletContextState, tx: Transaction): Promise<string> {
   if (!wallet.publicKey || !wallet.sendTransaction) {
-    throw new Error('Connect Phantom to execute.')
+    throw new Error('Connect a Solana wallet to execute.')
   }
   const connection = new Connection(RPC_URL, 'confirmed')
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed')
@@ -60,7 +60,7 @@ export async function executeRaidClaim(opts: {
   proofUrl?: string
 }> {
   const { coin, wallet } = opts
-  if (!wallet.publicKey) throw new Error('Connect Phantom.')
+  if (!wallet.publicKey) throw new Error('Connect a Solana wallet.')
 
   const gate = evaluateRaidGate(coin, {
     questId: opts.questId,
@@ -126,7 +126,7 @@ export async function executeBuybackFire(opts: {
 }> {
   const { coin, wallet } = opts
   if (!wallet.publicKey || !wallet.signTransaction) {
-    throw new Error('Connect Phantom with transaction signing.')
+    throw new Error('Connect a Solana wallet with transaction signing.')
   }
 
   const gate = await evaluateDipGate(coin, { force: opts.force, remits: opts.remits })

@@ -127,6 +127,13 @@ describe('launch platform helpers', () => {
     expect(curl).toContain('"platform": "bags"')
     expect(curl).toContain('/api/agent/launch/unsigned')
     expect(curl).toContain('x-crew-api-key')
+    expect(curl).toContain('YOUR_SOLANA_PUBKEY')
+    expect(
+      unsignedLaunchCurl({
+        platform: 'zora',
+        launcherPubkey: '0x1111111111111111111111111111111111111111',
+      }),
+    ).toContain('0x1111111111111111111111111111111111111111')
     const paid = unsignedLaunchCurl({ platform: 'bags', name: 'Night Owl', ticker: 'HOOT', auth: 'x402' })
     expect(paid).toContain('X-PAYMENT: $X402_PAYMENT')
     expect(paid.toLowerCase()).not.toContain('x-crew-api-key')

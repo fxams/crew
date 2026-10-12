@@ -67,6 +67,8 @@ Set in the Render dashboard (or via API). **Do not commit API keys to git.**
 | `VITE_CREW_PUMP_URL` | Optional — pump.fun buy link (defaults to `/coin/{mint}`) |
 | `VITE_CREW_PRICE_USD` | Optional — hero price placeholder (e.g. `0.0012`) |
 | `VITE_CREW_MCAP_USD` | Optional — hero market cap placeholder (e.g. `120k`) |
+| `VITE_WALLETCONNECT_PROJECT_ID` | Optional — WalletConnect Cloud / Reown project id. If unset, WalletConnect QR / mobile deep-link is hidden. Injected, in-app, and Wallet Standard wallets still work. Also accepted: `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` |
+| `VITE_ROBINHOOD_CHAIN` | Optional — set `1` / `true` / `4663` to advertise Robinhood Chain alongside Base |
 
 ### API / cron secrets (never `VITE_*`)
 
@@ -126,6 +128,6 @@ npm run preview
 
 ## Production notes
 
-- App is **mainnet-only** — connect Phantom to launch.
+- App is **mainnet-only** — connect a Solana wallet to launch on Pump.fun.
 - Set `VITE_RPC_URL` for reliable RPC; browser calls to `api.mainnet-beta.solana.com` often return **403**.
 - GitHub Pages workflow removed; disable Pages in GitHub → Settings → Pages if it is still enabled.

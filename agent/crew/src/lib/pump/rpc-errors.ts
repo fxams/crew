@@ -18,7 +18,7 @@ export function formatRpcError(err: unknown): string {
     return 'Solana RPC rate-limited. Set VITE_RPC_URL to a dedicated provider for launches.'
   }
   if (/block height exceeded|has expired|blockhash not found/i.test(text)) {
-    return 'Transaction expired before confirm — approve Phantom within ~60s, then retry. If Phantom already succeeded, check Solscan for the signature.'
+    return 'Transaction expired before confirm — approve in your wallet within ~60s, then retry. If the wallet already succeeded, check Solscan for the signature.'
   }
   return text
 }

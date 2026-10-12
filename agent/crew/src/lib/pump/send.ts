@@ -59,7 +59,7 @@ export async function confirmSignatureSafe(
     return
   }
   throw new Error(
-    `Confirmation timed out. If Phantom shows success, open ${SOLSCAN_TX_URL(signature)}`,
+    `Confirmation timed out. If the wallet shows success, open ${SOLSCAN_TX_URL(signature)}`,
   )
 }
 
@@ -137,7 +137,7 @@ export async function sendInstructions(opts: SendIxsOpts): Promise<string> {
   const text = lastErr instanceof Error ? lastErr.message : String(lastErr)
   if (isBlockHeightExpired(lastErr)) {
     throw new Error(
-      'Transaction expired before confirm (approve Phantom faster, then retry). Blockhash lasts ~60s.',
+      'Transaction expired before confirm (approve in your wallet faster, then retry). Blockhash lasts ~60s.',
     )
   }
   throw lastErr instanceof Error ? lastErr : new Error(text || 'Send failed.')
