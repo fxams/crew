@@ -63,6 +63,8 @@ const coinSchema = z.object({
   raidQuests: z.unknown().optional(),
   agent: z.unknown().optional(),
   holderKol: z.boolean().optional(),
+  unlockedExpired: z.boolean().optional(),
+  adminRevoked: z.boolean().optional(),
 })
 
 const remitSchema = z.object({

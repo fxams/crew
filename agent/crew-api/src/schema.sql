@@ -42,6 +42,8 @@ CREATE TABLE IF NOT EXISTS coins (
   raid_quests JSONB,
   agent JSONB,
   holder_kol BOOLEAN NOT NULL DEFAULT false,
+  unlocked_expired BOOLEAN NOT NULL DEFAULT false,
+  admin_revoked BOOLEAN,
   agent_key_id TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()

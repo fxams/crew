@@ -1826,6 +1826,7 @@ export default function App() {
                   {selectedCoin.feeShareSignature
                     ? " · fees locked"
                     : " · fees NOT locked — crew unpaid"}
+                  {selectedCoin.unlockedExpired ? " · unlocked_expired" : ""}
                 </p>
                 {!selectedCoin.feeShareSignature && !selectedCoin.holderKol ? (
                   <p className="hint desk-alert">
@@ -1835,8 +1836,9 @@ export default function App() {
                 ) : null}
                 {!selectedCoin.feeShareSignature && selectedCoin.holderKol ? (
                   <p className="hint desk-alert">
-                    Holder KOL mode — lock fee-share once from the panel below when the holder
-                    set looks right.
+                    {selectedCoin.unlockedExpired
+                      ? "Holder KOL unlocked_expired (>24h) — fees NOT locked; lock from the panel below."
+                      : "Holder KOL mode — lock fee-share once from the panel below when the holder set looks right."}
                   </p>
                 ) : null}
                 <div className="coin-desk-layout">
@@ -2090,7 +2092,11 @@ export default function App() {
                       </strong>
                       <p>
                         {shortAddr(c.mint)}
-                        {c.feeShareSignature ? "" : " · fees open"}
+                        {c.feeShareSignature
+                          ? ""
+                          : c.unlockedExpired
+                            ? " · fees NOT locked · unlocked_expired"
+                            : " · fees NOT locked"}
                       </p>
                     </div>
                     {!c.feeShareSignature ? (

@@ -62,6 +62,14 @@ export function buildApproveMessage(dryRunId: string, timestamp: number): string
 export function hashLaunchBody(
   body: Record<string, unknown>,
   imageSha256: string,
+  /**
+   * Resolved autoHire crew + shareholders from the dry-run plan.
+   * Included so spend cannot silently re-plan a different crew.
+   */
+  resolved?: {
+    crew?: unknown
+    shareholders?: unknown
+  },
 ): string {
   const pick = {
     intent: 'launch' as const,
@@ -72,7 +80,8 @@ export function hashLaunchBody(
     initialBuySol: body.initialBuySol ?? 0,
     imageSha256,
     autoHire: body.autoHire ?? null,
-    crew: body.crew ?? null,
+    crew: resolved?.crew ?? body.crew ?? null,
+    shareholders: resolved?.shareholders ?? null,
     holderKol: body.holderKol ?? false,
     twitter: body.twitter ?? null,
     website: body.website ?? null,

@@ -228,7 +228,7 @@ export function agentDiscoveryJson() {
           initialBuySol: '0–10',
           holderKol: false,
           atomicRequired:
-            'optional bool — refuse sequential create→lock fallback (also CREW_ATOMIC_REQUIRED=1)',
+            'optional bool — refuse sequential create→lock fallback (also CREW_ATOMIC_REQUIRED=1; CREW_ATOMIC_FALLBACK=1 re-enables sequential after lock verify)',
         },
         returns:
           'mint, signatures, feeShareLocked, lockPath, createSlot/lockSlot, preLockCreatorFeesLamports, nextSteps, pumpUrl, crew, hirePlan (HTTP 201 locked / 202 partial)',
@@ -301,7 +301,7 @@ export function agentDiscoveryJson() {
       'Self-serve auth: POST /api/agent/keys/claim → crew_ak_… then pass x-crew-api-key (no operator signup).',
       'Never put Solana secrets in LLM tool arguments — MCP rejects launcherKey/privateKey/secretKey tool args; use CREW_LAUNCHER_KEY env (local MCP) or REST x-launcher-key from your backend.',
       'Public hosted MCP (mcp.crewpay.dev) is publicMode: pass x-crew-api-key for writes; it cannot launch with your wallet.',
-      'Launch prefers Jito bundle [create,lock] first (sendBundle encoding=base64, multi-region broadcast, getInflightBundleStatuses, tip via CREW_JITO_TIP_LAMPORTS default 0.001 SOL), then v0+ALT single-tx; sequential fallback is racy (~2s — see lockPath/createSlot/lockSlot/preLockCreatorFeesLamports + atomicFailures). Combined create+lock usually stays >1232 even with ALT (dynamic mint/curve accounts). Set CREW_LOOKUP_TABLE and/or atomicRequired / CREW_ATOMIC_REQUIRED=1 only after jito-bundle is reliable. HTTP 202 → crew_wire_fees({ mint }).',
+      'Launch prefers Jito bundle [create,lock] first (sendBundle encoding=base64, retry across mainnet/amsterdam/frankfurt/ny/tokyo with timeouts + tip backoff, getInflightBundleStatuses, tip via CREW_JITO_TIP_LAMPORTS default 0.001 SOL), then v0+ALT single-tx. Sequential create→lock is racy and disabled when CREW_ATOMIC_REQUIRED=1 unless CREW_ATOMIC_FALLBACK=1 (still verifies adminRevoked before marking locked). GET /health/jito probes engines. Combined create+lock usually stays >1232 even with ALT. HTTP 202 → crew_wire_fees({ mint }). Retryable atomic failures return HTTP 503.',
       'Crank uses OnlinePumpSdk.buildDistributeCreatorFeesInstructions (sweep before distribute) — fixes CreatorFeesNotSwept 6095. Permissionless: x-launcher-key optional; server CREW_OPS_KEY pays when unset.',
       'coin.launchedAt is create-tx blockTime (ms) when RPC returns it; /api/proof may store truncated-to-second timestamps from DB.',
       `Build: commit=${build.commitShort || 'unknown'} deployedAt=${build.deployedAt || 'unknown'}.`,

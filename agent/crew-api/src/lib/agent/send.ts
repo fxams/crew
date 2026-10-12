@@ -11,36 +11,14 @@ import {
 } from '@solana/web3.js'
 import bs58 from 'bs58'
 import { rpcUrl } from './constants.js'
-
-/** Fallback tip accounts (mainnet) — prefer live getTipAccounts; keep this list current. */
-const JITO_TIP_ACCOUNTS_FALLBACK = [
-  'HFqU5x63VTqvQss8hp11i4wVV8bD44PvwucfZ2bU7gRe',
-  'ADuUkR4vqLUMWXxW9gh6D6L8pMSawimctcNZ5pGwDcEt',
-  'ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49',
-  '3AVi9Tg9Uo68tJfuvoKvqKNWKkC5wPdSSdeBnizKZ6jT',
-  'DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL',
-  'DfXygSm4jCyNCybVYYK6DwvWqjKee8pbDmJGcLWNDXjh',
-  'Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvLkY',
-  '96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5',
-]
-
-/** Regional block engines — broadcast in parallel (first accept ≠ landed). */
-const JITO_BUNDLE_URLS = [
-  process.env.CREW_JITO_BUNDLE_URL?.trim(),
-  'https://mainnet.block-engine.jito.wtf/api/v1/bundles',
-  'https://amsterdam.mainnet.block-engine.jito.wtf/api/v1/bundles',
-  'https://frankfurt.mainnet.block-engine.jito.wtf/api/v1/bundles',
-  'https://ny.mainnet.block-engine.jito.wtf/api/v1/bundles',
-  'https://tokyo.mainnet.block-engine.jito.wtf/api/v1/bundles',
-].filter((u): u is string => Boolean(u))
-
-function jitoTipLamports(override?: number): number {
-  if (override != null && override > 0) return Math.max(1_000, override)
-  const fromEnv = Number(process.env.CREW_JITO_TIP_LAMPORTS || '')
-  if (Number.isFinite(fromEnv) && fromEnv > 0) return Math.max(1_000, Math.floor(fromEnv))
-  // Default 0.001 SOL — 0.0001 was accepted but often never landed (TSYPA / 2026-10-09).
-  return 1_000_000
-}
+import {
+  jitoBackoffMs,
+  jitoBundleAttempts,
+  jitoRpc,
+  jitoSendBundleBroadcast,
+  jitoTipLamports,
+  resolveJitoTipAccount,
+} from './jito.js'
 
 export function parseLauncherKey(raw: string): Keypair {
   const secret = raw.trim()
@@ -237,75 +215,6 @@ export async function sendInstructions(opts: {
   throw lastErr instanceof Error ? lastErr : new Error('sendInstructions failed')
 }
 
-async function jitoRpc(
-  url: string,
-  method: string,
-  params: unknown[],
-): Promise<unknown> {
-  const headers: Record<string, string> = { 'content-type': 'application/json' }
-  const uuid = process.env.CREW_JITO_UUID?.trim()
-  if (uuid) headers['x-jito-auth'] = uuid
-  const res = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-  })
-  const json = (await res.json()) as {
-    result?: unknown
-    error?: { message?: string }
-  }
-  if (json.error?.message) throw new Error(`${method}: ${json.error.message}`)
-  if (!res.ok) throw new Error(`${method} HTTP ${res.status}`)
-  return json.result
-}
-
-async function resolveJitoTipAccount(bundleUrl: string): Promise<PublicKey> {
-  try {
-    const tips = (await jitoRpc(bundleUrl, 'getTipAccounts', [])) as string[] | null
-    if (Array.isArray(tips) && tips.length) {
-      return new PublicKey(tips[Math.floor(Math.random() * tips.length)]!)
-    }
-  } catch {
-    /* use fallback list */
-  }
-  return new PublicKey(
-    JITO_TIP_ACCOUNTS_FALLBACK[
-      Math.floor(Math.random() * JITO_TIP_ACCOUNTS_FALLBACK.length)
-    ]!,
-  )
-}
-
-async function jitoSendBundleBroadcast(
-  encodedTxs: string[],
-): Promise<{ bundleId: string; urls: string[]; errors: string[] }> {
-  // Jito defaults to base58 (deprecated). We encode base64 — must pass encoding.
-  const params: unknown[] = [encodedTxs, { encoding: 'base64' }]
-  const errors: string[] = []
-  const accepted: { bundleId: string; url: string }[] = []
-
-  await Promise.all(
-    JITO_BUNDLE_URLS.map(async (url) => {
-      try {
-        const result = await jitoRpc(url, 'sendBundle', params)
-        if (!result) throw new Error('empty result')
-        accepted.push({ bundleId: String(result), url })
-      } catch (err) {
-        errors.push(`${url}: ${err instanceof Error ? err.message : String(err)}`)
-      }
-    }),
-  )
-
-  if (!accepted.length) {
-    throw new Error(`Jito bundle rejected by all engines — ${errors.join(' | ')}`)
-  }
-  // Bundle ids should match across engines for the same payload; keep the first.
-  return {
-    bundleId: accepted[0]!.bundleId,
-    urls: accepted.map((a) => a.url),
-    errors,
-  }
-}
-
 type JitoInflightStatus =
   | 'Invalid'
   | 'Pending'
@@ -397,13 +306,14 @@ export async function sendJitoBundle(opts: {
     throw new Error('Jito bundle needs 1–5 steps')
   }
   const connection = getConnection()
-  const tipLamports = jitoTipLamports(opts.tipLamports)
-  const tipAccount = await resolveJitoTipAccount(JITO_BUNDLE_URLS[0]!)
+  const attempts = jitoBundleAttempts()
 
-  // One retry with a fresh blockhash if the first bundle expires / fails to land.
+  // Retry with a fresh blockhash, refreshed tip account, and scaled tip.
   let lastErr: unknown
-  for (let attempt = 1; attempt <= 2; attempt += 1) {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
+      const tipLamports = jitoTipLamports(opts.tipLamports, attempt)
+      const tipAccount = new PublicKey(await resolveJitoTipAccount())
       const { blockhash } = await connection.getLatestBlockhash('confirmed')
       const tipIx = SystemProgram.transfer({
         fromPubkey: opts.payer.publicKey,
@@ -440,7 +350,7 @@ export async function sendJitoBundle(opts: {
         urls,
         signatures,
         connection,
-        timeoutMs: attempt === 1 ? 60_000 : 75_000,
+        timeoutMs: attempt === 1 ? 45_000 : 60_000,
       })
       return { signatures, bundleId, engine: urls[0]! }
     } catch (err) {
@@ -448,12 +358,25 @@ export async function sendJitoBundle(opts: {
       const msg = err instanceof Error ? err.message : String(err)
       // Don't retry oversized steps.
       if (/too large/.test(msg)) throw err
-      console.warn(`Jito bundle attempt ${attempt} failed`, msg)
-      if (attempt >= 2) break
-      await sleep(400)
+      console.warn(`Jito bundle attempt ${attempt}/${attempts} failed`, msg)
+      if (attempt >= attempts) break
+      await sleep(jitoBackoffMs(attempt))
     }
   }
   throw lastErr instanceof Error ? lastErr : new Error('Jito bundle failed')
+}
+
+/** True when RPC reports confirmed/finalized (does not throw on timeout). */
+export async function signatureIsConfirmed(
+  signature: string,
+  timeoutMs = 20_000,
+): Promise<boolean> {
+  try {
+    await confirmSignature(getConnection(), signature, timeoutMs)
+    return true
+  } catch {
+    return false
+  }
 }
 
 /** Slot of a confirmed signature (null if unknown). */

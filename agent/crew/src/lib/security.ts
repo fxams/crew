@@ -158,6 +158,8 @@ export function sanitizeCoin(raw: unknown): CoinRecord | null {
     raidQuests: sanitizeQuests(r.raidQuests),
     agent: sanitizeAgent(r.agent),
     holderKol: Boolean(r.holderKol),
+    unlockedExpired: Boolean(r.unlockedExpired) || undefined,
+    adminRevoked: r.adminRevoked == null ? undefined : Boolean(r.adminRevoked),
     platform: inferLaunchPlatform({
       platform: asString(r.platform, 16),
       pumpUrl: asString(r.pumpUrl, 240),
