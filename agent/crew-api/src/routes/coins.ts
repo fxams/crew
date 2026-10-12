@@ -1,4 +1,4 @@
-import { Router } from 'express'
+import { Router, type Response } from 'express'
 import { sendInternalError } from '../lib/http-error.js'
 import { z } from 'zod'
 import { requireApiKey } from '../lib/auth.js'
@@ -18,6 +18,7 @@ import { requireApiKeyOrWallet, requireWalletSignatureOnly } from '../lib/wallet
 import { issueBoardNonce } from '../lib/board-nonces.js'
 import { assertSafeHttpUrl } from '../lib/agent/safe-url.js'
 import { coinPageUrl, enrichPublicCoinMeta, toPublicCoinPage, type PublicCoinMeta } from '../lib/coin-page.js'
+import { avatarLogo, isLogoMint, logoCacheHeaders, resolveCoinLogo, type CachedLogo } from '../lib/coin-logo.js'
 import { listLiveCoins } from '../lib/live-coins.js'
 import { featuredPublic, listGraduatedUnfeatured, setCoinFeaturedX } from '../lib/featured.js'
 import { detectGraduation, recordGraduationIfNew } from '../lib/graduation.js'
@@ -143,6 +144,43 @@ coinsRouter.get('/coins/live', async (req, res) => {
     })
   } catch (err) {
     sendInternalError(res, err, 'live coins')
+  }
+})
+
+function sendCoinLogo(res: Response, logo: CachedLogo) {
+  const headers = logoCacheHeaders(logo)
+  for (const [k, v] of Object.entries(headers)) res.setHeader(k, v)
+  res.status(200).end(logo.buf)
+}
+
+/** Cached ~96px logo. Tries pump.fun Pinata CDN → Pinata → nftstorage → ipfs.io; letter avatar on miss. */
+coinsRouter.get('/coins/:mint/logo', async (req, res) => {
+  const mint = String(req.params.mint || '').trim()
+  try {
+    if (!isLogoMint(mint)) {
+      sendCoinLogo(res, avatarLogo('?'))
+      return
+    }
+    let ticker = '?'
+    let imageUrl: string | undefined
+    try {
+      const coin = await getCoin(mint)
+      if (coin?.ticker) ticker = coin.ticker
+      const meta = await enrichPublicCoinMeta({
+        mint,
+        pumpUrl: coin?.pumpUrl,
+        platform: coin?.platform,
+      }).catch(() => ({} as PublicCoinMeta))
+      imageUrl = meta.imageUrl
+    } catch {
+      const meta = await enrichPublicCoinMeta({ mint }).catch(() => ({} as PublicCoinMeta))
+      imageUrl = meta.imageUrl
+    }
+    const logo = await resolveCoinLogo({ mint, ticker, imageUrl })
+    sendCoinLogo(res, logo)
+  } catch (err) {
+    console.error('coin logo', err)
+    sendCoinLogo(res, avatarLogo('?'))
   }
 })
 

@@ -1,16 +1,17 @@
 import { useState } from 'react'
+import { coinLogoSrc } from '../lib/coin-logo'
 
 type Props = {
-  src?: string | null
+  mint: string
   ticker: string
   className?: string
   fallbackClassName?: string
   size?: number
 }
 
-/** Launch/Dex image, then letter avatar if missing or the image fails. */
+/** API-proxied logo (cached gateways), then letter avatar if the image fails. */
 export function CoinLogo({
-  src,
+  mint,
   ticker,
   className = 'live-coins-logo',
   fallbackClassName = 'live-coins-logo live-coins-logo-fallback',
@@ -18,6 +19,7 @@ export function CoinLogo({
 }: Props) {
   const [broken, setBroken] = useState(false)
   const initial = (ticker || '?').slice(0, 1).toUpperCase()
+  const src = mint ? coinLogoSrc(mint) : ''
   if (!src || broken) {
     return (
       <span className={fallbackClassName} aria-hidden>
@@ -32,6 +34,8 @@ export function CoinLogo({
       alt=""
       width={size}
       height={size}
+      loading="lazy"
+      decoding="async"
       onError={() => setBroken(true)}
     />
   )
