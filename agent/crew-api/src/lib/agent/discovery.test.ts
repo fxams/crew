@@ -97,6 +97,7 @@ describe('agent discovery docs', () => {
     expect(llmsTxt()).toContain('bags')
     expect(llmsTxt()).toContain('zora')
     expect(llmsTxt()).toContain('ACP_ENABLED')
+    expect(llmsFullTxt()).toContain('ACP_INPROCESS')
     expect(llmsTxt()).toContain('crewpay_autohire_kol_crew')
     expect(llmsTxt().toLowerCase()).not.toMatch(/launcher gets 60/)
     expect(agentDiscoveryJson().endpoints['POST /api/agent/launch/unsigned']).toBeTruthy()

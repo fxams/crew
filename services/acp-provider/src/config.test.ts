@@ -29,8 +29,8 @@ describe('acp-provider config', () => {
     expect(cfg.enabled).toBe(false)
     expect(cfg.chainId).toBe(84532)
     expect(cfg.signerKey).toBe('')
-    expect(cfg.priceAutohireUsd).toBe(0.02)
-    expect(cfg.priceLaunchUsd).toBe(0.1)
+    expect(cfg.priceAutohireUsd).toBe(0.25)
+    expect(cfg.priceLaunchUsd).toBe(1)
   })
 
   it('reads prices and chain id without requiring a signer when disabled', () => {
