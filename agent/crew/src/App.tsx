@@ -19,6 +19,7 @@ import {
 import { ReceiptCard } from "./components/ReceiptCard";
 import { AgentsApiPage } from "./components/AgentsApiPage";
 import { ProofPage } from "./components/ProofPage";
+import { OnepagerPage } from "./components/OnepagerPage";
 import { ClaimPage } from "./components/ClaimPage";
 import { TryCrewCard } from "./components/TryCrewCard";
 import { HomeFeeMap } from "./components/HomeFeeMap";
@@ -85,7 +86,7 @@ import { formatSol, formatSolSigned } from "./lib/format-sol";
 import type { HireRole } from "./lib/types";
 import { launchCrew } from "./lib/launch";
 import { useOwnRegisteredHandle } from "./lib/registered-kol";
-import { isAgentsPath, isApprovePath, isClaimPath, isKolsPath, isLaunchPath, isProofPath, isReferralPath, isRegisterPath, kolHandleFromPath, kolProfilePath, referralCodeFromPath } from "./lib/routes";
+import { isAgentsPath, isApprovePath, isClaimPath, isKolsPath, isLaunchPath, isOnepagerPath, isProofPath, isReferralPath, isRegisterPath, kolHandleFromPath, kolProfilePath, referralCodeFromPath } from "./lib/routes";
 import { ApprovePage } from "./components/ApprovePage";
 import { distributeCreatorFees, lockHolderKolFeeShares, wireCrewFeeShares } from "./lib/pump/fees";
 import {
@@ -185,6 +186,7 @@ export default function App() {
   const isClaimPage = isClaimPath(path);
   const isAgentsPage = isAgentsPath(path);
   const isProofPage = isProofPath(path);
+  const isOnepagerPage = isOnepagerPath(path);
   const isApprovePage = isApprovePath(path);
 
   useEffect(() => {
@@ -1448,9 +1450,10 @@ export default function App() {
       {isClaimPage ? <ClaimPage /> : null}
       {isAgentsPage ? <AgentsApiPage /> : null}
       {isProofPage ? <ProofPage /> : null}
+      {isOnepagerPage ? <OnepagerPage /> : null}
       {isApprovePage ? <ApprovePage /> : null}
 
-      {!isLaunchPage && !isKolsPage && !isRegisterPage && !isKolProfilePage && !isClaimPage && !isAgentsPage && !isProofPage && !isApprovePage ? (
+      {!isLaunchPage && !isKolsPage && !isRegisterPage && !isKolProfilePage && !isClaimPage && !isAgentsPage && !isProofPage && !isOnepagerPage && !isApprovePage ? (
         <>
       <div className="app-shell">
         <main id="top">
@@ -2943,7 +2946,7 @@ export default function App() {
           </div>
         </footer>
       </div>
-      ) : isAgentsPage || isKolsPage || isRegisterPage || isKolProfilePage || isClaimPage || isProofPage || isApprovePage ? null : (
+      ) : isAgentsPage || isKolsPage || isRegisterPage || isKolProfilePage || isClaimPage || isProofPage || isOnepagerPage || isApprovePage ? null : (
       <div className="app-shell">
         <section className="section" id="brand">
           <p className="section-label">Assets</p>
@@ -3047,7 +3050,7 @@ export default function App() {
       </div>
       )}
 
-      {isRegisterPage ? null : isKolProfilePage || isClaimPage ? (
+      {isRegisterPage || isOnepagerPage ? null : isKolProfilePage || isClaimPage ? (
       <div className="mobile-cta">
         <button className="btn btn-primary btn-wide" type="button" onClick={() => navigate("/register")}>
           Register as crew

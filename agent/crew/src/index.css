@@ -4636,3 +4636,54 @@ a.plat-badge:focus-visible {
     font-size: 0.8rem;
   }
 }
+
+/* Public one-pager */
+.section-onepager {
+  padding-top: 0.85rem;
+  padding-bottom: 1.5rem;
+}
+
+.onepager-page-head {
+  display: grid;
+  gap: 0.55rem;
+  margin-bottom: 1rem;
+}
+
+.onepager-page-head .section-title {
+  margin: 0.1rem 0;
+  font-size: clamp(1.55rem, 4vw, 2rem);
+  max-width: none;
+}
+
+.onepager-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.onepager-frame {
+  margin: 0;
+}
+
+.onepager-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+@media (max-width: 720px) {
+  .onepager-frame {
+    margin-left: calc(-1 * var(--gutter));
+    margin-right: calc(-1 * var(--gutter));
+    width: calc(100% + var(--gutter) * 2);
+  }
+
+  .onepager-img {
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+  }
+}

@@ -65,6 +65,8 @@ services:
         name: Permissions-Policy
         value: camera=(), microphone=(), geolocation=()
     routes:
+      # Render serves real files first (/onepager.png, /onepager.pdf, /assets/*).
+      # Catch-all sends SPA paths such as /onepager to index.html.
       - type: rewrite
         source: /*
         destination: /index.html
