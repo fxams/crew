@@ -4,6 +4,7 @@ import {
   isAgentsPath,
   isClaimPath,
   isCoinsPath,
+  isHomePath,
   isKolsPath,
   isLaunchPath,
   isOnepagerPath,
@@ -13,6 +14,17 @@ import {
   referralCodeFromPath,
   referralInvitePath,
 } from "./routes";
+
+describe("isHomePath", () => {
+  it("matches only the site home", () => {
+    expect(isHomePath("/")).toBe(true);
+    expect(isHomePath("")).toBe(true);
+    expect(isHomePath("/crew")).toBe(true);
+    expect(isHomePath("/agents")).toBe(false);
+    expect(isHomePath("/coins")).toBe(false);
+    expect(isHomePath("/launch")).toBe(false);
+  });
+});
 
 describe("isLaunchPath", () => {
   it("keeps the launch desk off the home page", () => {

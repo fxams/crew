@@ -2,6 +2,12 @@ function normalizePath(pathname: string): string {
   return (pathname || "/").replace(/\/+$/, "") || "/";
 }
 
+/** Site home. `/crew` is the optional prefix mount, not a separate page. */
+export function isHomePath(pathname: string): boolean {
+  const path = normalizePath(pathname);
+  return path === "/" || path === "/crew";
+}
+
 /** Home never mounts the launch desk. Only `/launch` does. */
 export function isLaunchPath(pathname: string): boolean {
   const path = normalizePath(pathname);

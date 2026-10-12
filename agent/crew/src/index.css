@@ -3163,7 +3163,7 @@ a {
   .nav-links {
     grid-area: links;
     justify-content: flex-start;
-    gap: 0.15rem;
+    gap: 0.08rem;
     width: calc(100% + (var(--gutter) * 2));
     margin-left: calc(var(--gutter) * -1);
     margin-right: calc(var(--gutter) * -1);
@@ -3173,6 +3173,8 @@ a {
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
     border-top: 1px solid rgba(200, 255, 61, 0.08);
+    font-size: 0.64rem;
+    letter-spacing: 0.05em;
   }
 
   .nav-links::-webkit-scrollbar {
@@ -3181,7 +3183,7 @@ a {
 
   .nav-links a {
     flex: 0 0 auto;
-    padding: 0.45rem 0.55rem;
+    padding: 0.38rem 0.38rem;
     border-radius: 999px;
     color: var(--muted);
   }
@@ -3189,11 +3191,6 @@ a {
   .nav-links a.is-active-nav-text {
     color: var(--acid-ink);
     background: var(--acid);
-  }
-
-  .nav-links .nav-link-home,
-  .nav-links .nav-link-x {
-    display: none;
   }
 
   .btn-nav {
