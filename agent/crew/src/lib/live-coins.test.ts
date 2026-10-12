@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { formatPctChange, formatUsdCompact, sortLiveCoins, type LiveCoinRow } from './live-coins'
+import {
+  COINS_PAGE_SIZE,
+  formatPctChange,
+  formatUsdCompact,
+  paginateRows,
+  sortLiveCoins,
+  type LiveCoinRow,
+} from './live-coins'
 
 function row(over: Partial<LiveCoinRow> & { ticker: string }): LiveCoinRow {
   return {
@@ -32,5 +39,15 @@ describe('live coins display', () => {
       row({ ticker: 'Z', marketCapUsd: null, launchedAt: 9 }),
     ])
     expect(sorted.map((r) => r.ticker)).toEqual(['A', 'B', 'Z'])
+  })
+
+  it('pages coins 10 at a time and clamps the page', () => {
+    const rows = Array.from({ length: 23 }, (_, i) => row({ ticker: `T${i}` }))
+    expect(COINS_PAGE_SIZE).toBe(10)
+    expect(paginateRows(rows, 1, 10).slice).toHaveLength(10)
+    expect(paginateRows(rows, 3, 10).slice.map((r) => r.ticker)).toEqual(['T20', 'T21', 'T22'])
+    expect(paginateRows(rows, 99, 10).page).toBe(3)
+    expect(paginateRows(rows.slice(0, 10), 1, 10).pages).toBe(1)
+    expect(paginateRows(rows.slice(0, 11), 1, 10).pages).toBe(2)
   })
 })

@@ -214,83 +214,85 @@ export function CoinPage() {
               </div>
             </header>
 
-            <div className="coin-ca">
-              <span className="hero-token-k">CA</span>
-              <code title={mint}>{shortAddr(mint)}</code>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => void copyMint()}>
-                {copied ? 'Copied' : 'Copy'}
-              </button>
-            </div>
-
-            <div className="coin-actions">
-              {coin.pumpUrl ? (
-                <a className="btn btn-primary" href={coin.pumpUrl} target="_blank" rel="noreferrer">
-                  {tradeLabel(platform)} →
-                </a>
-              ) : null}
-              {socials.map((s) => (
-                <a key={s.href} className="btn btn-ghost" href={s.href} target="_blank" rel="noreferrer">
-                  {s.label}
-                </a>
-              ))}
-            </div>
-
-            {kit?.timeline?.length ? (
-              <ol className="coin-timeline" aria-label="Launch milestones">
-                {kit.timeline.map((step) => (
-                  <li key={step.id} className={`coin-tl is-${step.status}`}>
-                    <span className="coin-tl-mark" aria-hidden />
-                    <div className="coin-tl-body">
-                      <strong>{step.label}</strong>
-                      <em className="coin-tl-state">{step.status.replace('-', ' ')}</em>
-                      <p>{step.detail}</p>
-                      {step.status === 'done' && fmtStamp(step.at) ? (
-                        <small>{fmtStamp(step.at)}</small>
-                      ) : null}
-                      {step.fundedAt?.progress != null && step.status !== 'done' ? (
-                        <span className="kickoff-bar" aria-label={step.fundedAt.label}>
-                          <i style={{ width: `${Math.round(step.fundedAt.progress * 100)}%` }} />
-                        </span>
-                      ) : null}
-                      {step.fundedAt?.label && step.status !== 'done' ? (
-                        <small className="kickoff-funded-label">{step.fundedAt.label}</small>
-                      ) : null}
-                      <span className="coin-tl-links">
-                        {step.href ? (
-                          <a href={step.href} target="_blank" rel="noreferrer">
-                            {step.id === 'featured-crewpayhq' && step.status === 'done'
-                              ? 'View post'
-                              : step.id === 'page-live'
-                                ? 'Open page'
-                                : 'Open'}
-                          </a>
-                        ) : null}
-                        {step.tx ? (
-                          <a href={step.href} target="_blank" rel="noreferrer">
-                            tx {shortAddr(step.tx)}
-                          </a>
-                        ) : null}
-                      </span>
-                    </div>
-                  </li>
+            <div className="coin-toolbar">
+              <div className="coin-ca">
+                <span className="hero-token-k">CA</span>
+                <code title={mint}>{shortAddr(mint)}</code>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => void copyMint()}>
+                  {copied ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+              <div className="coin-actions">
+                {coin.pumpUrl ? (
+                  <a className="btn btn-primary" href={coin.pumpUrl} target="_blank" rel="noreferrer">
+                    {tradeLabel(platform)} →
+                  </a>
+                ) : null}
+                {socials.map((s) => (
+                  <a key={s.href} className="btn btn-ghost" href={s.href} target="_blank" rel="noreferrer">
+                    {s.label}
+                  </a>
                 ))}
-              </ol>
-            ) : null}
+              </div>
+            </div>
 
-            {coin.crew?.length ? (
-              <div className="coin-crew">
-                <p className="section-label">Hired KOL crew</p>
-                <ul>
-                  {coin.crew.map((m) => (
-                    <li key={`${m.handle}-${m.wallet}`}>
-                      <Link to={kolProfilePath(m.handle.replace(/^@/, ''))}>{m.handle}</Link>
-                      <span>{m.share}%</span>
+            <div className="coin-split">
+              {coin.crew?.length ? (
+                <div className="coin-panel coin-crew">
+                  <p className="section-label">Hired KOL crew</p>
+                  <ul>
+                    {coin.crew.map((m) => (
+                      <li key={`${m.handle}-${m.wallet}`}>
+                        <Link to={kolProfilePath(m.handle.replace(/^@/, ''))}>{m.handle}</Link>
+                        <span>{m.share}%</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="hint">60% of creator fees go to this crew — not the launcher.</p>
+                </div>
+              ) : null}
+              {kit?.timeline?.length ? (
+                <ol className="coin-panel coin-timeline" aria-label="Launch milestones">
+                  {kit.timeline.map((step) => (
+                    <li key={step.id} className={`coin-tl is-${step.status}`}>
+                      <span className="coin-tl-mark" aria-hidden />
+                      <div className="coin-tl-body">
+                        <strong>{step.label}</strong>
+                        <em className="coin-tl-state">{step.status.replace('-', ' ')}</em>
+                        <p>{step.detail}</p>
+                        {step.status === 'done' && fmtStamp(step.at) ? (
+                          <small>{fmtStamp(step.at)}</small>
+                        ) : null}
+                        {step.fundedAt?.progress != null && step.status !== 'done' ? (
+                          <span className="kickoff-bar" aria-label={step.fundedAt.label}>
+                            <i style={{ width: `${Math.round(step.fundedAt.progress * 100)}%` }} />
+                          </span>
+                        ) : null}
+                        {step.fundedAt?.label && step.status !== 'done' ? (
+                          <small className="kickoff-funded-label">{step.fundedAt.label}</small>
+                        ) : null}
+                        <span className="coin-tl-links">
+                          {step.href ? (
+                            <a href={step.href} target="_blank" rel="noreferrer">
+                              {step.id === 'featured-crewpayhq' && step.status === 'done'
+                                ? 'View post'
+                                : step.id === 'page-live'
+                                  ? 'Open page'
+                                  : 'Open'}
+                            </a>
+                          ) : null}
+                          {step.tx ? (
+                            <a href={step.href} target="_blank" rel="noreferrer">
+                              tx {shortAddr(step.tx)}
+                            </a>
+                          ) : null}
+                        </span>
+                      </div>
                     </li>
                   ))}
-                </ul>
-                <p className="hint">60% of creator fees go to this crew — not the launcher.</p>
-              </div>
-            ) : null}
+                </ol>
+              ) : null}
+            </div>
 
             {kit?.aiCrew?.items?.length ? (
               <div className="coin-ai">

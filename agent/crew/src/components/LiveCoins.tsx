@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CREW_AGENT_API_URL } from '../lib/config'
 import { coinPagePath } from '../lib/routes'
 import {
+  COINS_PAGE_SIZE,
   formatPctChange,
   formatUsdCompact,
+  paginateRows,
   type LiveCoinRow,
 } from '../lib/live-coins'
 import { CoinLogo } from './CoinLogo'
@@ -14,6 +16,8 @@ type Props = {
   heading?: string
   allLink?: boolean
   compact?: boolean
+  layout?: 'list' | 'cards'
+  pageSize?: number
 }
 
 export function LiveCoins({
@@ -21,9 +25,14 @@ export function LiveCoins({
   heading = 'Live coins',
   allLink = true,
   compact = false,
+  layout = 'list',
+  pageSize,
 }: Props) {
   const [coins, setCoins] = useState<LiveCoinRow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const cards = layout === 'cards'
+  const size = pageSize ?? (cards ? COINS_PAGE_SIZE : 0)
 
   useEffect(() => {
     let cancelled = false
@@ -35,6 +44,7 @@ export function LiveCoins({
         if (!cancelled) {
           setCoins(Array.isArray(data.coins) ? data.coins : [])
           setError(null)
+          setPage(1)
         }
       } catch (err) {
         if (!cancelled) {
@@ -48,9 +58,16 @@ export function LiveCoins({
     }
   }, [limit])
 
+  const paging = useMemo(() => {
+    if (!coins || !size) return null
+    return paginateRows(coins, page, size)
+  }, [coins, page, size])
+  const visible = paging ? paging.slice : coins
+  const showPager = Boolean(coins && size && coins.length > size && paging)
+
   return (
     <section
-      className={`live-coins${compact ? ' is-compact' : ''}`}
+      className={`live-coins${compact ? ' is-compact' : ''}${cards ? ' is-cards' : ''}`}
       aria-labelledby="live-coins-title"
     >
       <div className="live-coins-head">
@@ -68,16 +85,19 @@ export function LiveCoins({
       {coins && coins.length === 0 && !error ? (
         <p className="section-sub live-coins-empty">No CrewPay launches yet.</p>
       ) : null}
-      {coins && coins.length > 0 ? (
+      {visible && visible.length > 0 ? (
         <ul className="live-coins-list">
-          {coins.map((c) => {
+          {visible.map((c) => {
             const chg = formatPctChange(c.priceChange24h)
             const up = (c.priceChange24h || 0) > 0
             const down = (c.priceChange24h || 0) < 0
             return (
               <li key={c.mint}>
-                <Link className="live-coins-row" to={coinPagePath(c.mint)}>
-                  <CoinLogo mint={c.mint} ticker={c.ticker} size={compact ? 28 : 40} />
+                <Link
+                  className={cards ? 'live-coins-card' : 'live-coins-row'}
+                  to={coinPagePath(c.mint)}
+                >
+                  <CoinLogo mint={c.mint} ticker={c.ticker} size={cards ? 48 : compact ? 28 : 40} />
                   <span className="live-coins-id">
                     <strong>${c.ticker}</strong>
                     <em>{c.name}</em>
@@ -91,6 +111,23 @@ export function LiveCoins({
             )
           })}
         </ul>
+      ) : null}
+      {showPager && paging ? (
+        <nav className="coins-pager" aria-label="Coin pages">
+          {Array.from({ length: paging.pages }, (_, i) => {
+            const n = i + 1
+            return (
+              <button
+                key={n}
+                type="button"
+                className={paging.page === n ? 'is-on' : undefined}
+                onClick={() => setPage(n)}
+              >
+                {n}
+              </button>
+            )
+          })}
+        </nav>
       ) : null}
     </section>
   )

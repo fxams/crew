@@ -27,6 +27,20 @@ export function formatPctChange(n: number | null | undefined): string {
   return `${sign}${n.toFixed(1)}%`
 }
 
+export const COINS_PAGE_SIZE = 10
+
+export function paginateRows<T>(
+  rows: T[],
+  page: number,
+  pageSize: number,
+): { page: number; pages: number; slice: T[] } {
+  const size = Math.max(1, Math.floor(pageSize) || 1)
+  const pages = Math.max(1, Math.ceil(rows.length / size))
+  const safe = Math.min(Math.max(1, Math.floor(page) || 1), pages)
+  const start = (safe - 1) * size
+  return { page: safe, pages, slice: rows.slice(start, start + size) }
+}
+
 export function sortLiveCoins(rows: LiveCoinRow[]): LiveCoinRow[] {
   return [...rows].sort((a, b) => {
     const am = a.marketCapUsd

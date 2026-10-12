@@ -367,33 +367,33 @@ export function KolRegisterPage() {
   return (
     <div className="app-shell page-kols page-register">
       <section className="section section-kols">
-        <div className="register-fold">
-          <div className="kols-page-head register-fold-head">
-            <div className="launch-page-head-row">
-              <Link className="launch-back" to="/kols">
-                ← Autohire list
-              </Link>
-              <p className="section-label">Crew · v{CREW_VERSION}</p>
-            </div>
-            <h1 className="section-title">Join the crew.</h1>
-            {alreadyRegistered && deskHandle ? (
-              <p className="section-sub">
-                Registered KOLs, tape, and the leaderboard stay public.
-              </p>
-            ) : (
-              <>
-                <p className="section-sub">
-                  Connect a Solana wallet, sign, then Register with X. About a minute.
-                </p>
-                {referralCode.length >= 2 ? (
-                  <p className="register-invite-chip">
-                    Invite code <strong>{referralCode}</strong>
-                  </p>
-                ) : null}
-              </>
-            )}
+        <div className="kols-page-head register-fold-head">
+          <div className="launch-page-head-row">
+            <Link className="launch-back" to="/kols">
+              ← Autohire list
+            </Link>
+            <p className="section-label">KOL · v{CREW_VERSION}</p>
           </div>
+          <h1 className="section-title">Join the crew.</h1>
+          {alreadyRegistered && deskHandle ? (
+            <p className="section-sub">
+              Registered KOLs, tape, and the leaderboard stay public.
+            </p>
+          ) : (
+            <>
+              <p className="section-sub">
+                Connect a Solana wallet, sign, then Register with X. About a minute.
+              </p>
+              {referralCode.length >= 2 ? (
+                <p className="register-invite-chip">
+                  Invite code <strong>{referralCode}</strong>
+                </p>
+              ) : null}
+            </>
+          )}
+        </div>
 
+        <div className="register-fold">
           {alreadyRegistered && deskHandle ? (
             <div className="register-card register-card-done">
               <p className="register-ok">
@@ -553,6 +553,7 @@ export function KolRegisterPage() {
             </aside>
           ) : null}
 
+          <p className="section-label">Why register</p>
           <ul className="register-why">
             <li>
               <strong>Hired first.</strong> Autohire fills seats with registered KOLs before anyone else.

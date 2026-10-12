@@ -792,7 +792,7 @@ a {
 }
 
 .register-fold-head {
-  text-align: center;
+  text-align: left;
   margin-bottom: 0.75rem;
 }
 
@@ -801,7 +801,7 @@ a {
 }
 
 .register-fold-head .section-sub {
-  margin-inline: auto;
+  margin-inline: 0;
   font-size: 0.92rem;
 }
 
@@ -817,7 +817,11 @@ a {
 }
 
 .register-card {
-  border: 1px solid rgba(200, 255, 61, 0.22);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background:
+    radial-gradient(380px 160px at 100% 0%, rgba(200, 255, 61, 0.08), transparent 55%),
+    var(--panel);
   padding: 1rem 1.1rem;
   margin: 0;
   display: grid;
@@ -962,8 +966,10 @@ a {
 .kols-table {
   display: grid;
   gap: 0.35rem;
-  border-top: 1px solid var(--line);
-  padding-top: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 0.55rem 0.75rem 0.35rem;
 }
 
 .kols-row {
@@ -4147,16 +4153,17 @@ a {
   gap: 0.5rem;
 }
 .register-why li {
-  padding: 0.55rem 0.75rem;
-  border-left: 2px solid var(--acid);
-  background: rgba(200, 255, 61, 0.04);
-  font-size: 0.92rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  font-size: 0.9rem;
 }
 .register-why li strong {
   color: var(--acid);
 }
 .register-why .register-why-note {
-  border-left-color: rgba(255, 255, 255, 0.18);
+  border-color: transparent;
   background: none;
   font-size: 0.8rem;
   opacity: 0.75;
@@ -4201,8 +4208,10 @@ a {
 .register-paid-item {
   display: grid;
   gap: 0.15rem;
-  padding: 0.6rem 0.75rem;
-  border: 1px solid rgba(200, 255, 61, 0.18);
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
   color: inherit;
   text-decoration: none;
   font-size: 0.85rem;
@@ -5151,6 +5160,100 @@ a.plat-badge:focus-visible {
   font-size: 0.7rem;
 }
 
+.live-coins.is-cards .live-coins-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  overflow: visible;
+}
+
+.live-coins-card {
+  display: grid;
+  gap: 0.4rem;
+  min-height: 100%;
+  padding: 0.7rem 0.75rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.live-coins-card .live-coins-logo,
+.live-coins-card .live-coins-logo-fallback {
+  width: 40px;
+  height: 40px;
+}
+
+.live-coins-card .live-coins-quote {
+  justify-items: start;
+  text-align: left;
+}
+
+.live-coins-card:hover {
+  border-color: var(--acid);
+}
+
+.coins-pager {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.85rem;
+}
+
+.coins-pager button {
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.coins-pager button.is-on,
+.coins-pager button:hover {
+  border-color: var(--acid);
+  color: var(--acid-ink);
+  background: var(--acid);
+}
+
+.coin-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 0.85rem;
+  align-items: center;
+  margin: 0 0 1rem;
+}
+
+.coin-toolbar .coin-ca,
+.coin-toolbar .coin-actions {
+  margin: 0;
+}
+
+.coin-split {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1.1rem;
+}
+
+.coin-panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 0.85rem 0.95rem;
+  min-width: 0;
+}
+
+ol.coin-timeline.coin-panel {
+  margin: 0;
+  padding: 0.85rem 0.95rem 0.85rem 1.55rem;
+}
+
 .page-coin,
 .page-coins {
   padding-top: 0.65rem;
@@ -5437,25 +5540,7 @@ a.plat-badge:focus-visible {
   }
 
   .mobile-cta {
-    display: block;
-    position: fixed;
-    left: auto;
-    right: max(var(--gutter), calc((100vw - var(--max)) / 2));
-    bottom: 1.15rem;
-    width: auto;
-    max-width: 17.5rem;
-    padding: 0;
-    background: none;
-    border: 0;
-    z-index: 50;
-  }
-
-  .mobile-cta .btn-wide {
-    width: auto;
-    min-width: 11.5rem;
-    padding: 0.7rem 1.05rem;
-    font-size: 0.78rem;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38);
+    display: none !important;
   }
 
   .hero {
@@ -5557,23 +5642,24 @@ a.plat-badge:focus-visible {
   .page-register .section-kols {
     display: grid;
     grid-template-columns: minmax(20rem, 24rem) minmax(0, 1fr);
-    column-gap: 2rem;
+    column-gap: 1.5rem;
+    row-gap: 1rem;
     align-items: start;
-    padding-top: 0.65rem;
+    padding-top: 0.55rem;
     padding-bottom: 2rem;
+  }
+
+  .page-register .kols-page-head,
+  .page-register .register-fold-head {
+    grid-column: 1 / -1;
+    text-align: left;
+    margin-bottom: 0;
   }
 
   .page-register .register-fold {
     max-width: none;
     width: 100%;
     margin: 0;
-    position: sticky;
-    top: calc(var(--nav-h) + 0.75rem);
-  }
-
-  .page-register .register-fold-head {
-    text-align: left;
-    margin-bottom: 0.65rem;
   }
 
   .page-register .register-fold-head .section-title {
@@ -5582,7 +5668,7 @@ a.plat-badge:focus-visible {
 
   .page-register .register-fold-head .section-sub {
     margin-inline: 0;
-    max-width: none;
+    max-width: 40rem;
   }
 
   .page-register .register-card {
@@ -5712,53 +5798,37 @@ a.plat-badge:focus-visible {
     padding-top: 0.55rem;
   }
 
-  .page-coins .live-coins-list {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .page-coins .live-coins-list li {
-    min-width: 0;
-    border-right: 1px solid var(--line);
-  }
-
-  .page-coins .live-coins-list li:nth-child(2n) {
-    border-right: 0;
+  .live-coins.is-cards .live-coins-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
   }
 
   .page-coin .section-coin {
-    display: grid;
-    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
-    column-gap: 2rem;
-    row-gap: 0.65rem;
-    align-items: start;
     padding-top: 0.55rem;
   }
 
-  .page-coin .launch-page-head-row,
-  .page-coin .desk-msg,
-  .page-coin > .section-coin > .section-sub {
-    grid-column: 1 / -1;
+  .page-coin .coin-hero {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin: 0.35rem 0 0.85rem;
   }
 
-  .page-coin .coin-hero,
+  .page-coin .coin-hero-meta,
+  .page-coin .coin-toolbar,
   .page-coin .coin-ca,
-  .page-coin .coin-actions,
-  .page-coin .coin-crew {
-    grid-column: 1;
+  .page-coin .coin-actions {
+    justify-content: center;
   }
 
-  .page-coin .coin-timeline {
-    grid-column: 2;
-    grid-row: 2 / span 5;
-    margin-bottom: 0;
+  .page-coin .coin-split {
+    grid-template-columns: 1fr 1fr;
+    align-items: stretch;
+    gap: 1rem;
   }
 
-  .page-coin .coin-ai,
-  .page-coin .coin-jobs,
-  .page-coin .coin-more,
-  .page-coin .hint {
-    grid-column: 1 / -1;
+  .page-coin .coin-panel {
+    height: 100%;
   }
 
   .page-coin .coin-job-grid,
@@ -5768,6 +5838,7 @@ a.plat-badge:focus-visible {
 
   .page-coin .coin-name {
     font-size: clamp(1.45rem, 2.2vw, 1.85rem);
+    max-width: none;
   }
 }
 
@@ -5779,6 +5850,10 @@ a.plat-badge:focus-visible {
 
   .hero-brand {
     font-size: clamp(3.4rem, 4.6vw, 4.8rem);
+  }
+
+  .live-coins.is-cards .live-coins-list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .page-register .register-paid-list {
