@@ -136,3 +136,8 @@ export function solscanTokenUrl(mint: string) {
   if (!mint) return null
   return `https://solscan.io/token/${mint}`
 }
+
+export {
+  explorerTokenUrl as coinExplorerTokenUrl,
+  explorerTxUrl as coinExplorerTxUrl,
+} from './platforms'

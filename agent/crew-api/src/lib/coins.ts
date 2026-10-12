@@ -1,5 +1,9 @@
 import type { PoolClient } from 'pg'
 import { query, withTransaction } from './db.js'
+import {
+  inferLaunchPlatformFromCoin,
+  type LaunchPlatform,
+} from './agent/platforms.js'
 
 export type ApiCrewMember = {
   handle: string
@@ -27,6 +31,8 @@ export type ApiCoin = {
   holderKol?: boolean
   /** agent_keys.id that performed the launch (self-serve attribution). */
   agentKeyId?: string
+  /** Launch venue inferred from trade URL / mint (pumpfun default). */
+  platform?: LaunchPlatform
 }
 
 export type ApiRemit = {
@@ -65,6 +71,10 @@ function rowToCoin(row: Record<string, unknown>, crew: ApiCrewMember[]): ApiCoin
     agent: row.agent ?? undefined,
     holderKol: Boolean(row.holder_kol),
     agentKeyId: row.agent_key_id ? String(row.agent_key_id) : undefined,
+    platform: inferLaunchPlatformFromCoin({
+      pumpUrl: String(row.pump_url || ''),
+      mint: String(row.mint || ''),
+    }),
   }
 }
 

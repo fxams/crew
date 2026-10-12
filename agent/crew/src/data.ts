@@ -13,7 +13,7 @@ export const DESK_MODES: {
     id: 'agent',
     label: 'Agent Hire',
     short: 'Agent',
-    blurb: '25% CrewPay treasury · 15% agent ops · 60% hired KOLs.',
+    blurb: '25% CrewPay treasury · 15% launching agent · 60% hired KOL crew.',
   },
   {
     id: 'split',
@@ -53,6 +53,7 @@ export const DEFAULT_DRAFT: LaunchDraft = {
   raidQuests: undefined,
   agent: undefined,
   holderKol: false,
+  platform: 'pumpfun',
 }
 
 export function totalShare(crew: { share: number }[]) {

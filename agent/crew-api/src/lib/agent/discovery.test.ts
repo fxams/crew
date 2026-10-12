@@ -93,6 +93,14 @@ describe('agent discovery docs', () => {
     expect(llmsTxt().toLowerCase()).not.toMatch(/launcher gets 60/)
     expect(agentDiscoveryJson().endpoints['POST /api/agent/launch/unsigned']).toBeTruthy()
     expect(openApiSpec().components.schemas.LaunchRequest.properties.platform).toBeTruthy()
+    expect(agentDiscoveryJson().platforms.default).toBe('pumpfun')
+    expect(agentDiscoveryJson().platforms.venues.map((v) => v.id)).toEqual([
+      'pumpfun',
+      'bags',
+      'zora',
+    ])
+    expect(agentDiscoveryJson().platforms.feeMap).toMatch(/hired KOL crew/)
+    expect(agentDiscoveryJson().platforms.feeMap.toLowerCase()).not.toMatch(/launcher gets 60/)
     expect(openApiSpec().components.schemas.LaunchRequest.properties.description.maxLength).toBe(
       204,
     )

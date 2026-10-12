@@ -73,3 +73,12 @@ describe('KOL registration wallet link', () => {
     expect(REFERRAL_POINTS_REGISTER_DAILY_CAP).toBe(10)
   })
 })
+
+describe('KOL EVM wallet', () => {
+  it('accepts checksum 0x addresses and rejects junk', async () => {
+    const { isEvmAddress } = await import('./agent/evm-address.js')
+    expect(isEvmAddress('0x1111111111111111111111111111111111111111')).toBe(true)
+    expect(isEvmAddress('not-an-address')).toBe(false)
+    expect(isEvmAddress('11111111111111111111111111111111')).toBe(false)
+  })
+})

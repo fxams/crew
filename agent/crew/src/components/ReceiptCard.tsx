@@ -1,6 +1,7 @@
 import { PLATFORM_BUYBACK_BPS } from '../lib/config'
 import type { CoinRecord } from '../lib/types'
 import { modeLabel } from '../lib/edges'
+import { PlatformBadge } from './PlatformBadge'
 
 type Props = {
   coin: CoinRecord
@@ -14,7 +15,10 @@ export function ReceiptCard({ coin, onCopy, copied }: Props) {
     <div className="receipt-card" aria-label="CREW receipt">
       <div className="receipt-top">
         <span className="receipt-brand">CREW</span>
-        <span className="receipt-mode">{modeLabel(coin.mode)}</span>
+        <span className="receipt-mode">
+          <PlatformBadge platform={coin.platform} pumpUrl={coin.pumpUrl} mint={coin.mint} compact />
+          {modeLabel(coin.mode)}
+        </span>
       </div>
       <h4 className="receipt-title">
         ${coin.ticker} <span>crew locked</span>
@@ -33,7 +37,7 @@ export function ReceiptCard({ coin, onCopy, copied }: Props) {
         ))}
       </div>
       <div className="receipt-foot">
-        <span>{PLATFORM_BUYBACK_BPS / 100}% CrewPay treasury</span>
+        <span>60% hired KOL crew · rest treasury</span>
         <span>mainnet</span>
       </div>
       <button className="btn btn-ghost btn-sm receipt-copy" type="button" onClick={onCopy}>

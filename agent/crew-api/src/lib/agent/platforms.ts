@@ -124,3 +124,140 @@ export function platformDisplayName(platform: LaunchPlatform): string {
   if (platform === 'zora') return 'Zora'
   return 'Pump.fun'
 }
+
+export type LaunchVenueStatus = 'live' | 'testnet' | 'disabled'
+
+/** Public discovery row — no secrets. UI reads this instead of hardcoding venues. */
+export type LaunchVenue = {
+  id: LaunchPlatform
+  name: string
+  chain: 'solana' | 'base'
+  enabled: boolean
+  status: LaunchVenueStatus
+  /** Short UI caption, e.g. "testnet / soon". */
+  caption?: string
+  tradeHost: string
+  explorer: 'solscan' | 'basescan'
+  note: string
+}
+
+export function listLaunchVenues(): LaunchVenue[] {
+  const bagsOn = Boolean(bagsApiKey())
+  const zoraOn = zoraEnabled()
+  let zoraNet: ZoraNetwork = 'base-sepolia'
+  try {
+    zoraNet = zoraNetwork()
+  } catch {
+    zoraNet = 'base-sepolia'
+  }
+  return [
+    {
+      id: 'pumpfun',
+      name: 'Pump.fun',
+      chain: 'solana',
+      enabled: true,
+      status: 'live',
+      tradeHost: 'pump.fun',
+      explorer: 'solscan',
+      note: 'Default. Solana Pump.fun create + CREW fee-share lock.',
+    },
+    {
+      id: 'bags',
+      name: 'Bags.fm',
+      chain: 'solana',
+      enabled: bagsOn,
+      status: bagsOn ? 'live' : 'disabled',
+      caption: bagsOn ? undefined : 'needs BAGS_API_KEY',
+      tradeHost: 'bags.fm',
+      explorer: 'solscan',
+      note: 'Unsigned Solana fee-claimer launches. Requires BAGS_API_KEY.',
+    },
+    {
+      id: 'zora',
+      name: 'Zora',
+      chain: 'base',
+      enabled: zoraOn,
+      status: zoraOn ? (zoraNet === 'base' ? 'live' : 'testnet') : 'disabled',
+      caption: zoraOn
+        ? zoraNet === 'base'
+          ? undefined
+          : 'testnet'
+        : 'testnet / soon',
+      tradeHost: 'zora.co',
+      explorer: 'basescan',
+      note: 'Off unless ZORA_ENABLED. Base Sepolia default. Crew wallets must be EVM (0x…).',
+    },
+  ]
+}
+
+/** Infer venue from a stored trade URL or mint (0x = Zora). */
+export function inferLaunchPlatformFromCoin(opts: {
+  pumpUrl?: string | null
+  mint?: string | null
+  platform?: string | null
+}): LaunchPlatform {
+  if (opts.platform) {
+    try {
+      return parseLaunchPlatform(opts.platform)
+    } catch {
+      /* fall through */
+    }
+  }
+  const url = (opts.pumpUrl || '').toLowerCase()
+  if (url.includes('bags.fm')) return 'bags'
+  if (url.includes('zora.co') || url.includes('zora.energy')) return 'zora'
+  const mint = (opts.mint || '').trim()
+  if (isEvmAddress(mint)) return 'zora'
+  return 'pumpfun'
+}
+
+export function tradeUrlForPlatform(platform: LaunchPlatform, mint: string): string {
+  if (platform === 'bags') return BAGS_COIN_URL(mint)
+  if (platform === 'zora') return zoraCoinUrl(mint)
+  return `https://pump.fun/coin/${mint}`
+}
+
+export function explorerTokenUrl(platform: LaunchPlatform, mint: string): string {
+  if (platform === 'zora') {
+    const net = (() => {
+      try {
+        return zoraNetwork()
+      } catch {
+        return 'base-sepolia' as ZoraNetwork
+      }
+    })()
+    const host = net === 'base' ? 'https://basescan.org' : 'https://sepolia.basescan.org'
+    return `${host}/token/${mint}`
+  }
+  return `https://solscan.io/token/${mint}`
+}
+
+export function explorerTxUrl(platform: LaunchPlatform, signature: string): string {
+  if (platform === 'zora') {
+    const net = (() => {
+      try {
+        return zoraNetwork()
+      } catch {
+        return 'base-sepolia' as ZoraNetwork
+      }
+    })()
+    const host = net === 'base' ? 'https://basescan.org' : 'https://sepolia.basescan.org'
+    return `${host}/tx/${signature}`
+  }
+  return `https://solscan.io/tx/${signature}`
+}
+
+export const LAUNCH_FEE_MAP_COPY =
+  '60% hired KOL crew / 15% launching agent / rest treasury'
+
+const TRADE_HOSTS: Record<LaunchPlatform, string[]> = {
+  pumpfun: ['pump.fun', 'www.pump.fun'],
+  bags: ['bags.fm', 'www.bags.fm'],
+  zora: ['zora.co', 'www.zora.co'],
+}
+
+export function isAllowedTradeHost(hostname: string, platform?: LaunchPlatform): boolean {
+  const host = hostname.toLowerCase().replace(/\.$/, '')
+  if (platform) return TRADE_HOSTS[platform].includes(host)
+  return Object.values(TRADE_HOSTS).some((hosts) => hosts.includes(host))
+}

@@ -15,7 +15,10 @@ describe('DESK_MODES copy', () => {
     for (const mode of DESK_MODES) {
       expect(mode.blurb).toMatch(/25% CrewPay treasury/)
       expect(mode.blurb).not.toMatch(/CREW treasury fee-share|CREW buyback/)
+      expect(mode.blurb.toLowerCase()).not.toMatch(/launcher gets 60/)
     }
+    expect(DESK_MODES.find((m) => m.id === 'agent')?.blurb).toMatch(/hired KOL crew/)
+    expect(DEFAULT_DRAFT.platform).toBe('pumpfun')
   })
 
   it('offers agent / split / buyback on the launch desk, not raid', () => {

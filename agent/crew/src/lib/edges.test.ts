@@ -230,6 +230,7 @@ describe('shareReceiptText', () => {
     expect(text).toContain('@a 70%')
     expect(text).toContain('25% CrewPay treasury')
     expect(text).toContain('Humans get paid')
+    expect(text.toLowerCase()).not.toMatch(/launcher gets 60/)
   })
 })
 

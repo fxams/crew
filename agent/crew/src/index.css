@@ -3865,3 +3865,183 @@ a {
   margin: 0;
   opacity: 0.85;
 }
+
+/* —— Launch platforms (Pump.fun / Bags.fm / Zora) —— */
+.plat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.12rem 0.45rem 0.12rem 0.18rem;
+  background: rgba(13, 22, 17, 0.65);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  vertical-align: middle;
+  max-width: 100%;
+}
+
+.plat-badge.is-compact {
+  padding: 0.1rem;
+}
+
+.plat-mark {
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--acid);
+  color: var(--acid-ink);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.58rem;
+  flex-shrink: 0;
+}
+
+.plat-bags .plat-mark {
+  background: var(--amber);
+  color: var(--acid-ink);
+}
+
+.plat-zora .plat-mark {
+  background: rgba(242, 246, 239, 0.88);
+  color: var(--acid-ink);
+}
+
+.plat-name {
+  white-space: nowrap;
+}
+
+.plat-select .plat-option {
+  display: grid;
+  justify-items: center;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: 0.55rem 0.3rem 0.45rem;
+}
+
+.plat-option-mark {
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--acid);
+  color: var(--acid-ink);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.62rem;
+}
+
+.plat-option.plat-bags .plat-option-mark,
+.plat-option[title*='Bags'] .plat-option-mark {
+  background: var(--amber);
+}
+
+.plat-caption {
+  display: block;
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.04em;
+  color: var(--amber);
+  line-height: 1.2;
+}
+
+.plat-option.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.plat-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.35rem 0 0.55rem;
+}
+
+.plat-filter-btn {
+  border: 1px solid var(--line);
+  background: rgba(5, 10, 7, 0.45);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 0.28rem 0.65rem;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.plat-filter-btn.is-on {
+  border-color: var(--acid);
+  color: var(--acid-ink);
+  background: var(--acid);
+}
+
+.plat-filter-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.plat-hero-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.55rem 0 0;
+}
+
+.details-quiet {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.details-quiet summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.details-quiet pre {
+  margin: 0.45rem 0 0;
+  overflow-x: auto;
+  max-width: 100%;
+  font-size: 0.68rem;
+  background: rgba(5, 10, 7, 0.65);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.55rem 0.65rem;
+}
+
+.register-evm em,
+.desk-evm-hint {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-style: normal;
+}
+
+.desk-evm-row {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.55rem;
+}
+
+.desk-evm-row input {
+  width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 820px) {
+  .plat-select .mode-full {
+    display: block;
+    font-size: 0.72rem;
+  }
+  .plat-select .mode-short {
+    display: none;
+  }
+  .desk-evm-row input {
+    font-size: 16px;
+  }
+}

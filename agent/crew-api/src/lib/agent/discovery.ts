@@ -1,5 +1,7 @@
 /** Machine-readable discovery for frontier LLMs / tool-using agents. */
 
+import { LAUNCH_FEE_MAP_COPY, listLaunchVenues } from './platforms.js'
+
 export const SITE_URL = 'https://crewpay.dev'
 /** Canonical Agent API (custom domain). */
 export const API_URL = 'https://api.crewpay.dev'
@@ -128,6 +130,13 @@ export function agentDiscoveryJson() {
         'holderKol.locked',
       ],
       register: `${API_URL}/api/webhooks`,
+    },
+    platforms: {
+      default: 'pumpfun',
+      param: 'platform',
+      feeMap: LAUNCH_FEE_MAP_COPY,
+      note: 'UNSIGNED launch venues. platform defaults to pumpfun. The launching agent does not receive the 60% crew slice.',
+      venues: listLaunchVenues(),
     },
     topics: [
       'solana',

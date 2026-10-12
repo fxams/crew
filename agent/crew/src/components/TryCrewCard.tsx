@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { kolProfilePath } from '../lib/routes'
+import { useLaunchVenues } from '../lib/use-launch-venues'
+import { unsignedLaunchCurl, type LaunchPlatform } from '../lib/platforms'
 
 const API = (
   (import.meta.env.VITE_CREW_API_URL as string | undefined)?.replace(/\/$/, '') ||
@@ -18,6 +20,8 @@ export function TryCrewCard() {
   const [busy, setBusy] = useState(false)
   const [hires, setHires] = useState<Hire[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [platform, setPlatform] = useState<LaunchPlatform>('pumpfun')
+  const venues = useLaunchVenues()
 
   async function run(e?: React.FormEvent) {
     e?.preventDefault()
@@ -72,6 +76,25 @@ export function TryCrewCard() {
       ) : (
         <p className="hint">See which KOLs an agent would hire for your coin and what share each gets. Nothing is created.</p>
       )}
+      <div className="plat-filter" aria-label="Launch venues">
+        {venues.map((v) => (
+          <button
+            key={v.id}
+            type="button"
+            className={`plat-filter-btn${platform === v.id ? ' is-on' : ''}`}
+            disabled={!v.enabled}
+            onClick={() => setPlatform(v.id)}
+            title={v.caption || v.name}
+          >
+            {v.name}
+            {v.caption ? ` · ${v.caption}` : ''}
+          </button>
+        ))}
+      </div>
+      <details className="details-quiet">
+        <summary>Agent unsigned · {venues.find((v) => v.id === platform)?.name}</summary>
+        <pre>{unsignedLaunchCurl({ platform, name })}</pre>
+      </details>
       <p className="hint">
         Agents: <code>GET api.crewpay.dev/api/agent/quickstart</code> ·{' '}
         <Link to="/agents">3-call launch →</Link>

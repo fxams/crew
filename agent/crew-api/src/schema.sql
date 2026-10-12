@@ -261,6 +261,7 @@ CREATE TABLE IF NOT EXISTS kol_oauth_states (
   referral_code TEXT,
   cookie_sha256 TEXT,
   ip TEXT,
+  evm_wallet TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

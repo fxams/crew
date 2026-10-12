@@ -59,6 +59,8 @@ export type LaunchDraft = {
    * desk Holder KOL lock sets the one-shot shareholder list from top holders.
    */
   holderKol?: boolean
+  /** Launch venue. Default pumpfun. bags = Bags.fm; zora = Zora coins (Base). */
+  platform?: import('./platforms').LaunchPlatform
 }
 
 export type CoinRecord = {
@@ -79,6 +81,8 @@ export type CoinRecord = {
   agent?: AgentBrief
   /** Fee-share locked from top-holder ∩ KOL directory (one-shot). */
   holderKol?: boolean
+  /** Launch venue (pumpfun / bags / zora). Inferred from pumpUrl when omitted. */
+  platform?: import('./platforms').LaunchPlatform
 }
 
 export type RemitRecord = {
