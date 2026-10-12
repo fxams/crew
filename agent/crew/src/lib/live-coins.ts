@@ -1,3 +1,5 @@
+import { inferLaunchPlatform, type LaunchPlatform } from './platforms'
+
 export type LiveCoinRow = {
   mint: string
   name: string
@@ -8,7 +10,14 @@ export type LiveCoinRow = {
   launchedAt: number
   marketCapUsd: number | null
   priceChange24h: number | null
+  platform?: LaunchPlatform | string
+  graduated?: boolean
 }
+
+export type LiveCoinSort = 'mcap' | 'change24h' | 'newest' | 'oldest'
+export type LiveCoinFilter = 'all' | 'bonding' | 'graduated' | LaunchPlatform
+
+export const DEFAULT_LIVE_COIN_SORT: LiveCoinSort = 'mcap'
 
 /** Unknown quotes stay '--' — never invent a market cap. */
 export function formatUsdCompact(n: number | null | undefined): string {
@@ -41,13 +50,77 @@ export function paginateRows<T>(
   return { page: safe, pages, slice: rows.slice(start, start + size) }
 }
 
-export function sortLiveCoins(rows: LiveCoinRow[]): LiveCoinRow[] {
-  return [...rows].sort((a, b) => {
-    const am = a.marketCapUsd
-    const bm = b.marketCapUsd
-    if (am == null && bm == null) return b.launchedAt - a.launchedAt
-    if (am == null) return 1
-    if (bm == null) return -1
-    return bm - am
+function compareNullableDesc(
+  a: number | null | undefined,
+  b: number | null | undefined,
+  launchedAtA: number,
+  launchedAtB: number,
+): number {
+  if (a == null && b == null) return launchedAtB - launchedAtA
+  if (a == null) return 1
+  if (b == null) return -1
+  return b - a || launchedAtB - launchedAtA
+}
+
+export function liveCoinVenue(row: LiveCoinRow): LaunchPlatform {
+  return inferLaunchPlatform({
+    platform: row.platform,
+    pumpUrl: row.pumpUrl,
+    mint: row.mint,
   })
+}
+
+export function liveCoinGraduated(row: LiveCoinRow): boolean {
+  return row.graduated === true
+}
+
+export function searchLiveCoins(rows: LiveCoinRow[], query: string): LiveCoinRow[] {
+  const q = query.trim().toLowerCase()
+  if (!q) return rows
+  return rows.filter((row) => {
+    return (
+      row.name.toLowerCase().includes(q) ||
+      row.ticker.toLowerCase().includes(q) ||
+      row.mint.toLowerCase().includes(q)
+    )
+  })
+}
+
+export function filterLiveCoins(rows: LiveCoinRow[], filter: LiveCoinFilter): LiveCoinRow[] {
+  if (filter === 'all') return rows
+  if (filter === 'bonding') return rows.filter((row) => !liveCoinGraduated(row))
+  if (filter === 'graduated') return rows.filter((row) => liveCoinGraduated(row))
+  return rows.filter((row) => liveCoinVenue(row) === filter)
+}
+
+export function availableCoinVenues(rows: LiveCoinRow[]): LaunchPlatform[] {
+  const seen = new Set<LaunchPlatform>()
+  for (const row of rows) seen.add(liveCoinVenue(row))
+  return (['pumpfun', 'bags', 'zora'] as const).filter((id) => seen.has(id))
+}
+
+export function sortLiveCoins(
+  rows: LiveCoinRow[],
+  sort: LiveCoinSort = DEFAULT_LIVE_COIN_SORT,
+): LiveCoinRow[] {
+  const copy = [...rows]
+  if (sort === 'newest') return copy.sort((a, b) => b.launchedAt - a.launchedAt)
+  if (sort === 'oldest') return copy.sort((a, b) => a.launchedAt - b.launchedAt)
+  if (sort === 'change24h') {
+    return copy.sort((a, b) =>
+      compareNullableDesc(a.priceChange24h, b.priceChange24h, a.launchedAt, b.launchedAt),
+    )
+  }
+  return copy.sort((a, b) =>
+    compareNullableDesc(a.marketCapUsd, b.marketCapUsd, a.launchedAt, b.launchedAt),
+  )
+}
+
+export function applyLiveCoinsBoard(
+  rows: LiveCoinRow[],
+  opts: { query?: string; sort?: LiveCoinSort; filter?: LiveCoinFilter } = {},
+): LiveCoinRow[] {
+  const searched = searchLiveCoins(rows, opts.query || '')
+  const filtered = filterLiveCoins(searched, opts.filter || 'all')
+  return sortLiveCoins(filtered, opts.sort || DEFAULT_LIVE_COIN_SORT)
 }

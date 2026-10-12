@@ -1,3 +1,4 @@
+import { inferLaunchPlatformFromCoin, type LaunchPlatform } from './agent/platforms.js'
 import type { ApiCoin } from './coins.js'
 import { listCoins } from './coins.js'
 import { coinPageUrl, enrichPublicCoinMetas, type PublicCoinMeta } from './coin-page.js'
@@ -13,6 +14,8 @@ export type LiveCoinRow = {
   launchedAt: number
   marketCapUsd: number | null
   priceChange24h: number | null
+  platform: LaunchPlatform
+  graduated: boolean
 }
 
 export function sortLiveCoins(rows: LiveCoinRow[]): LiveCoinRow[] {
@@ -37,6 +40,12 @@ export function toLiveCoinRow(coin: ApiCoin, meta: PublicCoinMeta = {}): LiveCoi
     launchedAt: coin.launchedAt,
     marketCapUsd: meta.marketCapUsd ?? null,
     priceChange24h: meta.priceChange24h ?? null,
+    platform: inferLaunchPlatformFromCoin({
+      platform: coin.platform,
+      pumpUrl: coin.pumpUrl,
+      mint: coin.mint,
+    }),
+    graduated: Boolean(coin.graduatedAt || meta.graduated),
   }
 }
 
