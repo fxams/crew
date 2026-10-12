@@ -216,6 +216,70 @@ export function listLaunchVenues(): LaunchVenue[] {
   ]
 }
 
+const ACP_OFFERING_IDS = ['crewpay_autohire_kol_crew', 'crewpay_launch_with_crew'] as const
+
+export function acpEnabled(): boolean {
+  const v = (process.env.ACP_ENABLED || '').trim().toLowerCase()
+  return v === '1' || v === 'true' || v === 'yes' || v === 'on'
+}
+
+/** Default Base Sepolia (84532). Never reads ACP_SIGNER_KEY. */
+export function acpChainId(): number {
+  const raw = (process.env.ACP_CHAIN_ID || '').trim()
+  if (!raw) return 84532
+  const n = Number(raw)
+  if (!Number.isInteger(n) || n <= 0) {
+    throw new Error(`Unknown ACP_CHAIN_ID "${raw}". Use 84532 (Base Sepolia) or 8453 (Base).`)
+  }
+  return n
+}
+
+export function acpChainLabel(chainId = (() => {
+  try {
+    return acpChainId()
+  } catch {
+    return 84532
+  }
+})()): 'base' | 'base-sepolia' | `eip155:${number}` {
+  if (chainId === 8453) return 'base'
+  if (chainId === 84532) return 'base-sepolia'
+  return `eip155:${chainId}`
+}
+
+function acpPriceUsd(envName: string, fallback: number): number {
+  const raw = (process.env[envName] || '').trim()
+  if (!raw) return fallback
+  const n = Number(raw)
+  return Number.isFinite(n) && n >= 0 ? n : fallback
+}
+
+/** Public ACP discovery — no secrets. */
+export function acpPublicJson() {
+  let chainId = 84532
+  try {
+    chainId = acpChainId()
+  } catch {
+    chainId = 84532
+  }
+  return {
+    id: 'acp' as const,
+    name: 'Virtuals ACP',
+    protocol: 'acp-v2',
+    enabled: acpEnabled(),
+    chainId,
+    chain: acpChainLabel(chainId),
+    offerings: [...ACP_OFFERING_IDS],
+    pricesUsd: {
+      crewpay_autohire_kol_crew: acpPriceUsd('ACP_PRICE_AUTOHIRE_USD', 0.02),
+      crewpay_launch_with_crew: acpPriceUsd('ACP_PRICE_LAUNCH_USD', 0.1),
+    },
+    feeMap: LAUNCH_FEE_MAP_COPY,
+    note: acpEnabled()
+      ? 'Hire CrewPay via Virtuals ACP v2 jobs. Worker listens when ACP_ENABLED=1. Non-custodial launch stays unsigned.'
+      : 'Off unless ACP_ENABLED=1. Separate worker: services/acp-provider.',
+  }
+}
+
 /** Dedicated public payload for GET /api/platforms (also embedded on GET /api/agent). */
 export function platformsPublicJson() {
   return {
@@ -223,6 +287,7 @@ export function platformsPublicJson() {
     default: DEFAULT_LAUNCH_PLATFORM,
     feeMap: LAUNCH_FEE_MAP_COPY,
     venues: listLaunchVenues(),
+    acp: acpPublicJson(),
   }
 }
 

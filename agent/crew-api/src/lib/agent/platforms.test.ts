@@ -22,6 +22,11 @@ afterEach(() => {
     'ZORA_CHAIN',
     'ZORA_TREASURY_ADDRESS',
     'CREW_BUYBACK_WALLET_EVM',
+    'ACP_ENABLED',
+    'ACP_CHAIN_ID',
+    'ACP_SIGNER_KEY',
+    'ACP_PRICE_AUTOHIRE_USD',
+    'ACP_PRICE_LAUNCH_USD',
   ] as const) {
     if (saved[key] === undefined) delete process.env[key]
     else process.env[key] = saved[key]
@@ -105,7 +110,30 @@ describe('launch platforms', () => {
     expect(pub.ok).toBe(true)
     expect(pub.default).toBe('pumpfun')
     expect(pub.venues).toEqual(venues)
+    expect(pub.acp.id).toBe('acp')
     expect(JSON.stringify(pub)).not.toMatch(/test-bags-key/)
+  })
+
+  it('reports ACP disabled by default and never leaks the signer key', () => {
+    delete process.env.ACP_ENABLED
+    delete process.env.ACP_CHAIN_ID
+    process.env.ACP_SIGNER_KEY = '0xSHOULD-NEVER-APPEAR-IN-JSON'
+    const pub = platformsPublicJson()
+    expect(pub.acp.enabled).toBe(false)
+    expect(pub.acp.id).toBe('acp')
+    expect(pub.acp.chainId).toBe(84532)
+    expect(pub.acp.chain).toBe('base-sepolia')
+    expect(pub.acp.offerings).toEqual(['crewpay_autohire_kol_crew', 'crewpay_launch_with_crew'])
+    expect(pub.acp.pricesUsd.crewpay_autohire_kol_crew).toBe(0.02)
+    expect(pub.acp.pricesUsd.crewpay_launch_with_crew).toBe(0.1)
+    expect(pub.acp.feeMap).toMatch(/hired KOL crew/)
+    expect(JSON.stringify(pub)).not.toMatch(/SHOULD-NEVER-APPEAR/)
+    expect(JSON.stringify(pub)).not.toMatch(/ACP_SIGNER_KEY/)
+    process.env.ACP_ENABLED = '1'
+    process.env.ACP_CHAIN_ID = '8453'
+    expect(platformsPublicJson().acp.enabled).toBe(true)
+    expect(platformsPublicJson().acp.chain).toBe('base')
+    expect(platformsPublicJson().acp.chainId).toBe(8453)
   })
 
   it('captions Zora as testnet on Base Sepolia when enabled', () => {
