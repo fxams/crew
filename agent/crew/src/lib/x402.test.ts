@@ -82,7 +82,7 @@ describe('x402 copy', () => {
     expect(curl).toContain('/api/agent/launch/unsigned')
     expect(curl.toLowerCase()).not.toContain('x-crew-api-key')
     expect(x402SnippetNote(FALLBACK_X402)).toMatch(/402/)
-    expect(x402SnippetNote(FALLBACK_X402)).toMatch(/\$0\.02/)
+    expect(x402SnippetNote(FALLBACK_X402)).toContain('X-PAYMENT')
     expect(x402SnippetNote(FALLBACK_X402).toLowerCase()).not.toMatch(/earnings|you will make|guaranteed/)
   })
 })

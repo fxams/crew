@@ -134,5 +134,5 @@ export function x402LaunchCurl(info: X402Info = FALLBACK_X402): string {
 }
 
 export function x402SnippetNote(info: X402Info): string {
-  return `No API key. Unpaid calls return 402; retry with ${info.requestHeader} (${info.asset} on ${formatX402Networks(info.networks)}). Autohire ${info.prices.autohire} · launch ${info.prices.launch}.`
+  return `Unpaid calls return 402. Retry with ${info.requestHeader}.`
 }

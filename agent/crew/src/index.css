@@ -4094,9 +4094,22 @@ a {
 }
 
 .auth-chip-row .plat-filter-btn {
+  display: block;
   text-align: center;
   line-height: 1.25;
   white-space: normal;
+  overflow-wrap: anywhere;
+  height: auto;
+}
+
+.auth-choice-title,
+.auth-choice-meta {
+  display: block;
+}
+
+.auth-choice-meta {
+  font-size: 0.85em;
+  opacity: 0.92;
 }
 
 .auth-choice.is-compact {
@@ -4126,6 +4139,11 @@ a {
 .details-quiet summary {
   cursor: pointer;
   color: var(--muted);
+}
+
+.details-quiet .hint {
+  margin: 0.35rem 0 0;
+  overflow-wrap: anywhere;
 }
 
 .details-quiet pre {
@@ -4214,9 +4232,11 @@ a {
   }
 
   .auth-chip-row .plat-filter-btn {
+    display: block;
     width: 100%;
     min-height: 40px;
     white-space: normal;
+    overflow-wrap: anywhere;
     padding: 0.45rem 0.7rem;
   }
 

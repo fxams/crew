@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import {
+  formatX402Networks,
   x402KeyLabel,
   x402LaunchCurl,
   x402PayLabel,
@@ -49,7 +50,10 @@ export function AuthChoice({ x402, compact, value, onChange }: Props) {
           onClick={() => setAuth('x402')}
           title={payLabel}
         >
-          {payLabel}
+          <span className="auth-choice-title">x402 pay per call</span>
+          <span className="auth-choice-meta">
+            ({x402.prices.launch} {x402.asset}, {formatX402Networks(x402.networks)})
+          </span>
         </button>
       </div>
       {compact ? null : auth === 'x402' ? (
