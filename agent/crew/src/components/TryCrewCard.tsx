@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { kolProfilePath } from '../lib/routes'
 import { useLaunchVenues } from '../lib/use-launch-venues'
-import { unsignedLaunchCurl, type LaunchPlatform } from '../lib/platforms'
+import { platformMark, unsignedLaunchCurl, type LaunchPlatform } from '../lib/platforms'
 
 const API = (
   (import.meta.env.VITE_CREW_API_URL as string | undefined)?.replace(/\/$/, '') ||
@@ -49,17 +49,20 @@ export function TryCrewCard() {
   return (
     <aside className="hero-token try-crew" aria-label="Try Autohire">
       <p className="section-label">Try Autohire · no wallet</p>
-      <div className="plat-filter" aria-label="Launch venues">
+      <div className="plat-filter plat-chip-row" aria-label="Launch venues">
         {venues.map((v) => (
           <button
             key={v.id}
             type="button"
-            className={`plat-filter-btn${platform === v.id ? ' is-on' : ''}`}
+            className={`plat-filter-btn plat-${v.id}${platform === v.id ? ' is-on' : ''}`}
             disabled={!v.enabled}
             onClick={() => setPlatform(v.id)}
             title={v.caption || v.note || v.name}
           >
-            {v.name}
+            <span className="plat-mark" aria-hidden>
+              {platformMark(v.id)}
+            </span>
+            <span className="plat-name">{v.name}</span>
           </button>
         ))}
       </div>

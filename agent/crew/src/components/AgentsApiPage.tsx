@@ -12,6 +12,7 @@ import { useLaunchVenues } from '../lib/use-launch-venues'
 import {
   LAUNCH_FEE_MAP_COPY,
   unsignedLaunchCurl,
+  unsignedVenueHint,
   type LaunchPlatform,
 } from '../lib/platforms'
 
@@ -20,6 +21,7 @@ const DISCOVERY = [
   { label: 'llms-full.txt', path: '/llms-full.txt', note: 'Full call instructions' },
   { label: 'OpenAPI', path: '/openapi.json', note: 'OpenAPI 3.1 schema' },
   { label: 'Agent JSON', path: '/api/agent', note: 'Capability discovery' },
+  { label: 'Platforms', path: '/api/platforms', note: 'Venues, enabled, chain' },
   { label: 'MCP manifest', path: '/mcp.json', note: 'MCP install for crypto agents' },
   { label: 'Agent card', path: '/.well-known/agent.json', note: 'Skills + intents' },
   { label: 'AI plugin', path: '/.well-known/ai-plugin.json', note: 'Plugin manifest' },
@@ -46,6 +48,12 @@ const ENDPOINTS = [
     path: '/api/agent',
     auth: 'public',
     summary: 'Discovery document — start here',
+  },
+  {
+    method: 'GET',
+    path: '/api/platforms',
+    auth: 'public',
+    summary: 'Launch venues with enabled + chain (pumpfun / bags / zora)',
   },
   {
     method: 'POST',
@@ -380,7 +388,9 @@ export function AgentsApiPage() {
           venues={venues}
           value={platform}
           onChange={setPlatform}
-          hint="Unsigned flow uses the same endpoints. Zora is off unless the API enables it."
+          hint={
+            unsignedVenueHint(venues.find((v) => v.id === platform) || venues[0])
+          }
         />
         <div className="agents-code-head">
           <span>POST /api/agent/launch/unsigned</span>

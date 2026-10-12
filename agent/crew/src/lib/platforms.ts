@@ -6,11 +6,12 @@ export const LAUNCH_PLATFORMS = ['pumpfun', 'bags', 'zora'] as const
 export type LaunchPlatform = (typeof LAUNCH_PLATFORMS)[number]
 
 export type LaunchVenueStatus = 'live' | 'testnet' | 'disabled'
+export type LaunchChain = 'solana' | 'base' | 'base-sepolia'
 
 export type LaunchVenue = {
   id: LaunchPlatform
   name: string
-  chain: 'solana' | 'base'
+  chain: LaunchChain
   enabled: boolean
   status: LaunchVenueStatus
   caption?: string
@@ -24,7 +25,7 @@ export const DEFAULT_LAUNCH_PLATFORM: LaunchPlatform = 'pumpfun'
 export const LAUNCH_FEE_MAP_COPY =
   '60% hired KOL crew / 15% launching agent / rest treasury'
 
-/** Fallback when discovery/OpenAPI is unreachable. Zora stays disabled (testnet / soon). */
+/** Fallback when discovery/OpenAPI is unreachable. Zora stays disabled (soon). Bags stays on (live). */
 export const FALLBACK_LAUNCH_VENUES: LaunchVenue[] = [
   {
     id: 'pumpfun',
@@ -49,13 +50,13 @@ export const FALLBACK_LAUNCH_VENUES: LaunchVenue[] = [
   {
     id: 'zora',
     name: 'Zora',
-    chain: 'base',
+    chain: 'base-sepolia',
     enabled: false,
     status: 'disabled',
-    caption: 'testnet / soon',
+    caption: 'soon',
     tradeHost: 'zora.co',
     explorer: 'basescan',
-    note: 'Off unless the API sets ZORA_ENABLED. Base Sepolia default.',
+    note: 'Off unless the API sets ZORA_ENABLED and a 0x treasury. Base Sepolia default.',
   },
 ]
 
@@ -105,8 +106,7 @@ export function inferLaunchPlatform(opts: {
 export function tradeUrl(platform: LaunchPlatform, mint: string): string {
   if (platform === 'bags') return `https://bags.fm/${mint}`
   if (platform === 'zora') {
-    const chain = mint.startsWith('0x') ? 'base' : 'base'
-    return `https://zora.co/coin/${chain}:${mint}`
+    return `https://zora.co/coin/base:${mint}`
   }
   return `https://pump.fun/coin/${mint}`
 }
@@ -126,7 +126,6 @@ export function explorerTokenUrl(platform: LaunchPlatform, mint: string): string
 export function explorerTxUrl(platform: LaunchPlatform, signature: string): string | null {
   if (!signature || signature.startsWith('quest:')) return null
   if (platform === 'zora') {
-    if (signature.startsWith('0x')) return `https://basescan.org/tx/${signature}`
     return `https://basescan.org/tx/${signature}`
   }
   return `https://solscan.io/tx/${signature}`
@@ -158,8 +157,13 @@ type DiscoveryDoc = {
   platforms?: {
     default?: string
     feeMap?: string
-    venues?: Array<Partial<LaunchVenue> & { id?: string }>
+    venues?: Array<Partial<LaunchVenue> & { id?: string; chain?: string }>
   }
+}
+
+type PlatformsDoc = {
+  venues?: Array<Partial<LaunchVenue> & { id?: string; chain?: string }>
+  platforms?: DiscoveryDoc['platforms']
 }
 
 type OpenApiDoc = {
@@ -174,23 +178,43 @@ type OpenApiDoc = {
   }
 }
 
-function normalizeVenue(raw: Partial<LaunchVenue> & { id?: string }): LaunchVenue | null {
+export function parseVenueChain(raw: unknown, id: LaunchPlatform): LaunchChain {
+  if (raw === 'base-sepolia' || raw === 'sepolia') return 'base-sepolia'
+  if (raw === 'base') return 'base'
+  if (raw === 'solana') return 'solana'
+  return id === 'zora' ? 'base-sepolia' : 'solana'
+}
+
+/** Zora chip copy: Base (mainnet), testnet (Sepolia), soon (off). */
+export function zoraCaption(enabled: boolean, chain: LaunchChain): string {
+  if (!enabled) return 'soon'
+  return chain === 'base' ? 'Base' : 'testnet'
+}
+
+function normalizeVenue(raw: Partial<LaunchVenue> & { id?: string; chain?: string }): LaunchVenue | null {
   if (!isLaunchPlatform(raw.id)) return null
   const fallback = FALLBACK_LAUNCH_VENUES.find((v) => v.id === raw.id)!
   const enabled = typeof raw.enabled === 'boolean' ? raw.enabled : fallback.enabled
+  const chain = parseVenueChain(raw.chain, raw.id)
   const status: LaunchVenueStatus =
     raw.status === 'live' || raw.status === 'testnet' || raw.status === 'disabled'
       ? raw.status
       : enabled
-        ? fallback.status
+        ? chain === 'base-sepolia'
+          ? 'testnet'
+          : 'live'
         : 'disabled'
+  const rawCaption =
+    raw.caption === 'testnet / soon' || raw.caption === 'needs BAGS_API_KEY'
+      ? undefined
+      : raw.caption
   const caption =
-    raw.caption ||
-    (!enabled && raw.id === 'zora' ? 'testnet / soon' : fallback.caption)
+    rawCaption ||
+    (raw.id === 'zora' ? zoraCaption(enabled, chain) : !enabled ? 'soon' : fallback.caption)
   return {
     id: raw.id,
     name: raw.name || fallback.name,
-    chain: raw.chain === 'base' ? 'base' : fallback.chain,
+    chain,
     enabled,
     status,
     caption,
@@ -200,17 +224,27 @@ function normalizeVenue(raw: Partial<LaunchVenue> & { id?: string }): LaunchVenu
   }
 }
 
-/** Merge discovery venues onto the known three ids (order: pumpfun, bags, zora). */
-export function venuesFromDiscovery(doc: unknown): LaunchVenue[] | null {
-  const platforms = (doc as DiscoveryDoc | null)?.platforms
-  if (!platforms?.venues?.length) return null
+function venuesFromRows(
+  rows: Array<Partial<LaunchVenue> & { id?: string; chain?: string }> | undefined,
+): LaunchVenue[] | null {
+  if (!rows?.length) return null
   const byId = new Map<LaunchPlatform, LaunchVenue>()
-  for (const row of platforms.venues) {
+  for (const row of rows) {
     const venue = normalizeVenue(row)
     if (venue) byId.set(venue.id, venue)
   }
   if (!byId.size) return null
   return FALLBACK_LAUNCH_VENUES.map((fallback) => byId.get(fallback.id) || fallback)
+}
+
+/** Merge discovery venues onto the known three ids (order: pumpfun, bags, zora). */
+export function venuesFromDiscovery(doc: unknown): LaunchVenue[] | null {
+  return venuesFromRows((doc as DiscoveryDoc | null)?.platforms?.venues)
+}
+
+export function venuesFromPlatformsPayload(doc: unknown): LaunchVenue[] | null {
+  const d = doc as PlatformsDoc | null
+  return venuesFromRows(d?.venues) || venuesFromRows(d?.platforms?.venues)
 }
 
 export function venuesFromOpenApi(doc: unknown): LaunchVenue[] | null {
@@ -221,13 +255,37 @@ export function venuesFromOpenApi(doc: unknown): LaunchVenue[] | null {
   if (!ids.length) return null
   return FALLBACK_LAUNCH_VENUES.map((fallback) => {
     if (!ids.includes(fallback.id)) {
-      return { ...fallback, enabled: false, status: 'disabled' as const }
+      return { ...fallback, enabled: false, status: 'disabled' as const, caption: 'soon' }
     }
     if (fallback.id === 'zora') {
-      return { ...fallback, enabled: false, status: 'disabled', caption: 'testnet / soon' }
+      return {
+        ...fallback,
+        enabled: false,
+        status: 'disabled' as const,
+        caption: 'soon',
+        chain: 'base-sepolia' as const,
+      }
     }
     return fallback
   })
+}
+
+export function unsignedVenueHint(venue: LaunchVenue): string {
+  if (venue.id === 'zora') {
+    if (!venue.enabled) {
+      return 'Zora is soon unless the API enables it. Unsigned EIP-1559 — crew wallets must be 0x.'
+    }
+    if (venue.chain === 'base') {
+      return 'Zora on Base. Unsigned EIP-1559 — crew wallets must be 0x.'
+    }
+    return 'Zora on Base Sepolia (testnet). Unsigned EIP-1559 — crew wallets must be 0x.'
+  }
+  if (venue.id === 'bags') {
+    return venue.enabled
+      ? 'Bags.fm is live via Agent unsigned. This desk copies the request; sign in your agent.'
+      : 'Bags.fm is soon unless the API enables it.'
+  }
+  return 'Default Pump.fun — Phantom signs on Solana.'
 }
 
 async function getJson(url: string): Promise<unknown> {
@@ -237,12 +295,19 @@ async function getJson(url: string): Promise<unknown> {
 }
 
 /**
- * Read supported venues from GET /api/agent (platforms) then OpenAPI enum.
- * Never throws — always returns a three-venue list.
+ * Read supported venues from GET /api/platforms, then GET /api/agent, then OpenAPI enum.
+ * Never throws — always returns a three-venue list. Fallback keeps Zora off.
  */
 export async function fetchLaunchVenues(): Promise<LaunchVenue[]> {
   const bases = [CREW_AGENT_API_URL.replace(/\/$/, ''), CREW_PUBLIC_API_URL]
   for (const base of [...new Set(bases)]) {
+    try {
+      const payload = await getJson(`${base}/api/platforms`)
+      const fromPayload = venuesFromPlatformsPayload(payload)
+      if (fromPayload) return fromPayload
+    } catch {
+      /* try discovery */
+    }
     try {
       const discovery = await getJson(`${base}/api/agent`)
       const fromDiscovery = venuesFromDiscovery(discovery)
