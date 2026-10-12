@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { sortLiveCoins, toLiveCoinRow, type LiveCoinRow } from './live-coins.js'
+import { sortLiveCoins, takeLiveCoins, toLiveCoinRow, type LiveCoinRow } from './live-coins.js'
 import type { ApiCoin } from './coins.js'
 
 const base = (over: Partial<ApiCoin> & { mint: string; ticker: string }): ApiCoin => ({
@@ -40,5 +40,21 @@ describe('live coins board', () => {
     expect(row.marketCapUsd).toBeNull()
     expect(row.priceChange24h).toBeNull()
     expect(JSON.stringify(row)).not.toMatch(/\$1\.1M/)
+  })
+
+  it('takes the top N by market cap from a larger pool', () => {
+    const rows: LiveCoinRow[] = [
+      toLiveCoinRow(base({ mint: 'mintlow111111111111111111111111111111111', ticker: 'LOW' }), {
+        marketCapUsd: 1_000,
+      }),
+      toLiveCoinRow(base({ mint: 'mintmid111111111111111111111111111111111', ticker: 'MID' }), {
+        marketCapUsd: 8_000,
+      }),
+      toLiveCoinRow(base({ mint: 'minthigh11111111111111111111111111111111', ticker: 'HIGH' }), {
+        marketCapUsd: 50_000,
+      }),
+      toLiveCoinRow(base({ mint: 'mintnone11111111111111111111111111111111', ticker: 'NONE' }), {}),
+    ]
+    expect(takeLiveCoins(rows, 2).map((r) => r.ticker)).toEqual(['HIGH', 'MID'])
   })
 })

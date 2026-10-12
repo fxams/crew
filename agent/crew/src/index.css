@@ -4704,28 +4704,12 @@ a.plat-badge:focus-visible {
 
 .live-coins-all {
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   flex-shrink: 0;
 }
 
-.live-coins-see-all {
-  margin: 0.75rem 0 0;
-  font-size: 0.9rem;
-}
-
-.live-coins-see-all a {
-  color: var(--muted);
-}
-
-.live-coins-see-all a:hover,
 .live-coins-all:hover {
   color: var(--ink);
-}
-
-@media (max-width: 820px) {
-  .live-coins-all {
-    display: none;
-  }
 }
 
 .live-coins-list {
@@ -4797,6 +4781,32 @@ a.plat-badge:focus-visible {
 
 .live-coins-quote em.is-down {
   color: var(--danger);
+}
+
+.live-coins.is-compact .live-coins-head {
+  margin-bottom: 0.4rem;
+}
+
+.live-coins.is-compact .live-coins-row {
+  grid-template-columns: 28px 1fr auto;
+  gap: 0.5rem;
+  padding: 0.42rem 0.6rem;
+  min-height: 46px;
+}
+
+.live-coins.is-compact .live-coins-logo {
+  width: 28px;
+  height: 28px;
+}
+
+.live-coins.is-compact .live-coins-id strong,
+.live-coins.is-compact .live-coins-quote strong {
+  font-size: 0.82rem;
+}
+
+.live-coins.is-compact .live-coins-id em,
+.live-coins.is-compact .live-coins-quote em {
+  font-size: 0.7rem;
 }
 
 .page-coin,

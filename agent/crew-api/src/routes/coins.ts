@@ -138,7 +138,7 @@ coinsRouter.get('/coins/live', async (req, res) => {
     res.json({
       ok: true,
       coins,
-      note: 'CrewPay launches only. Market cap and 24h change from public Dexscreener (cached). Unknown fields are null — UI shows --.',
+      note: 'CrewPay launches only. Market cap and 24h change from Dexscreener /tokens/v1 (batched, cached ~90s) with Pump.fun bonding-curve fallback. Unknown fields are null — UI shows --.',
     })
   } catch (err) {
     sendInternalError(res, err, 'live coins')
