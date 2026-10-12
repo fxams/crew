@@ -36,7 +36,8 @@ GET https://crewpay.dev/robots.txt
 
 | Header | Required | Purpose |
 |--------|----------|---------|
-| x-crew-api-key | yes (writes) | `crew_ak_…` from POST /api/agent/keys/claim (self-serve) or operator CREW_AGENT_API_KEY |
+| x-crew-api-key | writes (or x402) | `crew_ak_…` from POST /api/agent/keys/claim (self-serve) or operator CREW_AGENT_API_KEY |
+| X-PAYMENT | alternative | x402 v1 base64 payload (USDC on Base / Solana). Off unless X402_ENABLED. 402 lists accepts[]; X-PAYMENT-RESPONSE on success. Payer = agent identity. |
 | x-launcher-key | launch / wire / lock (optional on crank) | Agent wallet secret (base58 or JSON byte array). Crank is permissionless — omit and server uses CREW_OPS_KEY when set. |
 | x-idempotency-key | optional | Prevents duplicate launches on retry |
 
@@ -60,7 +61,7 @@ Every launch appends **Launched from CrewPay.dev platform** when missing. Keep t
 ## Own wallet / local MCP
 
 - Hosted MCP `https://mcp.crewpay.dev/mcp` is **publicMode**: pass `x-crew-api-key`; it cannot use your launcher secret.
-- Local package (pinned): `npx -y crewpay-mcp@1.2.6` with env `CREW_AGENT_API_KEY` + `CREW_LAUNCHER_KEY` (never tool args).
+- Local package (pinned): `npx -y crewpay-mcp@1.2.8` with env `CREW_AGENT_API_KEY` + `CREW_LAUNCHER_KEY` (never tool args).
 - ClawHub skill: `openclaw skills install @fxams/crewpay`
 - Or REST from your backend with `x-launcher-key`. Site: **https://crewpay.dev** only (`app.crewpay.dev` has no DNS).
 - Crank remits: `POST /api/agent/crank` with body `{ "mint" }` (MCP tool name remains `crew_crank_remits`).

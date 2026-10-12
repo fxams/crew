@@ -15,4 +15,10 @@ describe('assertNoSecretToolArgs', () => {
   it('rejects privateKey aliases', () => {
     expect(() => assertNoSecretToolArgs({ privateKey: 'x'.repeat(40) })).toThrow(/privateKey/)
   })
+
+  it('rejects x402 private keys as tool args', () => {
+    expect(() =>
+      assertNoSecretToolArgs({ x402EvmPrivateKey: `0x${'ab'.repeat(32)}` }),
+    ).toThrow(/must not be a tool argument/)
+  })
 })

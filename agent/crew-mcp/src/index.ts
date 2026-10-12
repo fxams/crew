@@ -6,8 +6,9 @@
  * HTTP: set CREW_MCP_HTTP=1 (or --http) to expose Streamable HTTP on PORT.
  *
  * Env:
- *   CREW_AGENT_API_KEY   required for autohire/launch (private installs)
+ *   CREW_AGENT_API_KEY   required for autohire/launch (private installs) unless x402
  *   CREW_LAUNCHER_KEY    required for launch — MCP env only, never tool args
+ *   X402_EVM_PRIVATE_KEY optional — pay per call with Base USDC (x402) instead of an API key
  *   CREW_API_URL         optional (default https://api.crewpay.dev)
  *   CREW_MCP_PUBLIC=1    public hosted mode: ignore shared env keys; require
  *                        x-crew-api-key on MCP HTTP requests for writes
@@ -34,12 +35,13 @@ const MCP_WELL_KNOWN = {
     stdio: {
       command: 'node',
       args: ['agent/crew-mcp/dist/index.js'],
-      env: ['CREW_AGENT_API_KEY', 'CREW_LAUNCHER_KEY', 'CREW_API_URL'],
+      env: ['CREW_AGENT_API_KEY', 'CREW_LAUNCHER_KEY', 'CREW_API_URL', 'X402_EVM_PRIVATE_KEY'],
     },
   },
   auth: {
     httpHeader: 'x-crew-api-key',
-    note: 'Public hosted MCP: pass x-crew-api-key for writes. Launcher secrets never via tool args — local MCP env or REST only.',
+    x402Header: 'X-PAYMENT',
+    note: 'Public hosted MCP: pass x-crew-api-key for writes. Optional local X402_EVM_PRIVATE_KEY pays per call. Launcher secrets never via tool args — local MCP env or REST only.',
   },
   tools: [
     'crew_discover',

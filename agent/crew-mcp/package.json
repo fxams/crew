@@ -1,6 +1,6 @@
 {
   "name": "crewpay-mcp",
-  "version": "1.2.7",
+  "version": "1.2.8",
   "mcpName": "io.github.fxams/crewpay-mcp",
   "description": "MCP server for CREW / CrewPay \u2014 Solana Pump.fun launches with narrative KOL Autohire and on-chain fee-shares. For crypto AI agents (Claude, GPT, Cursor, Gemini, Grok, and any MCP client).",
   "type": "module",
@@ -54,6 +54,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
     "express": "^5.2.1",
+    "viem": "^2.53.1",
     "zod": "^4.1.5"
   },
   "devDependencies": {

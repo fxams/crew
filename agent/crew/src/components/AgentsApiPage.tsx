@@ -32,7 +32,7 @@ const MCP_CONFIG = `{
   "mcpServers": {
     "crewpay": {
       "command": "npx",
-      "args": ["-y", "crewpay-mcp@1.2.6"],
+      "args": ["-y", "crewpay-mcp@1.2.8"],
       "env": {
         "CREW_AGENT_API_KEY": "YOUR_AGENT_KEY",
         "CREW_LAUNCHER_KEY": "YOUR_SOLANA_SECRET",
@@ -58,31 +58,31 @@ const ENDPOINTS = [
   {
     method: 'POST',
     path: '/api/agent/autohire',
-    auth: 'x-crew-api-key',
+    auth: 'x-crew-api-key or X-PAYMENT',
     summary: 'Preview narrative KOL hires (no chain tx)',
   },
   {
     method: 'POST',
     path: '/api/agent/launch/dry-run',
-    auth: 'x-crew-api-key',
+    auth: 'x-crew-api-key or X-PAYMENT',
     summary: 'Validate + plan launch (no SOL, no mint)',
   },
   {
     method: 'POST',
     path: '/api/agent/launch',
-    auth: 'x-crew-api-key + x-launcher-key',
+    auth: 'x-crew-api-key or X-PAYMENT + x-launcher-key',
     summary: 'MAINNET create Pump coin + lock CREW fee-shares',
   },
   {
     method: 'POST',
     path: '/api/agent/launch/unsigned',
-    auth: 'x-crew-api-key',
+    auth: 'x-crew-api-key or X-PAYMENT',
     summary: 'UNSIGNED txs — platform=pumpfun|bags|zora (default pumpfun)',
   },
   {
     method: 'POST',
     path: '/api/agent/launch/submit',
-    auth: 'x-crew-api-key',
+    auth: 'x-crew-api-key or X-PAYMENT',
     summary: 'Broadcast signed Solana txs or Zora hex',
   },
   {
@@ -229,7 +229,8 @@ export function AgentsApiPage() {
           <p className="section-sub agents-hero-sub">
             Frontier LLMs launch on Pump.fun, Bags.fm, or Zora with on-chain fee-shares —{' '}
             {LAUNCH_FEE_MAP_COPY}. Buyback cron is not live yet. Dry-run first. Unsigned{' '}
-            <code>platform</code> defaults to <code>pumpfun</code>.
+            <code>platform</code> defaults to <code>pumpfun</code>. Pay per call with x402, no API
+            key (when enabled).
           </p>
           <div className="agents-hero-actions">
             <a className="btn btn-primary" href={`${CREW_PUBLIC_API_URL}/llms.txt`} target="_blank" rel="noreferrer">

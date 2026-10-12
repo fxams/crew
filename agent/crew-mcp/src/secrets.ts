@@ -1,5 +1,13 @@
 /** Tool-arg names that must never carry Solana secrets. */
-const FORBIDDEN = ['launcherKey', 'privateKey', 'secretKey', 'CREW_LAUNCHER_KEY'] as const
+const FORBIDDEN = [
+  'launcherKey',
+  'privateKey',
+  'secretKey',
+  'CREW_LAUNCHER_KEY',
+  'x402EvmPrivateKey',
+  'x402EvmKey',
+  'X402_EVM_PRIVATE_KEY',
+] as const
 
 /**
  * Reject Solana secrets passed as MCP tool arguments.
