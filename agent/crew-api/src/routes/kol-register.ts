@@ -1,4 +1,4 @@
-import { Router, type Request } from 'express'
+import { Router } from 'express'
 import { z } from 'zod'
 import { randomBytes } from 'node:crypto'
 import { takeRateLimit } from '../lib/agent/rate-limit.js'
@@ -26,17 +26,11 @@ import {
   setMentionDraftStatus,
 } from '../lib/kol-mentions.js'
 import { kolEvmWalletFresh, kolReferralsWalletFresh } from '../lib/wallet-auth.js'
+import { clientIp } from '../lib/client-ip.js'
 
 export const kolRegisterRouter = Router()
 
 const solanaAddress = z.string().min(32).max(64)
-
-function clientIp(req: Request): string {
-  const fwd = req.headers['x-forwarded-for']
-  const raw = Array.isArray(fwd) ? fwd[0] : fwd
-  if (typeof raw === 'string' && raw.trim()) return raw.split(',')[0]!.trim()
-  return req.ip || 'unknown'
-}
 
 kolRegisterRouter.get('/kols/register/status', (_req, res) => {
   res.json({
