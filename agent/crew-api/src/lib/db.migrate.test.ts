@@ -139,6 +139,7 @@ describe('migrate() against an existing pre-#127 coins table', () => {
       /CREATE(?:\s+UNIQUE)?\s+INDEX[\s\S]{0,80}coins_graduated_unfeatured_idx/i,
     )
     expect(afterSchema).toMatch(/019_featured_graduation/)
+    expect(afterSchema).toMatch(/020_agent_keys_ops/)
     const alter = afterSchema.indexOf(
       'ALTER TABLE coins ADD COLUMN IF NOT EXISTS graduated_at TIMESTAMPTZ',
     )

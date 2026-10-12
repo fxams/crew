@@ -289,9 +289,9 @@ export function agentDiscoveryJson() {
       'GET /api/coins/live':
         'CrewPay-launched coins sorted by cached Dexscreener market cap (unknown quotes show as null / UI --)',
       'GET /api/coins/graduated-unfeatured':
-        'Auth. Pump.fun graduates with no @CrewPayHQ post URL yet. External routine posts, then POST /api/coins/{mint}/featured. CrewPay does not auto-post.',
+        'Featured-ops auth (CREW_AGENT_API_KEY, CREW_FEATURE_AGENT_KEYS_SHA256, or agent_keys.ops). Pump.fun graduates with no @CrewPayHQ post URL yet. External routine posts, then POST /api/coins/{mint}/featured. CrewPay does not auto-post.',
       'POST /api/coins/{mint}/featured':
-        'Auth. Store the @CrewPayHQ status URL after an external post. Unlocks after graduation. Does not tweet.',
+        'Featured-ops auth. Store https://x.com/CrewPayHQ/status/<id> after an external post. Unlocks after graduation. Does not tweet.',
       'GET /api/coins/{mint}':
         'Coin by mint (name, ticker, crew, trade URL, optional public image/socials). Public page: https://crewpay.dev/coin/{mint}',
       'GET /api/coins/{mint}/kit':
@@ -874,7 +874,7 @@ export function openApiSpec() {
           operationId: 'getGraduatedUnfeatured',
           security: [{ CrewApiKey: [] }],
           description:
-            'Poll for Pump.fun graduates missing a stored @CrewPayHQ post URL. External routine posts, then POST /api/coins/{mint}/featured. CrewPay does not auto-post. Webhook: coin.graduated.',
+            'Poll for Pump.fun graduates missing a stored @CrewPayHQ post URL. Auth: CREW_AGENT_API_KEY, a sha256 listed in CREW_FEATURE_AGENT_KEYS_SHA256, or an agent key with ops=true. External routine posts, then POST /api/coins/{mint}/featured. CrewPay does not auto-post. Webhook: coin.graduated.',
           responses: { '200': { description: 'Unfeatured graduates' } },
         },
       },
@@ -884,7 +884,8 @@ export function openApiSpec() {
           summary: 'Set @CrewPayHQ feature post URL',
           operationId: 'setCoinFeatured',
           security: [{ CrewApiKey: [] }],
-          description: 'Stores an x.com/CrewPayHQ/status URL. Does not post to X.',
+          description:
+            'Stores https://x.com/CrewPayHQ/status/<id> after graduation. Auth: CREW_AGENT_API_KEY, CREW_FEATURE_AGENT_KEYS_SHA256, or agent_keys.ops. Does not post to X.',
           parameters: [{ name: 'mint', in: 'path', required: true, schema: { type: 'string' } }],
           responses: { '200': { description: 'Featured URL saved' }, '400': { description: 'Invalid' } },
         },
@@ -1546,7 +1547,7 @@ Kickoff extras (tucked on the coin page) spend **only this coin’s treasury sha
 - Defaults: Dexscreener Enhanced Token Info **$299** (configurable, public list price may change); custom website = **free** hosted \`${SITE_URL}/coin/<mint>\`; optional custom domain ~**$10** (\`KICKOFF_COST_CUSTOM_DOMAIN_USD\`).
 - \`CREW_KICKOFF_AUTO_USD\` (default 0 = off) auto-approves into a **payout queue** when fully covered. CrewPay does **not** auto-transfer treasury on-chain here.
 - Coin page timeline (vertical, mobile-first): Launched → crew hired → page live → first AI memes → graduated (Pump.fun) → **Featured on @CrewPayHQ** (unlocks on graduation; link once the post URL is stored) → traction → Dexscreener funded (%) → listed → own X (if configured) → custom domain. Real data only.
-- Graduation webhook: \`coin.graduated\`. Poll \`GET /api/coins/graduated-unfeatured\`, post from @CrewPayHQ **outside this repo**, then \`POST /api/coins/{mint}/featured\` with the status URL. CrewPay does **not** auto-post.
+- Graduation webhook: \`coin.graduated\`. Poll \`GET /api/coins/graduated-unfeatured\`, post from @CrewPayHQ **outside this repo**, then \`POST /api/coins/{mint}/featured\` with the status URL. Featured-ops auth: \`CREW_AGENT_API_KEY\`, \`CREW_FEATURE_AGENT_KEYS_SHA256\` (sha256 hex of dedicated keys), or \`agent_keys.ops\`. CrewPay does **not** auto-post.
 - Fee map stays **60% KOL crew / 15% launching agent / 25% treasury** (or **60/15/5/20** with referrer). The launching agent does **not** receive the 60% crew slice. No earnings promises.
 
 Creative jobs reuse **jobs + escrow** (behind \`JOBS_ENABLED\`, test/devnet only — no mainnet):
@@ -1716,7 +1717,7 @@ Public coin page (no auth): \`${SITE_URL}/coin/<mint>\` — built from existing 
 
 Kickoff budget = this mint’s treasury share (25% or 20%) of accrued creator fees (cached 1–5 min poll of remits + on-chain fee-sharing) minus spent/reserved. Items unlock only when fully covered (Dexscreener Enhanced Token Info default $299, price may change; hosted website free; custom domain default ~$10). Approval reserves USD. No automatic on-chain treasury transfers. SOL/ETH converted with a cached FX feed.
 
-Graduation webhook: \`coin.graduated\`. Poll \`GET ${API_URL}/api/coins/graduated-unfeatured\`, post from @CrewPayHQ **outside this repo**, then \`POST ${API_URL}/api/coins/{mint}/featured\` with the status URL. CrewPay does **not** auto-post. Timeline: Featured on @CrewPayHQ sits immediately after Graduated and unlocks on graduation.
+Graduation webhook: \`coin.graduated\`. Poll \`GET ${API_URL}/api/coins/graduated-unfeatured\`, post from @CrewPayHQ **outside this repo**, then \`POST ${API_URL}/api/coins/{mint}/featured\` with the status URL. Featured-ops auth: \`CREW_AGENT_API_KEY\`, \`CREW_FEATURE_AGENT_KEYS_SHA256\`, or \`agent_keys.ops\`. CrewPay does **not** auto-post. Timeline: Featured on @CrewPayHQ sits immediately after Graduated and unlocks on graduation.
 
 Creative presets (behind \`JOBS_ENABLED\`; MCP \`post_coin_job\`; \`POST /api/jobs/coin\`):
 

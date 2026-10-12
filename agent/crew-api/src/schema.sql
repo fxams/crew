@@ -143,6 +143,8 @@ CREATE TABLE IF NOT EXISTS agent_keys (
   require_approval BOOLEAN NOT NULL DEFAULT false,
   /** KOL referral code bound at claim — immutable; drives 60/15/5/20 fee split. */
   referral_code TEXT,
+  /** Featured-ops role: GET graduated-unfeatured + POST featured URL. Default false. */
+  ops BOOLEAN NOT NULL DEFAULT false,
   last_used_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()

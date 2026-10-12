@@ -95,6 +95,7 @@ export async function migrate(): Promise<void> {
         ALTER TABLE agent_keys ADD COLUMN IF NOT EXISTS owner_wallet TEXT;
         ALTER TABLE agent_keys ADD COLUMN IF NOT EXISTS require_approval BOOLEAN NOT NULL DEFAULT false;
         ALTER TABLE agent_keys ADD COLUMN IF NOT EXISTS referral_code TEXT;
+        ALTER TABLE agent_keys ADD COLUMN IF NOT EXISTS ops BOOLEAN NOT NULL DEFAULT false;
       END IF;
       IF to_regclass('public.agent_dry_runs') IS NOT NULL THEN
         ALTER TABLE agent_dry_runs ADD COLUMN IF NOT EXISTS launcher_pubkey TEXT;
@@ -469,5 +470,18 @@ export async function migrate(): Promise<void> {
   await query(
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['019_featured_graduation'],
+  )
+  await query(`
+    DO $mig$
+    BEGIN
+      IF to_regclass('public.agent_keys') IS NOT NULL THEN
+        ALTER TABLE agent_keys ADD COLUMN IF NOT EXISTS ops BOOLEAN NOT NULL DEFAULT false;
+      END IF;
+    END
+    $mig$;
+  `)
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['020_agent_keys_ops'],
   )
 }
