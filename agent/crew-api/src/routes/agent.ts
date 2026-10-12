@@ -23,7 +23,7 @@ import {
   assertMaySetRequireApproval,
   resolveSpendGate,
 } from '../lib/agent/spend-gate.js'
-import { listCoinsByAgentKey, listCoins, upsertCoin, type ApiCoin } from '../lib/coins.js'
+import { getCoin, listCoinsByAgentKey, listCoins, upsertCoin, type ApiCoin } from '../lib/coins.js'
 import {
   MAX_CREW,
   MAX_INITIAL_BUY_SOL,
@@ -73,6 +73,8 @@ import { assertSafeHttpUrl } from '../lib/agent/safe-url.js'
 import { AGENT_EXAMPLES, errorIssues, errorMessage, normalizeAutoHireInput } from '../lib/agent/errors.js'
 import { sendInternalError } from '../lib/http-error.js'
 import { parseLauncherKey, resolveOpsPayer } from '../lib/agent/send.js'
+import { drawOpsBudget, ESTIMATED_OPS_CRANK_LAMPORTS } from '../lib/agent/ops-budget.js'
+import { canServerPayCrank, serverPaidCrankDeniedMessage } from '../lib/agent/crank-gate.js'
 import { solanaAddress } from '../lib/agent/solana-address.js'
 import { evmAddress } from '../lib/agent/evm-address.js'
 import { draftMentionFromRemit } from '../lib/kol-mentions.js'
@@ -1096,32 +1098,41 @@ agentRouter.post('/agent/crank', requireAgentApiKey, async (req, res) => {
     const fp = apiKeyFingerprint(req)
     if (!applyRateLimit(res, `crank:key:${fp}`, 20, 60_000)) return
     const mint = z.object({ mint: solanaAddress }).parse(req.body).mint
-  // Require x-launcher-key unless board fee-share is locked.
-    let payer
-    try {
     const fromHeader = (req.header('x-launcher-key') || '').trim()
-    if (fromHeader) {
-      payer = parseLauncherKey(fromHeader)
-    } else {
-      const status = await getAgentMintStatus(mint)
-      if (!status.feeShareLocked) {
-        throw new Error(
-          'x-launcher-key required — fee-share not locked on board; server ops payer disabled',
-        )
+    let payer
+    let serverPaid = false
+    try {
+      if (fromHeader) {
+        payer = parseLauncherKey(fromHeader)
+      } else {
+        // Server-paid only for board mints with locked fee-shares (feeShareSignature).
+        const board = await getCoin(mint)
+        if (!canServerPayCrank(board)) {
+          res.status(400).json({
+            ok: false,
+            error: serverPaidCrankDeniedMessage(),
+          })
+          return
+        }
+        payer = resolveOpsPayer()
+        serverPaid = true
+        drawOpsBudget(ESTIMATED_OPS_CRANK_LAMPORTS)
       }
-      payer = resolveOpsPayer()
-    }
     } catch (keyErr) {
       res.status(400).json({
         ok: false,
         error:
           keyErr instanceof Error
             ? keyErr.message
-          : 'Provide x-launcher-key (or lock fee-shares to allow server ops payer).',
+            : 'Provide x-launcher-key (or lock fee-shares to allow server ops payer).',
       })
       return
     }
-    const result = await crankRemitsForAgent({ mint, payer })
+    const result = await crankRemitsForAgent({
+      mint,
+      payer,
+      requireMinFee: serverPaid,
+    })
     void emitWebhookEvent('remit.cranked', {
       mint: result.mint,
       signature: result.signature,
@@ -1438,11 +1449,14 @@ agentRouter.post('/agent/keys/owner', requireAgentApiKey, async (_req, res) => {
 
 agentRouter.delete('/agent/keys/:id', requireAgentApiKey, async (req, res) => {
   try {
-    const scope =
-      req.crewAgentAuth?.source === 'db' && req.crewAgentAuth.keyId
-        ? { keyId: req.crewAgentAuth.keyId }
-        : undefined
-    const ok = await revokeAgentKey(String(req.params.id || ''), scope)
+    if (req.crewAgentAuth?.source !== 'env') {
+      res.status(403).json({
+        ok: false,
+        error: 'Operator env key required to revoke agent keys',
+      })
+      return
+    }
+    const ok = await revokeAgentKey(String(req.params.id || ''))
     if (!ok) {
       res.status(404).json({ error: 'Not found' })
       return

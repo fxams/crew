@@ -107,7 +107,9 @@ export async function fetchPublicUrl(
   const label = opts?.label || 'url'
   const maxRedirects = opts?.maxRedirects ?? 3
   const timeoutMs = opts?.timeoutMs ?? 12_000
+  const method = (opts?.method || 'GET').toUpperCase()
   let current = assertSafeHttpUrl(raw, label)
+  let body = opts?.body
 
   for (let hop = 0; hop <= maxRedirects; hop += 1) {
     await assertPublicHostname(current.hostname, label)
@@ -116,11 +118,11 @@ export async function fetchPublicUrl(
     let res: Response
     try {
       res = await fetch(current.href, {
+        method: hop === 0 ? method : method === 'POST' && body ? 'POST' : 'GET',
         redirect: 'manual',
         signal: ac.signal,
         headers: opts?.headers,
-        method: opts?.method || 'GET',
-        body: opts?.body as never,
+        body: hop === 0 || (method === 'POST' && body) ? (body as never) : undefined,
       })
     } catch (err) {
       clearTimeout(timer)
@@ -135,6 +137,10 @@ export async function fetchPublicUrl(
     if (res.status >= 300 && res.status < 400) {
       const loc = res.headers.get('location')
       if (!loc) throw new Error(`${label} redirect missing Location`)
+      // 301 / 302 / 303: drop body on subsequent hops.
+      if (res.status === 303 || res.status === 302 || res.status === 301) {
+        body = undefined
+      }
       current = assertSafeHttpUrl(new URL(loc, current).href, label)
       continue
     }
