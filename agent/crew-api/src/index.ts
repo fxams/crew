@@ -34,6 +34,9 @@ async function main() {
         }
         cb(null, false)
       },
+      // Needed so /kols/register/start can set the optional crew_reg cookie
+      // (crewpay.dev → api.crewpay.dev is cross-origin). Cookie is fallback only.
+      credentials: true,
       exposedHeaders: ['X-PAYMENT-RESPONSE', 'PAYMENT-RESPONSE'],
     }),
   )

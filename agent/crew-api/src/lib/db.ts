@@ -399,4 +399,24 @@ export async function migrate(): Promise<void> {
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['016_kol_oauth_evm_wallet'],
   )
+  // Signed OAuth state: signature binding + one-time consume (cookie is fallback only).
+  await query(`
+    DO $mig$
+    BEGIN
+      IF to_regclass('public.kol_oauth_states') IS NOT NULL THEN
+        ALTER TABLE kol_oauth_states ADD COLUMN IF NOT EXISTS signature_sha256 TEXT;
+        ALTER TABLE kol_oauth_states ADD COLUMN IF NOT EXISTS consumed_at TIMESTAMPTZ;
+      END IF;
+    END
+    $mig$;
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS kol_oauth_states_cookie_idx
+      ON kol_oauth_states (cookie_sha256)
+      WHERE cookie_sha256 IS NOT NULL AND consumed_at IS NULL
+  `)
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['017_kol_oauth_signed_state'],
+  )
 }
