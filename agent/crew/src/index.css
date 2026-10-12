@@ -4705,6 +4705,27 @@ a.plat-badge:focus-visible {
 .live-coins-all {
   color: var(--muted);
   font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.live-coins-see-all {
+  margin: 0.75rem 0 0;
+  font-size: 0.9rem;
+}
+
+.live-coins-see-all a {
+  color: var(--muted);
+}
+
+.live-coins-see-all a:hover,
+.live-coins-all:hover {
+  color: var(--ink);
+}
+
+@media (max-width: 820px) {
+  .live-coins-all {
+    display: none;
+  }
 }
 
 .live-coins-list {

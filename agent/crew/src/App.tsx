@@ -1420,6 +1420,12 @@ export default function App() {
               </Link>
             )}
             <Link
+              className={isCoinsPage || isCoinPage ? "is-active-nav-text" : undefined}
+              to="/coins"
+            >
+              Coins
+            </Link>
+            <Link
               className={isProofPage ? "is-active-nav-text" : undefined}
               to="/proof"
             >

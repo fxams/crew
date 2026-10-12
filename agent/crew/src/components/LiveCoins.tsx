@@ -89,6 +89,11 @@ export function LiveCoins({ limit = 8, heading = 'Live coins', allLink = true }:
           })}
         </ul>
       ) : null}
+      {allLink ? (
+        <p className="live-coins-see-all">
+          <Link to="/coins">See all coins</Link>
+        </p>
+      ) : null}
     </section>
   )
 }
