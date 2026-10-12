@@ -422,4 +422,27 @@ export async function migrate(): Promise<void> {
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['017_kol_oauth_signed_state'],
   )
+  // Fee-lock integrity: unlocked_expired + admin_revoked on coins.
+  await query(`
+    DO $mig$
+    BEGIN
+      IF to_regclass('public.coins') IS NOT NULL THEN
+        ALTER TABLE coins ADD COLUMN IF NOT EXISTS unlocked_expired BOOLEAN NOT NULL DEFAULT false;
+        ALTER TABLE coins ADD COLUMN IF NOT EXISTS admin_revoked BOOLEAN;
+      END IF;
+    END
+    $mig$;
+  `)
+  await query(`
+    UPDATE coins
+    SET unlocked_expired = true
+    WHERE holder_kol = true
+      AND fee_share_signature IS NULL
+      AND launched_at < now() - interval '24 hours'
+      AND unlocked_expired IS DISTINCT FROM true
+  `)
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['018_fee_lock_integrity'],
+  )
 }

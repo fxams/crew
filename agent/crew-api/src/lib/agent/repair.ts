@@ -24,6 +24,7 @@ import {
   type Shareholder,
 } from './shareholders.js'
 import type { CrewMember } from './narrative.js'
+import { assertAdminRevokedOnChain } from './fee-lock-integrity.js'
 
 const require = createRequire(import.meta.url)
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -97,6 +98,7 @@ export async function wireFeesForAgent(opts: {
   ok: true
   feeShareSignature: string
   feeShareLocked: true
+  adminRevoked: true
   mint: string
   coin: ApiCoin
 }> {
@@ -202,6 +204,8 @@ export async function wireFeesForAgent(opts: {
     attempts: 2,
   })
 
+  await assertAdminRevokedOnChain(mint)
+
   const mintStr = mint.toBase58()
   const board = await getCoin(mintStr)
   const ticker = (opts.ticker || board?.ticker || 'COIN').toUpperCase().replace(/^\$/, '')
@@ -222,6 +226,8 @@ export async function wireFeesForAgent(opts: {
     raidQuests: board?.raidQuests,
     agent: board?.agent,
     holderKol: false,
+    adminRevoked: true,
+    unlockedExpired: false,
   }
   await upsertCoin(coin)
   try {
@@ -243,7 +249,14 @@ export async function wireFeesForAgent(opts: {
       err instanceof Error ? err.message : err,
     )
   }
-  return { ok: true, feeShareSignature, feeShareLocked: true, mint: mintStr, coin }
+  return {
+    ok: true,
+    feeShareSignature,
+    feeShareLocked: true,
+    adminRevoked: true,
+    mint: mintStr,
+    coin,
+  }
 }
 
 export async function lockHolderKolForAgent(opts: {
@@ -256,6 +269,7 @@ export async function lockHolderKolForAgent(opts: {
   ok: true
   feeShareSignature: string
   feeShareLocked: true
+  adminRevoked: true
   mint: string
   proposal: Awaited<ReturnType<typeof proposeHolderKolFromChain>>
   coin: ApiCoin
@@ -317,6 +331,8 @@ export async function lockHolderKolForAgent(opts: {
     attempts: 2,
   })
 
+  await assertAdminRevokedOnChain(mint)
+
   const mintStr = mint.toBase58()
   const ticker = (opts.ticker || board?.ticker || 'COIN').toUpperCase().replace(/^\$/, '')
   const coin: ApiCoin = {
@@ -336,9 +352,19 @@ export async function lockHolderKolForAgent(opts: {
     raidQuests: board?.raidQuests,
     agent: board?.agent,
     holderKol: true,
+    adminRevoked: true,
+    unlockedExpired: false,
   }
   await upsertCoin(coin)
-  return { ok: true, feeShareSignature, feeShareLocked: true, mint: mintStr, proposal, coin }
+  return {
+    ok: true,
+    feeShareSignature,
+    feeShareLocked: true,
+    adminRevoked: true,
+    mint: mintStr,
+    proposal,
+    coin,
+  }
 }
 
 export async function crankRemitsForAgent(opts: {

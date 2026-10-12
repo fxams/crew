@@ -716,6 +716,7 @@ const REGISTERED_RANKED_CTE = `
       COALESCE((
         SELECT SUM(r.amount_sol)
         FROM remits r
+        INNER JOIN coins c ON c.mint = r.mint AND c.fee_share_signature IS NOT NULL
         WHERE r.wallet = kr.wallet
            OR r.wallet = ANY (COALESCE(kr.prior_wallets, '{}'))
       ), 0) AS sol_earned,

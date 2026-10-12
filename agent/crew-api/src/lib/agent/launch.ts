@@ -38,6 +38,7 @@ import {
   normalizeCrew,
 } from './shareholders.js'
 import { assertSafeHttpUrl } from './safe-url.js'
+import { assertAdminRevokedOnChain } from './fee-lock-integrity.js'
 
 export type AgentLaunchInput = {
   name: string
@@ -69,6 +70,8 @@ export type AgentLaunchResult =
       feeShareSignature?: string
       /** false when mint exists but CREW fee-share was not locked — agents must handle. */
       feeShareLocked: boolean
+      /** On-chain sharing-config.adminRevoked after updateFeeSharesV2. */
+      adminRevoked?: boolean
       pumpUrl: string
       launcher: string
       crew: Array<CrewMember & { effectiveBps?: number }>
@@ -98,10 +101,25 @@ export type AgentLaunchResult =
         launcher: string
         pumpUrl: string
         holderKol?: boolean
+        adminRevoked?: boolean
+        unlockedExpired?: boolean
         agent?: { name: string; objective: string; model: string }
       }
     }
   | { ok: false; error: string }
+
+/** Re-read sharing-config after updateFeeSharesV2; false if still editable. */
+async function confirmAdminRevoked(mint: PublicKey): Promise<boolean> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await assertAdminRevokedOnChain(mint)
+      return true
+    } catch {
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 400))
+    }
+  }
+  return false
+}
 
 function normalizeTicker(raw: string): string {
   return raw.trim().toUpperCase().replace(/^\$/, '')
@@ -449,6 +467,12 @@ export async function launchForAgent(
     ownerWallet?: string | null
     /** Override 15% launching-agent wallet (x402 payer when chain-compatible). */
     deskWallet?: string | null
+    /**
+     * From an approved dry-run plan (autoHire). When set, skip narrative re-plan
+     * so spend uses the same crew the human approved.
+     */
+    plannedCrew?: CrewMember[]
+    plannedHirePlan?: NarrativeHirePlan | null
   },
 ): Promise<AgentLaunchResult> {
   try {
@@ -494,10 +518,19 @@ export async function launchForAgent(
       : opts?.ownerWallet
         ? await getAgentReferralByOwnerWallet(opts.ownerWallet)
         : null
-    const { crew, hirePlan } = await resolveCrew(
-      { ...input, mode },
-      { hasAgentReferrer: Boolean(boundRef) },
-    )
+    const maxSeats = maxCrewSeats({
+      hasAgentReferrer: Boolean(boundRef),
+      mode,
+    })
+    const { crew, hirePlan } = opts?.plannedCrew?.length
+      ? {
+          crew: normalizeCrew(opts.plannedCrew, mode, { maxSeats }),
+          hirePlan: opts.plannedHirePlan ?? undefined,
+        }
+      : await resolveCrew(
+          { ...input, mode },
+          { hasAgentReferrer: Boolean(boundRef) },
+        )
     const vibe = withCrewLaunchDescription(vibeRaw)
     const agentRef = await resolveLaunchAgentReferrer({
       keyId: opts?.agentKeyId,
@@ -677,12 +710,14 @@ export async function launchForAgent(
           getSignatureBlockTimeMs(signature),
         ])
         launchedAt = createBlockMs ?? launchedAt
+        const adminRevoked = await confirmAdminRevoked(mintKp.publicKey)
         return {
           ok: true,
           mint: mintStr,
           signature,
           feeShareSignature,
-          feeShareLocked: true,
+          feeShareLocked: adminRevoked,
+          adminRevoked,
           pumpUrl,
           launcher: deskWallet,
           crew: crewWithBps,
@@ -693,11 +728,14 @@ export async function launchForAgent(
           createSlot,
           lockSlot,
           preLockCreatorFeesLamports: 0,
-          warning: `Atomic via Jito (${engine}).`,
+          warning: adminRevoked
+            ? `Atomic via Jito (${engine}).`
+            : `Atomic via Jito (${engine}) but adminRevoked not confirmed — call crew_status / crew_wire_fees.`,
           coin: {
             ...coinBaseFields,
             signature,
             feeShareSignature,
+            adminRevoked,
             launchedAt,
           },
         }
@@ -717,12 +755,14 @@ export async function launchForAgent(
         })
         const slot = await getSignatureSlot(signature)
         launchedAt = (await getSignatureBlockTimeMs(signature)) ?? launchedAt
+        const adminRevoked = await confirmAdminRevoked(mintKp.publicKey)
         return {
           ok: true,
           mint: mintStr,
           signature,
           feeShareSignature: signature,
-          feeShareLocked: true,
+          feeShareLocked: adminRevoked,
+          adminRevoked,
           pumpUrl,
           launcher: deskWallet,
           crew: crewWithBps,
@@ -733,10 +773,14 @@ export async function launchForAgent(
           createSlot: slot,
           lockSlot: slot,
           preLockCreatorFeesLamports: 0,
+          warning: adminRevoked
+            ? undefined
+            : 'Atomic v0 landed but adminRevoked not confirmed — call crew_status / crew_wire_fees.',
           coin: {
             ...coinBaseFields,
             signature,
             feeShareSignature: signature,
+            adminRevoked,
             launchedAt,
           },
         }
@@ -781,12 +825,14 @@ export async function launchForAgent(
             createSlot,
             lockSlot,
           })
+          const adminRevoked = await confirmAdminRevoked(mintKp.publicKey)
           return {
             ok: true,
             mint: mintStr,
             signature,
             feeShareSignature,
-            feeShareLocked: true,
+            feeShareLocked: adminRevoked,
+            adminRevoked,
             pumpUrl,
             launcher: deskWallet,
             crew: crewWithBps,
@@ -806,10 +852,11 @@ export async function launchForAgent(
                 : '',
               `Atomic failures: ${atomicFailures.join(' · ') || 'unknown'}.`,
               'Jito needs encoding=base64; set CREW_LOOKUP_TABLE for v0+ALT; atomicRequired/CREW_ATOMIC_REQUIRED=1 to refuse this fallback.',
+              adminRevoked ? '' : 'adminRevoked not confirmed on-chain.',
             ]
               .filter(Boolean)
               .join(' '),
-            coin: { ...coinBase, feeShareSignature },
+            coin: { ...coinBase, feeShareSignature, adminRevoked },
           }
         } catch (feeErr) {
           const feeMsg = feeErr instanceof Error ? feeErr.message : 'fee-share failed'

@@ -40,6 +40,23 @@ describe('dry-run-store', () => {
     expect(a).not.toBe(hashLaunchBody(launchBody, 'b'.repeat(64)))
   })
 
+  it('binds resolved autoHire crew + shareholders into the launch body hash', () => {
+    const crew = [{ handle: '@a', wallet: LAUNCHER, share: 100 }]
+    const shareholders = [{ wallet: LAUNCHER, bps: 1500, role: 'desk' }]
+    const withResolved = hashLaunchBody(launchBody, imageSha, { crew, shareholders })
+    const bare = hashLaunchBody(launchBody, imageSha)
+    expect(withResolved).not.toBe(bare)
+    expect(
+      hashLaunchBody(launchBody, imageSha, { crew, shareholders }),
+    ).toBe(withResolved)
+    expect(
+      hashLaunchBody(launchBody, imageSha, {
+        crew: [{ handle: '@b', wallet: OPERATOR, share: 100 }],
+        shareholders,
+      }),
+    ).not.toBe(withResolved)
+  })
+
   it('hashes wire bodies by mint/mode/crew', () => {
     const a = hashWireBody({ mint: 'Mint111', mode: 'agent' })
     expect(a).toBe(hashWireBody({ mint: 'Mint111', mode: 'agent', crew: null }))

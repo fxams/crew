@@ -81,6 +81,10 @@ export type CoinRecord = {
   agent?: AgentBrief
   /** Fee-share locked from top-holder ∩ KOL directory (one-shot). */
   holderKol?: boolean
+  /** holderKol left unlocked ≥24h. */
+  unlockedExpired?: boolean
+  /** On-chain sharing-config adminRevoked after updateFeeSharesV2. */
+  adminRevoked?: boolean
   /** Launch venue (pumpfun / bags / zora). Inferred from pumpUrl when omitted. */
   platform?: import('./platforms').LaunchPlatform
 }

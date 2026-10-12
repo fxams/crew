@@ -661,7 +661,10 @@ agentRouter.post('/agent/launch/dry-run', requireAgentApiKeyOrX402, async (req, 
       ownerWallet,
       deskWallet: deskWallet || undefined,
     })
-    const bodyHash = hashLaunchBody(body as unknown as Record<string, unknown>, imageSha256)
+    const bodyHash = hashLaunchBody(body as unknown as Record<string, unknown>, imageSha256, {
+      crew: result.crew,
+      shareholders: result.shareholders,
+    })
     const rec = await createDryRun({
       apiKeyFp: fp,
       intent: 'launch',
@@ -808,10 +811,23 @@ agentRouter.post('/agent/launch', requireAgentApiKeyOrX402, async (req, res) => 
       return
     }
     let imageSha256: string
+    let plannedCrew: import('../lib/agent/narrative.js').CrewMember[] | undefined
+    let plannedHirePlan: import('../lib/agent/narrative.js').NarrativeHirePlan | null | undefined
     try {
       imageSha256 = await resolveLaunchImageSha(body)
       if (gate === 'consume' && body.dryRunId) {
-        const bodyHash = hashLaunchBody(body as unknown as Record<string, unknown>, imageSha256)
+        const existing = await getDryRun(body.dryRunId)
+        const plan = (existing?.plan || {}) as {
+          crew?: import('../lib/agent/narrative.js').CrewMember[]
+          shareholders?: unknown
+          hirePlan?: import('../lib/agent/narrative.js').NarrativeHirePlan | null
+        }
+        plannedCrew = plan.crew
+        plannedHirePlan = plan.hirePlan
+        const bodyHash = hashLaunchBody(body as unknown as Record<string, unknown>, imageSha256, {
+          crew: plan.crew,
+          shareholders: plan.shareholders,
+        })
         await consumeApprovedDryRun({
           dryRunId: body.dryRunId,
           apiKeyFp: fp,
@@ -843,6 +859,8 @@ agentRouter.post('/agent/launch', requireAgentApiKeyOrX402, async (req, res) => 
       agentKeyId,
       ownerWallet,
       deskWallet,
+      plannedCrew,
+      plannedHirePlan,
     })
     if (!result.ok) {
       res.status(400).json(result)
@@ -854,6 +872,7 @@ agentRouter.post('/agent/launch', requireAgentApiKeyOrX402, async (req, res) => 
       await upsertCoin({
         ...result.coin,
         feeShareSignature: result.feeShareSignature,
+        adminRevoked: result.adminRevoked,
         agentKeyId,
       } as ApiCoin)
     } catch (persistErr) {
@@ -875,7 +894,14 @@ agentRouter.post('/agent/launch', requireAgentApiKeyOrX402, async (req, res) => 
           ...result,
           feeShareLocked: true,
           feeShareSignature: wired.feeShareSignature,
-          coin: { ...result.coin, feeShareSignature: wired.feeShareSignature, holderKol: false },
+          adminRevoked: true,
+          coin: {
+            ...result.coin,
+            feeShareSignature: wired.feeShareSignature,
+            holderKol: false,
+            adminRevoked: true,
+            unlockedExpired: false,
+          },
           warning: [
             result.warning,
             'Fee-shares locked on immediate post-launch wire retry.',
@@ -1166,8 +1192,10 @@ agentRouter.get('/agent/launches', requireAgentApiKey, async (req, res) => {
         name: c.name,
         ticker: c.ticker,
         mode: c.mode,
-        feeShareLocked: Boolean(c.feeShareSignature),
+        feeShareLocked: Boolean(c.feeShareSignature) && c.adminRevoked !== false,
         holderKol: Boolean(c.holderKol),
+        unlockedExpired: Boolean(c.unlockedExpired),
+        adminRevoked: c.adminRevoked,
         signature: c.signature,
         feeShareSignature: c.feeShareSignature,
         pumpUrl: c.pumpUrl,

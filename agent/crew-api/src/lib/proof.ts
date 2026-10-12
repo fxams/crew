@@ -11,13 +11,15 @@ async function proofAggregates() {
     await Promise.all([
     query<{ n: number; locked: number }>(
       `SELECT COUNT(*)::int AS n,
-              COUNT(fee_share_signature)::int AS locked
-       FROM coins`,
+              COUNT(*)::int AS locked
+       FROM coins
+       WHERE fee_share_signature IS NOT NULL`,
     ),
     query<{ n: number; sol: number }>(
       `SELECT COUNT(*)::int AS n,
-              COALESCE(SUM(amount_sol), 0)::float8 AS sol
-       FROM remits`,
+              COALESCE(SUM(r.amount_sol), 0)::float8 AS sol
+       FROM remits r
+       INNER JOIN coins c ON c.mint = r.mint AND c.fee_share_signature IS NOT NULL`,
     ),
       query<{ n: number }>(`SELECT COUNT(*)::int AS n FROM mode_actions`),
       query<{ role: string | null; n: number; sol: number }>(`
@@ -25,6 +27,7 @@ async function proofAggregates() {
                COUNT(*)::int AS n,
                COALESCE(SUM(r.amount_sol), 0)::float8 AS sol
         FROM remits r
+        INNER JOIN coins c ON c.mint = r.mint AND c.fee_share_signature IS NOT NULL
         LEFT JOIN coin_shareholders cs
           ON cs.mint = r.mint AND cs.wallet = r.wallet
         GROUP BY COALESCE(cs.role, 'unknown')
@@ -143,8 +146,8 @@ export async function getProofBundle(limit = 40) {
     await Promise.all([
       listBuybackRuns(safeLimit),
       buybackStats(),
-      listCoins(Math.min(50, safeLimit)),
-      listRemits(safeLimit),
+      listCoins(Math.min(50, safeLimit), { feeShareLockedOnly: true }),
+      listRemits(safeLimit, { feeShareLockedOnly: true }),
       countKols(),
       listModeActions(safeLimit),
       proofAggregates(),
@@ -204,6 +207,8 @@ const roleTotals = sumByRole(classified)
       mode: c.mode,
       feeShareLocked: Boolean(c.feeShareSignature),
       holderKol: Boolean(c.holderKol),
+      unlockedExpired: Boolean(c.unlockedExpired),
+      adminRevoked: c.adminRevoked,
       launchedAt: c.launchedAt,
       pumpUrl: c.pumpUrl,
       launcher: c.launcher,

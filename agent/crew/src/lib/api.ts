@@ -127,6 +127,8 @@ export type ProofBundle = {
     mode: string
     feeShareLocked: boolean
     holderKol: boolean
+    unlockedExpired?: boolean
+    adminRevoked?: boolean
     launchedAt: number
     pumpUrl: string
     launcher: string
