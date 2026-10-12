@@ -1,8 +1,10 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import {
   aiCrewMaxPerDay,
+  aiCrewPublicNote,
   captionFor,
   ensureAiCrew,
+  fitTickerFontSize,
   generateAiCrewItem,
   resetAiCrew,
   svgMeme,
@@ -21,11 +23,33 @@ describe('AI crew (free tier)', () => {
   it('builds captions and SVG without secrets or earnings talk', () => {
     const cap = captionFor('HOOT', 'Night Owl', 0)
     expect(cap).toMatch(/\$HOOT/)
-    expect(cap.toLowerCase()).not.toMatch(/guaranteed|roi|100x/)
-    const svg = svgMeme('HOOT', cap)
+    expect(cap.toLowerCase()).not.toMatch(/guaranteed|roi|100x|60%|@crewpay/)
+    const svg = svgMeme('HOOT', { imageHref: 'https://api.crewpay.dev/api/coins/x/logo' })
     expect(svg).toContain('<svg')
     expect(svg).toContain('$HOOT')
-    expect(svg).toContain('humans remain the core')
+    expect(svg).toContain('AI CREW')
+    expect(svg).not.toContain('foreignObject')
+    expect(svg).toContain('/api/coins/x/logo')
+    expect(aiCrewPublicNote()).toBe('Lightweight AI memes. Humans stay the core.')
+    expect(aiCrewPublicNote().toLowerCase()).not.toMatch(/@crewpay|60%/)
+  })
+
+  it('shrinks long tickers so the title stays in the card', () => {
+    expect(fitTickerFontSize('HOOT')).toBeGreaterThan(40)
+    expect(fitTickerFontSize('MYSTERYCASE')).toBeLessThanOrEqual(40)
+    expect(fitTickerFontSize('MYSTERYCASE')).toBeGreaterThanOrEqual(16)
+    const svg = svgMeme('MYSTERYCASE')
+    const size = Number(svg.match(/font-size="(\d+)" font-weight="700">\$MYSTERYCASE/)?.[1])
+    expect(size).toBe(fitTickerFontSize('MYSTERYCASE'))
+    expect(svg).toContain('$MYSTERYCASE')
+    expect(svg).not.toContain('font-size="56"')
+  })
+
+  it('never writes 60% or @crewpay into generated captions', () => {
+    for (let salt = 0; salt < 12; salt++) {
+      const cap = captionFor('MYSTERYCASE', 'The Mystery Case', salt)
+      expect(cap.toLowerCase()).not.toMatch(/60%|get the|@crewpay|earnings/)
+    }
   })
 
   it('caps generations per UTC day', () => {

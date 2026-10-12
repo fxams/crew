@@ -295,23 +295,34 @@ export function CoinPage() {
             </div>
 
             {kit?.aiCrew?.items?.length ? (
-              <div className="coin-ai">
-                <p className="section-label">AI crew</p>
-                <p className="hint">{kit.aiCrew.note}</p>
-                <div className="coin-ai-grid">
-                  {kit.aiCrew.items.slice(0, 4).map((item) => (
-                    <figure key={item.id} className="coin-ai-card">
+              <div className="coin-panel coin-ai">
+                <div className="coin-ai-head">
+                  <CoinLogo
+                    mint={coin.mint || mint}
+                    ticker={coin.ticker}
+                    className="coin-ai-logo"
+                    fallbackClassName="coin-ai-logo coin-ai-logo-fallback"
+                    size={32}
+                  />
+                  <div className="coin-ai-copy">
+                    <p className="section-label">AI crew</p>
+                    <p className="coin-ai-note">Lightweight AI memes. Humans stay the core.</p>
+                  </div>
+                </div>
+                <ul className="coin-ai-gallery">
+                  {kit.aiCrew.items.slice(0, 6).map((item) => (
+                    <li key={item.id}>
                       <div
                         className="coin-ai-svg"
                         dangerouslySetInnerHTML={{ __html: item.svg }}
+                        title={item.caption}
                       />
-                      <figcaption>{item.caption}</figcaption>
-                    </figure>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
             ) : (
-              <p className="hint">AI crew is the free always-on baseline. Humans (KOLs/creators) remain the core.</p>
+              <p className="coin-ai-empty">AI crew — no memes yet. They show on the next kit refresh.</p>
             )}
 
             <div className="coin-jobs">
