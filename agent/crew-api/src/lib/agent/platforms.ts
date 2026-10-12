@@ -1,5 +1,6 @@
 import { assertEvmAddress, isEvmAddress } from './evm-address.js'
 import { PUMP_MAX_SHAREHOLDERS } from './constants.js'
+import { x402PublicDiscovery } from '../x402.js'
 
 export const LAUNCH_PLATFORMS = ['pumpfun', 'bags', 'zora'] as const
 export type LaunchPlatform = (typeof LAUNCH_PLATFORMS)[number]
@@ -288,6 +289,7 @@ export function platformsPublicJson() {
     feeMap: LAUNCH_FEE_MAP_COPY,
     venues: listLaunchVenues(),
     acp: acpPublicJson(),
+    x402: x402PublicDiscovery(),
   }
 }
 

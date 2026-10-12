@@ -27,6 +27,9 @@ afterEach(() => {
     'ACP_SIGNER_KEY',
     'ACP_PRICE_AUTOHIRE_USD',
     'ACP_PRICE_LAUNCH_USD',
+    'X402_ENABLED',
+    'X402_PAY_TO_EVM',
+    'X402_PAY_TO_SOL',
   ] as const) {
     if (saved[key] === undefined) delete process.env[key]
     else process.env[key] = saved[key]
@@ -111,6 +114,8 @@ describe('launch platforms', () => {
     expect(pub.default).toBe('pumpfun')
     expect(pub.venues).toEqual(venues)
     expect(pub.acp.id).toBe('acp')
+    expect(pub.x402).toBeTruthy()
+    expect(pub.x402.enabled).toBe(false)
     expect(JSON.stringify(pub)).not.toMatch(/test-bags-key/)
   })
 
@@ -127,6 +132,7 @@ describe('launch platforms', () => {
     expect(pub.acp.pricesUsd.crewpay_autohire_kol_crew).toBe(0.02)
     expect(pub.acp.pricesUsd.crewpay_launch_with_crew).toBe(0.1)
     expect(pub.acp.feeMap).toMatch(/hired KOL crew/)
+    expect(pub.x402.enabled).toBe(false)
     expect(JSON.stringify(pub)).not.toMatch(/SHOULD-NEVER-APPEAR/)
     expect(JSON.stringify(pub)).not.toMatch(/ACP_SIGNER_KEY/)
     process.env.ACP_ENABLED = '1'

@@ -45,7 +45,7 @@ Every launch appends **Launched from CrewPay.dev platform** when missing. Keep u
 Hosted MCP `https://mcp.crewpay.dev/mcp` is **publicMode**: pass `x-crew-api-key` for writes; it cannot hold your launcher secret.
 
 ```bash
-npx -y crewpay-mcp@1.2.6
+npx -y crewpay-mcp@1.2.8
 ```
 
 Point your MCP client at the pinned package with env:
@@ -58,7 +58,7 @@ REST alternative: `POST https://api.crewpay.dev/api/agent/launch` with `x-launch
 
 ## MCP tools
 
-Install pinned `crewpay-mcp@1.2.6` as above, or connect HTTP MCP at `https://mcp.crewpay.dev/mcp`.
+Install pinned `crewpay-mcp@1.2.8` as above, or connect HTTP MCP at `https://mcp.crewpay.dev/mcp`.
 
 Tools: `crew_discover` · `crew_claim_key` · `crew_search_kols` · `crew_autohire` · `crew_launch_dry_run` · `crew_launch` · `crew_list_launches` · `crew_status` · `crew_wire_fees` · `crew_lock_holder_kol` · `crew_crank_remits` · `crew_proof`
 
@@ -68,6 +68,7 @@ Approval is optional. Operators can require human approval per key.
 
 
 - Self-serve: `crew_claim_key` or `POST /api/agent/keys/claim` → `crew_ak_…` once (5/hour/IP). Operator mint: `POST /api/agent/keys` (requires an existing key).
+- Optional x402: when the API has `X402_ENABLED`, pay per call with `X-PAYMENT` (USDC) instead of a key. Local MCP: `X402_EVM_PRIVATE_KEY`. See `GET /api/platforms` → `x402`.
 - Put the Solana secret in `CREW_LAUNCHER_KEY` MCP env — **never** as a tool argument (`launcherKey` / `privateKey` / `secretKey` are rejected).
 - Hosted MCP writes require `x-crew-api-key`; local stdio uses env keys.
 

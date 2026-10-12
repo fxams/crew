@@ -345,6 +345,27 @@ a {
   max-width: 38rem;
 }
 
+.agents-x402-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.65rem;
+}
+
+.agents-x402-note {
+  margin: 0;
+  max-width: 38rem;
+  font-size: 0.92rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+@media (max-width: 640px) {
+  .agents-x402-note {
+    font-size: 0.86rem;
+  }
+}
+
 .section-agents-teaser code {
   font-family: var(--font-mono);
   font-size: 0.88em;
@@ -1217,42 +1238,69 @@ a {
 }
 
 .home-fee-map {
+  --fee-crew: var(--acid);
+  --fee-agent: var(--amber);
+  --fee-referrer: #7dff9a;
+  --fee-treasury: #4ec4ff;
   display: grid;
   gap: 0.9rem;
   margin-top: 0.85rem;
   max-width: 52rem;
 }
 
+.home-fee-toggle {
+  margin: 0;
+}
+
 .home-fee-bar {
   display: flex;
   width: 100%;
-  height: 0.85rem;
+  height: 1.75rem;
   overflow: hidden;
   border: 1px solid rgba(200, 255, 61, 0.28);
   background: rgba(8, 16, 12, 0.65);
 }
 
 .home-fee-seg {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   height: 100%;
   min-width: 0;
+  flex-shrink: 0;
+  flex-basis: 0;
+  background: var(--fee-crew);
+}
+
+.home-fee-seg.is-crew {
+  background: var(--fee-crew);
+}
+
+.home-fee-seg.is-agent {
+  background: var(--fee-agent);
+}
+
+.home-fee-seg.is-referrer {
+  background: var(--fee-referrer);
 }
 
 .home-fee-seg.is-treasury {
-  background: var(--acid);
+  background: var(--fee-treasury);
 }
 
-.home-fee-seg.is-launcher {
-  background: var(--amber);
-}
-
-.home-fee-seg.is-kols {
-  background: linear-gradient(90deg, #7dff9a, #3dd68c);
+.home-fee-seg-label {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--acid-ink);
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .home-fee-legend {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
   gap: 0.75rem 1rem;
 }
 
@@ -1267,15 +1315,23 @@ a {
   font-size: clamp(1.6rem, 4vw, 2.1rem);
   line-height: 1;
   letter-spacing: -0.03em;
-  color: var(--acid);
+  color: var(--fee-crew);
 }
 
-.home-fee-legend > div:nth-child(2) strong {
-  color: var(--amber);
+.home-fee-legend > .is-crew strong {
+  color: var(--fee-crew);
 }
 
-.home-fee-legend > div:nth-child(3) strong {
-  color: #7dff9a;
+.home-fee-legend > .is-agent strong {
+  color: var(--fee-agent);
+}
+
+.home-fee-legend > .is-referrer strong {
+  color: var(--fee-referrer);
+}
+
+.home-fee-legend > .is-treasury strong {
+  color: var(--fee-treasury);
 }
 
 .home-fee-legend span {
@@ -3914,6 +3970,17 @@ a {
   color: var(--acid-ink);
 }
 
+.plat-x402 {
+  color: var(--acid);
+  border-color: rgba(200, 255, 61, 0.35);
+}
+
+.plat-x402 .plat-mark {
+  background: transparent;
+  border: 1px solid var(--acid);
+  color: var(--acid);
+}
+
 .plat-name {
   white-space: nowrap;
 }
@@ -4022,6 +4089,47 @@ a {
   color: var(--ink);
 }
 
+.auth-chip-row {
+  margin: 0;
+}
+
+.auth-chip-row .plat-filter-btn {
+  display: block;
+  text-align: center;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  height: auto;
+}
+
+.auth-choice-title,
+.auth-choice-meta {
+  display: block;
+}
+
+.auth-choice-meta {
+  font-size: 0.85em;
+  opacity: 0.92;
+}
+
+.auth-choice.is-compact {
+  margin-top: 0.25rem;
+}
+
+.try-crew .auth-choice .plat-filter {
+  margin: 0;
+}
+
+.page-agents .plat-hero-row {
+  margin: 0.4rem 0 0.2rem;
+}
+
+.plat-x402-btn.is-on {
+  color: var(--acid-ink);
+  border-color: var(--acid);
+  background: var(--acid);
+}
+
 .details-quiet {
   margin: 0.35rem 0 0;
   color: var(--muted);
@@ -4031,6 +4139,11 @@ a {
 .details-quiet summary {
   cursor: pointer;
   color: var(--muted);
+}
+
+.details-quiet .hint {
+  margin: 0.35rem 0 0;
+  overflow-wrap: anywhere;
 }
 
 .details-quiet pre {
@@ -4078,12 +4191,12 @@ a {
 
   /* Phantom in-app ~390px: hero + Try Autohire chips need a real tap target. */
   .plat-hero-row,
-  .try-crew .plat-chip-row {
+  .try-crew > .plat-chip-row {
     gap: 0.4rem;
   }
 
-  .plat-hero-row .plat-badge,
-  .try-crew .plat-filter-btn {
+  .plat-hero-row .plat-badge:not(.plat-x402),
+  .try-crew > .plat-chip-row .plat-filter-btn {
     flex: 1 1 0;
     min-width: 0;
     min-height: 40px;
@@ -4094,10 +4207,41 @@ a {
     justify-content: center;
   }
 
+  .plat-hero-row .plat-badge.plat-x402 {
+    flex: 0 0 auto;
+    min-height: 32px;
+    padding: 0.2rem 0.5rem 0.2rem 0.28rem;
+    font-size: 0.72rem;
+  }
+
   .plat-hero-row .plat-mark,
-  .try-crew .plat-filter-btn .plat-mark {
+  .try-crew > .plat-chip-row .plat-filter-btn .plat-mark {
     width: 22px;
     height: 22px;
     font-size: 0.72rem;
+  }
+
+  .plat-hero-row .plat-x402 .plat-mark {
+    width: 18px;
+    height: 18px;
+    font-size: 0.62rem;
+  }
+
+  .auth-chip-row {
+    flex-direction: column;
+  }
+
+  .auth-chip-row .plat-filter-btn {
+    display: block;
+    width: 100%;
+    min-height: 40px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    padding: 0.45rem 0.7rem;
+  }
+
+  .home-fee-toggle .plat-filter-btn {
+    min-height: 40px;
+    font-size: 0.8rem;
   }
 }

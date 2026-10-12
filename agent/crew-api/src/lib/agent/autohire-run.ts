@@ -1,4 +1,4 @@
-import { getAgentKeyReferral } from '../agent-referral.js'
+import { getAgentKeyReferral, getAgentReferralByOwnerWallet } from '../agent-referral.js'
 import { getCoin } from '../coins.js'
 import { listRegisteredHireBoosts } from '../registered-hires.js'
 import { planNarrativeHires } from './narrative.js'
@@ -105,7 +105,11 @@ export async function runAutohire(input: AutohireInput): Promise<AutohireResult>
     platform = parseLaunchPlatform(input.platform)
   }
 
-  const boundRef = input.keyId ? await getAgentKeyReferral(input.keyId) : null
+  const boundRef = input.keyId
+    ? await getAgentKeyReferral(input.keyId)
+    : input.payerWallet
+      ? await getAgentReferralByOwnerWallet(input.payerWallet)
+      : null
   const maxSeats = maxCrewSeats({ hasAgentReferrer: Boolean(boundRef), platform })
   const requested = Math.max(1, Math.floor(input.seats ?? 5))
   const seats = Math.min(maxSeats, requested)

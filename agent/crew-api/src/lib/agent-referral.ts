@@ -216,6 +216,34 @@ export async function getAgentKeyReferral(keyId: string): Promise<{
 }
 
 /**
+ * Referral bound on a claimed key whose owner_wallet matches this payer
+ * (x402 identity — no API key on the request).
+ */
+export async function getAgentReferralByOwnerWallet(wallet: string): Promise<{
+  code: string
+  referrer: AgentReferrer
+} | null> {
+  const w = wallet.trim()
+  if (!w) return null
+  const { rows } = await query(
+    `SELECT referral_code FROM agent_keys
+     WHERE active = true AND referral_code IS NOT NULL AND referral_code <> ''
+       AND owner_wallet IS NOT NULL
+       AND (owner_wallet = $1 OR lower(owner_wallet) = lower($1))
+     LIMIT 1`,
+    [w],
+  )
+  const code = rows[0]?.referral_code ? String(rows[0].referral_code) : ''
+  if (!code) return null
+  try {
+    const referrer = await resolveAgentReferrer(code)
+    return { code: referrer.code, referrer }
+  } catch {
+    return null
+  }
+}
+
+/**
  * Resolve agent referrer for a launch.
  * Self-referral drops the cut. Referrer-in-crew keeps the referrer — fee map pays
  * max(crew seat, 5% referral) so a tiny seat cannot dodge the floor.
@@ -232,8 +260,11 @@ export async function resolveLaunchAgentReferrer(opts: {
   warning?: string
   dualRoleInCrew?: boolean
 }> {
-  if (!opts.keyId) return { referrer: null }
-  const bound = await getAgentKeyReferral(opts.keyId)
+  const bound = opts.keyId
+    ? await getAgentKeyReferral(opts.keyId)
+    : opts.ownerWallet
+      ? await getAgentReferralByOwnerWallet(opts.ownerWallet)
+      : null
   if (!bound) return { referrer: null }
   if (
     isSelfReferral({

@@ -48,6 +48,7 @@ Most AI-launched tokens get little or no traction without distribution, so hire 
 | --- | --- |
 | `CREWPAY_API_KEY` | `crew_ak_…` agent key → header `x-crew-api-key` (MCP also accepts `CREW_AGENT_API_KEY`) |
 | `CREW_LAUNCHER_KEY` | **Local MCP process env only** — dedicated burner wallet secret |
+| `X402_EVM_PRIVATE_KEY` | Optional local MCP env — pay per call with Base USDC (x402) instead of claiming a key |
 
 **Burner wallet rules**
 
@@ -88,7 +89,7 @@ Do **not** use `app.crewpay.dev` (no DNS).
 Install/run the **pinned** npm package (do not use `@latest` or unpinned `-y crewpay-mcp`):
 
 ```bash
-npx -y crewpay-mcp@1.2.6
+npx -y crewpay-mcp@1.2.8
 ```
 
 Configure MCP **env** (not tool args):
@@ -208,4 +209,4 @@ Buyback cron is **not** guaranteed live; fee-share lock is.
 - Full discovery: https://crewpay.dev/llms-full.txt
 - Agents.md: https://crewpay.dev/AGENTS.md
 - Source skill path in repo: `skills/crewpay/`
-- MCP package (pinned): `crewpay-mcp@1.2.6` on npm
+- MCP package (pinned): `crewpay-mcp@1.2.8` on npm

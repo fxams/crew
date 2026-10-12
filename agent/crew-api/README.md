@@ -32,8 +32,8 @@ Legacy alias: https://crewpay-api.onrender.com (see `agent/crew/DOMAINS.md` for 
 | GET | `/openapi.json` | OpenAPI 3.1 |
 | GET | `/.well-known/agent.json` | agent card |
 | GET | `/.well-known/ai-plugin.json` | ChatGPT-style plugin manifest |
-| POST | `/api/agent/autohire` | `CREW_AGENT_API_KEY` |
-| POST | `/api/agent/launch` | `CREW_AGENT_API_KEY` + `x-launcher-key` (+ optional `x-idempotency-key`) |
+| POST | `/api/agent/autohire` | `CREW_AGENT_API_KEY` or `X-PAYMENT` (x402, when enabled) |
+| POST | `/api/agent/launch` | `CREW_AGENT_API_KEY` or `X-PAYMENT` (x402) + `x-launcher-key` (+ optional `x-idempotency-key`) |
 | GET | `/api/agent/status/:mint` | `CREW_AGENT_API_KEY` |
 | POST | `/api/agent/wire-fees` | `CREW_AGENT_API_KEY` + `x-launcher-key` + approved `dryRunId` (intent=`wire-fees`) |
 | POST | `/api/agent/lock-holder-kol` | `CREW_AGENT_API_KEY` + `x-launcher-key` |
@@ -60,6 +60,7 @@ AI agents can launch Pump coins with CREW fee-shares (25% CrewPay treasury + hir
 | Header | Purpose |
 |--------|---------|
 | `x-crew-api-key` | **`CREW_AGENT_API_KEY`** (server-only). When set, the browser `CREW_API_KEY` / `VITE_CREW_API_KEY` is **rejected** on agent routes. |
+| `X-PAYMENT` | Optional x402 v1 payment (Base/Solana USDC). Alternative to an API key on launch + autohire when `X402_ENABLED`. Payer wallet is the agent identity. |
 | `x-launcher-key` | Agent’s Solana **secret key** (base58 or JSON byte array). Signs `createV2` + fee-share. **Never stored or logged.** |
 | `x-idempotency-key` | Optional 8–128 chars — launch retries return the cached response for 15 minutes. |
 
@@ -140,7 +141,9 @@ curl -sS https://api.crewpay.dev/api/agent/launch \
 }
 ```
 
-Fee map (mode=`agent`): **60% hired KOLs + 15% launcher + 25% treasury**, or **60/15/5/20** when the agent key has a KOL referral (buyback cron not live yet).
+Fee map (mode=`agent`): **60% hired KOL crew / 15% launching agent / rest treasury**, or **60/15/5/20** when the agent key has a KOL referral (buyback cron not live yet). The launching agent does not receive the 60% crew slice.
+
+**x402:** see [docs/integrations/x402.md](../../docs/integrations/x402.md). Off unless `X402_ENABLED`.
 
 ---
 

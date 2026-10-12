@@ -1,4 +1,4 @@
-import { getAgentKeyReferral } from '../agent-referral.js'
+import { getAgentKeyReferral, getAgentReferralByOwnerWallet } from '../agent-referral.js'
 import { query } from '../db.js'
 import { listRegisteredHireBoosts } from '../registered-hires.js'
 import { buildBagsUnsignedLaunch } from './bags.js'
@@ -40,6 +40,8 @@ export type UnsignedLaunchInput = {
    * when the requirement omits one. Does not change the 60/15/rest fee split.
    */
   payerWallet?: string
+  /** 15% launching-agent desk wallet when the x402/ACP payer matches the chain. */
+  deskWallet?: string
 }
 
 export type UnsignedLaunchResult = UnsignedLaunchPlan & {
@@ -124,7 +126,11 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
   }
 
   const imageSha256 = await resolveLaunchImageSha(input)
-  const boundRef = input.keyId ? await getAgentKeyReferral(input.keyId) : null
+  const boundRef = input.keyId
+    ? await getAgentKeyReferral(input.keyId)
+    : payerWallet
+      ? await getAgentReferralByOwnerWallet(payerWallet)
+      : null
 
   const maxSeats = maxCrewSeats({ hasAgentReferrer: Boolean(boundRef), platform })
   let crew = input.crew?.length ? input.crew : undefined
@@ -146,8 +152,8 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
     await assertOptedInCrew(crew)
   }
 
-  const deskWallet = launcherPubkey
   const chain = platform === 'zora' ? 'evm' : 'solana'
+  const deskWallet = (input.deskWallet || '').trim() || launcherPubkey
   const shareholders =
     crew && crew.length
       ? buildCrewShareholders(crew, input.mode || 'agent', {

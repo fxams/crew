@@ -19,6 +19,7 @@ import { AgentsApiPage } from "./components/AgentsApiPage";
 import { ProofPage } from "./components/ProofPage";
 import { ClaimPage } from "./components/ClaimPage";
 import { TryCrewCard } from "./components/TryCrewCard";
+import { HomeFeeMap } from "./components/HomeFeeMap";
 import { KolProfilePage } from "./components/KolProfilePage";
 import { KolRegisterPage } from "./components/KolRegisterPage";
 import { TopKolsPage } from "./components/TopKolsPage";
@@ -26,7 +27,10 @@ import { PlatformBadge } from "./components/PlatformBadge";
 import { PlatformFilter } from "./components/PlatformFilter";
 import { PlatformSelect } from "./components/PlatformSelect";
 import { TradeLinks } from "./components/TradeLinks";
-import { useLaunchVenues } from "./lib/use-launch-venues";
+import { X402Chip } from "./components/X402Chip";
+import { AuthChoice, type AgentAuth } from "./components/AuthChoice";
+import { useLaunchDiscovery } from "./lib/use-launch-venues";
+import { x402PayLabel } from "./lib/x402";
 import {
   inferLaunchPlatform,
   unsignedLaunchCurl,
@@ -246,7 +250,8 @@ export default function App() {
   const hirePlanRef = useRef<HTMLDivElement | null>(null);
   const coins = desk.coins;
   const remits = desk.remits;
-  const venues = useLaunchVenues();
+  const { venues, x402 } = useLaunchDiscovery();
+  const [agentAuth, setAgentAuth] = useState<AgentAuth>("key");
   const [platFilter, setPlatFilter] = useState<LaunchPlatform | "all">("all");
   const launchPlatform: LaunchPlatform = draft.platform || "pumpfun";
   const phantomLaunch = launchPlatform === "pumpfun";
@@ -1483,6 +1488,7 @@ export default function App() {
                 {venues.map((v) => (
                   <PlatformBadge key={v.id} platform={v.id} />
                 ))}
+                <X402Chip x402={x402} />
               </div>
               <div className="hero-actions">
                 <Link className="btn btn-primary hero-cta-register" to="/register">
@@ -1555,52 +1561,9 @@ export default function App() {
             Who gets paid.
           </h2>
           <p className="section-sub">
-            Every launch locks fee-shares on-chain. Default Agent Hire composition:
+            Every launch locks fee-shares on-chain. Agent Hire composition:
           </p>
-          <div className="home-fee-map">
-            <div
-              className="home-fee-bar"
-              role="img"
-              aria-label={`${100 - PLATFORM_BUYBACK_BPS / 100 - MODE_DESK_BPS.agent / 100}% hired KOL crew, ${MODE_DESK_BPS.agent / 100}% launching agent, ${PLATFORM_BUYBACK_BPS / 100}% treasury`}
-            >
-              <span
-                className="home-fee-seg is-treasury"
-                style={{ width: `${PLATFORM_BUYBACK_BPS / 100}%` }}
-              />
-              <span
-                className="home-fee-seg is-launcher"
-                style={{ width: `${MODE_DESK_BPS.agent / 100}%` }}
-              />
-              <span
-                className="home-fee-seg is-kols"
-                style={{
-                  width: `${100 - PLATFORM_BUYBACK_BPS / 100 - MODE_DESK_BPS.agent / 100}%`,
-                }}
-              />
-            </div>
-            <div className="home-fee-legend">
-              <div>
-                <strong>{PLATFORM_BUYBACK_BPS / 100}%</strong>
-                <span>Treasury (20% if referred)</span>
-                <em>CrewPay treasury — buyback cron not live</em>
-              </div>
-              <div>
-                <strong>{MODE_DESK_BPS.agent / 100}%</strong>
-                <span>Launching agent</span>
-                <em>Ops cut to the launching wallet — not the 60% crew slice</em>
-              </div>
-              <div>
-                <strong>{KOL_REFERRAL_CUT_PCT}%</strong>
-                <span>Referrer KOL</span>
-                <em>Only when the agent claimed a key with your code</em>
-              </div>
-              <div>
-                <strong>{100 - PLATFORM_BUYBACK_BPS / 100 - MODE_DESK_BPS.agent / 100}%</strong>
-                <span>Hired KOL crew</span>
-                <em>Split across hired crew seats</em>
-              </div>
-            </div>
-          </div>
+          <HomeFeeMap />
         </section>
 
         <section className="section section-tight" id="referrals" aria-labelledby="home-ref-title">
@@ -1658,6 +1621,10 @@ export default function App() {
             Claim a key, Autohire KOLs from your narrative, dry-run, then launch on Pump.fun,
             Bags.fm, or Zora with fee-shares locked. MCP and HTTP — no Phantom on the agent side.
           </p>
+          <div className="agents-x402-row">
+            <X402Chip x402={x402} />
+            <p className="agents-x402-note">{x402PayLabel(x402)} — no API key</p>
+          </div>
           <div className="agents-teaser-actions">
             <Link className="btn btn-primary" to="/agents">
               Agent API docs
@@ -2237,6 +2204,7 @@ export default function App() {
                   venues.find((v) => v.id === launchPlatform) || venues[0],
                 )}
               />
+              <AuthChoice x402={x402} value={agentAuth} onChange={setAgentAuth} />
               {phantomLaunch ? (
                 <div className="field">
                   <label>Wallet</label>
@@ -2762,6 +2730,8 @@ export default function App() {
                       name: draft.name,
                       ticker: draft.ticker,
                       description: draft.vibe,
+                      auth: agentAuth,
+                      paymentHeader: x402.requestHeader,
                     })}
                   </pre>
                 </details>

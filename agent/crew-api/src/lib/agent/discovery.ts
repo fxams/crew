@@ -1,6 +1,10 @@
 /** Machine-readable discovery for frontier LLMs / tool-using agents. */
 
 import { LAUNCH_FEE_MAP_COPY, acpPublicJson, listLaunchVenues } from './platforms.js'
+import { x402PublicDiscovery } from '../x402.js'
+
+/** Pinned npm package for local MCP. Bump with agent/crew-mcp/package.json. */
+export const MCP_PACKAGE_VERSION = '1.2.8'
 
 export const SITE_URL = 'https://crewpay.dev'
 /** Canonical Agent API (custom domain). */
@@ -88,8 +92,8 @@ export function agentDiscoveryJson() {
       http_legacy: MCP_HTTP_URL_LEGACY,
       manifest: MCP_MANIFEST_URL,
       package: 'crewpay-mcp',
-      package_version: '1.2.6',
-      package_install: 'npx -y crewpay-mcp@1.2.6',
+      package_version: MCP_PACKAGE_VERSION,
+      package_install: `npx -y crewpay-mcp@${MCP_PACKAGE_VERSION}`,
       hosted: MCP_HTTP_URL,
       clawhub_skill: 'openclaw skills install @fxams/crewpay',
       official_mcp_registry: 'https://registry.modelcontextprotocol.io',
@@ -136,9 +140,10 @@ export function agentDiscoveryJson() {
       param: 'platform',
       feeMap: LAUNCH_FEE_MAP_COPY,
       list: `${API_URL}/api/platforms`,
-      note: 'UNSIGNED launch venues. platform defaults to pumpfun. The launching agent does not receive the 60% crew slice. Each venue reports enabled + chain (solana | base | base-sepolia). acp is Virtuals ACP v2 (off unless ACP_ENABLED=1).',
+      note: 'UNSIGNED launch venues. platform defaults to pumpfun. The launching agent does not receive the 60% crew slice. Each venue reports enabled + chain (solana | base | base-sepolia). acp is Virtuals ACP v2 (off unless ACP_ENABLED=1). x402 is pay-per-call (off unless X402_ENABLED).',
       venues: listLaunchVenues(),
       acp: acpPublicJson(),
+      x402: x402PublicDiscovery(),
     },
     topics: [
       'solana',
@@ -153,16 +158,20 @@ export function agentDiscoveryJson() {
       'crewpay',
       'autohire',
       'crypto-agent',
+      'x402',
     ],
     auth: {
       headers: {
         'x-crew-api-key':
           'crew_ak_… from POST /api/agent/keys/claim (self-serve) or operator CREW_AGENT_API_KEY / POST /api/agent/keys. Browser VITE_CREW_API_KEY is rejected when the agent key is configured. MCP reads work without a key; writes require a key.',
+        'X-PAYMENT':
+          'x402 v1 payment (base64 PaymentPayload). Alternative to x-crew-api-key on launch + autohire when X402_ENABLED. Pay USDC on Base or Solana; payer wallet is the agent identity. Server returns X-PAYMENT-RESPONSE after settle.',
         'x-launcher-key':
           'Agent Solana secret (base58 or JSON bytes). Required on launch/wire/lock. Optional on crank (permissionless — falls back to server CREW_OPS_KEY). Put it in MCP CREW_LAUNCHER_KEY env — never as a tool argument. Server CREW_AGENT_LAUNCHER_KEY only if CREW_ALLOW_SERVER_LAUNCHER=1.',
         'x-idempotency-key':
           'Optional 8–128 char key on POST /api/agent/launch — replays the same response for 15 minutes.',
       },
+      x402: x402PublicDiscovery(),
       keys: {
         claim: 'POST /api/agent/keys/claim (no auth, 5/hour/IP) → crew_ak_… once · default 5 launches/hour',
         mint: 'POST /api/agent/keys with an existing operator key → returns crew_ak_… once',
@@ -191,20 +200,20 @@ export function agentDiscoveryJson() {
       'GET /api/platforms': {
         auth: 'none',
         returns:
-          'Launch venues with enabled + chain (pumpfun always; bags if BAGS_API_KEY; zora if ZORA_ENABLED + 0x treasury). Zora chain is base or base-sepolia. acp.enabled reflects ACP_ENABLED (false by default).',
+          'Launch venues with enabled + chain (pumpfun always; bags if BAGS_API_KEY; zora if ZORA_ENABLED + 0x treasury). Zora chain is base or base-sepolia. acp.enabled reflects ACP_ENABLED (false by default). x402: pay-per-call status (off unless X402_ENABLED).',
       },
       'POST /api/agent/autohire': {
-        auth: 'x-crew-api-key',
+        auth: 'x-crew-api-key or X-PAYMENT (x402, when enabled)',
         body: { name: 'string', ticker: 'string', description: 'string', seats: '1-8' },
         returns: 'Narrative hire plan + crew wallets + disclaimer (no on-chain tx)',
       },
       'POST /api/agent/launch/dry-run': {
-        auth: 'x-crew-api-key',
+        auth: 'x-crew-api-key or X-PAYMENT (x402, when enabled)',
         body: 'Same as launch (+ optional launcherPubkey for balance check)',
         returns: 'Planned crew, fee map, SOL estimate — no mint, no secret required',
       },
       'POST /api/agent/launch': {
-        auth: 'x-crew-api-key + x-launcher-key',
+        auth: 'x-crew-api-key or X-PAYMENT (x402) + x-launcher-key',
         body: {
           name: 'required 2–32',
           ticker: 'required 2–13',
@@ -276,13 +285,13 @@ export function agentDiscoveryJson() {
       'GET /api/remits': 'Public remits (query: mint, limit)',
       'POST /api/webhooks': 'Register agent webhook (auth)',
       'POST /api/agent/launch/unsigned': {
-        auth: 'x-crew-api-key',
+        auth: 'x-crew-api-key or X-PAYMENT (x402, when enabled)',
         body: 'Same crew/image fields as launch + launcherPubkey + optional platform=pumpfun|bags|zora (default pumpfun), treasuryBps, optInOnly',
         returns:
           'UNSIGNED steps (Pump v0 messages; Bags partially-signed Solana txs; Zora EIP-1559 split + create). No secrets.',
       },
       'POST /api/agent/launch/submit': {
-        auth: 'x-crew-api-key',
+        auth: 'x-crew-api-key or X-PAYMENT (x402, when enabled)',
         body: { signed: 'base64 Solana or 0x EVM hex', platform: 'pumpfun|bags|zora' },
         returns: 'Broadcast signatures / tx hashes',
       },
@@ -306,6 +315,7 @@ export function agentDiscoveryJson() {
       'Optional consent filter: set optInOnly=true to restrict Autohire or explicit crew to registered KOLs (default off).',
       'Non-custodial: build UNSIGNED txs via POST /api/agent/launch/unsigned (MCP crew_build_unsigned), then sign+submit locally or POST /api/agent/launch/submit (MCP crew_submit_signed). platform defaults to pumpfun; bags = Bags.fm (Solana, BAGS_API_KEY); zora = Zora coins on Base (ZORA_ENABLED, EIP-1559). Same KOL order: manual crew[] first, Autohire second.',
       'Fee map is always 60% hired KOL crew / 15% launching agent / rest treasury (5% referrer when the agent key is referred). The launching agent does not receive the 60% crew slice.',
+      'x402: when X402_ENABLED, launch + autohire accept X-PAYMENT (USDC on Base/Solana) instead of an API key. 402 Payment Required lists accepts[]; successful settle returns X-PAYMENT-RESPONSE. Payer wallet is the agent identity. GET /api/platforms includes x402.',
       'Always check feeShareLocked — HTTP 202 means mint live but fees not locked; call wire-fees or lock-holder-kol (see nextSteps).',
       'imageUrl is SSRF-guarded (public http(s) only; magic-byte image check).',
       'Start at GET /llms.txt or GET /api/agent — no browser required.',
@@ -369,7 +379,7 @@ export function openApiSpec() {
           responses: {
             '200': {
               description:
-                'pumpfun always on; bags if BAGS_API_KEY; zora if ZORA_ENABLED + 0x treasury. chain is solana, base, or base-sepolia. acp.enabled is false unless ACP_ENABLED=1.',
+                'pumpfun always on; bags if BAGS_API_KEY; zora if ZORA_ENABLED + 0x treasury. chain is solana, base, or base-sepolia. acp.enabled is false unless ACP_ENABLED=1. x402 object describes pay-per-call (off unless X402_ENABLED).',
               content: {
                 'application/json': {
                   schema: { $ref: '#/components/schemas/PlatformsResponse' },
@@ -401,7 +411,7 @@ export function openApiSpec() {
           tags: ['agent'],
           summary: 'Preview narrative KOL autohire (no on-chain tx)',
           operationId: 'postAgentAutohire',
-          security: [{ CrewApiKey: [] }],
+          security: [{ CrewApiKey: [] }, { X402Payment: [] }],
           requestBody: {
             required: true,
             content: {
@@ -413,6 +423,7 @@ export function openApiSpec() {
           responses: {
             '200': { description: 'Hire plan + crew wallets' },
             '401': { description: 'Missing/invalid API key' },
+            '402': { description: 'Payment Required — X-PAYMENT (x402) when X402_ENABLED and no API key' },
           },
         },
       },
@@ -427,7 +438,7 @@ export function openApiSpec() {
             'When required, approve with `CREWPAY_APPROVER_WALLETS` only — never the launcher/burner. ' +
             '`launcherPubkey` is required when requireApproval is true. Pass `intent: "wire-fees"` for fee-share wiring.',
           operationId: 'postAgentLaunchDryRun',
-          security: [{ CrewApiKey: [] }],
+          security: [{ CrewApiKey: [] }, { X402Payment: [] }],
           requestBody: {
             required: true,
             content: {
@@ -447,6 +458,7 @@ export function openApiSpec() {
             },
             '400': { description: 'Validation error' },
             '401': { description: 'Missing/invalid API key' },
+            '402': { description: 'Payment Required — X-PAYMENT (x402) when X402_ENABLED and no API key' },
           },
         },
       },
@@ -516,7 +528,7 @@ export function openApiSpec() {
           description:
             'platform defaults to pumpfun. bags = Bags.fm Solana (BAGS_API_KEY). zora = Zora coins on Base (ZORA_ENABLED, EIP-1559). Same KOL order: crew[] first, Autohire second. Fee map 60% hired KOL crew / 15% launching agent / rest treasury.',
           operationId: 'postAgentLaunchUnsigned',
-          security: [{ CrewApiKey: [] }],
+          security: [{ CrewApiKey: [] }, { X402Payment: [] }],
           requestBody: {
             required: true,
             content: {
@@ -529,6 +541,7 @@ export function openApiSpec() {
             '200': { description: 'Unsigned steps + crew + shareholders' },
             '400': { description: 'Validation or platform disabled' },
             '401': { description: 'Missing/invalid API key' },
+            '402': { description: 'Payment Required — X-PAYMENT (x402) when X402_ENABLED and no API key' },
           },
         },
       },
@@ -537,7 +550,7 @@ export function openApiSpec() {
           tags: ['agent'],
           summary: 'Broadcast signed launch transactions',
           operationId: 'postAgentLaunchSubmit',
-          security: [{ CrewApiKey: [] }],
+          security: [{ CrewApiKey: [] }, { X402Payment: [] }],
           requestBody: {
             required: true,
             content: {
@@ -557,6 +570,7 @@ export function openApiSpec() {
             '201': { description: 'Broadcast signatures / tx hashes' },
             '400': { description: 'Submit failed' },
             '401': { description: 'Missing/invalid API key' },
+            '402': { description: 'Payment Required — X-PAYMENT (x402) when X402_ENABLED and no API key' },
           },
         },
       },
@@ -569,7 +583,7 @@ export function openApiSpec() {
             'When requireApproval is false (default), dryRunId is optional. ' +
             'When true, requires an approved unused dryRunId with matching body/image hash and launcherPubkey.',
           operationId: 'postAgentLaunch',
-          security: [{ CrewApiKey: [], LauncherKey: [] }],
+          security: [{ CrewApiKey: [], LauncherKey: [] }, { X402Payment: [], LauncherKey: [] }],
           requestBody: {
             required: true,
             content: {
@@ -583,6 +597,7 @@ export function openApiSpec() {
             '202': { description: 'Mint live but feeShareLocked=false — wire fees' },
             '400': { description: 'Validation or launch error' },
             '401': { description: 'Missing/invalid auth' },
+            '402': { description: 'Payment Required — X-PAYMENT (x402) when X402_ENABLED and no API key' },
           },
         },
       },
@@ -868,6 +883,13 @@ export function openApiSpec() {
           name: 'x-crew-api-key',
           description: 'CREW_AGENT_API_KEY (server-only agent key)',
         },
+        X402Payment: {
+          type: 'apiKey',
+          in: 'header',
+          name: 'X-PAYMENT',
+          description:
+            'x402 v1 base64 PaymentPayload. Alternative to x-crew-api-key on launch/autohire when X402_ENABLED. USDC on Base or Solana. Server returns X-PAYMENT-RESPONSE.',
+        },
         LauncherKey: {
           type: 'apiKey',
           in: 'header',
@@ -897,11 +919,15 @@ export function openApiSpec() {
         },
         PlatformsResponse: {
           type: 'object',
-          required: ['ok', 'default', 'venues', 'acp'],
+          required: ['ok', 'default', 'venues', 'acp', 'x402'],
           properties: {
             ok: { type: 'boolean' },
             default: { type: 'string', enum: ['pumpfun'] },
             feeMap: { type: 'string' },
+            x402: {
+              type: 'object',
+              description: 'Pay-per-call x402 status (enabled only when X402_ENABLED).',
+            },
             venues: {
               type: 'array',
               items: { $ref: '#/components/schemas/LaunchVenue' },
@@ -1179,7 +1205,7 @@ export function agentCard(origin: 'site' | 'api' = 'api') {
         id: 'crew-mcp',
         name: 'MCP tools',
         description:
-          'Connect https://mcp.crewpay.dev/mcp or npx -y crewpay-mcp@1.2.6',
+          `Connect https://mcp.crewpay.dev/mcp or npx -y crewpay-mcp@${MCP_PACKAGE_VERSION}`,
         tags: ['mcp', 'solana', 'crewpay'],
         examples: ['crew_claim_key → crew_discover → crew_autohire → crew_launch_dry_run'],
       },
@@ -1208,7 +1234,7 @@ Auth header: \`x-crew-api-key: crew_ak_…\` (\`Authorization: Bearer crew_ak_�
 2. \`POST ${API_URL}/api/agent/autohire\` with \`x-crew-api-key\` + name/ticker/description → inspect crew
 3. \`POST ${API_URL}/api/agent/launch\` with \`x-crew-api-key\` + \`x-launcher-key\` (+ optional \`crew[]\` / \`autoHire\`) → check \`feeShareLocked\`
 
-  MCP equivalent (pinned): \`npx -y crewpay-mcp@1.2.6\` then \`crew_claim_key\` → \`crew_autohire\` → \`crew_launch\` (Approval is optional. Operators can require human approval per key.) Hosted \`${MCP_HTTP_URL}\` for discover/autohire. CREW_LAUNCHER_KEY is kept out of tool arguments, but crewpay-mcp sends it to api.crewpay.dev over HTTPS in the x-launcher-key header on launch/wire/lock calls (the API uses it to sign and does not store it). Use a dedicated low-balance burner wallet.
+  MCP equivalent (pinned): \`npx -y crewpay-mcp@${MCP_PACKAGE_VERSION}\` then \`crew_claim_key\` → \`crew_autohire\` → \`crew_launch\` (Approval is optional. Operators can require human approval per key.) Hosted \`${MCP_HTTP_URL}\` for discover/autohire. CREW_LAUNCHER_KEY is kept out of tool arguments, but crewpay-mcp sends it to api.crewpay.dev over HTTPS in the x-launcher-key header on launch/wire/lock calls (the API uses it to sign and does not store it). Use a dedicated low-balance burner wallet.
 
 ClawHub / OpenClaw skill: \`openclaw skills install @fxams/crewpay\` (https://clawhub.ai/fxams/crewpay).
 Official MCP Registry: \`io.github.fxams/crewpay-mcp\` (https://registry.modelcontextprotocol.io).
@@ -1263,7 +1289,8 @@ Approval is optional. Operators can require human approval per key.
 ## Auth
 
 - \`x-crew-api-key\`: mint yourself via **POST /api/agent/keys/claim** (returns \`crew_ak_…\` once, 5/hour/IP) or use operator \`CREW_AGENT_API_KEY\` / POST /api/agent/keys.
-- \`x-launcher-key\`: agent Solana secret (base58 or JSON byte array); signs create + fee-share; never logged. MCP: set CREW_LAUNCHER_KEY in env only (tool args are rejected). Hosted public MCP cannot take your wallet — run \`npx -y crewpay-mcp@1.2.6\` locally or call REST from your backend.
+- **x402 (optional):** when the API has \`X402_ENABLED\`, launch + autohire accept \`X-PAYMENT\` (USDC on Base or Solana) instead of a key. Missing payment → HTTP **402** with \`accepts[]\`. After settle the server returns \`X-PAYMENT-RESPONSE\`. The payer wallet is the agent identity (15% launching-agent share when the chain matches). MCP: set \`X402_EVM_PRIVATE_KEY\` locally to pay; otherwise keep using an API key. See GET /api/platforms → \`x402\`.
+- \`x-launcher-key\`: agent Solana secret (base58 or JSON byte array); signs create + fee-share; never logged. MCP: set CREW_LAUNCHER_KEY in env only (tool args are rejected). Hosted public MCP cannot take your wallet — run \`npx -y crewpay-mcp@${MCP_PACKAGE_VERSION}\` locally or call REST from your backend.
 - \`x-idempotency-key\` (optional on launch): 8–128 chars; replays cached response for 15 minutes
 
 ## Description attribution
@@ -1274,7 +1301,7 @@ On-chain / IPFS descriptions append **Launched from CrewPay.dev platform** when 
 
 Hosted MCP (\`mcp.crewpay.dev\`) is publicMode: pass \`x-crew-api-key\` for writes; it **cannot** hold your launcher secret. To launch with your own wallet:
 
-1. \`npx -y crewpay-mcp@1.2.6\` (pin the version — do not use unpinned \`@latest\`)
+1. \`npx -y crewpay-mcp@${MCP_PACKAGE_VERSION}\` (pin the version — do not use unpinned \`@latest\`)
 2. Set \`CREW_AGENT_API_KEY\` + \`CREW_LAUNCHER_KEY\` (dedicated low-SOL burner) in MCP env (never tool args)
 3. Or call REST \`POST /api/agent/launch\` from your backend with \`x-launcher-key\`
 
@@ -1363,7 +1390,8 @@ GET ${SITE_URL}/robots.txt
 
 | Header | Required | Purpose |
 |--------|----------|---------|
-| x-crew-api-key | yes (writes) | \`crew_ak_…\` from POST /api/agent/keys/claim (self-serve) or operator CREW_AGENT_API_KEY |
+| x-crew-api-key | writes (or x402) | \`crew_ak_…\` from POST /api/agent/keys/claim (self-serve) or operator CREW_AGENT_API_KEY |
+| X-PAYMENT | alternative | x402 v1 base64 payload (USDC on Base / Solana). Off unless X402_ENABLED. 402 lists accepts[]; X-PAYMENT-RESPONSE on success. Payer = agent identity. |
 | x-launcher-key | launch / wire / lock (optional on crank) | Agent wallet secret (base58 or JSON byte array). Crank is permissionless — omit and server uses CREW_OPS_KEY when set. |
 | x-idempotency-key | optional | Prevents duplicate launches on retry |
 
@@ -1389,7 +1417,7 @@ Every launch appends **Launched from CrewPay.dev platform** when missing. Keep t
 ## Own wallet / local MCP
 
 - Hosted MCP \`https://mcp.crewpay.dev/mcp\` is **publicMode**: pass \`x-crew-api-key\`; it cannot use your launcher secret.
-- Local package (pinned): \`npx -y crewpay-mcp@1.2.6\` with env \`CREW_AGENT_API_KEY\` + \`CREW_LAUNCHER_KEY\` (never tool args).
+- Local package (pinned): \`npx -y crewpay-mcp@${MCP_PACKAGE_VERSION}\` with env \`CREW_AGENT_API_KEY\` + \`CREW_LAUNCHER_KEY\` (never tool args).
 - ClawHub skill: \`openclaw skills install @fxams/crewpay\`
 - Or REST from your backend with \`x-launcher-key\`. Site: **https://crewpay.dev** only (\`app.crewpay.dev\` has no DNS).
 - Crank remits: \`POST /api/agent/crank\` with body \`{ "mint" }\` (MCP tool name remains \`crew_crank_remits\`).

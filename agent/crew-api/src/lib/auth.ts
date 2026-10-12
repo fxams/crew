@@ -36,12 +36,15 @@ function keysEqual(got: string, expected: string): boolean {
 }
 
 export type AgentAuthContext = {
-  source: 'env' | 'db'
+  source: 'env' | 'db' | 'x402'
   fingerprint: string
   launchesPerHour?: number
   keyId?: string
   /** Per-key human-approval gate (DB keys). Env keys default false. */
   requireApproval?: boolean
+  /** x402 payer wallet (EVM 0x or Solana base58) — agent identity when paid per call. */
+  payerWallet?: string
+  payerNetwork?: 'base' | 'solana'
 }
 
 declare global {
