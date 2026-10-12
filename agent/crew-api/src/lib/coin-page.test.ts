@@ -2,16 +2,20 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   chunkMints,
   coinPageUrl,
+  composeCoinMeta,
   DEX_TOKEN_BATCH,
   dexTokensV1Url,
   enrichPublicCoinMetas,
+  marketCapFromCurveSnapshot,
   mergePublicCoinMeta,
   normalizePublicCoinMeta,
   parseDexTokenQuotes,
+  parseJupToken,
   parsePumpCoinMeta,
   pumpCurveMarketCapUsd,
   resetCoinMetaCache,
   setCoinMetaFetch,
+  setPumpCurveFetch,
   toPublicCoinPage,
 } from './coin-page.js'
 import { resetFxCache, seedFx } from './fx.js'
@@ -156,6 +160,28 @@ describe('Pump bonding-curve fallback', () => {
     expect(mcap).toBeLessThan(5_000)
     expect(pumpCurveMarketCapUsd(o, null)).toBeUndefined()
     expect(parsePumpCoinMeta(o, { solUsd: 150 }).marketCapUsd).toBe(mcap)
+    const fromCurve = marketCapFromCurveSnapshot(
+      {
+        virtualQuoteReserves: 30e9,
+        virtualTokenReserves: 1_073_000_000 * 1e6,
+        tokenTotalSupply: 1_000_000_000 * 1e6,
+      },
+      150,
+    )
+    expect(fromCurve).toBe(mcap)
+  })
+
+  it('reads Jupiter launch icon + 24h change without inventing mcap', () => {
+    const meta = parseJupToken([
+      {
+        icon: 'https://ipfs.io/ipfs/bafyhoot',
+        stats24h: { priceChange: 3.5 },
+      },
+    ])
+    expect(meta.imageUrl).toMatch(/ipfs/)
+    expect(meta.priceChange24h).toBe(3.5)
+    expect(meta.marketCapUsd).toBeUndefined()
+    expect(composeCoinMeta({ jup: meta, dex: { marketCapUsd: 9_000 } }).marketCapUsd).toBe(9_000)
   })
 })
 
@@ -185,6 +211,7 @@ describe('enrichPublicCoinMetas', () => {
     resetCoinMetaCache()
     resetFxCache()
     setCoinMetaFetch(null)
+    setPumpCurveFetch(null)
   })
 
   it('batches Dexscreener and uses Pump when a mint has no pair', async () => {
@@ -210,5 +237,31 @@ describe('enrichPublicCoinMetas', () => {
     expect(meta?.imageUrl).toMatch(/ipfs/)
     expect(listed.some((u) => u.includes('/tokens/v1/solana/'))).toBe(true)
     expect(listed.some((u) => u.includes('frontend-api-v3.pump.fun'))).toBe(true)
+  })
+
+  it('uses on-chain bonding-curve mcap and Jupiter launch icon when HTTP APIs miss', async () => {
+    seedFx({ solUsd: 150 })
+    setCoinMetaFetch(async (url) => {
+      if (url.includes('/tokens/v1/')) return []
+      if (url.includes('lite-api.jup.ag')) {
+        return [
+          {
+            id: coin.mint,
+            icon: 'https://ipfs.io/ipfs/bafyhoot',
+            stats24h: { priceChange: -1.2 },
+          },
+        ]
+      }
+      return null
+    })
+    setPumpCurveFetch(async () => ({
+      virtualQuoteReserves: 30e9,
+      virtualTokenReserves: 1_073_000_000 * 1e6,
+      tokenTotalSupply: 1_000_000_000 * 1e6,
+    }))
+    const meta = (await enrichPublicCoinMetas([coin])).get(coin.mint)
+    expect(meta?.imageUrl).toMatch(/ipfs/)
+    expect(meta?.marketCapUsd).toBeGreaterThan(4_000)
+    expect(meta?.priceChange24h).toBe(-1.2)
   })
 })

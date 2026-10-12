@@ -1,5 +1,7 @@
 import { SITE_URL } from './agent/discovery.js'
+import { OnlinePumpSdk } from './agent/pump.js'
 import { assertSafeHttpUrl } from './agent/safe-url.js'
+import { getConnection } from './agent/send.js'
 import type { ApiCoin } from './coins.js'
 import { getFxRates } from './fx.js'
 
@@ -36,6 +38,7 @@ const META_HOSTS = new Set([
   'frontend-api.pump.fun',
   'frontend-api-v3.pump.fun',
   'api.dexscreener.com',
+  'lite-api.jup.ag',
 ])
 
 type FetchJson = (url: string) => Promise<unknown | null>
@@ -43,6 +46,20 @@ let fetchJsonImpl: FetchJson = defaultFetchJson
 
 export function setCoinMetaFetch(fn: FetchJson | null) {
   fetchJsonImpl = fn || defaultFetchJson
+}
+
+export type PumpCurveSnapshot = {
+  virtualQuoteReserves: number
+  virtualTokenReserves: number
+  tokenTotalSupply: number
+  complete?: boolean
+}
+
+type PumpCurveFetch = (mint: string) => Promise<PumpCurveSnapshot | null>
+let pumpCurveFetchImpl: PumpCurveFetch = defaultPumpCurveFetch
+
+export function setPumpCurveFetch(fn: PumpCurveFetch | null) {
+  pumpCurveFetchImpl = fn || defaultPumpCurveFetch
 }
 
 export function coinPageUrl(mint: string): string {
@@ -241,12 +258,67 @@ export function pumpCurveMarketCapUsd(
   solUsd: number | null | undefined,
 ): number | undefined {
   if (solUsd == null || !Number.isFinite(solUsd) || solUsd <= 0) return undefined
-  const vs = Number(o.virtual_sol_reserves ?? o.virtualSolReserves)
+  const vs = Number(o.virtual_sol_reserves ?? o.virtualSolReserves ?? o.virtual_quote_reserves)
   const vt = Number(o.virtual_token_reserves ?? o.virtualTokenReserves)
   if (!Number.isFinite(vs) || !Number.isFinite(vt) || vs <= 0 || vt <= 0) return undefined
-  const priceSol = vs / 1e9 / (vt / 10 ** PUMP_DECIMALS)
-  const mcapUsd = priceSol * PUMP_SUPPLY * solUsd
+  const supplyRaw = Number(o.total_supply ?? o.token_total_supply ?? o.tokenTotalSupply)
+  return marketCapFromCurveSnapshot(
+    {
+      virtualQuoteReserves: vs,
+      virtualTokenReserves: vt,
+      tokenTotalSupply: Number.isFinite(supplyRaw) && supplyRaw > 0 ? supplyRaw : PUMP_SUPPLY * 10 ** PUMP_DECIMALS,
+    },
+    solUsd,
+  )
+}
+
+export function marketCapFromCurveSnapshot(
+  curve: PumpCurveSnapshot,
+  solUsd: number | null | undefined,
+): number | undefined {
+  if (solUsd == null || !Number.isFinite(solUsd) || solUsd <= 0) return undefined
+  const vs = curve.virtualQuoteReserves
+  const vt = curve.virtualTokenReserves
+  const supply =
+    Number.isFinite(curve.tokenTotalSupply) && curve.tokenTotalSupply > 0
+      ? curve.tokenTotalSupply
+      : PUMP_SUPPLY * 10 ** PUMP_DECIMALS
+  if (!Number.isFinite(vs) || !Number.isFinite(vt) || vs <= 0 || vt <= 0) return undefined
+  const mcapUsd = (vs / vt) * (supply / 1e9) * solUsd
   return Number.isFinite(mcapUsd) && mcapUsd > 0 ? mcapUsd : undefined
+}
+
+export function parseJupToken(data: unknown): PublicCoinMeta {
+  const row = Array.isArray(data) ? data[0] : data
+  if (!row || typeof row !== 'object') return {}
+  const o = row as Record<string, unknown>
+  const mcap = Number(o.mcap ?? o.fdv)
+  const stats = o.stats24h && typeof o.stats24h === 'object' ? (o.stats24h as Record<string, unknown>) : null
+  const chg = Number(stats?.priceChange)
+  return cleanMeta({
+    imageUrl: safeHttps(o.icon || o.logoURI || o.logo),
+    marketCapUsd: Number.isFinite(mcap) && mcap > 0 ? mcap : undefined,
+    priceChange24h: Number.isFinite(chg) ? chg : undefined,
+    holders: Number.isFinite(Number(o.holderCount)) ? Number(o.holderCount) : undefined,
+  })
+}
+
+async function defaultPumpCurveFetch(mint: string): Promise<PumpCurveSnapshot | null> {
+  try {
+    const curve = await new OnlinePumpSdk(getConnection()).fetchBondingCurve(mint)
+    const vs = Number(curve.virtualQuoteReserves)
+    const vt = Number(curve.virtualTokenReserves)
+    const supply = Number(curve.tokenTotalSupply)
+    if (!Number.isFinite(vs) || !Number.isFinite(vt) || vs <= 0 || vt <= 0) return null
+    return {
+      virtualQuoteReserves: vs,
+      virtualTokenReserves: vt,
+      tokenTotalSupply: Number.isFinite(supply) && supply > 0 ? supply : PUMP_SUPPLY * 10 ** PUMP_DECIMALS,
+      complete: Boolean(curve.complete),
+    }
+  } catch {
+    return null
+  }
 }
 
 export function parsePumpCoinMeta(
@@ -277,18 +349,31 @@ export function parsePumpCoinMeta(
 
 /** Launch metadata (image/socials) wins; Dexscreener quotes win when present. */
 export function mergePublicCoinMeta(launch: PublicCoinMeta, quote: PublicCoinMeta): PublicCoinMeta {
+  return composeCoinMeta({ pump: launch, dex: quote })
+}
+
+export function composeCoinMeta(parts: {
+  pump?: PublicCoinMeta
+  jup?: PublicCoinMeta
+  dex?: PublicCoinMeta
+  curveMcap?: number
+  curveComplete?: boolean
+}): PublicCoinMeta {
+  const pump = parts.pump || {}
+  const jup = parts.jup || {}
+  const dex = parts.dex || {}
   return cleanMeta({
-    imageUrl: launch.imageUrl || quote.imageUrl,
-    twitter: launch.twitter || quote.twitter,
-    website: launch.website || quote.website,
-    telegram: launch.telegram || quote.telegram,
-    volumeUsd: quote.volumeUsd ?? launch.volumeUsd,
-    holders: launch.holders ?? quote.holders,
-    marketCapUsd: quote.marketCapUsd ?? launch.marketCapUsd,
-    priceChange24h: quote.priceChange24h ?? launch.priceChange24h,
-    graduated: launch.graduated || quote.graduated,
-    graduatedVia: launch.graduatedVia || quote.graduatedVia,
-    dexId: quote.dexId || launch.dexId,
+    imageUrl: pump.imageUrl || jup.imageUrl || dex.imageUrl,
+    twitter: pump.twitter || dex.twitter || jup.twitter,
+    website: pump.website || dex.website,
+    telegram: pump.telegram || dex.telegram,
+    volumeUsd: dex.volumeUsd ?? pump.volumeUsd,
+    holders: pump.holders ?? jup.holders ?? dex.holders,
+    marketCapUsd: dex.marketCapUsd ?? pump.marketCapUsd ?? parts.curveMcap ?? jup.marketCapUsd,
+    priceChange24h: dex.priceChange24h ?? jup.priceChange24h ?? pump.priceChange24h,
+    graduated: pump.graduated || dex.graduated || parts.curveComplete || undefined,
+    graduatedVia: pump.graduatedVia || (parts.curveComplete ? 'pump-complete' : undefined) || dex.graduatedVia,
+    dexId: dex.dexId || pump.dexId,
   })
 }
 
@@ -385,15 +470,42 @@ export async function enrichPublicCoinMetas(
     }
   }
   const pumpByMint = new Map<string, PublicCoinMeta>()
+  const jupByMint = new Map<string, PublicCoinMeta>()
   await Promise.all(
     pumpish.map(async (coin) => {
-      const meta = await fetchPumpMeta(coin.mint, solUsd)
-      pumpByMint.set(coin.mint, meta)
+      const [pump, jup] = await Promise.all([
+        fetchPumpMeta(coin.mint, solUsd),
+        parseJupToken(
+          await fetchJson(`https://lite-api.jup.ag/tokens/v2/search?query=${encodeURIComponent(coin.mint)}`),
+        ),
+      ])
+      pumpByMint.set(coin.mint, pump)
+      jupByMint.set(coin.mint, jup)
+    }),
+  )
+
+  const needCurve = pumpish.filter((c) => {
+    const dex = dexByMint.get(c.mint)
+    const pump = pumpByMint.get(c.mint)
+    return !dex?.marketCapUsd && !pump?.marketCapUsd
+  })
+  const curveByMint = new Map<string, PumpCurveSnapshot>()
+  await Promise.all(
+    needCurve.map(async (coin) => {
+      const snap = await pumpCurveFetchImpl(coin.mint)
+      if (snap) curveByMint.set(coin.mint, snap)
     }),
   )
 
   for (const coin of stale) {
-    const merged = mergePublicCoinMeta(pumpByMint.get(coin.mint) || {}, dexByMint.get(coin.mint) || {})
+    const curve = curveByMint.get(coin.mint)
+    const merged = composeCoinMeta({
+      pump: pumpByMint.get(coin.mint),
+      jup: jupByMint.get(coin.mint),
+      dex: dexByMint.get(coin.mint),
+      curveMcap: curve ? marketCapFromCurveSnapshot(curve, solUsd) : undefined,
+      curveComplete: curve?.complete,
+    })
     metaCache.set(coin.mint, { at: now, meta: merged })
     out.set(coin.mint, merged)
   }
