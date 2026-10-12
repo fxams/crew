@@ -305,7 +305,7 @@ kolRegisterRouter.post('/kols/register/start', async (req, res) => {
         evmWallet: z.string().max(42).optional(),
       })
       .parse(req.body)
-    // Set CSRF cookie crew_reg and bind its hash to the state row.
+    // Optional CSRF cookie — primary proof is the signed OAuth `state` param.
     const cookieVal = randomBytes(16).toString('hex')
     res.setHeader(
       'Set-Cookie',
@@ -317,7 +317,12 @@ kolRegisterRouter.post('/kols/register/start', async (req, res) => {
       regCookie: cookieVal,
       evmWallet: body.evmWallet,
     })
-    res.json({ ok: true, authorizeUrl: out.authorizeUrl })
+    res.json({
+      ok: true,
+      authorizeUrl: out.authorizeUrl,
+      expiresAt: out.expiresAt,
+      wallet: out.wallet,
+    })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'start failed'
     const status = /not configured/i.test(msg) ? 503 : 400
@@ -343,8 +348,10 @@ kolRegisterRouter.get('/kols/register/callback', async (req, res) => {
     const match = cookieHeader.match(/(?:^|;)\s*crew_reg=([^;]+)/)
     const cookieVal = match ? decodeURIComponent(match[1]!) : ''
     const saved = await completeXCallback(code, state, { regCookie: cookieVal })
+    // `from=x` tells the desk to show "return to the wallet and tap Check" when
+    // X opened in Safari / the X app instead of the wallet in-app browser.
     res.redirect(
-      `${site}/kol/${encodeURIComponent(saved.xUsername)}?registered=1`,
+      `${site}/kol/${encodeURIComponent(saved.xUsername)}?registered=1&from=x`,
     )
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Registration failed'
