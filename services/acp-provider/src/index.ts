@@ -29,12 +29,23 @@ function idleForever(): Promise<void> {
 }
 
 export async function main(): Promise<void> {
-  const config = loadConfig()
+  let config
+  try {
+    config = loadConfig()
+  } catch (err) {
+    logError('fatal', err)
+    process.exit(1)
+    return
+  }
   if (!config.enabled) {
     await idleForever()
     return
   }
   const handle = await startAcpListener()
+  if (!handle.started) {
+    process.exit(1)
+    return
+  }
   const stop = async () => {
     logInfo('stopping')
     await handle.stop()

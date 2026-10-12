@@ -91,7 +91,7 @@ Register these on [app.virtuals.io](https://app.virtuals.io/acp/new) (you do thi
 ## Setup (operators)
 
 1. Register a provider agent on the [Virtuals Service Registry](https://app.virtuals.io/acp/new). CrewPay does not register this for you.
-2. On the agent page → **Signers** → **+ Add Signer**. Copy the signer key into `ACP_SIGNER_KEY` and the wallet id into `ACP_WALLET_ID`. Never commit the key or paste it into chat.
+2. On the agent page → **Signers** → **+ Add Signer**. Copy the **Privy P-256 authorization key** into `ACP_SIGNER_KEY` (not a 32-byte hex key), the wallet id into `ACP_WALLET_ID`, and the agent wallet into `ACP_WALLET_ADDRESS`. Never commit the key or paste it into chat.
 3. Add the two offerings above (name + requirements JSON + prices).
 4. Listen one of two ways (still a complete no-op unless `ACP_ENABLED=1`):
 
@@ -103,7 +103,7 @@ Register these on [app.virtuals.io](https://app.virtuals.io/acp/new) (you do thi
 npm ci --prefix agent/crew-api
 cd services/acp-provider
 cp .env.example .env
-# set ACP_ENABLED=1 ACP_SIGNER_KEY=… ACP_CHAIN_ID=84532
+# set ACP_ENABLED=1 ACP_SIGNER_KEY=… ACP_WALLET_ID=… ACP_WALLET_ADDRESS=0x… ACP_CHAIN_ID=84532
 npm ci
 npm start
 ```
@@ -115,9 +115,9 @@ Env:
 | `ACP_ENABLED` | off | Worker connects only when `1` / `true` |
 | `ACP_INPROCESS` | off | When `1`, **crewpay-api** starts this listener in its own process (still no-op unless `ACP_ENABLED=1`). Avoids a separate Render worker. |
 | `ACP_CHAIN_ID` | `84532` | Base Sepolia. `8453` = Base |
-| `ACP_SIGNER_KEY` | — | Secret from **+ Add Signer**. Never logged |
+| `ACP_SIGNER_KEY` | — | Privy P-256 authorization key from **+ Add Signer** (`signerPrivateKey` / `authorizationPrivateKey`). Never logged. Not 32-byte hex. |
 | `ACP_WALLET_ID` | — | Wallet id from the same Signers tab (required when enabled) |
-| `ACP_WALLET_ADDRESS` | derived | Agent wallet if not the signer EOA |
+| `ACP_WALLET_ADDRESS` | — | Agent 0x wallet (required when enabled; not derived from the signer) |
 | `ACP_PRICE_AUTOHIRE_USD` | `0.25` | `crewpay_autohire_kol_crew` |
 | `ACP_PRICE_LAUNCH_USD` | `1.00` | `crewpay_launch_with_crew` |
 

@@ -6,16 +6,22 @@ import {
   setAcpProviderLoaderForTests,
 } from './acp-inprocess.js'
 
+const PRIVY_P256 =
+  'wallet-auth:MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgTESTPRIVYKEYDONOTUSE'
+
 const saved = {
   ACP_ENABLED: process.env.ACP_ENABLED,
   ACP_INPROCESS: process.env.ACP_INPROCESS,
+  ACP_SIGNER_KEY: process.env.ACP_SIGNER_KEY,
+  ACP_WALLET_ADDRESS: process.env.ACP_WALLET_ADDRESS,
+  ACP_WALLET_ID: process.env.ACP_WALLET_ID,
 }
 
 afterEach(() => {
-  if (saved.ACP_ENABLED === undefined) delete process.env.ACP_ENABLED
-  else process.env.ACP_ENABLED = saved.ACP_ENABLED
-  if (saved.ACP_INPROCESS === undefined) delete process.env.ACP_INPROCESS
-  else process.env.ACP_INPROCESS = saved.ACP_INPROCESS
+  for (const key of ['ACP_ENABLED', 'ACP_INPROCESS', 'ACP_SIGNER_KEY', 'ACP_WALLET_ADDRESS', 'ACP_WALLET_ID'] as const) {
+    if (saved[key] === undefined) delete process.env[key]
+    else process.env[key] = saved[key]
+  }
   setAcpProviderLoaderForTests(null)
 })
 
@@ -67,6 +73,30 @@ describe('ACP_INPROCESS', () => {
     setAcpProviderLoaderForTests(async () => {
       throw new Error('sdk missing')
     })
+    const handle = await maybeStartAcpInProcess()
+    expect(handle.started).toBe(false)
+  })
+
+  it('keeps the API up if startAcpListener throws a config error', async () => {
+    process.env.ACP_INPROCESS = '1'
+    process.env.ACP_ENABLED = '1'
+    setAcpProviderLoaderForTests(async () => ({
+      startAcpListener: async () => {
+        throw new Error('ACP_WALLET_ADDRESS is required when ACP_ENABLED=1')
+      },
+    }))
+    await expect(maybeStartAcpInProcess()).resolves.toEqual({
+      started: false,
+      stop: expect.any(Function),
+    })
+  })
+
+  it('does not crash HTTP when the real listener gets a Privy key without wallet address', async () => {
+    process.env.ACP_INPROCESS = '1'
+    process.env.ACP_ENABLED = '1'
+    process.env.ACP_SIGNER_KEY = PRIVY_P256
+    delete process.env.ACP_WALLET_ADDRESS
+    delete process.env.ACP_WALLET_ID
     const handle = await maybeStartAcpInProcess()
     expect(handle.started).toBe(false)
   })

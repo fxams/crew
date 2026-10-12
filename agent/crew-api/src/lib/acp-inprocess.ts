@@ -71,12 +71,12 @@ export async function defaultLoadAcpProvider(): Promise<AcpProviderModule> {
  * Does not take over the process or register an agent.
  */
 export async function maybeStartAcpInProcess(): Promise<AcpListenerHandle> {
-  if (!acpInProcessEnabled()) return idle
-  if (!acpEnabled()) {
-    console.log('[acp] ACP_INPROCESS=1 but ACP_ENABLED is off — no-op')
-    return idle
-  }
   try {
+    if (!acpInProcessEnabled()) return idle
+    if (!acpEnabled()) {
+      console.log('[acp] ACP_INPROCESS=1 but ACP_ENABLED is off — no-op')
+      return idle
+    }
     const provider = await loadProvider()
     return await provider.startAcpListener({
       runAutohire,
