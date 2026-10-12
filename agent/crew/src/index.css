@@ -785,7 +785,7 @@ a {
 .register-fold {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   width: 100%;
   max-width: 28rem;
   margin: 0 auto 1.5rem;
@@ -3979,13 +3979,13 @@ a {
   }
 
   .register-fold {
-    min-height: calc(100svh - var(--nav-h) - 2.6rem);
-    justify-content: center;
-    margin-bottom: 0.35rem;
+    min-height: 0;
+    justify-content: flex-start;
+    margin-bottom: 1.1rem;
   }
 
   .register-fold-head {
-    margin-bottom: 0.55rem;
+    margin-bottom: 0.45rem;
   }
 
   .register-fold-head .section-title {
@@ -4018,6 +4018,16 @@ a {
   .register-card .register-actions .btn-primary {
     flex: 1 1 12rem;
     min-width: 0;
+  }
+
+  .register-why {
+    gap: 0.35rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .register-why li {
+    padding: 0.4rem 0.65rem;
+    font-size: 0.84rem;
   }
 
   .desk-hero {
@@ -4203,6 +4213,18 @@ a {
 }
 .register-paid-item:hover {
   border-color: var(--acid);
+}
+
+@media (max-width: 720px) {
+  .page-register .register-why {
+    gap: 0.35rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .page-register .register-why li {
+    padding: 0.4rem 0.65rem;
+    font-size: 0.84rem;
+  }
 }
 
 /* Homepage: live Autohire demo (replaces empty $CREW card until a mint exists) */
