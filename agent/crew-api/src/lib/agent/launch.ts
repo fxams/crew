@@ -28,6 +28,7 @@ import {
 } from './send.js'
 import {
   getAgentKeyReferral,
+  getAgentReferralByOwnerWallet,
   resolveLaunchAgentReferrer,
   upsertCoinShareholders,
 } from '../agent-referral.js'
@@ -210,7 +211,13 @@ export type AgentDryRunResult = {
 /** Validate + plan a launch without uploading metadata or signing txs. */
 export async function dryRunLaunchForAgent(
   input: AgentLaunchInput,
-  opts?: { launcherPubkey?: string; agentKeyId?: string | null; ownerWallet?: string | null },
+  opts?: {
+    launcherPubkey?: string
+    agentKeyId?: string | null
+    ownerWallet?: string | null
+    /** Override 15% launching-agent wallet (x402 payer when chain-compatible). */
+    deskWallet?: string | null
+  },
 ): Promise<AgentDryRunResult> {
   const mode: DeskMode = input.mode || 'agent'
   const name = input.name.trim()
@@ -251,7 +258,11 @@ export async function dryRunLaunchForAgent(
   }
 
   const launcherPreview = opts?.launcherPubkey?.trim() || null
-  const boundRef = opts?.agentKeyId ? await getAgentKeyReferral(opts.agentKeyId) : null
+  const boundRef = opts?.agentKeyId
+    ? await getAgentKeyReferral(opts.agentKeyId)
+    : opts?.ownerWallet
+      ? await getAgentReferralByOwnerWallet(opts.ownerWallet)
+      : null
   const { crew, hirePlan, seatsDropped, seatsRequested, seatsMax } = await resolveCrew(
     { ...input, mode },
     { hasAgentReferrer: Boolean(boundRef) },
@@ -301,7 +312,8 @@ export async function dryRunLaunchForAgent(
 
   let shareholders: { wallet: string; bps: number; role?: string; handle?: string }[] | undefined
   if (!input.holderKol) {
-    const deskWallet = launcherPreview || '11111111111111111111111111111111'
+    const deskWallet =
+      opts?.deskWallet?.trim() || launcherPreview || '11111111111111111111111111111111'
     // Hard-fail (400) when recipients exceed Pump's 10-wallet cap — never soft-warn.
     shareholders = buildCrewShareholders(crew, mode, {
       deskWallet: new PublicKey(deskWallet).toBase58(),
@@ -328,7 +340,8 @@ export async function dryRunLaunchForAgent(
     }
   }
 
-  const deskWalletPreview = launcherPreview || '11111111111111111111111111111111'
+  const deskWalletPreview =
+    opts?.deskWallet?.trim() || launcherPreview || '11111111111111111111111111111111'
   const crewOut = input.holderKol
     ? [{ handle: '@holder', wallet: '(launcher)', share: 100, hireRole: 'kol' as HireRole }]
     : crew.map((m) => {
@@ -431,7 +444,12 @@ export function launchNextSteps(result: Extract<AgentLaunchResult, { ok: true }>
 export async function launchForAgent(
   input: AgentLaunchInput,
   launcher: Keypair,
-  opts?: { agentKeyId?: string | null; ownerWallet?: string | null },
+  opts?: {
+    agentKeyId?: string | null
+    ownerWallet?: string | null
+    /** Override 15% launching-agent wallet (x402 payer when chain-compatible). */
+    deskWallet?: string | null
+  },
 ): Promise<AgentLaunchResult> {
   try {
     const mode: DeskMode = input.mode || 'agent'
@@ -470,8 +488,12 @@ export async function launchForAgent(
       }
     }
 
-    const deskWallet = launcher.publicKey.toBase58()
-    const boundRef = opts?.agentKeyId ? await getAgentKeyReferral(opts.agentKeyId) : null
+    const deskWallet = opts?.deskWallet?.trim() || launcher.publicKey.toBase58()
+    const boundRef = opts?.agentKeyId
+      ? await getAgentKeyReferral(opts.agentKeyId)
+      : opts?.ownerWallet
+        ? await getAgentReferralByOwnerWallet(opts.ownerWallet)
+        : null
     const { crew, hirePlan } = await resolveCrew(
       { ...input, mode },
       { hasAgentReferrer: Boolean(boundRef) },

@@ -68,6 +68,28 @@
         }
       }
     },
+    "/api/platforms": {
+      "get": {
+        "tags": [
+          "discovery",
+          "agent"
+        ],
+        "summary": "Launch venues with live enabled status and chain",
+        "operationId": "getLaunchPlatforms",
+        "responses": {
+          "200": {
+            "description": "pumpfun always on; bags if BAGS_API_KEY; zora if ZORA_ENABLED + 0x treasury. chain is solana, base, or base-sepolia. x402 object describes pay-per-call (off unless X402_ENABLED).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/agent": {
       "get": {
         "tags": [
@@ -101,6 +123,9 @@
         "security": [
           {
             "CrewApiKey": []
+          },
+          {
+            "X402Payment": []
           }
         ],
         "requestBody": {
@@ -119,6 +144,9 @@
           },
           "401": {
             "description": "Missing/invalid API key"
+          },
+          "402": {
+            "description": "Payment Required — X-PAYMENT (x402) when X402_ENABLED and no API key"
           }
         }
       }
@@ -134,6 +162,9 @@
         "security": [
           {
             "CrewApiKey": []
+          },
+          {
+            "X402Payment": []
           }
         ],
         "requestBody": {
@@ -162,6 +193,9 @@
           },
           "401": {
             "description": "Missing/invalid API key"
+          },
+          "402": {
+            "description": "Payment Required — X-PAYMENT (x402) when X402_ENABLED and no API key"
           }
         }
       }
@@ -237,6 +271,111 @@
         }
       }
     },
+    "/api/agent/launch/unsigned": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Build UNSIGNED launch transactions (no secrets)",
+        "description": "platform defaults to pumpfun. bags = Bags.fm Solana (BAGS_API_KEY). zora = Zora coins on Base (ZORA_ENABLED, EIP-1559). Same KOL order: crew[] first, Autohire second. Fee map 60% hired KOL crew / 15% launching agent / rest treasury.",
+        "operationId": "postAgentLaunchUnsigned",
+        "security": [
+          {
+            "CrewApiKey": []
+          },
+          {
+            "X402Payment": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LaunchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Unsigned steps + crew + shareholders"
+          },
+          "400": {
+            "description": "Validation or platform disabled"
+          },
+          "401": {
+            "description": "Missing/invalid API key"
+          },
+          "402": {
+            "description": "Payment Required — X-PAYMENT (x402) when X402_ENABLED and no API key"
+          }
+        }
+      }
+    },
+    "/api/agent/launch/submit": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Broadcast signed launch transactions",
+        "operationId": "postAgentLaunchSubmit",
+        "security": [
+          {
+            "CrewApiKey": []
+          },
+          {
+            "X402Payment": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "signed"
+                ],
+                "properties": {
+                  "signed": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1,
+                    "maxItems": 8
+                  },
+                  "platform": {
+                    "type": "string",
+                    "enum": [
+                      "pumpfun",
+                      "bags",
+                      "zora"
+                    ],
+                    "default": "pumpfun"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Broadcast signatures / tx hashes"
+          },
+          "400": {
+            "description": "Submit failed"
+          },
+          "401": {
+            "description": "Missing/invalid API key"
+          },
+          "402": {
+            "description": "Payment Required — X-PAYMENT (x402) when X402_ENABLED and no API key"
+          }
+        }
+      }
+    },
     "/api/agent/launch": {
       "post": {
         "tags": [
@@ -248,6 +387,10 @@
         "security": [
           {
             "CrewApiKey": [],
+            "LauncherKey": []
+          },
+          {
+            "X402Payment": [],
             "LauncherKey": []
           }
         ],
@@ -273,6 +416,9 @@
           },
           "401": {
             "description": "Missing/invalid auth"
+          },
+          "402": {
+            "description": "Payment Required — X-PAYMENT (x402) when X402_ENABLED and no API key"
           }
         }
       }
@@ -870,6 +1016,12 @@
         "name": "x-crew-api-key",
         "description": "CREW_AGENT_API_KEY (server-only agent key)"
       },
+      "X402Payment": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-PAYMENT",
+        "description": "x402 v1 base64 PaymentPayload. Alternative to x-crew-api-key on launch/autohire when X402_ENABLED. USDC on Base or Solana. Server returns X-PAYMENT-RESPONSE."
+      },
       "LauncherKey": {
         "type": "apiKey",
         "in": "header",
@@ -878,6 +1030,97 @@
       }
     },
     "schemas": {
+      "LaunchVenue": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "chain",
+          "enabled",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "pumpfun",
+              "bags",
+              "zora"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "chain": {
+            "type": "string",
+            "enum": [
+              "solana",
+              "base",
+              "base-sepolia"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "live",
+              "testnet",
+              "disabled"
+            ]
+          },
+          "caption": {
+            "type": "string",
+            "description": "Zora: Base (mainnet), testnet (Sepolia), soon (off)."
+          },
+          "tradeHost": {
+            "type": "string"
+          },
+          "explorer": {
+            "type": "string",
+            "enum": [
+              "solscan",
+              "basescan"
+            ]
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      },
+      "PlatformsResponse": {
+        "type": "object",
+        "required": [
+          "ok",
+          "default",
+          "venues"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "default": {
+            "type": "string",
+            "enum": [
+              "pumpfun"
+            ]
+          },
+          "feeMap": {
+            "type": "string"
+          },
+          "x402": {
+            "type": "object",
+            "description": "Pay-per-call x402 status (enabled only when X402_ENABLED)."
+          },
+          "venues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LaunchVenue"
+            }
+          }
+        }
+      },
       "AutohireRequest": {
         "type": "object",
         "properties": {
@@ -1028,9 +1271,19 @@
             "default": false,
             "description": "When true, refuse sequential create→lock fallback (same as CREW_ATOMIC_REQUIRED=1)."
           },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "pumpfun",
+              "bags",
+              "zora"
+            ],
+            "default": "pumpfun",
+            "description": "Launch venue. pumpfun (default) = Pump.fun Solana. bags = Bags.fm Solana (BAGS_API_KEY). zora = Zora coins on Base (ZORA_ENABLED). Existing clients omit this."
+          },
           "launcherPubkey": {
             "type": "string",
-            "description": "Required on dry-run. Burner pubkey that must match x-launcher-key at spend time. Cannot approve."
+            "description": "Required on dry-run. Burner pubkey that must match x-launcher-key at spend time. Cannot approve. EVM 0x address when platform=zora."
           },
           "dryRunId": {
             "type": "string",

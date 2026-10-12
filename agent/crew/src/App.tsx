@@ -1658,6 +1658,7 @@ export default function App() {
             Claim a key, Autohire KOLs from your narrative, dry-run, then launch on Pump.fun,
             Bags.fm, or Zora with fee-shares locked. MCP and HTTP — no Phantom on the agent side.
           </p>
+          <p className="agents-x402-note">Pay per call with x402, no API key</p>
           <div className="agents-teaser-actions">
             <Link className="btn btn-primary" to="/agents">
               Agent API docs

@@ -20,12 +20,13 @@
       "command": "npx",
       "args": [
         "-y",
-        "crewpay-mcp@1.2.7"
+        "crewpay-mcp@1.2.8"
       ],
       "env": [
         "CREW_AGENT_API_KEY",
         "CREW_LAUNCHER_KEY",
-        "CREW_API_URL"
+        "CREW_API_URL",
+        "X402_EVM_PRIVATE_KEY"
       ]
     },
     "http": {

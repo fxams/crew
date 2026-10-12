@@ -33,6 +33,7 @@ async function main() {
         }
         cb(null, false)
       },
+      exposedHeaders: ['X-PAYMENT-RESPONSE', 'PAYMENT-RESPONSE'],
     }),
   )
   // Agent launches may post imageBase64 — allow a few MB.
