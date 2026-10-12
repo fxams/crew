@@ -47,36 +47,68 @@ function xmlEscape(s: string): string {
 }
 
 const CAPTION_FNS: Array<(ticker: string, name: string) => string> = [
-  (t) => `$${t} — AI crew on the board. Humans still run the timeline.`,
-  (t, n) => `${n} ($${t}). CrewPay page is live. KOLs get the 60%.`,
-  (t) => `$${t} memes from the free AI desk. Hire humans for the real push.`,
-  (t) => `Always-on AI captions for $${t}. No earnings talk — just the coin.`,
-  (t, n) => `$${t} / ${n}. Fee map locked: 60% crew · 15% agent · 25% treasury.`,
-  (t) => `Low-freq AI pack for $${t}. Creators claim the paid jobs.`,
+  (t) => `$${t} — AI crew on the board.`,
+  (t, n) => `${n} ($${t}). CrewPay page is live.`,
+  (t) => `$${t} memes from the free AI desk.`,
+  (t) => `Always-on AI pack for $${t}.`,
+  (t, n) => `$${t} / ${n}. Humans stay the core.`,
+  (t) => `Low-freq AI pack for $${t}.`,
 ]
 
+const EARNINGS_TALK = /guaranteed|roi|100x|moon soon|60%|get paid|earn/i
+
 export function captionFor(ticker: string, name: string, salt: number): string {
-  const t = (ticker || 'COIN').replace(/^\$/, '').slice(0, 13).toUpperCase()
+  const t = (ticker || 'COIN').replace(/^\$/, '').slice(0, 16).toUpperCase()
   const n = (name || t).slice(0, 32)
   const fn = CAPTION_FNS[Math.abs(salt) % CAPTION_FNS.length]!
   const text = fn(t, n)
-  if (/guaranteed|roi|100x|moon soon/i.test(text)) return `$${t} — AI crew baseline. Humans get paid.`
+  if (EARNINGS_TALK.test(text)) return `$${t} — AI crew baseline.`
   return text
 }
 
-export function svgMeme(ticker: string, caption: string): string {
-  const t = xmlEscape((ticker || 'COIN').replace(/^\$/, '').toUpperCase().slice(0, 13))
-  const c = xmlEscape(caption)
+/** Shrink bold $TICKER so it stays inside the 320px meme title band. */
+export function fitTickerFontSize(
+  ticker: string,
+  opts: { maxWidth?: number; maxSize?: number; minSize?: number } = {},
+): number {
+  const display = `$${(ticker || 'COIN').replace(/^\$/, '').toUpperCase().slice(0, 16)}`
+  const maxWidth = opts.maxWidth ?? 320
+  const maxSize = opts.maxSize ?? 52
+  const minSize = opts.minSize ?? 16
+  const char = 0.7
+  const raw = Math.floor(maxWidth / Math.max(1, display.length * char))
+  return Math.max(minSize, Math.min(maxSize, raw))
+}
+
+export function svgMeme(
+  ticker: string,
+  opts: { imageHref?: string; mark?: string } = {},
+): string {
+  const raw = (ticker || 'COIN').replace(/^\$/, '').toUpperCase().slice(0, 16)
+  const t = xmlEscape(raw)
+  const clipId = `ai-logo-${raw.toLowerCase().replace(/[^a-z0-9]/g, '') || 'coin'}`
+  const mark = xmlEscape((opts.mark || raw).slice(0, 1) || '?')
+  const fontSize = fitTickerFontSize(raw)
+  const display = `$${t}`
+  const estimated = display.length * fontSize * 0.7
+  const fit =
+    estimated > 320 ? ` textLength="320" lengthAdjust="spacingAndGlyphs"` : ''
+  const href = opts.imageHref ? xmlEscape(opts.imageHref) : ''
+  const logo = href
+    ? `<image href="${href}" x="156" y="72" width="88" height="88" clip-path="url(#${clipId})" preserveAspectRatio="xMidYMid slice"/>`
+    : ''
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
-  <rect width="400" height="400" fill="#08100c"/>
-  <rect x="16" y="16" width="368" height="368" fill="none" stroke="#c8ff3d" stroke-width="3"/>
-  <text x="200" y="86" text-anchor="middle" fill="#c8ff3d" font-family="ui-monospace, monospace" font-size="18" letter-spacing="4">AI CREW</text>
-  <text x="200" y="168" text-anchor="middle" fill="#f2f6ef" font-family="Syne, sans-serif" font-size="56" font-weight="700">$${t}</text>
-  <foreignObject x="36" y="210" width="328" height="120">
-    <div xmlns="http://www.w3.org/1999/xhtml" style="color:#f2f6ef;font:16px/1.35 'Work Sans',sans-serif;text-align:center">${c}</div>
-  </foreignObject>
-  <text x="200" y="366" text-anchor="middle" fill="#8f9a8a" font-family="ui-monospace, monospace" font-size="11">humans remain the core</text>
+  <defs>
+    <clipPath id="${clipId}"><circle cx="200" cy="116" r="44"/></clipPath>
+  </defs>
+  <rect width="400" height="400" rx="28" fill="#0d1611"/>
+  <rect x="14" y="14" width="372" height="372" rx="22" fill="none" stroke="#c8ff3d" stroke-opacity="0.35" stroke-width="2"/>
+  <circle cx="200" cy="116" r="44" fill="rgba(200,255,61,0.12)" stroke="#c8ff3d" stroke-width="2"/>
+  <text x="200" y="130" text-anchor="middle" fill="#c8ff3d" font-family="Syne, sans-serif" font-size="34" font-weight="700">${mark}</text>
+  ${logo}
+  <text x="200" y="236" text-anchor="middle" fill="#f2f6ef" font-family="Syne, sans-serif" font-size="${fontSize}" font-weight="700"${fit}>${display}</text>
+  <text x="200" y="348" text-anchor="middle" fill="#8f9a8a" font-family="ui-monospace, monospace" font-size="12" letter-spacing="3">AI CREW</text>
 </svg>`
 }
 
@@ -111,7 +143,10 @@ export function generateAiCrewItem(opts: {
     id: `ai_${randomBytes(6).toString('hex')}`,
     mint: opts.mint,
     caption,
-    svg: svgMeme(opts.ticker, caption),
+    svg: svgMeme(opts.ticker, {
+      mark: opts.ticker,
+      imageHref: `https://api.crewpay.dev/api/coins/${encodeURIComponent(opts.mint)}/logo`,
+    }),
     createdAt: now,
     source: 'ai-crew',
   }
@@ -130,7 +165,5 @@ export function ensureAiCrew(opts: {
 }
 
 export function aiCrewPublicNote(): string {
-  const n = aiCrewMaxPerDay()
-  const handle = (process.env.CREW_X_HANDLE || 'crewpay').trim().replace(/^@/, '') || 'crewpay'
-  return `Free tier: hosted coin page, ${n} AI meme${n === 1 ? '' : 's'}/day, and crew posts from @${handle}. No per-coin X account — small coins share CrewPay. Hired KOLs remain the core. No earnings promises.`
+  return 'Lightweight AI memes. Humans stay the core.'
 }
