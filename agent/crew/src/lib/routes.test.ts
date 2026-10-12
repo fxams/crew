@@ -3,6 +3,7 @@ import {
   claimHandleFromPath,
   isAgentsPath,
   isClaimPath,
+  isCoinsPath,
   isKolsPath,
   isLaunchPath,
   isOnepagerPath,
@@ -67,6 +68,17 @@ describe("referral invite paths", () => {
     expect(referralCodeFromPath("/r/CoolKOL")).toBe("coolkol");
     expect(referralInvitePath("CoolKOL")).toBe("/r/coolkol");
     expect(isReferralPath("/register")).toBe(false);
+  });
+});
+
+describe("isCoinsPath", () => {
+  it("matches the public coins board, not a single coin page", () => {
+    expect(isCoinsPath("/coins")).toBe(true);
+    expect(isCoinsPath("/coins/")).toBe(true);
+    expect(isCoinsPath("/crew/coins")).toBe(true);
+    expect(isCoinsPath("/")).toBe(false);
+    expect(isCoinsPath("/coin/So11111111111111111111111111111111111111112")).toBe(false);
+    expect(isCoinsPath("/agents")).toBe(false);
   });
 });
 
