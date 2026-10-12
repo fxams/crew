@@ -16,6 +16,8 @@ import { isPlatformTreasury, readPlatformBuybackWallet } from '../lib/agent/cons
 import { requireApiKeyOrWallet, requireWalletSignatureOnly } from '../lib/wallet-auth.js'
 import { issueBoardNonce } from '../lib/board-nonces.js'
 import { assertSafeHttpUrl } from '../lib/agent/safe-url.js'
+import { fetchPumpBondingCurveCreator } from '../lib/pump-creator.js'
+import { assertRemitOnChain } from '../lib/remits-chain.js'
 
 const writeAuth = requireApiKeyOrWallet(requireApiKey)
 const walletOnly = requireWalletSignatureOnly()
@@ -117,10 +119,11 @@ coinsRouter.put('/coins', walletOnly, async (req, res) => {
       parsed.launcher = existing.launcher
     } else {
       // New coin: trade URL must be HTTPS on Pump.fun, Bags.fm, or Zora.
+      let host = ''
       try {
         const { isAllowedTradeHost } = await import('../lib/agent/platforms.js')
         const u = assertSafeHttpUrl(parsed.pumpUrl, 'pumpUrl')
-        const host = u.hostname.toLowerCase()
+        host = u.hostname.toLowerCase()
         if (!isAllowedTradeHost(host)) {
           throw new Error('pumpUrl must be on pump.fun, bags.fm, or zora.co')
         }
@@ -128,8 +131,20 @@ coinsRouter.put('/coins', walletOnly, async (req, res) => {
         res.status(400).json({ error: err instanceof Error ? err.message : 'Invalid pumpUrl' })
         return
       }
-      // Note: verifying on-chain bonding-curve creator == signer requires RPC;
-      // basic enforcement here ensures launcher === signer.
+      if (host === 'pump.fun' || host === 'www.pump.fun') {
+        try {
+          const creator = await fetchPumpBondingCurveCreator(parsed.mint)
+          if (creator !== (wallet || '')) {
+            res.status(403).json({ error: 'Wallet must be the Pump bonding-curve creator' })
+            return
+          }
+        } catch (err) {
+          res.status(400).json({
+            error: err instanceof Error ? err.message : 'Could not verify Pump bonding-curve creator',
+          })
+          return
+        }
+      }
     }
     const coin = await upsertCoin(parsed as ApiCoin)
     res.json({ coin })
@@ -185,11 +200,24 @@ coinsRouter.post('/remits', walletOnly, async (req, res) => {
     const wallet = (req as typeof req & { crewWallet?: string }).crewWallet || ''
     // Only allow remits for mints launched by this wallet.
     const mints = [...new Set(body.remits.map((r) => r.mint))]
+    const coinsByMint = new Map<string, ApiCoin>()
     for (const m of mints) {
       const coin = await getCoin(m)
       if (!coin || coin.launcher !== wallet) {
         res.status(403).json({ error: 'Cannot submit remits for a mint you did not launch' })
         return
+      }
+      coinsByMint.set(m, coin)
+    }
+    for (const r of body.remits) {
+      const coin = coinsByMint.get(r.mint)
+      const platform = coin?.platform || 'pumpfun'
+      if (platform === 'pumpfun' && r.wallet) {
+        await assertRemitOnChain({
+          mint: r.mint,
+          wallet: r.wallet,
+          signature: r.signature,
+        })
       }
     }
     const saved = await upsertRemits(body.remits as ApiRemit[])

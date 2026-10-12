@@ -66,6 +66,11 @@ function scanFile(path) {
   }
 
   const problems = []
+  const allowDocExamples =
+    base === 'openapi.json' || base.startsWith('llms') || base === 'AGENTS.md'
+  if (text.includes('crew_ak_') && !allowDocExamples) {
+    problems.push("contains 'crew_ak_'")
+  }
   const nearApiKeyHex = /x-crew-api-key[^]{0,120}([0-9a-fA-F]{40,})|([0-9a-fA-F]{40,})[^]{0,120}x-crew-api-key/gs
   if (nearApiKeyHex.test(text)) {
     problems.push('40+ hex near x-crew-api-key')
