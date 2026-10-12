@@ -33,7 +33,7 @@ export const CREW_EDGES = [
     id: 'tape',
     title: 'Buyback + proof stay public',
     agency: 'Opaque treasuries hide whether humans were paid.',
-    crew: '25% CrewPay treasury fee-share locks every launch. Proof tape shows remits; buyback cron not live yet.',
+    crew: '60% hired KOL crew · 15% launching agent · rest treasury. Proof tape shows remits; buyback cron not live yet.',
   },
 ] as const
 
@@ -278,7 +278,7 @@ export function shareReceiptText(coin: CoinRecord): string {
     coin.pumpUrl,
     '',
     coin.mode === 'agent'
-      ? 'AI hires humans — KOLs get fee-share · buyback cron not live yet.'
+      ? 'AI hires humans — 60% hired KOL crew · buyback cron not live yet.'
       : 'Humans get paid · 25% CrewPay treasury · buyback cron not live yet.',
   ]
     .filter(Boolean)

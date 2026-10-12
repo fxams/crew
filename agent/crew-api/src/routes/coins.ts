@@ -115,12 +115,13 @@ coinsRouter.put('/coins', walletOnly, async (req, res) => {
       }
       parsed.launcher = existing.launcher
     } else {
-      // New coin: pumpUrl must be HTTPS on pump.fun domain.
+      // New coin: trade URL must be HTTPS on Pump.fun, Bags.fm, or Zora.
       try {
+        const { isAllowedTradeHost } = await import('../lib/agent/platforms.js')
         const u = assertSafeHttpUrl(parsed.pumpUrl, 'pumpUrl')
         const host = u.hostname.toLowerCase()
-        if (!(host === 'pump.fun' || host === 'www.pump.fun')) {
-          throw new Error('pumpUrl must be on pump.fun')
+        if (!isAllowedTradeHost(host)) {
+          throw new Error('pumpUrl must be on pump.fun, bags.fm, or zora.co')
         }
       } catch (err) {
         res.status(400).json({ error: err instanceof Error ? err.message : 'Invalid pumpUrl' })

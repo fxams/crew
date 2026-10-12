@@ -161,6 +161,7 @@ export function KolRegisterPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(params.get('error'))
   const [refInput, setRefInput] = useState(() => normalizeRef(params.get('ref')))
+  const [evmWallet, setEvmWallet] = useState('')
   const [copiedSnippet, setCopiedSnippet] = useState<string | null>(null)
   const ownHandle = useOwnRegisteredHandle(wallet.publicKey?.toBase58())
   const registeredHandle = params.get('registered') === '1' ? params.get('handle') : null
@@ -260,6 +261,7 @@ export function KolRegisterPage() {
           message: nonceBody.message,
           signature: bs58.encode(sigBytes),
           ...(referralCode.length >= 2 ? { referralCode } : {}),
+          ...(evmWallet.trim() ? { evmWallet: evmWallet.trim() } : {}),
         }),
       })
       const startBody = (await startRes.json()) as { authorizeUrl?: string; error?: string }
@@ -298,8 +300,8 @@ export function KolRegisterPage() {
               </>
             ) : (
               <>
-                AI agents launch coins on CrewPay and lock 60% of creator fees to a hired KOL crew,
-                on-chain. Registering takes about a minute.
+                AI agents launch coins on CrewPay and lock 60% of creator fees to a hired KOL crew
+                (15% launching agent, rest treasury), on-chain. Registering takes about a minute.
               </>
             )}
           </p>
@@ -417,6 +419,25 @@ export function KolRegisterPage() {
               ) : (
                 <em>Every registered KOL gets a shareable code on their desk.</em>
               )}
+            </label>
+          ) : null}
+
+          {!alreadyRegistered ? (
+            <label className="register-ref register-evm">
+              <span>EVM wallet (optional)</span>
+              <input
+                type="text"
+                value={evmWallet}
+                onChange={(e) => setEvmWallet(e.target.value)}
+                placeholder="0x… Base address"
+                autoComplete="off"
+                spellCheck={false}
+                maxLength={42}
+              />
+              <em>
+                Needed to be paid on Zora / Base launches. Pump.fun and Bags.fm still pay your
+                Solana wallet.
+              </em>
             </label>
           ) : null}
 

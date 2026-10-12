@@ -11,6 +11,15 @@ import {
 } from '../lib/config'
 import { fetchProof, type ProofBundle } from '../lib/api'
 import { formatSol } from '../lib/format-sol'
+import { PlatformBadge } from './PlatformBadge'
+import { PlatformFilter } from './PlatformFilter'
+import { useLaunchVenues } from '../lib/use-launch-venues'
+import {
+  explorerTxUrl,
+  inferLaunchPlatform,
+  tradeLabel,
+  type LaunchPlatform,
+} from '../lib/platforms'
 
 function shortAddr(addr: string) {
   if (!addr || addr.length < 10) return addr || '—'
@@ -30,10 +39,26 @@ function fmtTime(ms: number) {
   }
 }
 
+function remitExplorerUrl(
+  signature: string,
+  mint: string,
+  coins: ProofBundle['coins'],
+): string {
+  const coin = coins.find((c) => c.mint === mint)
+  return (
+    explorerTxUrl(
+      inferLaunchPlatform({ platform: coin?.platform, pumpUrl: coin?.pumpUrl, mint }),
+      signature,
+    ) || SOLSCAN_TX_URL(signature)
+  )
+}
+
 export function ProofPage() {
   const [data, setData] = useState<ProofBundle | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [platFilter, setPlatFilter] = useState<LaunchPlatform | 'all'>('all')
+  const venues = useLaunchVenues()
 
   useEffect(() => {
     let cancelled = false
@@ -208,7 +233,7 @@ export function ProofPage() {
                     <span role="cell">{fmtSol(r.amountSol)}</span>
                     <span role="cell">
                       {r.signature ? (
-                        <a href={SOLSCAN_TX_URL(r.signature)} target="_blank" rel="noreferrer">
+                        <a href={remitExplorerUrl(r.signature, r.mint, data.coins)} target="_blank" rel="noreferrer">
                           {shortAddr(r.signature)}
                         </a>
                       ) : (
@@ -221,23 +246,33 @@ export function ProofPage() {
             </div>
 
             <h2 className="proof-section-title">Launches</h2>
+            <PlatformFilter venues={venues} value={platFilter} onChange={setPlatFilter} />
             <div className="proof-table" role="table" aria-label="Launches">
               <div className="proof-row proof-row-head" role="row">
                 <span role="columnheader">Ticker</span>
-                <span role="columnheader">Mode</span>
+                <span role="columnheader">Venue</span>
                 <span role="columnheader">Fees</span>
                 <span role="columnheader">Mint</span>
-                <span role="columnheader">Pump</span>
+                <span role="columnheader">Trade</span>
               </div>
-              {data.coins.map((c) => (
+              {data.coins
+                .filter((c) => {
+                  if (platFilter === 'all') return true
+                  return inferLaunchPlatform({ platform: c.platform, pumpUrl: c.pumpUrl, mint: c.mint }) === platFilter
+                })
+                .map((c) => (
                 <div className="proof-row" role="row" key={c.mint}>
                   <span role="cell">${c.ticker}</span>
-                  <span role="cell">{c.mode}</span>
+                  <span role="cell">
+                    <PlatformBadge platform={c.platform} pumpUrl={c.pumpUrl} mint={c.mint} />
+                  </span>
                   <span role="cell">{c.feeShareLocked ? 'locked' : 'open'}</span>
                   <span role="cell">{shortAddr(c.mint)}</span>
                   <span role="cell">
                     <a href={c.pumpUrl} target="_blank" rel="noreferrer">
-                      open
+                      {tradeLabel(
+                        inferLaunchPlatform({ platform: c.platform, pumpUrl: c.pumpUrl, mint: c.mint }),
+                      )}
                     </a>
                   </span>
                 </div>

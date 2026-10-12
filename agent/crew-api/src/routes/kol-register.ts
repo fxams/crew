@@ -11,6 +11,7 @@ import {
   getKolProfile,
   getKolProfileByWallet,
   issueNonce,
+  updateKolEvmWallet,
   KOL_REFERRAL_CUT_PCT,
   listRegistered,
   REFERRAL_POINTS_HIRE,
@@ -24,7 +25,7 @@ import {
   listMentionDrafts,
   setMentionDraftStatus,
 } from '../lib/kol-mentions.js'
-import { kolReferralsWalletFresh } from '../lib/wallet-auth.js'
+import { kolEvmWalletFresh, kolReferralsWalletFresh } from '../lib/wallet-auth.js'
 
 export const kolRegisterRouter = Router()
 
@@ -47,7 +48,9 @@ kolRegisterRouter.get('/kols/register/status', (_req, res) => {
       cutBps: AGENT_REFERRAL_BPS,
       linkPattern: `${siteUrl()}/r/<code>`,
       note:
-        'Every registered KOL gets a referral code + link (crewpay.dev/r/<code>). Agents that claim a key with your code permanently bind you as referrer — referred launches split fees 60% crew / 15% agent / 5% you / 20% treasury (non-referred stay 60/15/25). Buyback cron is NOT live.',
+        'Every registered KOL gets a referral code + link (crewpay.dev/r/<code>). Agents that claim a key with your code permanently bind you as referrer — referred launches split fees 60% hired KOL crew / 15% launching agent / 5% you / 20% treasury (non-referred stay 60/15/25). The launching agent does not receive the 60% crew slice. Buyback cron is NOT live.',
+    evmWallet:
+      'Optional Base (0x) address. Needed to be paid on Zora / Base launches. Solana wallet still required for Pump.fun and Bags.fm.',
       points: {
         register: REFERRAL_POINTS_REGISTER,
         hire: REFERRAL_POINTS_HIRE,
@@ -104,6 +107,41 @@ kolRegisterRouter.get('/kol/referrals', async (req, res) => {
  * Kept for older clients — always returns empty cuts.
  * Agent-key referral earnings: GET /api/kol/referrals.
  */
+/**
+ * Owner-signed optional Base / EVM payout address (Zora launches).
+ * Auth: sign `crew-kol-evm:<wallet>:<evmWallet>:<timestamp>` (empty evmWallet clears).
+ */
+kolRegisterRouter.post('/kols/register/evm', async (req, res) => {
+  try {
+    const ip = clientIp(req)
+    const gate = takeRateLimit(`kolreg:evm:${ip}`, { limit: 20, windowMs: 60_000 })
+    if (!gate.ok) {
+      res.setHeader('Retry-After', String(gate.retryAfterSec))
+      res.status(429).json({ ok: false, error: 'Slow down and retry.' })
+      return
+    }
+    const signed = kolEvmWalletFresh(req)
+    if (!signed) {
+      res.status(401).json({
+        ok: false,
+        error:
+          'KOL wallet signature required. Sign message crew-kol-evm:<wallet>:<evmWallet>:<timestamp> and send x-crew-wallet, x-crew-timestamp, x-crew-signature.',
+      })
+      return
+    }
+    const profile = await updateKolEvmWallet(signed.wallet, signed.evmWallet || null)
+    res.json({
+      ok: true,
+      ...profile,
+      tip: 'Needed to be paid on Zora / Base launches. Pump.fun and Bags.fm still use your Solana wallet.',
+    })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'evm wallet update failed'
+    const status = /not a registered/i.test(msg) ? 404 : 400
+    res.status(status).json({ ok: false, error: msg })
+  }
+})
+
 kolRegisterRouter.get('/kols/referral-cuts', async (req, res) => {
   try {
     const ip = clientIp(req)
@@ -264,6 +302,7 @@ kolRegisterRouter.post('/kols/register/start', async (req, res) => {
         message: z.string().min(20).max(400),
         signature: z.string().min(64).max(128),
         referralCode: z.string().min(2).max(32).optional(),
+        evmWallet: z.string().max(42).optional(),
       })
       .parse(req.body)
     // Set CSRF cookie crew_reg and bind its hash to the state row.
@@ -272,7 +311,12 @@ kolRegisterRouter.post('/kols/register/start', async (req, res) => {
       'Set-Cookie',
       `crew_reg=${cookieVal}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${10 * 60}`,
     )
-    const out = await beginXAuth({ ...body, ip, regCookie: cookieVal })
+    const out = await beginXAuth({
+      ...body,
+      ip,
+      regCookie: cookieVal,
+      evmWallet: body.evmWallet,
+    })
     res.json({ ok: true, authorizeUrl: out.authorizeUrl })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'start failed'

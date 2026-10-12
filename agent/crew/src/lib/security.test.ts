@@ -65,6 +65,41 @@ describe('sanitizeBoard', () => {
     expect(board.coins[0].pumpUrl).toMatch(/^https:\/\/pump\.fun\//)
   })
 
+  it('keeps Bags and Zora trade URLs and infers platform', () => {
+    const bags = sanitizeCoin({
+      id: 'b',
+      mint: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+      name: 'Bag',
+      ticker: 'BAG',
+      vibe: '',
+      mode: 'agent',
+      crew: [{ handle: '@a', wallet: '11111111111111111111111111111112', share: 100 }],
+      signature: 'sig',
+      launchedAt: 1,
+      launcher: '11111111111111111111111111111111',
+      pumpUrl: 'https://bags.fm/TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+    })
+    expect(bags?.platform).toBe('bags')
+    expect(bags?.pumpUrl).toContain('bags.fm')
+
+    const zora = sanitizeCoin({
+      id: 'z',
+      mint: '0x1111111111111111111111111111111111111111',
+      name: 'Z',
+      ticker: 'ZORA',
+      vibe: '',
+      mode: 'agent',
+      crew: [{ handle: '@a', wallet: '0x1111111111111111111111111111111111111111', share: 100 }],
+      signature: '0xsig',
+      launchedAt: 1,
+      launcher: '0x2222222222222222222222222222222222222222',
+      pumpUrl: 'https://zora.co/coin/base:0x1111111111111111111111111111111111111111',
+      platform: 'zora',
+    })
+    expect(zora?.platform).toBe('zora')
+    expect(zora?.pumpUrl).toContain('zora.co')
+  })
+
   it('keeps agent hire metadata', () => {
     const coin = sanitizeCoin({
       id: 'hire',

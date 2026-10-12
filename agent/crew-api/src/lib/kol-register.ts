@@ -8,6 +8,7 @@ import { PublicKey } from '@solana/web3.js'
 import bs58 from 'bs58'
 import nacl from 'tweetnacl'
 import { KOL_DB } from './agent/narrative.js'
+import { assertEvmAddress, isEvmAddress } from './agent/evm-address.js'
 import { query } from './db.js'
 import { verifyWalletSignature } from './wallet-auth.js'
 
@@ -38,6 +39,8 @@ export type KolRegistration = {
   profileImageUrl: string | null
   description: string
   wallet: string
+  /** Optional Base / EVM address — required to be paid on Zora launches. */
+  evmWallet: string | null
   /** Directory / previously linked wallets — desk earnings include these. */
   priorWallets: string[]
   /** Unique shareable code — every registered KOL has one. */
@@ -215,6 +218,8 @@ export async function beginXAuth(opts: {
   message: string
   signature: string
   referralCode?: string
+  /** Optional Base address for Zora / 0xSplits payouts. */
+  evmWallet?: string
   /** Client IP at /register/start — stored for claim-time self-referral checks. */
   ip?: string
   /** CSRF cookie value from /start; hashed into state row. */
@@ -256,14 +261,23 @@ export async function beginXAuth(opts: {
     referralCode = String(found.rows[0].referral_code)
   }
 
+  let evmWallet: string | null = null
+  const rawEvm = (opts.evmWallet || '').trim()
+  if (rawEvm) {
+    if (!isEvmAddress(rawEvm)) {
+      throw new Error('EVM wallet must be a 0x address (40 hex chars) for Zora / Base payouts.')
+    }
+    evmWallet = assertEvmAddress(rawEvm, 'evmWallet')
+  }
+
   await query(`DELETE FROM kol_oauth_states WHERE created_at < now() - interval '15 minutes'`)
   const state = randomBytes(16).toString('hex')
   const codeVerifier = b64url(randomBytes(32))
   const ip = (opts.ip || '').trim().slice(0, 64) || null
   const cookieSha = opts.regCookie ? createHash('sha256').update(opts.regCookie).digest('hex') : null
   await query(
-    `INSERT INTO kol_oauth_states (state, code_verifier, wallet, referral_code, cookie_sha256, ip) VALUES ($1, $2, $3, $4, $5, $6)`,
-    [state, codeVerifier, wallet, referralCode, cookieSha, ip],
+    `INSERT INTO kol_oauth_states (state, code_verifier, wallet, referral_code, cookie_sha256, ip, evm_wallet) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [state, codeVerifier, wallet, referralCode, cookieSha, ip, evmWallet],
   )
   return { authorizeUrl: buildXAuthorizeUrl({ state, codeVerifier }) }
 }
@@ -343,7 +357,7 @@ export async function completeXCallback(
   opts?: { regCookie?: string; headers?: Record<string, unknown> },
 ): Promise<KolRegistration> {
   const { rows } = await query(
-    `DELETE FROM kol_oauth_states WHERE state = $1 RETURNING code_verifier, wallet, referral_code, cookie_sha256, ip`,
+    `DELETE FROM kol_oauth_states WHERE state = $1 RETURNING code_verifier, wallet, referral_code, cookie_sha256, ip, evm_wallet`,
     [state],
   )
   const row = rows[0] as {
@@ -352,6 +366,7 @@ export async function completeXCallback(
     referral_code?: string | null
     cookie_sha256?: string | null
     ip?: string | null
+    evm_wallet?: string | null
   } | undefined
   if (!row?.code_verifier || !row.wallet) {
     throw new Error('Sign-in session expired. Connect your wallet and try again.')
@@ -366,6 +381,10 @@ export async function completeXCallback(
     throw new Error('Registration cookie mismatch — refresh and start again.')
   }
   const registerIp = (row.ip || '').trim().slice(0, 64) || null
+  const evmWallet =
+    row.evm_wallet && isEvmAddress(row.evm_wallet)
+      ? assertEvmAddress(String(row.evm_wallet), 'evmWallet')
+      : null
 
   const accessToken = await exchangeCode(code, row.code_verifier)
   const user = await fetchXMe(accessToken)
@@ -460,8 +479,8 @@ export async function completeXCallback(
        x_user_id, x_username, x_name, x_verified, followers, following, tweet_count,
        listed_count, profile_image_url, description, wallet, prior_wallets,
        referral_code, referred_by_code, register_ip, pending_wallet, pending_until,
-       stats_refreshed_at, updated_at
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17, now(), now())
+       evm_wallet, stats_refreshed_at, updated_at
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18, now(), now())
      ON CONFLICT (x_user_id) DO UPDATE SET
        x_username = EXCLUDED.x_username,
        x_name = EXCLUDED.x_name,
@@ -479,6 +498,7 @@ export async function completeXCallback(
        register_ip = COALESCE(kol_registrations.register_ip, EXCLUDED.register_ip),
        pending_wallet = EXCLUDED.pending_wallet,
        pending_until = EXCLUDED.pending_until,
+       evm_wallet = COALESCE(EXCLUDED.evm_wallet, kol_registrations.evm_wallet),
        stats_refreshed_at = now(),
        updated_at = now()`,
     [
@@ -499,6 +519,7 @@ export async function completeXCallback(
       registerIp,
       pendingWallet,
       pendingUntil,
+      evmWallet,
     ],
   )
 
@@ -535,6 +556,7 @@ function mapReg(r: Record<string, unknown>, rank: number): KolRegistration {
     profileImageUrl: r.profile_image_url ? String(r.profile_image_url) : null,
     description: String(r.description || ''),
     wallet: String(r.wallet),
+    evmWallet: r.evm_wallet ? String(r.evm_wallet) : null,
     priorWallets: Array.isArray(r.prior_wallets)
       ? (r.prior_wallets as unknown[]).filter((w): w is string => typeof w === 'string')
       : [],
@@ -1017,4 +1039,29 @@ export async function getKolProfileByWallet(wallet: string): Promise<KolProfile 
   const name = rows[0]?.x_username
   if (!name) return null
   return profileFromUsername(name)
+}
+
+/** Owner-signed update of the optional Base / EVM payout address. */
+export async function updateKolEvmWallet(
+  solanaWallet: string,
+  evmWallet: string | null,
+): Promise<KolProfile> {
+  const address = solanaWallet.trim()
+  if (address.length < 32 || address.length > 64) {
+    throw new Error('Invalid Solana wallet.')
+  }
+  let stored: string | null = null
+  if (evmWallet && evmWallet.trim()) {
+    stored = assertEvmAddress(evmWallet.trim(), 'evmWallet')
+  }
+  const { rowCount } = await query(
+    `UPDATE kol_registrations SET evm_wallet = $1, updated_at = now() WHERE wallet = $2`,
+    [stored, address],
+  )
+  if (!rowCount) {
+    throw new Error('Wallet is not a registered KOL — complete /register first.')
+  }
+  const profile = await getKolProfileByWallet(address)
+  if (!profile) throw new Error('Could not read the updated desk.')
+  return profile
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
@@ -6,8 +6,14 @@ import {
   CREW_MCP_HTTP_URL,
   CREW_PUBLIC_API_URL,
   CREW_VERSION,
-  PLATFORM_BUYBACK_BPS,
 } from '../lib/config'
+import { PlatformSelect } from './PlatformSelect'
+import { useLaunchVenues } from '../lib/use-launch-venues'
+import {
+  LAUNCH_FEE_MAP_COPY,
+  unsignedLaunchCurl,
+  type LaunchPlatform,
+} from '../lib/platforms'
 
 const DISCOVERY = [
   { label: 'llms.txt', path: '/llms.txt', note: 'llmstxt.org index' },
@@ -58,6 +64,18 @@ const ENDPOINTS = [
     path: '/api/agent/launch',
     auth: 'x-crew-api-key + x-launcher-key',
     summary: 'MAINNET create Pump coin + lock CREW fee-shares',
+  },
+  {
+    method: 'POST',
+    path: '/api/agent/launch/unsigned',
+    auth: 'x-crew-api-key',
+    summary: 'UNSIGNED txs — platform=pumpfun|bags|zora (default pumpfun)',
+  },
+  {
+    method: 'POST',
+    path: '/api/agent/launch/submit',
+    auth: 'x-crew-api-key',
+    summary: 'Broadcast signed Solana txs or Zora hex',
   },
   {
     method: 'GET',
@@ -114,6 +132,7 @@ const LAUNCH_CURL = `curl -sS ${CREW_PUBLIC_API_URL}/api/agent/launch \\
     "description": "ai agent hires kols",
     "mode": "agent",
     "imageUrl": "https://example.com/cat.png",
+    "platform": "pumpfun",
     "autoHire": { "seats": 5 },
     "agent": {
       "name": "DeskBot",
@@ -155,6 +174,12 @@ async function copyText(text: string) {
 
 export function AgentsApiPage() {
   const [copied, setCopied] = useState<string | null>(null)
+  const venues = useLaunchVenues()
+  const [platform, setPlatform] = useState<LaunchPlatform>('pumpfun')
+  const unsignedCurl = useMemo(
+    () => unsignedLaunchCurl({ platform, name: 'Desk Cat', ticker: 'DCAT' }),
+    [platform],
+  )
 
   async function onCopy(id: string, text: string) {
     try {
@@ -194,10 +219,9 @@ export function AgentsApiPage() {
             </a>
           </div>
           <p className="section-sub agents-hero-sub">
-            Frontier LLMs launch Pump coins with permanent on-chain fee-shares —{' '}
-            {PLATFORM_BUYBACK_BPS / 100}% CrewPay treasury · 15% launcher · 60% hired KOLs.
-            Buyback cron is not live yet. Dry-run returns dryRunId + approvalUrl — approve there,
-            then launch. No browser desk required for the agent path.
+            Frontier LLMs launch on Pump.fun, Bags.fm, or Zora with on-chain fee-shares —{' '}
+            {LAUNCH_FEE_MAP_COPY}. Buyback cron is not live yet. Dry-run first. Unsigned{' '}
+            <code>platform</code> defaults to <code>pumpfun</code>.
           </p>
           <div className="agents-hero-actions">
             <a className="btn btn-primary" href={`${CREW_PUBLIC_API_URL}/llms.txt`} target="_blank" rel="noreferrer">
@@ -329,13 +353,13 @@ export function AgentsApiPage() {
         </div>
         <div className="agents-fee-row" aria-label="Fee map">
           <span>
-            <strong>60%</strong> hired KOLs
+            <strong>60%</strong> hired KOL crew
           </span>
           <span>
-            <strong>15%</strong> launcher ops
+            <strong>15%</strong> launching agent
           </span>
           <span>
-            <strong>25%</strong> CrewPay treasury
+            <strong>rest</strong> CrewPay treasury
             <em className="agents-fee-note"> (buyback cron not live yet)</em>
           </span>
         </div>
@@ -349,11 +373,28 @@ export function AgentsApiPage() {
         <p className="section-sub">
           Preview with autohire + <code>launch/dry-run</code>, then launch. Autohire is{' '}
           <strong>registered-first</strong>: registered KOLs are prioritized, then public Pump
-          profiles by narrative — not opt-in partners. Prefer <code>autoHire</code> or an
-          explicit <code>crew[]</code> whose shares total 100%.
+          profiles by narrative — not opt-in partners. Prefer explicit <code>crew[]</code>, then
+          Autohire. Fee map: {LAUNCH_FEE_MAP_COPY}.
         </p>
+        <PlatformSelect
+          venues={venues}
+          value={platform}
+          onChange={setPlatform}
+          hint="Unsigned flow uses the same endpoints. Zora is off unless the API enables it."
+        />
         <div className="agents-code-head">
-          <span>POST /api/agent/launch</span>
+          <span>POST /api/agent/launch/unsigned</span>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => void onCopy('unsigned', unsignedCurl)}
+          >
+            {copied === 'unsigned' ? 'Copied' : 'Copy curl'}
+          </button>
+        </div>
+        <pre className="agents-code">{unsignedCurl}</pre>
+        <div className="agents-code-head">
+          <span>POST /api/agent/launch (Pump custodial path)</span>
           <button
             type="button"
             className="btn btn-ghost btn-sm"

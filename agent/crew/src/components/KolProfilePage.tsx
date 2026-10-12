@@ -13,6 +13,14 @@ import {
 import { formatSol } from '../lib/format-sol'
 import { useOwnRegisteredHandle } from '../lib/registered-kol'
 import { kolHandleFromPath, referralInvitePath } from '../lib/routes'
+import { PlatformBadge } from './PlatformBadge'
+import {
+  explorerLabel,
+  explorerTokenUrl,
+  explorerTxUrl,
+  inferLaunchPlatform,
+  tradeLabel,
+} from '../lib/platforms'
 
 const API = (
   (import.meta.env.VITE_CREW_API_URL as string | undefined)?.replace(/\/$/, '') ||
@@ -29,6 +37,7 @@ type Profile = {
   profileImageUrl: string | null
   description: string
   wallet: string
+  evmWallet?: string | null
   priorWallets?: string[]
   referralCode?: string
   referredByCode?: string | null
@@ -46,6 +55,7 @@ type DeskCoin = {
   mode: string
   launchedAt: string
   pumpUrl: string
+  platform?: string
   share: number | null
   hireRole: string | null
   solReceived: number
@@ -136,6 +146,9 @@ export function KolProfilePage() {
   const [refEarnings, setRefEarnings] = useState<ReferralEarnings | null>(null)
   const [refEarningsBusy, setRefEarningsBusy] = useState(false)
   const [refEarningsError, setRefEarningsError] = useState<string | null>(null)
+  const [evmInput, setEvmInput] = useState('')
+  const [evmBusy, setEvmBusy] = useState(false)
+  const [evmMsg, setEvmMsg] = useState<string | null>(null)
   const justRegistered = params.get('registered') === '1'
   const viewingOwnDesk =
     Boolean(ownHandle) && ownHandle!.toLowerCase() === handle.toLowerCase()
@@ -169,6 +182,7 @@ export function KolProfilePage() {
           throw new Error(body.error || 'Could not load this desk.')
         }
         setDesk(body)
+        setEvmInput(body.profile?.evmWallet || '')
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load this desk.')
       }
@@ -230,6 +244,47 @@ export function KolProfilePage() {
       window.setTimeout(() => setCopied(false), 1600)
     } catch {
       setCopied(false)
+    }
+  }
+
+  async function saveEvmWallet() {
+    if (!wallet.publicKey || !wallet.signMessage || !desk) return
+    setEvmBusy(true)
+    setEvmMsg(null)
+    try {
+      const ts = Date.now()
+      const w = wallet.publicKey.toBase58()
+      const evm = evmInput.trim()
+      const message = `crew-kol-evm:${w}:${evm}:${ts}`
+      const sig = await wallet.signMessage(new TextEncoder().encode(message))
+      const res = await fetch(`${API}/api/kols/register/evm`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-crew-wallet': w,
+          'x-crew-timestamp': String(ts),
+          'x-crew-signature': bs58.encode(sig),
+        },
+        body: JSON.stringify({ evmWallet: evm }),
+      })
+      const body = (await res.json()) as Desk & { error?: string }
+      if (!res.ok) throw new Error(body.error || 'Could not save EVM wallet.')
+      setDesk((prev) =>
+        prev
+          ? {
+              ...prev,
+              profile: {
+                ...prev.profile,
+                evmWallet: body.profile?.evmWallet ?? (evm || null),
+              },
+            }
+          : prev,
+      )
+      setEvmMsg(evm ? 'Saved. Needed for Zora / Base payouts.' : 'Cleared EVM wallet.')
+    } catch (err) {
+      setEvmMsg(err instanceof Error ? err.message : 'Could not save EVM wallet.')
+    } finally {
+      setEvmBusy(false)
     }
   }
 
@@ -406,6 +461,16 @@ export function KolProfilePage() {
                   >
                     Solscan
                   </a>
+                  {desk.profile.evmWallet ? (
+                    <a
+                      className="btn btn-ghost btn-sm"
+                      href={`https://basescan.org/address/${desk.profile.evmWallet}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Base
+                    </a>
+                  ) : null}
                   <a
                     className="btn btn-ghost btn-sm"
                     href={`https://x.com/${desk.profile.xUsername}`}
@@ -415,6 +480,37 @@ export function KolProfilePage() {
                     X
                   </a>
                 </div>
+                {isOwner || viewingOwnDesk ? (
+                  <div className="desk-evm-row">
+                    <label className="register-ref register-evm">
+                      <span>EVM wallet (optional)</span>
+                      <input
+                        type="text"
+                        value={evmInput}
+                        onChange={(e) => setEvmInput(e.target.value)}
+                        placeholder="0x… Base address"
+                        autoComplete="off"
+                        spellCheck={false}
+                        maxLength={42}
+                      />
+                      <em className="desk-evm-hint">
+                        Needed to be paid on Zora / Base launches. Pump.fun and Bags.fm still use
+                        Solana.
+                      </em>
+                    </label>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      disabled={evmBusy || !wallet.signMessage}
+                      onClick={() => void saveEvmWallet()}
+                    >
+                      {evmBusy ? 'Signing…' : 'Save EVM wallet'}
+                    </button>
+                    {evmMsg ? <p className="hint">{evmMsg}</p> : null}
+                  </div>
+                ) : desk.profile.evmWallet ? (
+                  <p className="desk-evm-hint">Base · {shortAddr(desk.profile.evmWallet)}</p>
+                ) : null}
               </div>
               <div className="desk-rank" aria-label="Follower rank">
                 <span>Rank</span>
@@ -564,7 +660,14 @@ export function KolProfilePage() {
                     <article className="desk-coin" key={coin.mint}>
                       <div className="desk-coin-top">
                         <strong>${coin.ticker}</strong>
-                        <span>{coin.launchedByKol ? 'Launched' : 'Hired'}</span>
+                        <span>
+                          <PlatformBadge
+                            platform={coin.platform}
+                            pumpUrl={coin.pumpUrl}
+                            mint={coin.mint}
+                          />{' '}
+                          {coin.launchedByKol ? 'Launched' : 'Hired'}
+                        </span>
                       </div>
                       <p className="desk-coin-name">{coin.name}</p>
                       <p className="desk-coin-sol">{formatSol(coin.solReceived)} SOL</p>
@@ -577,12 +680,44 @@ export function KolProfilePage() {
                       <div className="desk-coin-links">
                         {coin.pumpUrl ? (
                           <a href={coin.pumpUrl} target="_blank" rel="noreferrer">
-                            Pump
+                            {tradeLabel(
+                              inferLaunchPlatform({
+                                platform: coin.platform,
+                                pumpUrl: coin.pumpUrl,
+                                mint: coin.mint,
+                              }),
+                            )}
                           </a>
                         ) : null}
-                        <a href={`https://solscan.io/token/${coin.mint}`} target="_blank" rel="noreferrer">
-                          Mint
-                        </a>
+                        {explorerTokenUrl(
+                          inferLaunchPlatform({
+                            platform: coin.platform,
+                            pumpUrl: coin.pumpUrl,
+                            mint: coin.mint,
+                          }),
+                          coin.mint,
+                        ) ? (
+                          <a
+                            href={explorerTokenUrl(
+                              inferLaunchPlatform({
+                                platform: coin.platform,
+                                pumpUrl: coin.pumpUrl,
+                                mint: coin.mint,
+                              }),
+                              coin.mint,
+                            )!}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {explorerLabel(
+                              inferLaunchPlatform({
+                                platform: coin.platform,
+                                pumpUrl: coin.pumpUrl,
+                                mint: coin.mint,
+                              }),
+                            )}
+                          </a>
+                        ) : null}
                       </div>
                     </article>
                   ))}
@@ -602,8 +737,14 @@ export function KolProfilePage() {
                       key={`${remit.signature}-${remit.mint}`}
                       href={
                         remit.signature
-                          ? `https://solscan.io/tx/${remit.signature}`
-                          : `https://solscan.io/token/${remit.mint}`
+                          ? explorerTxUrl(
+                              inferLaunchPlatform({ mint: remit.mint }),
+                              remit.signature,
+                            ) || `https://solscan.io/tx/${remit.signature}`
+                          : explorerTokenUrl(
+                              inferLaunchPlatform({ mint: remit.mint }),
+                              remit.mint,
+                            ) || `https://solscan.io/token/${remit.mint}`
                       }
                       target="_blank"
                       rel="noreferrer"

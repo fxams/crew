@@ -29,6 +29,36 @@ export function buildKolReferralsMessage(wallet: string, timestamp: number): str
   return `crew-kol-referrals:${wallet}:${timestamp}`
 }
 
+export function buildKolEvmWalletMessage(
+  wallet: string,
+  evmWallet: string,
+  timestamp: number,
+): string {
+  return `crew-kol-evm:${wallet}:${evmWallet}:${timestamp}`
+}
+
+/** Verify Phantom-signed EVM wallet update on a KOL desk. */
+export function kolEvmWalletFresh(req: {
+  header(name: string): string | undefined
+  body?: unknown
+}): { wallet: string; evmWallet: string } | null {
+  const wallet = (req.header('x-crew-wallet') || '').trim()
+  const tsRaw = (req.header('x-crew-timestamp') || '').trim()
+  const signature = (req.header('x-crew-signature') || '').trim()
+  const evmWallet = String(
+    (req.body && typeof req.body === 'object'
+      ? (req.body as { evmWallet?: string }).evmWallet
+      : '') || '',
+  ).trim()
+  if (!wallet || !tsRaw || !signature) return null
+  const timestamp = Number(tsRaw)
+  if (!Number.isFinite(timestamp)) return null
+  if (Math.abs(Date.now() - timestamp) > 10 * 60_000) return null
+  const message = buildKolEvmWalletMessage(wallet, evmWallet, timestamp)
+  if (!verifyWalletSignature({ wallet, message, signatureBase58: signature })) return null
+  return { wallet, evmWallet }
+}
+
 /** Verify Phantom-signed KOL referrals dashboard auth. */
 export function kolReferralsWalletFresh(req: {
   header(name: string): string | undefined
