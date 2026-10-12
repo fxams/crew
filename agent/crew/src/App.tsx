@@ -1478,7 +1478,7 @@ export default function App() {
                 <em>15%</em>, rest treasury (<em>60/15/5/20</em> when a KOL referred the agent).
                 Buyback cron is not live yet.
               </p>
-              <div className="plat-hero-row" aria-label="Launch venues">
+              <div className="plat-hero-row plat-chip-row" aria-label="Launch venues">
                 {venues.map((v) => (
                   <PlatformBadge key={v.id} platform={v.id} />
                 ))}
