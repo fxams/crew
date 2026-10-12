@@ -91,6 +91,7 @@ describe('agent discovery docs', () => {
     expect(llmsTxt()).toContain('does **not** auto-post')
     expect(llmsTxt()).toContain('coin.graduated')
     expect(llmsTxt()).toContain('GET /api/coins/graduated-unfeatured')
+    expect(llmsTxt()).toContain('CREW_FEATURE_AGENT_KEYS_SHA256')
     expect(llmsTxt()).toContain('Bags.fm is **recommended**')
     expect(llmsTxt()).toContain('CrewPay does **not** change on-chain addresses')
     expect(agentDiscoveryJson().platforms.default).toBe('pumpfun')
