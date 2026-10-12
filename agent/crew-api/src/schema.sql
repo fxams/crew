@@ -58,9 +58,9 @@ CREATE INDEX IF NOT EXISTS coins_launcher_idx ON coins (launcher);
 CREATE INDEX IF NOT EXISTS coins_launched_at_idx ON coins (launched_at DESC);
 CREATE INDEX IF NOT EXISTS coins_ticker_idx ON coins (ticker);
 CREATE INDEX IF NOT EXISTS coins_agent_key_id_idx ON coins (agent_key_id) WHERE agent_key_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS coins_graduated_unfeatured_idx
-  ON coins (graduated_at ASC)
-  WHERE graduated_at IS NOT NULL AND (featured_x_url IS NULL OR featured_x_url = '');
+-- coins_graduated_unfeatured_idx is created in db.ts migration 019 after
+-- ALTER TABLE adds graduated_at / featured_x_url on existing DBs. Do not
+-- CREATE INDEX it here — CREATE TABLE IF NOT EXISTS is a no-op on live coins.
 
 CREATE TABLE IF NOT EXISTS coin_crew (
   mint TEXT NOT NULL REFERENCES coins (mint) ON DELETE CASCADE,
