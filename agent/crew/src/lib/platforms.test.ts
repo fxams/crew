@@ -12,8 +12,11 @@ import {
   tradeLabel,
   tradeUrl,
   unsignedLaunchCurl,
+  unsignedVenueHint,
   venuesFromDiscovery,
   venuesFromOpenApi,
+  venuesFromPlatformsPayload,
+  zoraCaption,
 } from './platforms'
 
 describe('launch platform helpers', () => {
@@ -60,18 +63,18 @@ describe('launch platform helpers', () => {
     expect(isAllowedTradeUrl('https://evil.example/coin')).toBe(false)
   })
 
-  it('reads venues from discovery JSON and OpenAPI enum', () => {
+  it('reads venues from discovery JSON, /api/platforms, and OpenAPI enum', () => {
     const fromDisc = venuesFromDiscovery({
       platforms: {
         default: 'pumpfun',
         venues: [
-          { id: 'pumpfun', enabled: true, status: 'live', name: 'Pump.fun' },
-          { id: 'bags', enabled: false, status: 'disabled', name: 'Bags.fm' },
+          { id: 'pumpfun', enabled: true, status: 'live', name: 'Pump.fun', chain: 'solana' },
+          { id: 'bags', enabled: false, status: 'disabled', name: 'Bags.fm', chain: 'solana' },
           {
             id: 'zora',
             enabled: false,
             status: 'disabled',
-            caption: 'testnet / soon',
+            chain: 'base-sepolia',
             name: 'Zora',
           },
         ],
@@ -79,7 +82,26 @@ describe('launch platform helpers', () => {
     })
     expect(fromDisc?.map((v) => v.id)).toEqual(['pumpfun', 'bags', 'zora'])
     expect(fromDisc?.find((v) => v.id === 'bags')?.enabled).toBe(false)
-    expect(fromDisc?.find((v) => v.id === 'zora')?.caption).toMatch(/testnet \/ soon/)
+    expect(fromDisc?.find((v) => v.id === 'zora')?.caption).toBe('soon')
+    expect(fromDisc?.find((v) => v.id === 'zora')?.chain).toBe('base-sepolia')
+
+    const fromPayload = venuesFromPlatformsPayload({
+      ok: true,
+      default: 'pumpfun',
+      venues: [
+        { id: 'pumpfun', enabled: true, chain: 'solana' },
+        { id: 'bags', enabled: true, chain: 'solana' },
+        { id: 'zora', enabled: true, chain: 'base', status: 'live' },
+      ],
+    })
+    expect(fromPayload?.find((v) => v.id === 'zora')?.enabled).toBe(true)
+    expect(fromPayload?.find((v) => v.id === 'zora')?.caption).toBe('Base')
+    expect(fromPayload?.find((v) => v.id === 'zora')?.chain).toBe('base')
+
+    const sepolia = venuesFromPlatformsPayload({
+      venues: [{ id: 'zora', enabled: true, chain: 'base-sepolia' }],
+    })
+    expect(sepolia?.find((v) => v.id === 'zora')?.caption).toBe('testnet')
 
     const fromSpec = venuesFromOpenApi({
       components: {
@@ -90,6 +112,7 @@ describe('launch platform helpers', () => {
     })
     expect(fromSpec?.map((v) => v.id)).toEqual(['pumpfun', 'bags', 'zora'])
     expect(fromSpec?.find((v) => v.id === 'zora')?.enabled).toBe(false)
+    expect(fromSpec?.find((v) => v.id === 'zora')?.caption).toBe('soon')
   })
 
   it('fee copy names hired KOL crew, never the launcher 60%', () => {
@@ -107,5 +130,21 @@ describe('launch platform helpers', () => {
     expect(platformDisplayName('pumpfun')).toBe('Pump.fun')
     expect(platformDisplayName('bags')).toBe('Bags.fm')
     expect(platformDisplayName('zora')).toBe('Zora')
+  })
+
+  it('Zora captions are Base / testnet / soon', () => {
+    expect(zoraCaption(false, 'base-sepolia')).toBe('soon')
+    expect(zoraCaption(true, 'base-sepolia')).toBe('testnet')
+    expect(zoraCaption(true, 'base')).toBe('Base')
+    expect(FALLBACK_LAUNCH_VENUES.find((v) => v.id === 'zora')?.enabled).toBe(false)
+    expect(FALLBACK_LAUNCH_VENUES.find((v) => v.id === 'zora')?.caption).toBe('soon')
+    expect(
+      unsignedVenueHint({
+        ...FALLBACK_LAUNCH_VENUES[2],
+        enabled: true,
+        chain: 'base',
+        caption: 'Base',
+      }),
+    ).toMatch(/Zora on Base/)
   })
 })

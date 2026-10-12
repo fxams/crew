@@ -30,6 +30,7 @@ import { useLaunchVenues } from "./lib/use-launch-venues";
 import {
   inferLaunchPlatform,
   unsignedLaunchCurl,
+  unsignedVenueHint,
   type LaunchPlatform,
 } from "./lib/platforms";
 import { apiConfigured, pushModeAction, pushRemits, fetchProof } from "./lib/api";
@@ -2232,13 +2233,9 @@ export default function App() {
                 venues={venues}
                 value={launchPlatform}
                 onChange={(id) => setDraft((prev) => ({ ...prev, platform: id }))}
-                hint={
-                  phantomLaunch
-                    ? "Default Pump.fun — Phantom signs on Solana."
-                    : launchPlatform === "zora"
-                      ? "Zora is testnet / soon unless the API enables it. Unsigned EIP-1559 — crew wallets must be 0x."
-                      : "Bags.fm is live via Agent unsigned. This desk copies the request; sign in your agent."
-                }
+                hint={unsignedVenueHint(
+                  venues.find((v) => v.id === launchPlatform) || venues[0],
+                )}
               />
               {phantomLaunch ? (
                 <div className="field">

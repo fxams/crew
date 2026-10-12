@@ -51,10 +51,29 @@ export function zoraEnabled(): boolean {
   return v === '1' || v === 'true' || v === 'yes' || v === 'on'
 }
 
+export function evmTreasuryConfigured(): boolean {
+  const w = (
+    process.env.ZORA_TREASURY_ADDRESS ||
+    process.env.CREW_BUYBACK_WALLET_EVM ||
+    ''
+  ).trim()
+  return isEvmAddress(w)
+}
+
+/** Live for discovery/UI: flag on and a 0x treasury address configured. */
+export function zoraReady(): boolean {
+  return zoraEnabled() && evmTreasuryConfigured()
+}
+
 export function assertZoraEnabled(): void {
   if (!zoraEnabled()) {
     throw new Error(
       'Zora coin launches are disabled — set ZORA_ENABLED=1 to enable (Base Sepolia for tests, Base mainnet via ZORA_CHAIN).',
+    )
+  }
+  if (!evmTreasuryConfigured()) {
+    throw new Error(
+      'Zora coin launches need ZORA_TREASURY_ADDRESS or CREW_BUYBACK_WALLET_EVM (0x… treasury for 0xSplits).',
     )
   }
 }
@@ -126,30 +145,37 @@ export function platformDisplayName(platform: LaunchPlatform): string {
 }
 
 export type LaunchVenueStatus = 'live' | 'testnet' | 'disabled'
+export type LaunchChain = 'solana' | 'base' | 'base-sepolia'
 
 /** Public discovery row — no secrets. UI reads this instead of hardcoding venues. */
 export type LaunchVenue = {
   id: LaunchPlatform
   name: string
-  chain: 'solana' | 'base'
+  chain: LaunchChain
   enabled: boolean
   status: LaunchVenueStatus
-  /** Short UI caption, e.g. "testnet / soon". */
+  /** Short UI caption: Zora is "Base" / "testnet" / "soon". */
   caption?: string
   tradeHost: string
   explorer: 'solscan' | 'basescan'
   note: string
 }
 
+export function zoraCaption(enabled: boolean, chain: LaunchChain): string {
+  if (!enabled) return 'soon'
+  return chain === 'base' ? 'Base' : 'testnet'
+}
+
 export function listLaunchVenues(): LaunchVenue[] {
   const bagsOn = Boolean(bagsApiKey())
-  const zoraOn = zoraEnabled()
+  const zoraOn = zoraReady()
   let zoraNet: ZoraNetwork = 'base-sepolia'
   try {
     zoraNet = zoraNetwork()
   } catch {
     zoraNet = 'base-sepolia'
   }
+  const zoraChain: LaunchChain = zoraNet
   return [
     {
       id: 'pumpfun',
@@ -167,7 +193,7 @@ export function listLaunchVenues(): LaunchVenue[] {
       chain: 'solana',
       enabled: bagsOn,
       status: bagsOn ? 'live' : 'disabled',
-      caption: bagsOn ? undefined : 'needs BAGS_API_KEY',
+      caption: bagsOn ? undefined : 'soon',
       tradeHost: 'bags.fm',
       explorer: 'solscan',
       note: 'Unsigned Solana fee-claimer launches. Requires BAGS_API_KEY.',
@@ -175,19 +201,29 @@ export function listLaunchVenues(): LaunchVenue[] {
     {
       id: 'zora',
       name: 'Zora',
-      chain: 'base',
+      chain: zoraChain,
       enabled: zoraOn,
       status: zoraOn ? (zoraNet === 'base' ? 'live' : 'testnet') : 'disabled',
-      caption: zoraOn
-        ? zoraNet === 'base'
-          ? undefined
-          : 'testnet'
-        : 'testnet / soon',
+      caption: zoraCaption(zoraOn, zoraChain),
       tradeHost: 'zora.co',
       explorer: 'basescan',
-      note: 'Off unless ZORA_ENABLED. Base Sepolia default. Crew wallets must be EVM (0x…).',
+      note: zoraOn
+        ? `Zora content coins on ${zoraNet === 'base' ? 'Base' : 'Base Sepolia'}. Crew wallets must be EVM (0x…).`
+        : zoraEnabled()
+          ? 'ZORA_ENABLED is on but treasury address is missing (ZORA_TREASURY_ADDRESS or CREW_BUYBACK_WALLET_EVM).'
+          : 'Off unless ZORA_ENABLED and a 0x treasury are set. Base Sepolia default. Crew wallets must be EVM (0x…).',
     },
   ]
+}
+
+/** Dedicated public payload for GET /api/platforms (also embedded on GET /api/agent). */
+export function platformsPublicJson() {
+  return {
+    ok: true as const,
+    default: DEFAULT_LAUNCH_PLATFORM,
+    feeMap: LAUNCH_FEE_MAP_COPY,
+    venues: listLaunchVenues(),
+  }
 }
 
 /** Infer venue from a stored trade URL or mint (0x = Zora). */

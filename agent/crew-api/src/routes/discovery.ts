@@ -15,6 +15,7 @@ import {
   robotsTxt,
   SITE_URL,
 } from '../lib/agent/discovery.js'
+import { platformsPublicJson } from '../lib/agent/platforms.js'
 
 export const discoveryRouter = Router()
 
@@ -79,6 +80,10 @@ discoveryRouter.get('/.well-known/wellknown-verify.txt', (_req, res) => {
 
 /** Alias — some clients probe /api/agent.json */
 discoveryRouter.get('/api/agent.json', (_req, res) => jsonDoc(res, agentDiscoveryJson()))
+
+/** Live venue enablement + chain for the site selector (no secrets). */
+discoveryRouter.get('/api/platforms', (_req, res) => jsonDoc(res, platformsPublicJson()))
+discoveryRouter.get('/api/agent/platforms', (_req, res) => jsonDoc(res, platformsPublicJson()))
 
 discoveryRouter.get('/mcp.json', (_req, res) =>
   jsonDoc(res, {
