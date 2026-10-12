@@ -59,6 +59,7 @@ async function main() {
       service: 'crew-api',
       docs: '/api/healthz',
       agent: '/api/agent',
+      platforms: '/api/platforms',
       jobs: jobsEnabled ? '/api/jobs/open' : undefined,
       proof: '/api/proof',
       buybacks: '/api/buybacks',

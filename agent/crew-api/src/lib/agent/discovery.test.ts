@@ -99,6 +99,14 @@ describe('agent discovery docs', () => {
       'bags',
       'zora',
     ])
+    expect(agentDiscoveryJson().platforms.list).toContain('/api/platforms')
+    expect(agentDiscoveryJson().endpoints['GET /api/platforms']).toBeTruthy()
+    expect(openApiSpec().paths['/api/platforms']).toBeTruthy()
+    expect(openApiSpec().components.schemas.LaunchVenue.properties.chain.enum).toEqual([
+      'solana',
+      'base',
+      'base-sepolia',
+    ])
     expect(agentDiscoveryJson().platforms.feeMap).toMatch(/hired KOL crew/)
     expect(agentDiscoveryJson().platforms.feeMap.toLowerCase()).not.toMatch(/launcher gets 60/)
     expect(openApiSpec().components.schemas.LaunchRequest.properties.description.maxLength).toBe(

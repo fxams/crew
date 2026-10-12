@@ -135,7 +135,8 @@ export function agentDiscoveryJson() {
       default: 'pumpfun',
       param: 'platform',
       feeMap: LAUNCH_FEE_MAP_COPY,
-      note: 'UNSIGNED launch venues. platform defaults to pumpfun. The launching agent does not receive the 60% crew slice.',
+      list: `${API_URL}/api/platforms`,
+      note: 'UNSIGNED launch venues. platform defaults to pumpfun. The launching agent does not receive the 60% crew slice. Each venue reports enabled + chain (solana | base | base-sepolia).',
       venues: listLaunchVenues(),
     },
     topics: [
@@ -186,6 +187,11 @@ export function agentDiscoveryJson() {
     },
     endpoints: {
       'GET /api/agent': 'This discovery document',
+      'GET /api/platforms': {
+        auth: 'none',
+        returns:
+          'Launch venues with enabled + chain (pumpfun always; bags if BAGS_API_KEY; zora if ZORA_ENABLED + 0x treasury). Zora chain is base or base-sepolia.',
+      },
       'POST /api/agent/autohire': {
         auth: 'x-crew-api-key',
         body: { name: 'string', ticker: 'string', description: 'string', seats: '1-8' },
@@ -352,6 +358,24 @@ export function openApiSpec() {
           summary: 'This OpenAPI document',
           operationId: 'getOpenApi',
           responses: { '200': { description: 'OpenAPI 3.1 JSON' } },
+        },
+      },
+      '/api/platforms': {
+        get: {
+          tags: ['discovery', 'agent'],
+          summary: 'Launch venues with live enabled status and chain',
+          operationId: 'getLaunchPlatforms',
+          responses: {
+            '200': {
+              description:
+                'pumpfun always on; bags if BAGS_API_KEY; zora if ZORA_ENABLED + 0x treasury. chain is solana, base, or base-sepolia.',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/PlatformsResponse' },
+                },
+              },
+            },
+          },
         },
       },
       '/api/agent': {
@@ -852,6 +876,37 @@ export function openApiSpec() {
         },
       },
       schemas: {
+        LaunchVenue: {
+          type: 'object',
+          required: ['id', 'name', 'chain', 'enabled', 'status'],
+          properties: {
+            id: { type: 'string', enum: ['pumpfun', 'bags', 'zora'] },
+            name: { type: 'string' },
+            chain: { type: 'string', enum: ['solana', 'base', 'base-sepolia'] },
+            enabled: { type: 'boolean' },
+            status: { type: 'string', enum: ['live', 'testnet', 'disabled'] },
+            caption: {
+              type: 'string',
+              description: 'Zora: Base (mainnet), testnet (Sepolia), soon (off).',
+            },
+            tradeHost: { type: 'string' },
+            explorer: { type: 'string', enum: ['solscan', 'basescan'] },
+            note: { type: 'string' },
+          },
+        },
+        PlatformsResponse: {
+          type: 'object',
+          required: ['ok', 'default', 'venues'],
+          properties: {
+            ok: { type: 'boolean' },
+            default: { type: 'string', enum: ['pumpfun'] },
+            feeMap: { type: 'string' },
+            venues: {
+              type: 'array',
+              items: { $ref: '#/components/schemas/LaunchVenue' },
+            },
+          },
+        },
         AutohireRequest: {
           type: 'object',
           properties: {
