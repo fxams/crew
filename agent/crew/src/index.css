@@ -345,6 +345,13 @@ a {
   max-width: 38rem;
 }
 
+.agents-x402-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.65rem;
+}
+
 .agents-x402-note {
   margin: 0;
   max-width: 38rem;
@@ -3963,6 +3970,17 @@ a {
   color: var(--acid-ink);
 }
 
+.plat-x402 {
+  color: var(--acid);
+  border-color: rgba(200, 255, 61, 0.35);
+}
+
+.plat-x402 .plat-mark {
+  background: transparent;
+  border: 1px solid var(--acid);
+  color: var(--acid);
+}
+
 .plat-name {
   white-space: nowrap;
 }
@@ -4071,6 +4089,47 @@ a {
   color: var(--ink);
 }
 
+.auth-chip-row {
+  margin: 0;
+}
+
+.auth-chip-row .plat-filter-btn {
+  display: block;
+  text-align: center;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  height: auto;
+}
+
+.auth-choice-title,
+.auth-choice-meta {
+  display: block;
+}
+
+.auth-choice-meta {
+  font-size: 0.85em;
+  opacity: 0.92;
+}
+
+.auth-choice.is-compact {
+  margin-top: 0.25rem;
+}
+
+.try-crew .auth-choice .plat-filter {
+  margin: 0;
+}
+
+.page-agents .plat-hero-row {
+  margin: 0.4rem 0 0.2rem;
+}
+
+.plat-x402-btn.is-on {
+  color: var(--acid-ink);
+  border-color: var(--acid);
+  background: var(--acid);
+}
+
 .details-quiet {
   margin: 0.35rem 0 0;
   color: var(--muted);
@@ -4080,6 +4139,11 @@ a {
 .details-quiet summary {
   cursor: pointer;
   color: var(--muted);
+}
+
+.details-quiet .hint {
+  margin: 0.35rem 0 0;
+  overflow-wrap: anywhere;
 }
 
 .details-quiet pre {
@@ -4127,12 +4191,12 @@ a {
 
   /* Phantom in-app ~390px: hero + Try Autohire chips need a real tap target. */
   .plat-hero-row,
-  .try-crew .plat-chip-row {
+  .try-crew > .plat-chip-row {
     gap: 0.4rem;
   }
 
-  .plat-hero-row .plat-badge,
-  .try-crew .plat-filter-btn {
+  .plat-hero-row .plat-badge:not(.plat-x402),
+  .try-crew > .plat-chip-row .plat-filter-btn {
     flex: 1 1 0;
     min-width: 0;
     min-height: 40px;
@@ -4143,11 +4207,37 @@ a {
     justify-content: center;
   }
 
+  .plat-hero-row .plat-badge.plat-x402 {
+    flex: 0 0 auto;
+    min-height: 32px;
+    padding: 0.2rem 0.5rem 0.2rem 0.28rem;
+    font-size: 0.72rem;
+  }
+
   .plat-hero-row .plat-mark,
-  .try-crew .plat-filter-btn .plat-mark {
+  .try-crew > .plat-chip-row .plat-filter-btn .plat-mark {
     width: 22px;
     height: 22px;
     font-size: 0.72rem;
+  }
+
+  .plat-hero-row .plat-x402 .plat-mark {
+    width: 18px;
+    height: 18px;
+    font-size: 0.62rem;
+  }
+
+  .auth-chip-row {
+    flex-direction: column;
+  }
+
+  .auth-chip-row .plat-filter-btn {
+    display: block;
+    width: 100%;
+    min-height: 40px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    padding: 0.45rem 0.7rem;
   }
 
   .home-fee-toggle .plat-filter-btn {

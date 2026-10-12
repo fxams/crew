@@ -1,25 +1,45 @@
 import { useEffect, useState } from 'react'
 import {
   FALLBACK_LAUNCH_VENUES,
-  fetchLaunchVenues,
+  fetchLaunchDiscovery,
   type LaunchVenue,
 } from './platforms'
+import { FALLBACK_X402, type X402Info } from './x402'
 
-/** Load supported launch venues from discovery/OpenAPI once per mount. */
-export function useLaunchVenues(): LaunchVenue[] {
-  const [venues, setVenues] = useState<LaunchVenue[]>(FALLBACK_LAUNCH_VENUES)
+export type LaunchDiscoveryState = {
+  venues: LaunchVenue[]
+  x402: X402Info
+}
+
+const FALLBACK_DISCOVERY: LaunchDiscoveryState = {
+  venues: FALLBACK_LAUNCH_VENUES,
+  x402: FALLBACK_X402,
+}
+
+/** Load venues + x402 prices/networks from discovery once per mount. */
+export function useLaunchDiscovery(): LaunchDiscoveryState {
+  const [state, setState] = useState<LaunchDiscoveryState>(FALLBACK_DISCOVERY)
   useEffect(() => {
     let cancelled = false
-    void fetchLaunchVenues()
+    void fetchLaunchDiscovery()
       .then((next) => {
-        if (!cancelled) setVenues(next)
+        if (!cancelled) setState(next)
       })
       .catch(() => {
-        if (!cancelled) setVenues(FALLBACK_LAUNCH_VENUES)
+        if (!cancelled) setState(FALLBACK_DISCOVERY)
       })
     return () => {
       cancelled = true
     }
   }, [])
-  return venues
+  return state
+}
+
+/** Load supported launch venues from discovery/OpenAPI once per mount. */
+export function useLaunchVenues(): LaunchVenue[] {
+  return useLaunchDiscovery().venues
+}
+
+export function useX402Info(): X402Info {
+  return useLaunchDiscovery().x402
 }

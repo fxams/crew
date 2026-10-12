@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { kolProfilePath } from '../lib/routes'
-import { useLaunchVenues } from '../lib/use-launch-venues'
+import { useLaunchDiscovery } from '../lib/use-launch-venues'
 import { platformMark, unsignedLaunchCurl, type LaunchPlatform } from '../lib/platforms'
+import { AuthChoice, type AgentAuth } from './AuthChoice'
 
 const API = (
   (import.meta.env.VITE_CREW_API_URL as string | undefined)?.replace(/\/$/, '') ||
@@ -21,7 +22,8 @@ export function TryCrewCard() {
   const [hires, setHires] = useState<Hire[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [platform, setPlatform] = useState<LaunchPlatform>('pumpfun')
-  const venues = useLaunchVenues()
+  const [agentAuth, setAgentAuth] = useState<AgentAuth>('key')
+  const { venues, x402 } = useLaunchDiscovery()
 
   async function run(e?: React.FormEvent) {
     e?.preventDefault()
@@ -93,9 +95,20 @@ export function TryCrewCard() {
       ) : (
         <p className="hint">See which KOLs an agent would hire for your coin and what share each gets. Nothing is created.</p>
       )}
+      <AuthChoice x402={x402} compact value={agentAuth} onChange={setAgentAuth} />
       <details className="details-quiet">
-        <summary>Agent unsigned · {venues.find((v) => v.id === platform)?.name}</summary>
-        <pre>{unsignedLaunchCurl({ platform, name })}</pre>
+        <summary>
+          {agentAuth === 'x402' ? 'x402 snippet' : 'Agent unsigned'} ·{' '}
+          {venues.find((v) => v.id === platform)?.name}
+        </summary>
+        <pre>
+          {unsignedLaunchCurl({
+            platform,
+            name,
+            auth: agentAuth,
+            paymentHeader: x402.requestHeader,
+          })}
+        </pre>
       </details>
       <p className="hint">
         Agents: <code>GET api.crewpay.dev/api/agent/quickstart</code> ·{' '}

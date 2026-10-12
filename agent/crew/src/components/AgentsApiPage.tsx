@@ -7,8 +7,11 @@ import {
   CREW_PUBLIC_API_URL,
   CREW_VERSION,
 } from '../lib/config'
+import { PlatformBadge } from './PlatformBadge'
 import { PlatformSelect } from './PlatformSelect'
-import { useLaunchVenues } from '../lib/use-launch-venues'
+import { X402Chip } from './X402Chip'
+import { AuthChoice, type AgentAuth } from './AuthChoice'
+import { useLaunchDiscovery } from '../lib/use-launch-venues'
 import {
   LAUNCH_FEE_MAP_COPY,
   unsignedLaunchCurl,
@@ -21,7 +24,7 @@ const DISCOVERY = [
   { label: 'llms-full.txt', path: '/llms-full.txt', note: 'Full call instructions' },
   { label: 'OpenAPI', path: '/openapi.json', note: 'OpenAPI 3.1 schema' },
   { label: 'Agent JSON', path: '/api/agent', note: 'Capability discovery' },
-  { label: 'Platforms', path: '/api/platforms', note: 'Venues, enabled, chain' },
+  { label: 'Platforms', path: '/api/platforms', note: 'Venues, enabled, chain, x402' },
   { label: 'MCP manifest', path: '/mcp.json', note: 'MCP install for crypto agents' },
   { label: 'Agent card', path: '/.well-known/agent.json', note: 'Skills + intents' },
   { label: 'AI plugin', path: '/.well-known/ai-plugin.json', note: 'Plugin manifest' },
@@ -182,11 +185,19 @@ async function copyText(text: string) {
 
 export function AgentsApiPage() {
   const [copied, setCopied] = useState<string | null>(null)
-  const venues = useLaunchVenues()
+  const { venues, x402 } = useLaunchDiscovery()
   const [platform, setPlatform] = useState<LaunchPlatform>('pumpfun')
+  const [agentAuth, setAgentAuth] = useState<AgentAuth>('key')
   const unsignedCurl = useMemo(
-    () => unsignedLaunchCurl({ platform, name: 'Desk Cat', ticker: 'DCAT' }),
-    [platform],
+    () =>
+      unsignedLaunchCurl({
+        platform,
+        name: 'Desk Cat',
+        ticker: 'DCAT',
+        auth: agentAuth,
+        paymentHeader: x402.requestHeader,
+      }),
+    [platform, agentAuth, x402.requestHeader],
   )
 
   async function onCopy(id: string, text: string) {
@@ -226,11 +237,17 @@ export function AgentsApiPage() {
               mcp.json
             </a>
           </div>
+          <div className="plat-hero-row plat-chip-row" aria-label="Launch venues">
+            {venues.map((v) => (
+              <PlatformBadge key={v.id} platform={v.id} />
+            ))}
+            <X402Chip x402={x402} />
+          </div>
           <p className="section-sub agents-hero-sub">
             Frontier LLMs launch on Pump.fun, Bags.fm, or Zora with on-chain fee-shares —{' '}
             {LAUNCH_FEE_MAP_COPY}. Buyback cron is not live yet. Dry-run first. Unsigned{' '}
-            <code>platform</code> defaults to <code>pumpfun</code>. Pay per call with x402, no API
-            key (when enabled).
+            <code>platform</code> defaults to <code>pumpfun</code>. Auth: API key (free) or x402 pay
+            per call.
           </p>
           <div className="agents-hero-actions">
             <a className="btn btn-primary" href={`${CREW_PUBLIC_API_URL}/llms.txt`} target="_blank" rel="noreferrer">
@@ -345,8 +362,8 @@ export function AgentsApiPage() {
           Call surface.
         </h2>
         <p className="section-sub">
-          Auth: operator supplies <code>CREW_AGENT_API_KEY</code> (or mint via{' '}
-          <code>POST /api/agent/keys</code>). Launcher secret is <code>x-launcher-key</code> / MCP{' '}
+          Auth: API key (free) via <code>x-crew-api-key</code>, or x402 pay per call with{' '}
+          <code>X-PAYMENT</code>. Launcher secret is <code>x-launcher-key</code> / MCP{' '}
           <code>CREW_LAUNCHER_KEY</code> only — never in prompts. Limits: name 2–32, ticker 2–13,
           initial buy 0–10 SOL. Prefer <code>dry-run</code> first; treat HTTP 202 as incomplete.
         </p>
@@ -393,6 +410,7 @@ export function AgentsApiPage() {
             unsignedVenueHint(venues.find((v) => v.id === platform) || venues[0])
           }
         />
+        <AuthChoice x402={x402} value={agentAuth} onChange={setAgentAuth} />
         <div className="agents-code-head">
           <span>POST /api/agent/launch/unsigned</span>
           <button
