@@ -24,6 +24,7 @@ export type CreateCampaignInput = {
   perKOLCap: number
   deadline: number
   rules: CampaignJob['rules']
+  type?: CampaignJob['type']
 }
 
 export class InMemoryJobStore {
@@ -44,7 +45,7 @@ export class InMemoryJobStore {
     const now = nowMs()
     const job: CampaignJob = {
       id,
-      type: 'campaign',
+      type: input.type || 'campaign',
       createdBy: input.createdBy,
       chainId: input.chainId,
       asset: input.asset,

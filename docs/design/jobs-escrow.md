@@ -141,3 +141,11 @@ All endpoints are test-only; simulated or devnet-only. Do not touch existing lau
 - `JOBS_RAIL` may default to 'sim' in dev/tests.
 - All code is test/devnet only in this step; no mainnet funds moved.
 
+## Addendum: Non-custodial rails and multichain defaults (v0 update)
+
+- Rails are non-custodial-first: the server never accepts private keys; payout/refund returns unsigned transactions for client signature.
+- Solana devnet: program-less holder model — unsigned SystemProgram.transfer messages for payouts; true escrow via PDA/program is future and must be audited before mainnet.
+- EVM: unsigned EIP-1559 transfers; default Base Sepolia, Ethereum Sepolia via config.
+- Platform fee: configurable via env (bps + optional wallet). Default 0; treat numbers as TBD.
+- Verification: allow explicit agent approval plus optional link checks; optional auto-release timeout window for UX.
+

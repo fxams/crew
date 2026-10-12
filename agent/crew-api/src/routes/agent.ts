@@ -83,6 +83,9 @@ export const agentRouter = Router()
 const AUTOHIRE_DISCLAIMER =
   'Autohire matches public Pump.fun profiles by narrative. Wallets are not opt-in partners, endorsed affiliates, or employees of CREW. Operators choose who receives fee-shares.'
 
+/** Requested seats may exceed the fee-map cap; handlers clamp + warn. */
+const AUTOHIRE_SEATS_REQUEST_MAX = 20
+
 const crewMemberSchema = z.object({
   handle: z.string().min(1).max(32),
   wallet: solanaAddress,
@@ -313,7 +316,7 @@ function refineLaunchBody(
 }
 
 /** Requested seats may exceed the fee-map cap; handler clamps + warns. */
-const AUTOHIRE_SEATS_REQUEST_MAX = 20
+// moved earlier
 
 const launchBodySchema = z
   .object({

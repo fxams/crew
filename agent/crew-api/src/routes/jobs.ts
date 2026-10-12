@@ -13,6 +13,7 @@ import {
 } from '../lib/jobs/types.js'
 import { defaultVerifier } from '../lib/jobs/verifier.js'
 import { railFor } from '../lib/jobs/settlement.js'
+import { jobsPlatformFeeBps, jobsPlatformFeeWallet } from '../lib/jobs/config.js'
 
 export const jobsRouter = Router()
 
@@ -37,6 +38,7 @@ const rulesSchema = z
   .default({ platform: 'x', minPostAgeHours: 0 })
 
 const createCampaignSchema = z.object({
+  type: z.enum(['campaign', 'content', 'design', 'research', 'community', 'feedback']).optional().default('campaign'),
   chainId: chainIdSchema,
   asset: assetSchema,
   budget: z.number().positive(),
@@ -99,6 +101,7 @@ jobsRouter.post('/jobs/campaigns', requireAgentApiKey, (req, res) => {
       perKOLCap: body.perKOLCap,
       deadline: resolveDeadlineMs(body),
       rules: body.rules ?? { platform: 'x' },
+      type: body.type,
     })
     res.status(201).json({ ok: true, job })
   } catch (err) {
@@ -117,7 +120,8 @@ jobsRouter.post('/jobs/:id/fund', requireAgentApiKey, async (req, res) => {
     const railName = (typeof req.body?.rail === 'string' ? req.body.rail : '').trim().toLowerCase()
     const rail = railFor(job.chainId, railName || process.env.JOBS_RAIL)
     const ctx = { chainId: job.chainId, asset: job.asset }
-    const { escrow } = await rail.fund(ctx, { amount: job.budget })
+    const from = typeof req.body?.from === 'string' ? req.body.from : undefined
+    const { escrow } = await rail.fund(ctx, { amount: job.budget, from })
     const locked = await rail.lock(ctx, escrow)
     const vf = await rail.verifyFunding(ctx, escrow)
     job.escrowRef = escrow.ref || escrow.id
@@ -249,15 +253,18 @@ jobsRouter.post('/jobs/:id/verify', requireAgentApiKey, async (req, res) => {
       res.status(404).json({ ok: false, error: 'No submission found' })
       return
     }
+    const approve = Boolean(req.body && typeof req.body === 'object' && (req.body.approve === true))
     const verifier = defaultVerifier()
-    const vi = await verifier.verify({
-      platform: 'x',
-      kolHandle: claim.kolHandle,
-      urls: sub.urls,
-      requiredTicker: job.rules.requiredTicker,
-      requiredLink: job.rules.requiredLink,
-      minPostAgeHours: job.rules.minPostAgeHours,
-    })
+    const vi = approve
+      ? { ok: true, acceptedUrls: sub.urls.slice(0, 1), details: { approvedByAgent: true } }
+      : await verifier.verify({
+          platform: 'x',
+          kolHandle: claim.kolHandle,
+          urls: sub.urls,
+          requiredTicker: job.rules.requiredTicker,
+          requiredLink: job.rules.requiredLink,
+          minPostAgeHours: job.rules.minPostAgeHours,
+        })
     sub.verification = vi
     if (vi.ok) {
       sub.verifiedAt = nowMs()
@@ -307,18 +314,29 @@ jobsRouter.post('/jobs/:id/payout', requireAgentApiKey, async (req, res) => {
       return
     }
     const amount = clampBigint(job.perProofAmount * BigInt(proofsToPay), 0n, job.budget)
-    const rel = await rail.release(ctx, { id: job.escrowRef, rail: rail.name }, { to: claim.kolWallet, amount })
-    claim.status = 'paid'
-    // Update job budget (local tracking only)
-    job.budget = job.budget - amount
-    if (job.budget <= 0n) job.status = 'paid'
-    memoryJobs.setJob(job)
+    const feeBps = jobsPlatformFeeBps()
+    const feeWallet = jobsPlatformFeeWallet()
+    const feeAmount = feeBps > 0 && feeWallet ? (amount * BigInt(feeBps)) / 10_000n : 0n
+    const kolAmount = amount - feeAmount
+    const from = typeof req.body?.from === 'string' ? req.body.from : undefined
+    const rel = await rail.release(
+      ctx,
+      { id: job.escrowRef, rail: rail.name },
+      { to: claim.kolWallet, amount: kolAmount, from },
+    )
+    // Non-custodial rails return unsigned payload; do not mutate budget/paid status here.
     res.status(201).json({
       ok: true,
+      requiresSignature: Boolean(rel.unsigned),
       paidProofs: proofsToPay,
-      amount: formatAmountFromBigint(amount),
+      kolAmount: formatAmountFromBigint(kolAmount),
+      platformFee: feeAmount > 0n ? { bps: feeBps, wallet: feeWallet, amount: formatAmountFromBigint(feeAmount) } : null,
+      unsigned: rel.unsigned,
       txRef: rel.txRef,
       claimId: claim.id,
+      tip: rel.unsigned
+        ? 'Non-custodial: sign and submit the unsigned transaction(s) from your wallet to pay the KOL (and platform fee when set).'
+        : undefined,
     })
   } catch (err) {
     res.status(400).json({ ok: false, error: err instanceof Error ? err.message : 'payout failed' })

@@ -7,7 +7,7 @@ export type ChainId =
 
 export type AssetSymbol = 'SOL' | 'USDC' | 'ETH' | 'USDT'
 
-export type JobType = 'campaign'
+export type JobType = 'campaign' | 'content' | 'design' | 'research' | 'community' | 'feedback'
 
 export type JobStatus =
   | 'created'
@@ -26,6 +26,8 @@ export type CampaignRules = {
   requiredLink?: string
   minPostAgeHours?: number
   platform?: 'x'
+  /** Optional auto-release window; after this time from submit, agent can auto-release. */
+  autoReleaseAfterHours?: number
 }
 
 export type JobBase = {
@@ -47,7 +49,7 @@ export type JobBase = {
 }
 
 export type CampaignJob = JobBase & {
-  type: 'campaign'
+  type: JobType
 }
 
 export type Job = CampaignJob
