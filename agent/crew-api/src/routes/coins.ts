@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { sendInternalError } from '../lib/http-error.js'
 import { z } from 'zod'
 import { requireApiKey } from '../lib/auth.js'
 import {
@@ -81,7 +82,7 @@ coinsRouter.get('/coins', async (req, res) => {
     const coins = await listCoins(limit)
     res.json({ coins })
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : 'list failed' })
+    sendInternalError(res, err, 'list coins')
   }
 })
 
@@ -94,7 +95,7 @@ coinsRouter.get('/coins/:mint', async (req, res) => {
     }
     res.json({ coin })
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : 'get failed' })
+    sendInternalError(res, err, 'get coin')
   }
 })
 
@@ -174,7 +175,7 @@ coinsRouter.get('/remits', async (req, res) => {
       }),
     })
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : 'list failed' })
+    sendInternalError(res, err, 'list remits')
   }
 })
 
@@ -224,6 +225,6 @@ coinsRouter.get('/board', async (_req, res) => {
       }),
     })
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : 'board failed' })
+    sendInternalError(res, err, 'board')
   }
 })

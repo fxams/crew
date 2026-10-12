@@ -27,6 +27,7 @@ import {
 } from '../lib/kol-mentions.js'
 import { kolEvmWalletFresh, kolReferralsWalletFresh } from '../lib/wallet-auth.js'
 import { clientIp } from '../lib/client-ip.js'
+import { sendInternalError } from '../lib/http-error.js'
 
 export const kolRegisterRouter = Router()
 
@@ -89,10 +90,7 @@ kolRegisterRouter.get('/kol/referrals', async (req, res) => {
     }
     res.json({ ok: true, ...stats })
   } catch (err) {
-    res.status(500).json({
-      ok: false,
-      error: err instanceof Error ? err.message : 'referrals lookup failed',
-    })
+    sendInternalError(res, err, 'kol referrals')
   }
 })
 
@@ -155,7 +153,7 @@ kolRegisterRouter.get('/kols/referral-cuts', async (req, res) => {
         'KOL-seat referral carve removed. Referral means 5% of creator fees on agent-key referred launches — see GET /api/kol/referrals.',
     })
   } catch (err) {
-    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : 'lookup failed' })
+    sendInternalError(res, err, 'kol-register')
   }
 })
 
@@ -168,7 +166,7 @@ kolRegisterRouter.get('/kols/claim/:username', async (req, res) => {
     }
     res.json({ ok: true, ...pitch })
   } catch (err) {
-    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : 'claim failed' })
+    sendInternalError(res, err, 'kol-register')
   }
 })
 
@@ -185,7 +183,7 @@ kolRegisterRouter.get('/kols/mentions/drafts', async (req, res) => {
     const drafts = await listMentionDrafts(status === 'all' ? 'all' : 'pending')
     res.json({ ok: true, drafts, note: 'Approve in dashboard/API, then post manually or via X tool — never auto-tweets.' })
   } catch (err) {
-    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : 'list failed' })
+    sendInternalError(res, err, 'kol-register')
   }
 })
 
@@ -219,7 +217,7 @@ kolRegisterRouter.post('/kols/mentions/drafts/:id/:action', async (req, res) => 
           : 'Draft rejected.',
     })
   } catch (err) {
-    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : 'update failed' })
+    sendInternalError(res, err, 'kol-register')
   }
 })
 
@@ -232,7 +230,7 @@ kolRegisterRouter.get('/kols/registered/wallet/:wallet', async (req, res) => {
     }
     res.json({ ok: true, ...profile })
   } catch (err) {
-    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : 'profile failed' })
+    sendInternalError(res, err, 'kol-register')
   }
 })
 
@@ -245,7 +243,7 @@ kolRegisterRouter.get('/kols/registered/:username', async (req, res) => {
     }
     res.json({ ok: true, ...profile })
   } catch (err) {
-    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : 'profile failed' })
+    sendInternalError(res, err, 'kol-register')
   }
 })
 
@@ -262,7 +260,7 @@ kolRegisterRouter.get('/kols/registered', async (req, res) => {
     const board = await listRegistered(limit)
     res.json({ ok: true, ...board })
   } catch (err) {
-    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : 'list failed' })
+    sendInternalError(res, err, 'kol-register')
   }
 })
 

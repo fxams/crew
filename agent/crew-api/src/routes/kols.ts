@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { countKols, getKolByWallet, listKols } from '../lib/kols.js'
+import { sendInternalError } from '../lib/http-error.js'
 
 export const kolsRouter = Router()
 
@@ -14,7 +15,7 @@ kolsRouter.get('/kols', async (req, res) => {
     ])
     res.json({ kols, total })
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : 'list failed' })
+    sendInternalError(res, err, 'list kols')
   }
 })
 
@@ -27,6 +28,6 @@ kolsRouter.get('/kols/wallet/:wallet', async (req, res) => {
     }
     res.json({ kol })
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : 'get failed' })
+    sendInternalError(res, err, 'get kol')
   }
 })

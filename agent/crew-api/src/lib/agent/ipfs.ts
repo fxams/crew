@@ -6,6 +6,8 @@ export type AgentImageInput =
   | { kind: 'url'; url: string }
   | { kind: 'base64'; data: string; contentType?: string; filename?: string }
 
+const IMAGE_MAX_BYTES = 5_000_000
+
 const IMAGE_MAGIC: Array<{ type: string; test: (b: Buffer) => boolean }> = [
   { type: 'image/png', test: (b) => b.length >= 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47 },
   { type: 'image/jpeg', test: (b) => b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
@@ -20,6 +22,46 @@ function sniffImageType(buf: Buffer): string | null {
   return null
 }
 
+/** Stream response body and abort once past maxBytes (avoids buffering huge downloads). */
+async function readBodyLimited(res: Response, maxBytes: number): Promise<Buffer> {
+  const declared = Number(res.headers.get('content-length') || 0)
+  if (Number.isFinite(declared) && declared > maxBytes) {
+    if (res.body) void res.body.cancel().catch(() => undefined)
+    throw new Error('imageUrl max 5MB')
+  }
+
+  if (!res.body) {
+    const buf = Buffer.from(await res.arrayBuffer())
+    if (buf.byteLength > maxBytes) throw new Error('imageUrl max 5MB')
+    return buf
+  }
+
+  const reader = res.body.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (!value) continue
+      total += value.byteLength
+      if (total > maxBytes) {
+        await reader.cancel()
+        throw new Error('imageUrl max 5MB')
+      }
+      chunks.push(value)
+    }
+  } catch (err) {
+    try {
+      await reader.cancel()
+    } catch {
+      /* ignore */
+    }
+    throw err
+  }
+  return Buffer.concat(chunks.map((c) => Buffer.from(c)))
+}
+
 /** Fetch/decode image bytes with magic-byte check (PNG/JPEG/WebP/GIF only). */
 export async function loadAgentImageBytes(
   image: AgentImageInput,
@@ -28,9 +70,8 @@ export async function loadAgentImageBytes(
     const res = await fetchPublicUrl(image.url, { label: 'imageUrl', maxRedirects: 3, timeoutMs: 12_000 })
     if (!res.ok) throw new Error(`Failed to fetch imageUrl (${res.status})`)
     const headerType = (res.headers.get('content-type') || '').split(';')[0]!.trim().toLowerCase()
-    const buf = Buffer.from(await res.arrayBuffer())
+    const buf = await readBodyLimited(res, IMAGE_MAX_BYTES)
     if (buf.byteLength < 64) throw new Error('imageUrl body too small')
-    if (buf.byteLength > 5_000_000) throw new Error('imageUrl max 5MB')
     const sniffed = sniffImageType(buf)
     if (!sniffed) throw new Error('imageUrl body is not a PNG/JPEG/WebP/GIF image')
     if (headerType && headerType.startsWith('image/') && headerType !== sniffed && !headerType.includes(sniffed.split('/')[1]!)) {
@@ -51,9 +92,12 @@ export async function loadAgentImageBytes(
     contentType = dataUrl[1]!
     raw = dataUrl[2]!
   }
+  // Reject oversized base64 before allocating the decoded buffer.
+  const approxBytes = Math.floor((raw.length * 3) / 4)
+  if (approxBytes > IMAGE_MAX_BYTES) throw new Error('imageBase64 max 5MB')
   const buf = Buffer.from(raw, 'base64')
   if (buf.byteLength < 64) throw new Error('imageBase64 too small')
-  if (buf.byteLength > 5_000_000) throw new Error('imageBase64 max 5MB')
+  if (buf.byteLength > IMAGE_MAX_BYTES) throw new Error('imageBase64 max 5MB')
   const sniffed = sniffImageType(buf)
   if (!sniffed) throw new Error('imageBase64 is not a PNG/JPEG/WebP/GIF image')
   const type = sniffed || contentType

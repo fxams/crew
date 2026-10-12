@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { sendInternalError } from '../lib/http-error.js'
 import { buybackStats, listBuybackRuns, runCrewBuyback } from '../lib/buyback-exec.js'
 import { requireAgentApiKey } from '../lib/auth.js'
 import { getProofBundle, recordModeAction } from '../lib/proof.js'
@@ -14,7 +15,7 @@ proofRouter.get('/proof', async (req, res) => {
     res.setHeader('Cache-Control', 'public, max-age=30')
     res.json(bundle)
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : 'proof failed' })
+    sendInternalError(res, err, 'proof')
   }
 })
 
@@ -24,7 +25,7 @@ proofRouter.get('/buybacks', async (req, res) => {
     const [runs, stats] = await Promise.all([listBuybackRuns(limit), buybackStats()])
     res.json({ ok: true, stats, runs })
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : 'buybacks failed' })
+    sendInternalError(res, err, 'buybacks')
   }
 })
 
@@ -43,7 +44,7 @@ proofRouter.post('/buybacks/run', requireAgentApiKey, async (req, res) => {
     }
     res.json({ ok: true, result })
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : 'buyback run failed' })
+    sendInternalError(res, err, 'buyback run')
   }
 })
 
