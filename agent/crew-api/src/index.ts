@@ -42,8 +42,19 @@ async function main() {
       exposedHeaders: ['X-PAYMENT-RESPONSE', 'PAYMENT-RESPONSE'],
     }),
   )
-  // Agent launches may post imageBase64 — allow a few MB.
-  app.use(express.json({ limit: '6mb' }))
+  // Default JSON cap 100kb. Launch paths (including unsigned/submit/dry-run/x402)
+  // may post imageBase64 — allow a few MB. Choose one parser so the body stream
+  // is not consumed twice.
+  const json100kb = express.json({ limit: '100kb' })
+  const json6mb = express.json({ limit: '6mb' })
+  app.use((req, res, next) => {
+    const path = req.originalUrl.split('?')[0] || req.path
+    if (path === '/api/agent/launch' || path.startsWith('/api/agent/launch/')) {
+      json6mb(req, res, next)
+      return
+    }
+    json100kb(req, res, next)
+  })
 
   app.use(healthRouter)
   app.use(discoveryRouter)

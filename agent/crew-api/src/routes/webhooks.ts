@@ -8,6 +8,7 @@ import {
   listWebhooks,
 } from '../lib/webhooks.js'
 import { assertPublicHostname, assertSafeHttpUrl } from '../lib/agent/safe-url.js'
+import { sendInternalError } from '../lib/http-error.js'
 
 export const webhooksRouter = Router()
 
@@ -27,7 +28,7 @@ webhooksRouter.get('/webhooks', requireAgentApiKey, async (req, res) => {
     const webhooks = await listWebhooks(agentKeyId ?? undefined)
     res.json({ ok: true, scoped: Boolean(agentKeyId), webhooks })
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : 'list failed' })
+    sendInternalError(res, err, 'list webhooks')
   }
 })
 
@@ -61,6 +62,6 @@ webhooksRouter.delete('/webhooks/:id', requireAgentApiKey, async (req, res) => {
     }
     res.json({ ok: true })
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : 'delete failed' })
+    sendInternalError(res, err, 'delete webhook')
   }
 })

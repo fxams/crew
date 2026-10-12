@@ -15,9 +15,10 @@ healthRouter.get(['/healthz', '/health'], async (_req, res) => {
       time: new Date().toISOString(),
     })
   } catch (err) {
+    console.error('healthz db check', err)
     res.status(503).json({
       ok: false,
-      error: err instanceof Error ? err.message : 'db down',
+      error: 'db down',
     })
   }
 })
