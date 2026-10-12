@@ -155,6 +155,8 @@ export function buildCrewShareholders(
     platformWallet?: string
     /** Agent-key referrer — 5% of total fees (from treasury), or floor when also in crew. */
     agentReferrer?: AgentReferrerInput | null
+    /** Optional per-launch treasury override in bps (defaults to PLATFORM_BUYBACK_BPS). Clamped server-side. */
+    treasuryBpsOverride?: number | null
   },
 ): Shareholder[] {
   const deskWallet = assertWallet(opts.deskWallet)
@@ -192,7 +194,8 @@ export function buildCrewShareholders(
 
   // Dual-role: start from non-referred map, then enforce max(seat, 5% referral).
   if (dualRole && agentReferrerWallet) {
-    const platformBps = platformBuybackBps(false)
+    const baseTreasury = opts.treasuryBpsOverride ?? null
+    const platformBps = baseTreasury != null ? baseTreasury : platformBuybackBps(false)
     const crewPoolBps = 10_000 - platformBps - deskBps
     if (crewPoolBps < 0) throw new Error('Platform + desk reserves exceed 100% of fees.')
     const raw = allocateCrewPool(crew, crewPoolBps)
@@ -239,7 +242,13 @@ export function buildCrewShareholders(
     return staged
   }
 
-  const platformBps = platformBuybackBps(separateReferrer)
+  const baseTreasury = opts.treasuryBpsOverride ?? null
+  const platformBps =
+    baseTreasury != null
+      ? separateReferrer
+        ? Math.max(0, baseTreasury - AGENT_REFERRAL_BPS)
+        : baseTreasury
+      : platformBuybackBps(separateReferrer)
   const agentReferralBps = separateReferrer ? AGENT_REFERRAL_BPS : 0
   const crewPoolBps = 10_000 - platformBps - agentReferralBps - deskBps
   if (crewPoolBps < 0) throw new Error('Platform + desk + referral reserves exceed 100% of fees.')

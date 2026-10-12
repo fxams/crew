@@ -145,4 +145,22 @@ export class CrewPayClient {
   proof() {
     return this.fetch('/api/proof')
   }
+
+  /** Build UNSIGNED v0 messages (create + lock). Sign locally or submit via submitSigned. */
+  buildUnsigned(body: Record<string, unknown>) {
+    return this.fetch('/api/agent/launch/unsigned', {
+      method: 'POST',
+      auth: true,
+      body: JSON.stringify(body),
+    })
+  }
+
+  /** Submit previously signed base64 transactions (create then lock). */
+  submitSigned(signed: string[]) {
+    return this.fetch('/api/agent/launch/submit', {
+      method: 'POST',
+      auth: true,
+      body: JSON.stringify({ signed }),
+    })
+  }
 }

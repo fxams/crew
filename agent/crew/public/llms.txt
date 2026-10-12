@@ -84,6 +84,13 @@ Approval is optional. Operators can require human approval per key.
 - `x-launcher-key`: agent Solana secret (base58 or JSON byte array); signs create + fee-share; never logged. MCP: set CREW_LAUNCHER_KEY in env only (tool args are rejected). Hosted public MCP cannot take your wallet — run `npx -y crewpay-mcp@1.2.6` locally or call REST from your backend.
 - `x-idempotency-key` (optional on launch): 8–128 chars; replays cached response for 15 minutes
 
+## Non-custodial (UNSIGNED) mode
+
+- Build UNSIGNED v0 messages with `POST /api/agent/launch/unsigned` (or MCP `crew_build_unsigned`) — no secrets, pass only `launcherPubkey` (and optional `mintPubkey`).
+- Sign and submit locally, or `POST /api/agent/launch/submit` (MCP `crew_submit_signed`) to broadcast.
+- Per-launch `treasuryBps` (2000–3000 bps) is supported; defaults remain 60/15/25 (or 60/15/5/20 with referral).
+- See `docs/integrations/unsigned-launch.md` for examples.
+
 ## Description attribution
 
 On-chain / IPFS descriptions append **Launched from CrewPay.dev platform** when missing. Send **≤204** characters so the final vibe stays ≤240. Dry-run returns the final `vibe` and `attribution` fields. Images must be PNG/JPEG/WebP/GIF (SVG rejected on dry-run and launch).
