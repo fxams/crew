@@ -4100,7 +4100,8 @@ a {
   }
 
   .kols-row-register .kols-wallet,
-  .kols-row-register span:nth-child(4) {
+  .kols-row-register span:nth-child(4),
+  .kols-row-register span:nth-child(5) {
     display: none;
   }
 }
@@ -4423,8 +4424,15 @@ a {
   }
 
   .page-desk .desk-rank,
-  .page-desk .desk-referral-points {
+  .page-desk .desk-referral-points,
+  .page-desk .desk-evm-hint {
     display: none;
+  }
+
+  .page-desk .desk-evm-row {
+    grid-column: 1 / -1;
+    margin-top: 0.15rem;
+    gap: 0.28rem;
   }
 
   .page-desk .desk-stats {
@@ -4873,6 +4881,7 @@ a.plat-badge:focus-visible {
   display: grid;
   gap: 0.4rem;
   margin-top: 0.55rem;
+  grid-column: 1 / -1;
 }
 
 .desk-evm-row input {
