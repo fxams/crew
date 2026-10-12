@@ -506,35 +506,7 @@ export function KolProfilePage() {
                     X
                   </a>
                 </div>
-                {isOwner || viewingOwnDesk ? (
-                  <div className="desk-evm-row">
-                    <label className="register-ref register-evm">
-                      <span>EVM wallet (optional)</span>
-                      <input
-                        type="text"
-                        value={evmInput}
-                        onChange={(e) => setEvmInput(e.target.value)}
-                        placeholder="0x… Base address"
-                        autoComplete="off"
-                        spellCheck={false}
-                        maxLength={42}
-                      />
-                      <em className="desk-evm-hint">
-                        Needed to be paid on Zora / Base launches. Pump.fun and Bags.fm still use
-                        Solana.
-                      </em>
-                    </label>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      disabled={evmBusy || !wallet.signMessage}
-                      onClick={() => void saveEvmWallet()}
-                    >
-                      {evmBusy ? 'Signing…' : 'Save EVM wallet'}
-                    </button>
-                    {evmMsg ? <p className="hint">{evmMsg}</p> : null}
-                  </div>
-                ) : desk.profile.evmWallet ? (
+                {!(isOwner || viewingOwnDesk) && desk.profile.evmWallet ? (
                   <p className="desk-evm-hint">Base · {shortAddr(desk.profile.evmWallet)}</p>
                 ) : null}
               </div>
@@ -542,6 +514,35 @@ export function KolProfilePage() {
                 <span>Rank</span>
                 <strong>#{desk.profile.rank || '—'}</strong>
               </div>
+              {isOwner || viewingOwnDesk ? (
+                <div className="desk-evm-row">
+                  <label className="register-ref register-evm">
+                    <span>EVM wallet (optional)</span>
+                    <input
+                      type="text"
+                      value={evmInput}
+                      onChange={(e) => setEvmInput(e.target.value)}
+                      placeholder="0x… Base address"
+                      autoComplete="off"
+                      spellCheck={false}
+                      maxLength={42}
+                    />
+                    <em className="desk-evm-hint">
+                      Needed to be paid on Zora / Base launches. Pump.fun and Bags.fm still use
+                      Solana.
+                    </em>
+                  </label>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    disabled={evmBusy || !wallet.signMessage}
+                    onClick={() => void saveEvmWallet()}
+                  >
+                    {evmBusy ? 'Signing…' : 'Save EVM wallet'}
+                  </button>
+                  {evmMsg ? <p className="hint">{evmMsg}</p> : null}
+                </div>
+              ) : null}
             </header>
 
             <div className="desk-stats" aria-label="X stats">

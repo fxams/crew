@@ -86,7 +86,7 @@ import { formatSol, formatSolSigned } from "./lib/format-sol";
 import type { HireRole } from "./lib/types";
 import { launchCrew } from "./lib/launch";
 import { useOwnRegisteredHandle } from "./lib/registered-kol";
-import { headerKolLinks } from "./lib/nav";
+import { headerKolLinks, mobileStickyCta } from "./lib/nav";
 import { isAdminKickoffPath, isAgentsPath, isApprovePath, isClaimPath, isCoinPath, isCoinsPath, isHomePath, isKolsPath, isLaunchPath, isOnepagerPath, isProofPath, isReferralPath, isRegisterPath, kolHandleFromPath, referralCodeFromPath } from "./lib/routes";
 import { ApprovePage } from "./components/ApprovePage";
 import { CoinPage } from "./components/CoinPage";
@@ -1382,6 +1382,19 @@ export default function App() {
     }
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [path, location.hash]);
+
+  const stickyCta = mobileStickyCta({
+    registered: Boolean(ownRegisteredHandle),
+    hide:
+      isRegisterPage ||
+      isOnepagerPage ||
+      isCoinPage ||
+      isCoinsPage ||
+      isAdminKickoffPage,
+    deskOrClaim: isKolProfilePage || isClaimPage,
+    onLaunchPage: isLaunchPage,
+    launchLabel,
+  });
 
   return (
     <div className={`site${isLaunchPage ? " site-launch" : ""}`}>
@@ -3093,31 +3106,29 @@ export default function App() {
       </div>
       )}
 
-      {isRegisterPage || isOnepagerPage || isCoinPage || isCoinsPage || isAdminKickoffPage ? null : isKolProfilePage || isClaimPage ? (
-      <div className="mobile-cta">
-        <button className="btn btn-primary btn-wide" type="button" onClick={() => navigate("/register")}>
-          Register as crew
-        </button>
-      </div>
-      ) : (
+      {stickyCta ? (
       <div className="mobile-cta">
         <button
           className="btn btn-primary btn-wide"
           type="button"
           onClick={() => {
-            if (!isLaunchPage) {
+            if (stickyCta.action === "register") {
+              navigate("/register");
+              return;
+            }
+            if (stickyCta.action === "go-launch") {
               navigate("/launch");
               return;
             }
             if (phantomLaunch && !launchReady) return;
             void onLaunch();
           }}
-          disabled={isLaunchPage ? (phantomLaunch ? busy || !launchReady : false) : false}
+          disabled={stickyCta.action === "submit" ? (phantomLaunch ? busy || !launchReady : false) : false}
         >
-          {isLaunchPage ? launchLabel : "Launch coin"}
+          {stickyCta.label}
         </button>
       </div>
-      )}
+      ) : null}
     </div>
   );
 }
