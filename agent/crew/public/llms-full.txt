@@ -134,6 +134,7 @@ Returns planned crew, fee map, SOL estimate, warnings — **no mint, no secret r
 - Keep `description` ≤204 chars (attribution makes final ≤240)
 - Launcher wallet pays Pump create fees and is the on-chain creator
 - Prefer `autoHire` unless the user named specific wallets — Autohire ≠ consent
+- Add a wallet to get hired and paid. KOLs without a wallet are skipped for crews.
 - Mint a key via crew_claim_key or POST /api/agent/keys/claim (do not invent keys)
 - Never put Solana secrets in tool arguments / prompts — MCP env only (`launcherKey`/`privateKey`/`secretKey` args are rejected)
 - Prefer dry-run before launch; cluster is **mainnet-beta** only

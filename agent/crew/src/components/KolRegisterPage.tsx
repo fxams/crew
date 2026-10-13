@@ -16,6 +16,7 @@ import { lookupRegisteredHandle, useOwnRegisteredHandle } from '../lib/registere
 import { kolProfilePath } from '../lib/routes'
 import { SocialWalletButton } from './SocialWalletButton'
 import {
+  ADD_WALLET_TO_RECEIVE,
   NO_CRYPTO_NEEDED,
   WALLET_OPTIONAL_HINT,
 } from '../lib/kol-onboarding'
@@ -595,8 +596,7 @@ export function KolRegisterPage() {
               <strong>Hired first.</strong> Autohire fills seats with registered KOLs before anyone else.
             </li>
             <li>
-              <strong>Your wallet, when you want one.</strong> {NO_CRYPTO_NEEDED} Add a payout
-              address later — fee-shares never go to an empty address.
+              <strong>Your wallet, when you want one.</strong> {ADD_WALLET_TO_RECEIVE}
             </li>
             <li>
               <strong>Referral link.</strong> Agents that claim a key with your code pay you{' '}

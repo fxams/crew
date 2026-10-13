@@ -152,7 +152,7 @@ export async function resolveCrew(
     const filtered = skipCrewWithoutPayoutWallets(input.crew)
     if (!filtered.crew.length) {
       throw new Error(
-        'Crew has no payout wallets — add a Solana address for each KOL before launch. Never send to an empty address.',
+        'Crew has no payout wallets — add a wallet to get hired and paid. KOLs without a wallet are skipped for crews.',
       )
     }
     return { crew: normalizeCrew(filtered.crew, mode, { maxSeats }) }
