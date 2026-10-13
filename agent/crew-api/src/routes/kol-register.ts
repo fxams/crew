@@ -61,7 +61,7 @@ kolRegisterRouter.get('/kols/register/status', (_req, res) => {
       note:
         'Every registered KOL gets a referral code + link (crewpay.dev/r/<code>). Agents that claim a key with your code permanently bind you as referrer — referred launches split fees 60% to the KOL crew / 15% to the launching agent / 5% you / 20% to the treasury (non-referred stay 60% to the KOL crew, 15% to the launching agent, 25% to the treasury). The launching agent does not receive the 60% crew slice. Buyback cron is NOT live.',
     evmWallet:
-      'Optional Base (0x) address. Needed to be paid on Zora / Base launches. Solana payout wallet is optional at signup — add one later on Desk to receive Pump.fun / Bags.fm payouts.',
+      'Optional Base (0x) address. Needed to be paid on Zora / Base launches. Solana payout wallet is optional at signup — add a wallet to get hired and paid. KOLs without a wallet are skipped for crews.',
       points: {
         register: REFERRAL_POINTS_REGISTER,
         hire: REFERRAL_POINTS_HIRE,

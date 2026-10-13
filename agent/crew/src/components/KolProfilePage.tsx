@@ -327,7 +327,7 @@ export function KolProfilePage() {
       setPayoutMsg(
         body.profile?.pendingWallet
           ? 'Wallet change pending — sign with the current wallet or wait 48h.'
-          : 'Payout wallet saved. Earnings are now claimable at this address.',
+          : 'Payout wallet saved. You can get hired and paid on future crews.',
       )
     } catch (err) {
       setPayoutMsg(err instanceof Error ? err.message : 'Could not save payout wallet.')
@@ -609,8 +609,7 @@ export function KolProfilePage() {
                 <div className="desk-payout-card">
                   {!hasPayoutWallet ? (
                     <p className="desk-wallet-banner">
-                      {ADD_WALLET_TO_RECEIVE}. {NO_CRYPTO_NEEDED} Earnings accrue and become
-                      claimable once a wallet is added — we never send to an empty address.
+                      {ADD_WALLET_TO_RECEIVE} {NO_CRYPTO_NEEDED}
                     </p>
                   ) : (
                     <p className="desk-pnl-sub">
@@ -714,7 +713,7 @@ export function KolProfilePage() {
                   ? `Creator fees across the linked wallet${
                       desk.profile.priorWallets?.length ? ' and prior / directory wallets' : ''
                     }.`
-                  : 'Earnings accrue here and become claimable once you add a payout wallet.'}
+                  : ADD_WALLET_TO_RECEIVE}
               </p>
               <div className="desk-pnl-chips">
                 <span>{desk.performance.coinsHired} hired</span>

@@ -74,7 +74,7 @@ export function isPayoutWallet(value: string | null | undefined, chain: AddressC
 
 /**
  * Drop KOLs who have no payout wallet, then renormalize remaining shares to 100%.
- * Their seat is held (not sent to an empty address) until they add a wallet.
+ * Add a wallet to get hired and paid. KOLs without a wallet are skipped for crews.
  */
 export function skipCrewWithoutPayoutWallets(
   crew: CrewMember[],
