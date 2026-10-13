@@ -495,4 +495,24 @@ export async function migrate(): Promise<void> {
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['021_kol_wallet_optional'],
   )
+  await query(`
+    CREATE TABLE IF NOT EXISTS farcaster_admin (
+      id TEXT PRIMARY KEY,
+      fid BIGINT NOT NULL,
+      signer_uuid TEXT NOT NULL,
+      username TEXT,
+      connected_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await query(`
+    CREATE TABLE IF NOT EXISTS farcaster_admin_nonces (
+      nonce TEXT PRIMARY KEY,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['022_farcaster_admin'],
+  )
 }

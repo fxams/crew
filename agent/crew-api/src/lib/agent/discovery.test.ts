@@ -72,6 +72,7 @@ describe('agent discovery docs', () => {
     expect(aiPluginManifest().api.url).toContain('/openapi.json')
     expect(robotsTxt()).toContain('GPTBot')
     expect(robotsTxt()).toContain('ClaudeBot')
+    expect(robotsTxt()).toContain('Disallow: /admin/')
     expect(llmsFullTxt()).toContain('x-launcher-key')
     expect(llmsFullTxt()).toContain('/api/agent/keys/claim')
     expect(agentDiscoveryJson().auth.keys.claim).toMatch(/keys\/claim/)

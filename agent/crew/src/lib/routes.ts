@@ -125,3 +125,9 @@ export function isAdminKickoffPath(pathname: string): boolean {
   const path = normalizePath(pathname)
   return path === '/admin/kickoff' || path.endsWith('/admin/kickoff')
 }
+
+/** Unlisted Farcaster / Neynar SIWN admin. Not in nav. */
+export function isAdminFarcasterPath(pathname: string): boolean {
+  const path = normalizePath(pathname)
+  return path === '/admin/farcaster' || path.endsWith('/admin/farcaster')
+}

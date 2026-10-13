@@ -12,6 +12,7 @@ import { proofRouter } from './routes/proof.js'
 import { webhooksRouter } from './routes/webhooks.js'
 import { jobsRouter } from './routes/jobs.js'
 import { postLaunchRouter } from './routes/post-launch.js'
+import { farcasterRouter } from './routes/farcaster.js'
 import { maybeStartAcpInProcess } from './lib/acp-inprocess.js'
 import { configureTrustProxy } from './lib/client-ip.js'
 import { probeJitoEngines } from './lib/agent/jito.js'
@@ -63,6 +64,7 @@ async function main() {
   app.use(discoveryRouter)
   app.use('/api', healthRouter)
   app.use('/api', postLaunchRouter)
+  app.use('/api', farcasterRouter)
   app.use('/api', coinsRouter)
   app.use('/api', kolsRouter)
   app.use('/api', kolRegisterRouter)

@@ -88,12 +88,13 @@ import { launchCrew } from "./lib/launch";
 import { useOwnRegisteredHandle } from "./lib/registered-kol";
 import { NO_CRYPTO_NEEDED } from "./lib/kol-onboarding";
 import { headerKolLinks, mobileStickyCta } from "./lib/nav";
-import { isAdminKickoffPath, isAgentsPath, isApprovePath, isClaimPath, isCoinPath, isCoinsPath, isHomePath, isKolsPath, isLaunchPath, isOnepagerPath, isProofPath, isReferralPath, isRegisterPath, kolHandleFromPath, referralCodeFromPath } from "./lib/routes";
+import { isAdminFarcasterPath, isAdminKickoffPath, isAgentsPath, isApprovePath, isClaimPath, isCoinPath, isCoinsPath, isHomePath, isKolsPath, isLaunchPath, isOnepagerPath, isProofPath, isReferralPath, isRegisterPath, kolHandleFromPath, referralCodeFromPath } from "./lib/routes";
 import { ApprovePage } from "./components/ApprovePage";
 import { CoinPage } from "./components/CoinPage";
 import { CoinsPage } from "./components/CoinsPage";
 import { LiveCoins } from "./components/LiveCoins";
 import { AdminKickoffPage } from "./components/AdminKickoffPage";
+import { AdminFarcasterPage } from "./components/AdminFarcasterPage";
 import { distributeCreatorFees, lockHolderKolFeeShares, wireCrewFeeShares } from "./lib/pump/fees";
 import {
   remitsFromSignature,
@@ -198,6 +199,7 @@ export default function App() {
   const isCoinPage = isCoinPath(path);
   const isCoinsPage = isCoinsPath(path);
   const isAdminKickoffPage = isAdminKickoffPath(path);
+  const isAdminFarcasterPage = isAdminFarcasterPath(path);
 
   useEffect(() => {
     if (!referralInviteCode || !isReferralPath(path)) return
@@ -1391,7 +1393,8 @@ export default function App() {
       isOnepagerPage ||
       isCoinPage ||
       isCoinsPage ||
-      isAdminKickoffPage,
+      isAdminKickoffPage ||
+      isAdminFarcasterPage,
     deskOrClaim: isKolProfilePage || isClaimPage,
     onLaunchPage: isLaunchPage,
     launchLabel,
@@ -1497,8 +1500,9 @@ export default function App() {
       {isCoinPage ? <CoinPage /> : null}
       {isCoinsPage ? <CoinsPage /> : null}
       {isAdminKickoffPage ? <AdminKickoffPage /> : null}
+      {isAdminFarcasterPage ? <AdminFarcasterPage /> : null}
 
-      {!isLaunchPage && !isKolsPage && !isRegisterPage && !isKolProfilePage && !isClaimPage && !isAgentsPage && !isProofPage && !isOnepagerPage && !isApprovePage && !isCoinPage && !isCoinsPage && !isAdminKickoffPage ? (
+      {!isLaunchPage && !isKolsPage && !isRegisterPage && !isKolProfilePage && !isClaimPage && !isAgentsPage && !isProofPage && !isOnepagerPage && !isApprovePage && !isCoinPage && !isCoinsPage && !isAdminKickoffPage && !isAdminFarcasterPage ? (
         <>
       <div className="app-shell">
         <main id="top">
@@ -3009,7 +3013,7 @@ export default function App() {
           </div>
         </footer>
       </div>
-      ) : isAgentsPage || isKolsPage || isRegisterPage || isKolProfilePage || isClaimPage || isProofPage || isOnepagerPage || isApprovePage || isCoinPage || isCoinsPage || isAdminKickoffPage ? null : (
+      ) : isAgentsPage || isKolsPage || isRegisterPage || isKolProfilePage || isClaimPage || isProofPage || isOnepagerPage || isApprovePage || isCoinPage || isCoinsPage || isAdminKickoffPage || isAdminFarcasterPage ? null : (
       <div className="app-shell">
         <section className="section" id="brand">
           <p className="section-label">Assets</p>

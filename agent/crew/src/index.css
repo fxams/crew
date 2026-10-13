@@ -5412,6 +5412,23 @@ ol.coin-timeline.coin-panel {
   padding-bottom: 4.5rem;
 }
 
+.page-farcaster .farcaster-connect {
+  display: grid;
+  gap: 0.85rem;
+  max-width: 28rem;
+}
+
+.page-farcaster .siwn-wrap {
+  min-height: 44px;
+  overflow-x: auto;
+}
+
+.page-farcaster .farcaster-status {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
 .coin-hero {
   display: flex;
   gap: 0.9rem;
@@ -6022,7 +6039,8 @@ ol.coin-timeline.coin-panel {
   }
 
   .page-coins,
-  .page-coin {
+  .page-coin,
+  .page-farcaster {
     padding-bottom: 2.25rem;
   }
 
