@@ -89,6 +89,7 @@ export async function migrate(): Promise<void> {
         ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS tg_channel TEXT;
         ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS tg_channel_id TEXT;
         ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS tg_channel_verified BOOLEAN NOT NULL DEFAULT false;
+        ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS tg_channel_verified_at TIMESTAMPTZ;
         ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS tg_reach INT;
         ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS tg_channel_code TEXT;
       END IF;
@@ -535,6 +536,7 @@ export async function migrate(): Promise<void> {
   await query(
     `ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS tg_channel_verified BOOLEAN NOT NULL DEFAULT false`,
   )
+  await query(`ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS tg_channel_verified_at TIMESTAMPTZ`)
   await query(`ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS tg_reach INT`)
   await query(`ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS tg_channel_code TEXT`)
   await query(`

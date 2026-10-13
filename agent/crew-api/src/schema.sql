@@ -230,6 +230,7 @@ CREATE TABLE IF NOT EXISTS kol_registrations (
   tg_channel TEXT,
   tg_channel_id TEXT,
   tg_channel_verified BOOLEAN NOT NULL DEFAULT false,
+  tg_channel_verified_at TIMESTAMPTZ,
   tg_reach INT,
   tg_channel_code TEXT,
   registered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
