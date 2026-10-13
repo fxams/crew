@@ -24,3 +24,6 @@ scripts/kol-harvest.json
 *.njsproj
 *.sln
 *.sw?
+
+playwright-report/
+test-results/

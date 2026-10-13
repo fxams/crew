@@ -163,6 +163,11 @@ export function solflareBrowseUrl(pageUrl: string, refOrigin: string): string {
   return `https://solflare.com/ul/v1/browse/${encodeURIComponent(pageUrl)}?ref=${encodeURIComponent(refOrigin)}`
 }
 
+/** Backpack in-app browse. */
+export function backpackBrowseUrl(pageUrl: string): string {
+  return `https://backpack.app/ul/v1/browse/${encodeURIComponent(pageUrl)}`
+}
+
 export type ListedWallet = {
   id: string
   name: string
