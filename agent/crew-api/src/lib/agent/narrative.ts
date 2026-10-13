@@ -425,7 +425,7 @@ export function planNarrativeHires(
     const handle = r.handle.replace(/^@+/, '').toLowerCase()
     if (!handle || knownHandles.has(handle)) continue
     if (isOptedOut([handle], optOut)) continue
-    if (!r.wallet || r.wallet.length < 32) continue // skip wallet-less registered KOLs — cannot lock on-chain shares
+    if (!r.wallet || r.wallet.length < 32) continue // Add a wallet to get hired and paid. KOLs without a wallet are skipped for crews.
     const id = `reg:${handle}`
     const kol: KolRecord = {
       id,

@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  issueKolSessionToken,
-  phantomAppIdFromEnv,
-  signKolSession,
-  verifyKolSession,
-} from './kol-session.js'
+import { issueKolSessionToken, signKolSession, verifyKolSession } from './kol-session.js'
 
 const SECRET = 'test-kol-session-secret'
 
@@ -45,20 +40,3 @@ describe('KOL desk session', () => {
   })
 })
 
-describe('Phantom app id env', () => {
-  it('reads PHANTOM_APP_ID or VITE_PHANTOM_APP_ID and hides when unset', () => {
-    const prevP = process.env.PHANTOM_APP_ID
-    const prevV = process.env.VITE_PHANTOM_APP_ID
-    delete process.env.PHANTOM_APP_ID
-    delete process.env.VITE_PHANTOM_APP_ID
-    expect(phantomAppIdFromEnv()).toBe('')
-    process.env.VITE_PHANTOM_APP_ID = 'vite-app'
-    expect(phantomAppIdFromEnv()).toBe('vite-app')
-    process.env.PHANTOM_APP_ID = 'portal-app'
-    expect(phantomAppIdFromEnv()).toBe('portal-app')
-    if (prevP === undefined) delete process.env.PHANTOM_APP_ID
-    else process.env.PHANTOM_APP_ID = prevP
-    if (prevV === undefined) delete process.env.VITE_PHANTOM_APP_ID
-    else process.env.VITE_PHANTOM_APP_ID = prevV
-  })
-})

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { ADD_WALLET_TO_RECEIVE, NO_CRYPTO_NEEDED, SOCIAL_WALLET_LABEL } from './kol-onboarding'
-import { isPayoutWallet, resolvePhantomAppId, vitePhantomAppId } from './payout-wallet'
+import {
+  ADD_WALLET_TO_RECEIVE,
+  NO_CRYPTO_NEEDED,
+  SOCIAL_WALLET_LABEL,
+  SOCIAL_WALLET_NOTE,
+} from './kol-onboarding'
+import { isPayoutWallet } from './payout-wallet'
+import { resolvePrivyAppId, vitePrivyAppId } from './privy-app'
 
 describe('payout wallet guard', () => {
   it('rejects empty destinations', () => {
@@ -15,18 +21,21 @@ describe('payout wallet guard', () => {
   })
 })
 
-describe('Phantom app id', () => {
-  it('hides social wallet when no env or API id is set', () => {
-    expect(vitePhantomAppId()).toBe('')
-    expect(resolvePhantomAppId('')).toBe('')
-    expect(resolvePhantomAppId('portal-app')).toBe('portal-app')
+describe('Privy app id', () => {
+  it('hides Privy UI when no env or API id is set', () => {
+    expect(vitePrivyAppId()).toBe('')
+    expect(resolvePrivyAppId('')).toBe('')
+    expect(resolvePrivyAppId('dashboard-app')).toBe('dashboard-app')
   })
 })
 
 describe('onboarding copy', () => {
   it('keeps the crypto-new signup promise', () => {
     expect(NO_CRYPTO_NEEDED).toBe('No crypto needed. Just an X account.')
-    expect(ADD_WALLET_TO_RECEIVE).toBe('Add a wallet to receive payouts')
-    expect(SOCIAL_WALLET_LABEL).toBe('Create a wallet with Google/Apple')
+    expect(ADD_WALLET_TO_RECEIVE).toBe(
+      'Add a wallet to get hired and paid. KOLs without a wallet are skipped for crews.',
+    )
+    expect(SOCIAL_WALLET_LABEL).toBe('Create a payout wallet')
+    expect(SOCIAL_WALLET_NOTE).toMatch(/Privy embedded Solana/)
   })
 })
