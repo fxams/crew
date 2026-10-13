@@ -5,6 +5,9 @@ export const CREW_VERSION = '2.8.0'
 /** Official CREW / CrewPay HQ account on X. */
 export const CREW_X_URL = 'https://x.com/CrewPayHQ'
 
+/** Official CREW / CrewPay account on Farcaster. */
+export const CREW_FARCASTER_URL = 'https://farcaster.xyz/crewpay'
+
 /**
  * Canonical public API host for docs / Agents page / agent-facing copy.
  * Always the custom domain — do not derive from VITE_CREW_API_URL (build env may lag).

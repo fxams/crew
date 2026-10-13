@@ -34,6 +34,7 @@ import { PlatformSelect } from "./components/PlatformSelect";
 import { TradeLinks } from "./components/TradeLinks";
 import { X402Chip } from "./components/X402Chip";
 import { AuthChoice, type AgentAuth } from "./components/AuthChoice";
+import { FooterSocials, NavSocialLinks } from "./components/SocialIcons";
 import { useLaunchDiscovery } from "./lib/use-launch-venues";
 import { x402PayLabel } from "./lib/x402";
 import {
@@ -53,7 +54,6 @@ import {
   CREW_TOKEN_PRICE_USD,
   CREW_TOKEN_PUMP_URL,
   CREW_VERSION,
-  CREW_X_URL,
   HIRE_ROLE_OPTIONS,
   KOL_REFERRAL_CUT_PCT,
   MAX_CREW,
@@ -1462,14 +1462,7 @@ export default function App() {
             >
               Proof
             </Link>
-            <a
-              className="nav-link-x"
-              href={CREW_X_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              X
-            </a>
+            <NavSocialLinks />
           </nav>
           <div className="nav-actions">
             <ConnectButton platform={launchPlatform} evmChain={venues.find((v) => v.id === launchPlatform)?.chain} />
@@ -3009,9 +3002,7 @@ export default function App() {
         <footer className="footer">
           <div>CREW · humans get paid · v{CREW_VERSION}</div>
           <div>
-            <a href={CREW_X_URL} target="_blank" rel="noreferrer">
-              @CrewPayHQ
-            </a>
+            <FooterSocials />
             {" · "}
             {PLATFORM_BUYBACK_BPS / 100}% CrewPay treasury · buyback cron not live · agents hire · crew gets paid
           </div>
@@ -3111,9 +3102,7 @@ export default function App() {
         <footer className="footer">
           <div>CREW · humans get paid · v{CREW_VERSION}</div>
           <div>
-            <a href={CREW_X_URL} target="_blank" rel="noreferrer">
-              @CrewPayHQ
-            </a>
+            <FooterSocials />
             {" · "}
             {PLATFORM_BUYBACK_BPS / 100}% CrewPay treasury · buyback cron not live · humans get the rest
           </div>

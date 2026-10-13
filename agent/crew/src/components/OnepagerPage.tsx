@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
-import { CREW_VERSION, CREW_X_URL } from '../lib/config'
+import { CREW_VERSION } from '../lib/config'
+import { FooterSocials } from './SocialIcons'
 
 const PNG = '/onepager.png'
 const PDF = '/onepager.pdf'
@@ -35,9 +36,7 @@ export function OnepagerPage() {
         <div>
           <Link to="/">Home</Link>
           {' · '}
-          <a href={CREW_X_URL} target="_blank" rel="noreferrer">
-            @CrewPayHQ
-          </a>
+          <FooterSocials />
         </div>
       </footer>
     </div>

@@ -1,5 +1,11 @@
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { CREW_FARCASTER_URL, CREW_X_URL } from './config'
 import { headerKolLinks, mobileStickyCta } from './nav'
+
+const here = dirname(fileURLToPath(import.meta.url))
 
 describe('headerKolLinks', () => {
   it('always keeps KOL pointing at the public register/info page', () => {
@@ -100,5 +106,38 @@ describe('mobileStickyCta', () => {
         launchLabel: 'Launch',
       }),
     ).toEqual({ label: 'Launch Coin', action: 'go-launch' })
+  })
+})
+
+describe('header and footer socials', () => {
+  it('points X and Farcaster at the official CrewPay profiles', () => {
+    expect(CREW_X_URL).toBe('https://x.com/CrewPayHQ')
+    expect(CREW_FARCASTER_URL).toBe('https://farcaster.xyz/crewpay')
+  })
+
+  it('puts Farcaster next to X in the site nav with the arch icon', () => {
+    const app = readFileSync(join(here, '../App.tsx'), 'utf8')
+    const nav = app.slice(app.indexOf('<nav className="nav-links"'), app.indexOf('</nav>'))
+    expect(nav).toContain('<NavSocialLinks />')
+    expect(nav).not.toContain('/admin/farcaster')
+
+    const socials = readFileSync(join(here, '../components/SocialIcons.tsx'), 'utf8')
+    const xIdx = socials.indexOf('nav-link-x')
+    const fcIdx = socials.indexOf('nav-link-fc')
+    expect(xIdx).toBeGreaterThan(-1)
+    expect(fcIdx).toBeGreaterThan(xIdx)
+    expect(socials).toContain('aria-label="Farcaster @crewpay"')
+    expect(socials).toContain('CREW_FARCASTER_URL')
+    expect(socials).toContain('target="_blank"')
+    expect(socials).toContain('M257.778 155.556H742.222V844.445')
+  })
+
+  it('adds Farcaster beside @CrewPayHQ in footer socials', () => {
+    const app = readFileSync(join(here, '../App.tsx'), 'utf8')
+    expect(app).toContain('<FooterSocials />')
+    const onepager = readFileSync(join(here, '../components/OnepagerPage.tsx'), 'utf8')
+    expect(onepager).toContain('<FooterSocials />')
+    const socials = readFileSync(join(here, '../components/SocialIcons.tsx'), 'utf8')
+    expect(socials).toMatch(/@CrewPayHQ[\s\S]*@crewpay/)
   })
 })
