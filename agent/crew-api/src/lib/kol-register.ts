@@ -133,6 +133,14 @@ export type KolRegistration = {
   updatedAt: string
   statsRefreshedAt: string
   rank: number
+  telegramUserId?: string | null
+  telegramUsername?: string | null
+  telegramChatId?: string | null
+  telegramAlerts?: boolean
+  tgChannel?: string | null
+  tgChannelVerified?: boolean
+  tgReach?: number | null
+  telegramOnly?: boolean
 }
 
 export function normalizeReferralCode(raw: string): string {
@@ -727,6 +735,14 @@ function mapReg(r: Record<string, unknown>, rank: number): KolRegistration {
     updatedAt: new Date(String(r.updated_at)).toISOString(),
     statsRefreshedAt: new Date(String(r.stats_refreshed_at)).toISOString(),
     rank,
+    telegramUserId: r.telegram_user_id ? String(r.telegram_user_id) : null,
+    telegramUsername: r.telegram_username ? String(r.telegram_username) : null,
+    telegramChatId: r.telegram_chat_id ? String(r.telegram_chat_id) : null,
+    telegramAlerts: Boolean(r.telegram_alerts),
+    tgChannel: r.tg_channel ? String(r.tg_channel) : null,
+    tgChannelVerified: Boolean(r.tg_channel_verified),
+    tgReach: r.tg_reach != null && Number.isFinite(Number(r.tg_reach)) ? Number(r.tg_reach) : null,
+    telegramOnly: String(r.x_user_id || '').startsWith('tg:'),
   }
 }
 
@@ -751,7 +767,18 @@ const REGISTERED_RANKED_CTE = `
     FROM kol_registrations kr
   )
   SELECT *,
-    rank() OVER (ORDER BY sol_earned DESC, followers DESC, registered_at ASC) AS board_rank
+    rank() OVER (
+      ORDER BY
+        CASE
+          WHEN x_user_id LIKE 'tg:%'
+           AND COALESCE(x_verified, false) = false
+           AND COALESCE(tg_channel_verified, false) = false
+          THEN 1 ELSE 0
+        END ASC,
+        sol_earned DESC,
+        followers DESC,
+        registered_at ASC
+    ) AS board_rank
   FROM earned
 `
 

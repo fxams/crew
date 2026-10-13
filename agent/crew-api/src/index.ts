@@ -8,6 +8,7 @@ import { discoveryRouter } from './routes/discovery.js'
 import { healthRouter } from './routes/health.js'
 import { kolRegisterRouter } from './routes/kol-register.js'
 import { walletConnectRouter } from './routes/wallet-connect.js'
+import { telegramRouter } from './routes/telegram.js'
 import { kolsRouter } from './routes/kols.js'
 import { proofRouter } from './routes/proof.js'
 import { webhooksRouter } from './routes/webhooks.js'
@@ -70,6 +71,7 @@ async function main() {
   app.use('/api', kolsRouter)
   app.use('/api', kolRegisterRouter)
   app.use('/api', walletConnectRouter)
+  app.use('/api', telegramRouter)
   app.use('/api', agentRouter)
   app.use('/api', proofRouter)
   app.use('/api', webhooksRouter)

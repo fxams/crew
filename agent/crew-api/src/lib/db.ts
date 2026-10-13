@@ -82,6 +82,15 @@ export async function migrate(): Promise<void> {
         ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS referral_code TEXT;
         ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS referred_by_code TEXT;
         ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS referral_points INT NOT NULL DEFAULT 0;
+        ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS telegram_user_id TEXT;
+        ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS telegram_username TEXT;
+        ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT;
+        ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS telegram_alerts BOOLEAN NOT NULL DEFAULT false;
+        ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS tg_channel TEXT;
+        ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS tg_channel_id TEXT;
+        ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS tg_channel_verified BOOLEAN NOT NULL DEFAULT false;
+        ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS tg_reach INT;
+        ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS tg_channel_code TEXT;
       END IF;
       IF to_regclass('public.kol_oauth_states') IS NOT NULL THEN
         ALTER TABLE kol_oauth_states ADD COLUMN IF NOT EXISTS referral_code TEXT;
@@ -514,5 +523,44 @@ export async function migrate(): Promise<void> {
   await query(
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['022_farcaster_admin'],
+  )
+  await query(`ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS telegram_user_id TEXT`)
+  await query(`ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS telegram_username TEXT`)
+  await query(`ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT`)
+  await query(
+    `ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS telegram_alerts BOOLEAN NOT NULL DEFAULT false`,
+  )
+  await query(`ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS tg_channel TEXT`)
+  await query(`ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS tg_channel_id TEXT`)
+  await query(
+    `ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS tg_channel_verified BOOLEAN NOT NULL DEFAULT false`,
+  )
+  await query(`ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS tg_reach INT`)
+  await query(`ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS tg_channel_code TEXT`)
+  await query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS kol_registrations_telegram_user_idx
+      ON kol_registrations (telegram_user_id) WHERE telegram_user_id IS NOT NULL
+  `)
+  await query(`
+    CREATE TABLE IF NOT EXISTS telegram_link_codes (
+      code TEXT PRIMARY KEY,
+      x_user_id TEXT NOT NULL,
+      purpose TEXT NOT NULL DEFAULT 'start',
+      channel TEXT,
+      expires_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await query(`
+    CREATE TABLE IF NOT EXISTS telegram_channel_posts (
+      code TEXT PRIMARY KEY,
+      chat_id TEXT NOT NULL,
+      username TEXT,
+      seen_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['023_kol_telegram'],
   )
 }

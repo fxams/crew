@@ -22,6 +22,8 @@ import {
 } from '../lib/kol-onboarding'
 import { isPayoutWallet } from '../lib/payout-wallet'
 import { resolvePrivyAppId } from '../lib/privy-app'
+import { TelegramLogin } from './TelegramLogin'
+import { TELEGRAM_BOT_USERNAME, type TelegramWidgetAuth } from '../lib/telegram-login'
 
 const MCP_PIN = '1.2.6'
 
@@ -178,6 +180,8 @@ export function KolRegisterPage() {
   const [tape, setTape] = useState<Registration[]>([])
   const [total, setTotal] = useState(0)
   const [xOauth, setXOauth] = useState<boolean | null>(null)
+  const [telegramLogin, setTelegramLogin] = useState(false)
+  const [telegramBot, setTelegramBot] = useState(TELEGRAM_BOT_USERNAME)
   const [privyAppId, setPrivyAppId] = useState(() => resolvePrivyAppId())
   const [busy, setBusy] = useState(false)
   const [awaitingX, setAwaitingX] = useState(false)
@@ -234,8 +238,11 @@ export function KolRegisterPage() {
       const status = (await statusRes.json()) as {
         xOauth?: boolean
         privy?: { enabled?: boolean; appId?: string }
+        telegram?: { enabled?: boolean; botUsername?: string }
       }
       setXOauth(Boolean(status.xOauth))
+      setTelegramLogin(Boolean(status.telegram?.enabled))
+      if (status.telegram?.botUsername) setTelegramBot(status.telegram.botUsername.replace(/^@+/, ''))
       setPrivyAppId(resolvePrivyAppId(status.privy?.appId))
     } else {
       setXOauth(false)
@@ -386,6 +393,33 @@ export function KolRegisterPage() {
     }
   }
 
+  const onTelegramAuth = useCallback(
+    async (user: TelegramWidgetAuth) => {
+      setError(null)
+      setBusy(true)
+      try {
+        const res = await fetch(`${API}/api/kols/telegram/login`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ ...user, referralCode: refInput }),
+        })
+        const body = (await res.json()) as {
+          ok?: boolean
+          error?: string
+          handle?: string
+          deskPath?: string
+        }
+        if (!res.ok || !body.handle) throw new Error(body.error || 'Telegram login failed.')
+        navigate(body.deskPath || `/kol/${body.handle}?registered=1&from=tg`)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Telegram login failed.')
+        setBusy(false)
+      }
+    },
+    [navigate, refInput],
+  )
+
   const connected = isPayoutWallet(connectedWallet)
 
   return (
@@ -406,7 +440,7 @@ export function KolRegisterPage() {
           ) : (
             <>
               <p className="section-sub">
-                {NO_CRYPTO_NEEDED} Register with X — about a minute.
+                {NO_CRYPTO_NEEDED} Register with X — or Telegram. About a minute.
               </p>
               <p className="register-no-crypto">{WALLET_OPTIONAL_HINT}</p>
               {referralCode.length >= 2 ? (
@@ -431,10 +465,14 @@ export function KolRegisterPage() {
             <ol className="register-steps">
               <li className={awaitingX || deskHandle ? 'is-done' : ''}>
                 <strong>1. X</strong>
-                <span>{xOauth === false ? 'Waiting on X app credentials' : awaitingX ? 'Waiting…' : 'Required'}</span>
+                <span>{xOauth === false ? 'Waiting on X app credentials' : awaitingX ? 'Waiting…' : 'Primary'}</span>
+              </li>
+              <li>
+                <strong>2. Telegram</strong>
+                <span>{telegramLogin ? 'Optional / second path' : 'Off'}</span>
               </li>
               <li className={connected ? 'is-done' : ''}>
-                <strong>2. Wallet</strong>
+                <strong>3. Wallet</strong>
                 <span>
                   {connected
                     ? shortAddr(connectedWallet)
@@ -506,7 +544,7 @@ export function KolRegisterPage() {
                 disabled={busy || xOauth === false}
                 onClick={() => void onRegister()}
               >
-                {busy ? 'Waiting for X…' : 'Register with X'}
+                {busy ? 'Waiting…' : 'Register with X'}
               </button>
               {!connected ? (
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => openConnect({ preferred: 'solana' })}>
@@ -524,6 +562,15 @@ export function KolRegisterPage() {
                 </button>
               ) : null}
             </div>
+            {telegramLogin ? (
+              <div className="register-telegram">
+                <p className="register-telegram-label">Or Login with Telegram</p>
+                <TelegramLogin botUsername={telegramBot} onAuth={(u) => void onTelegramAuth(u)} />
+                <p className="hint">
+                  X stays primary. A Telegram-only desk is allowed but ranked lower until verified.
+                </p>
+              </div>
+            ) : null}
             {privyAppId && !connected ? (
               <p className="hint social-wallet-note">{SOCIAL_WALLET_NOTE}</p>
             ) : null}

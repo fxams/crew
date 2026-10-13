@@ -24,6 +24,7 @@ import {
   resolveSpendGate,
 } from '../lib/agent/spend-gate.js'
 import { getCoin, listCoinsByAgentKey, listCoins, upsertCoin, type ApiCoin } from '../lib/coins.js'
+import { notifyHiredCrewTelegram } from '../lib/telegram-kol.js'
 import {
   MAX_CREW,
   MAX_INITIAL_BUY_SOL,
@@ -947,6 +948,11 @@ agentRouter.post('/agent/launch', requireAgentApiKeyOrX402, async (req, res) => 
           pointsErr instanceof Error ? pointsErr.message : pointsErr,
         )
       }
+      void notifyHiredCrewTelegram({
+        mint: result.mint,
+        ticker: result.coin.ticker,
+        crew: result.crew,
+      }).catch(() => {})
     }
 
     void emitWebhookEvent('launch.created', {
@@ -1507,6 +1513,7 @@ const POST_ONLY = [
   '/agent/wire-fees',
   '/agent/crank',
   '/agent/lock-holder-kol',
+  '/agent/crew/notify-telegram',
 ]
 for (const path of POST_ONLY) {
   agentRouter.get(path, (_req, res) => {
