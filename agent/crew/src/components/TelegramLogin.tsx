@@ -1,44 +1,83 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   TELEGRAM_BOT_USERNAME,
-  isTelegramWidgetAuth,
-  telegramWidgetScriptSrc,
-  type TelegramWidgetAuth,
+  telegramBotIdFromEnv,
+  telegramOauthUrl,
 } from '../lib/telegram-login'
 
-const CALLBACK = 'onCrewTelegramAuth'
+const API = (
+  (import.meta.env.VITE_CREW_API_URL as string | undefined)?.replace(/\/$/, '') ||
+  'https://api.crewpay.dev'
+)
 
 type Props = {
   botUsername?: string
-  onAuth: (user: TelegramWidgetAuth) => void
+  botId?: number | null
+  origin?: string
+  returnTo?: string
+  label?: string
+  className?: string
 }
 
-export function TelegramLogin({ botUsername = TELEGRAM_BOT_USERNAME, onAuth }: Props) {
-  const host = useRef<HTMLDivElement>(null)
+/**
+ * Visible Telegram CTA. The official widget iframe is blocked by CSP / many
+ * in-app browsers, so this is always an oauth.telegram.org redirect link.
+ */
+export function TelegramLogin({
+  botUsername = TELEGRAM_BOT_USERNAME,
+  botId,
+  origin,
+  returnTo,
+  label = 'Continue with Telegram',
+  className,
+}: Props) {
+  const [resolvedId, setResolvedId] = useState<number | null>(() =>
+    botId && botId > 0 ? botId : telegramBotIdFromEnv(),
+  )
 
   useEffect(() => {
-    const node = host.current
-    if (!node) return
-    const w = window as unknown as Record<string, unknown>
-    w[CALLBACK] = (user: unknown) => {
-      if (isTelegramWidgetAuth(user)) onAuth(user)
+    if (botId && botId > 0) {
+      setResolvedId(botId)
+      return
     }
-    node.replaceChildren()
-    const script = document.createElement('script')
-    script.async = true
-    script.src = telegramWidgetScriptSrc()
-    script.setAttribute('data-telegram-login', botUsername.replace(/^@+/, ''))
-    script.setAttribute('data-size', 'large')
-    script.setAttribute('data-userpic', 'false')
-    script.setAttribute('data-radius', '8')
-    script.setAttribute('data-request-access', 'write')
-    script.setAttribute('data-onauth', `${CALLBACK}(user)`)
-    node.appendChild(script)
+    const fromEnv = telegramBotIdFromEnv()
+    if (fromEnv) {
+      setResolvedId(fromEnv)
+      return
+    }
+    let cancelled = false
+    void fetch(`${API}/api/kols/register/status`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((status: { telegram?: { botId?: number } } | null) => {
+        const id = Number(status?.telegram?.botId)
+        if (!cancelled && id > 0) setResolvedId(id)
+      })
+      .catch(() => {})
     return () => {
-      delete w[CALLBACK]
-      node.replaceChildren()
+      cancelled = true
     }
-  }, [botUsername, onAuth])
+  }, [botId])
 
-  return <div ref={host} className="telegram-login-host" data-testid="telegram-login" />
+  const href = useMemo(() => {
+    const here = typeof window === 'undefined' ? 'https://crewpay.dev' : window.location.origin
+    const path =
+      typeof window === 'undefined' ? '/register' : `${window.location.origin}${window.location.pathname}`
+    return telegramOauthUrl({
+      botId: resolvedId,
+      origin: origin || here,
+      returnTo: returnTo || path,
+    })
+  }, [resolvedId, origin, returnTo])
+
+  return (
+    <a
+      className={`btn btn-ghost btn-sm telegram-continue-btn${className ? ` ${className}` : ''}`}
+      href={href}
+      data-testid="telegram-continue"
+      data-telegram-login={botUsername.replace(/^@+/, '')}
+      data-telegram-bot-id={resolvedId ? String(resolvedId) : undefined}
+    >
+      {label}
+    </a>
+  )
 }

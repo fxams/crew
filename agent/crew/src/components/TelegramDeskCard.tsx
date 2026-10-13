@@ -1,7 +1,12 @@
-import { useState } from 'react'
-import { TELEGRAM_BOT_URL, TELEGRAM_BOT_USERNAME } from '../lib/telegram-login'
+import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import {
+  TELEGRAM_BOT_URL,
+  TELEGRAM_BOT_USERNAME,
+  stripTelegramAuthParams,
+  telegramAuthFromLocation,
+} from '../lib/telegram-login'
 import { TelegramLogin } from './TelegramLogin'
-import type { TelegramWidgetAuth } from '../lib/telegram-login'
 
 const API = (
   (import.meta.env.VITE_CREW_API_URL as string | undefined)?.replace(/\/$/, '') ||
@@ -31,11 +36,13 @@ export function TelegramDeskCard({
   telegramOnly,
   onRefresh,
 }: Props) {
+  const [params, setSearchParams] = useSearchParams()
   const [channel, setChannel] = useState(tgChannel || '')
   const [phrase, setPhrase] = useState<string | null>(null)
   const [deepLink, setDeepLink] = useState<string | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
+  const telegramReturnStarted = useRef(false)
 
   async function post(path: string, body?: unknown) {
     const res = await fetch(`${API}${path}`, {
@@ -47,20 +54,6 @@ export function TelegramDeskCard({
     const json = (await res.json()) as Record<string, unknown>
     if (!res.ok) throw new Error(String(json.error || 'Request failed'))
     return json
-  }
-
-  async function onLink(user: TelegramWidgetAuth) {
-    setBusy('link')
-    setMsg(null)
-    try {
-      await post('/api/kols/telegram/login', user)
-      setMsg('Telegram linked.')
-      onRefresh()
-    } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Could not link Telegram.')
-    } finally {
-      setBusy(null)
-    }
   }
 
   async function onStartAlerts() {
@@ -121,6 +114,27 @@ export function TelegramDeskCard({
     }
   }
 
+  useEffect(() => {
+    if (telegramReturnStarted.current) return
+    const auth = telegramAuthFromLocation(
+      params,
+      typeof window === 'undefined' ? '' : window.location.hash,
+    )
+    if (!auth) return
+    telegramReturnStarted.current = true
+    const next = stripTelegramAuthParams(params)
+    setSearchParams(next, { replace: true })
+    void (async () => {
+      try {
+        await post('/api/kols/telegram/login', auth)
+        setMsg('Telegram linked.')
+        onRefresh()
+      } catch (err) {
+        setMsg(err instanceof Error ? err.message : 'Could not link Telegram.')
+      }
+    })()
+  }, [onRefresh, params, setSearchParams])
+
   if (!telegramLogin && !telegramUsername) return null
 
   return (
@@ -138,7 +152,14 @@ export function TelegramDeskCard({
           {telegramAlerts ? ' · alerts on' : ''}
         </p>
       ) : telegramLogin ? (
-        <TelegramLogin onAuth={(u) => void onLink(u)} />
+        <TelegramLogin
+          label="Continue with Telegram"
+          returnTo={
+            typeof window === 'undefined'
+              ? undefined
+              : `${window.location.origin}${window.location.pathname}`
+          }
+        />
       ) : null}
       {telegramUsername ? (
         <div className="register-actions">

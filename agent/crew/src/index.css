@@ -860,8 +860,15 @@ a {
   justify-content: center;
 }
 
-.register-card .register-actions .btn-primary {
+.register-card .register-actions .btn-primary,
+.register-card .register-actions .telegram-continue-btn {
   min-width: 11rem;
+}
+
+.telegram-continue-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .register-check-hint,
@@ -4155,7 +4162,8 @@ a {
     justify-content: center;
   }
 
-  .register-card .register-actions .btn-primary {
+  .register-card .register-actions .btn-primary,
+  .register-card .register-actions .telegram-continue-btn {
     flex: 1 1 12rem;
     min-width: 0;
   }

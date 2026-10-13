@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { useAccount } from 'wagmi'
@@ -23,7 +23,12 @@ import {
 import { isPayoutWallet } from '../lib/payout-wallet'
 import { resolvePrivyAppId } from '../lib/privy-app'
 import { TelegramLogin } from './TelegramLogin'
-import { TELEGRAM_BOT_USERNAME, type TelegramWidgetAuth } from '../lib/telegram-login'
+import {
+  TELEGRAM_BOT_USERNAME,
+  stripTelegramAuthParams,
+  telegramAuthFromLocation,
+  type TelegramWidgetAuth,
+} from '../lib/telegram-login'
 
 const MCP_PIN = '1.2.6'
 
@@ -175,13 +180,13 @@ export function KolRegisterPage() {
   const { address: evmAddress } = useAccount()
   const { open: openConnect } = useConnectModal()
   const navigate = useNavigate()
-  const [params] = useSearchParams()
+  const [params, setSearchParams] = useSearchParams()
   const [board, setBoard] = useState<Registration[]>([])
   const [tape, setTape] = useState<Registration[]>([])
   const [total, setTotal] = useState(0)
   const [xOauth, setXOauth] = useState<boolean | null>(null)
-  const [telegramLogin, setTelegramLogin] = useState(false)
   const [telegramBot, setTelegramBot] = useState(TELEGRAM_BOT_USERNAME)
+  const [telegramBotId, setTelegramBotId] = useState<number | null>(null)
   const [privyAppId, setPrivyAppId] = useState(() => resolvePrivyAppId())
   const [busy, setBusy] = useState(false)
   const [awaitingX, setAwaitingX] = useState(false)
@@ -238,11 +243,12 @@ export function KolRegisterPage() {
       const status = (await statusRes.json()) as {
         xOauth?: boolean
         privy?: { enabled?: boolean; appId?: string }
-        telegram?: { enabled?: boolean; botUsername?: string }
+        telegram?: { enabled?: boolean; botUsername?: string; botId?: number }
       }
       setXOauth(Boolean(status.xOauth))
-      setTelegramLogin(Boolean(status.telegram?.enabled))
       if (status.telegram?.botUsername) setTelegramBot(status.telegram.botUsername.replace(/^@+/, ''))
+      const statusBotId = Number(status.telegram?.botId)
+      if (statusBotId > 0) setTelegramBotId(statusBotId)
       setPrivyAppId(resolvePrivyAppId(status.privy?.appId))
     } else {
       setXOauth(false)
@@ -420,6 +426,23 @@ export function KolRegisterPage() {
     [navigate, refInput],
   )
 
+  const telegramReturnStarted = useRef(false)
+  useEffect(() => {
+    if (telegramReturnStarted.current) return
+    const auth = telegramAuthFromLocation(
+      params,
+      typeof window === 'undefined' ? '' : window.location.hash,
+    )
+    if (!auth) return
+    telegramReturnStarted.current = true
+    const next = stripTelegramAuthParams(params)
+    setSearchParams(next, { replace: true })
+    if (typeof window !== 'undefined' && window.location.hash) {
+      window.history.replaceState(null, '', `${window.location.pathname}${next.toString() ? `?${next}` : ''}`)
+    }
+    void onTelegramAuth(auth)
+  }, [onTelegramAuth, params, setSearchParams])
+
   const connected = isPayoutWallet(connectedWallet)
 
   return (
@@ -469,7 +492,7 @@ export function KolRegisterPage() {
               </li>
               <li>
                 <strong>2. Telegram</strong>
-                <span>{telegramLogin ? 'Optional / second path' : 'Off'}</span>
+                <span>Continue with Telegram</span>
               </li>
               <li className={connected ? 'is-done' : ''}>
                 <strong>3. Wallet</strong>
@@ -546,6 +569,16 @@ export function KolRegisterPage() {
               >
                 {busy ? 'Waiting…' : 'Register with X'}
               </button>
+              <TelegramLogin
+                botUsername={telegramBot}
+                botId={telegramBotId}
+                label="Continue with Telegram"
+                returnTo={
+                  typeof window === 'undefined'
+                    ? undefined
+                    : `${window.location.origin}/register${referralCode.length >= 2 ? `?ref=${encodeURIComponent(referralCode)}` : ''}`
+                }
+              />
               {!connected ? (
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => openConnect({ preferred: 'solana' })}>
                   I already have a wallet
@@ -562,15 +595,10 @@ export function KolRegisterPage() {
                 </button>
               ) : null}
             </div>
-            {telegramLogin ? (
-              <div className="register-telegram">
-                <p className="register-telegram-label">Or Login with Telegram</p>
-                <TelegramLogin botUsername={telegramBot} onAuth={(u) => void onTelegramAuth(u)} />
-                <p className="hint">
-                  X stays primary. A Telegram-only desk is allowed but ranked lower until verified.
-                </p>
-              </div>
-            ) : null}
+            <p className="hint register-telegram-label">
+              X stays primary. Continue with Telegram opens oauth.telegram.org — the fallback when
+              the widget iframe is blocked (mobile / wallet browsers).
+            </p>
             {privyAppId && !connected ? (
               <p className="hint social-wallet-note">{SOCIAL_WALLET_NOTE}</p>
             ) : null}
