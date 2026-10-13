@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PENDING_REG_KEY } from './register-pending'
+import { WALLET_AUTH_STORAGE_KEY, isWalletAuthenticated, writeWalletAuth } from './wallet-auth'
 import {
   MOBILE_AUTH_CACHE_KEY,
   USER_DISCONNECTED_KEY,
@@ -40,32 +41,52 @@ function memoryStorage(seed: Record<string, string> = {}): Storage {
 describe('wallet session disconnect', () => {
   afterEach(() => {
     registerPrivyLogout(null)
+    vi.unstubAllGlobals()
   })
 
+  function stubLogoutFetch() {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    return fetchMock
+  }
+
   it('clears walletName and disables autoConnect after explicit disconnect', async () => {
+    const wallet = '8x3KqP7nR2mYvC4wL9tHjF6sD1aB0eU5gN8cQ3zW7pXk'
     const storage = memoryStorage({
       [WALLET_ADAPTER_STORAGE_KEY]: 'Phantom',
       [MOBILE_AUTH_CACHE_KEY]: '{"accounts":[]}',
       'crew.platform.v4': '{"coins":[]}',
     })
+    writeWalletAuth({ wallet, expiresAt: Date.now() + 60_000 }, storage)
     expect(await shouldAutoConnectWallet(storage)).toBe(true)
+    expect(isWalletAuthenticated(wallet, storage)).toBe(true)
+    const fetchMock = stubLogoutFetch()
 
     await persistExplicitDisconnect(storage)
 
     expect(storage.getItem(WALLET_ADAPTER_STORAGE_KEY)).toBeNull()
     expect(storage.getItem(MOBILE_AUTH_CACHE_KEY)).toBeNull()
+    expect(storage.getItem(WALLET_AUTH_STORAGE_KEY)).toBeNull()
+    expect(isWalletAuthenticated(wallet, storage)).toBe(false)
+    expect(fetchMock).toHaveBeenCalled()
+    expect(String(fetchMock.mock.calls.flat()[0])).toMatch(/\/api\/wallet\/connect\/logout$/)
     expect(isUserDisconnected(storage)).toBe(true)
     expect(storage.getItem(USER_DISCONNECTED_KEY)).toBe('1')
     expect(await shouldAutoConnectWallet(storage)).toBe(false)
     expect(storage.getItem('crew.platform.v4')).toBe('{"coins":[]}')
   })
 
-  it('lets autoConnect run again after the user picks a wallet', async () => {
-    const storage = memoryStorage()
+  it('does not autoConnect on a fresh session or after Disconnect until SIWS succeeds', async () => {
+    const wallet = '8x3KqP7nR2mYvC4wL9tHjF6sD1aB0eU5gN8cQ3zW7pXk'
+    const storage = memoryStorage({ [WALLET_ADAPTER_STORAGE_KEY]: 'Phantom' })
+    stubLogoutFetch()
+    expect(await shouldAutoConnectWallet(storage)).toBe(false)
     await persistExplicitDisconnect(storage)
     expect(await shouldAutoConnectWallet(storage)).toBe(false)
     rememberWalletConnect(storage)
     expect(isUserDisconnected(storage)).toBe(false)
+    expect(await shouldAutoConnectWallet(storage)).toBe(false)
+    writeWalletAuth({ wallet, expiresAt: Date.now() + 60_000 }, storage)
     expect(await shouldAutoConnectWallet(storage)).toBe(true)
   })
 
@@ -79,6 +100,7 @@ describe('wallet session disconnect', () => {
     registerPrivyLogout(() => {
       loggedOut = true
     })
+    stubLogoutFetch()
 
     await persistExplicitDisconnect(storage)
 
@@ -96,6 +118,7 @@ describe('wallet session disconnect', () => {
       }),
     })
     const storage = memoryStorage({ walletName: 'Solflare' })
+    stubLogoutFetch()
     await persistExplicitDisconnect(storage, session)
     expect(session.getItem(PENDING_REG_KEY)).toBeNull()
     expect(storage.getItem(WALLET_ADAPTER_STORAGE_KEY)).toBeNull()

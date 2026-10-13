@@ -29,7 +29,9 @@ import {
   type WalletNetwork,
 } from '../lib/wallet'
 import { persistExplicitDisconnect, rememberWalletConnect } from '../lib/wallet-session'
+import { completeSolanaAppConnect } from '../lib/wallet-auth'
 import { setBoardWallet } from '../lib/store'
+import { useWalletAuth } from './WalletAuthProvider'
 
 export type ConnectPreferred = WalletNetwork | 'any'
 
@@ -121,12 +123,15 @@ type EvmRow = {
 function ConnectModal() {
   const { preferred, evmChainId, close } = useConnectModal()
   const solana = useWallet()
+  const { authenticate, logout, isAuthenticated } = useWalletAuth()
   const { address: evmAddress, isConnected: evmConnected, connector: activeEvm } = useAccount()
   const { connectors, connectAsync, isPending: evmPending } = useConnect()
   const { disconnectAsync: disconnectEvm } = useDisconnect()
   const { switchChainAsync } = useSwitchChain()
   const [busy, setBusy] = useState<string | null>(null)
+  const [signing, setSigning] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const solAuthed = Boolean(solana.publicKey && isAuthenticated(solana.publicKey.toBase58()))
 
   const mobile = isMobileUserAgent(typeof navigator === 'undefined' ? '' : navigator.userAgent)
   const injected = detectInjected(typeof window === 'undefined' ? null : window)
@@ -246,11 +251,28 @@ function ConnectModal() {
     setBusy(row.key)
     try {
       if (row.wallet) {
-        rememberWalletConnect()
         solana.select(row.wallet.adapter.name as WalletName)
         if (!row.wallet.adapter.connected) {
           await row.wallet.adapter.connect()
         }
+        const adapter = row.wallet.adapter as typeof row.wallet.adapter & {
+          signMessage?: (message: Uint8Array) => Promise<Uint8Array>
+        }
+        const wallet = adapter.publicKey?.toBase58() || ''
+        const signMessage =
+          (typeof adapter.signMessage === 'function'
+            ? adapter.signMessage.bind(adapter)
+            : undefined) ||
+          solana.signMessage ||
+          undefined
+        setSigning(true)
+        await completeSolanaAppConnect({
+          wallet,
+          signMessage,
+          alreadyAuthenticated: isAuthenticated(wallet),
+          authenticate,
+        })
+        rememberWalletConnect()
         close()
         return
       }
@@ -265,10 +287,25 @@ function ConnectModal() {
       const listed = SOLANA_LISTED_WALLETS.find((w) => w.id === row.listedId || w.name === row.name)
       if (listed) window.open(listed.installUrl, '_blank', 'noopener,noreferrer')
     } catch (err) {
+      if (row.wallet) {
+        try {
+          await solana.disconnect()
+        } catch {
+          /* ignore */
+        }
+        try {
+          solana.select(null)
+        } catch {
+          /* ignore */
+        }
+        await logout()
+        await persistExplicitDisconnect()
+      }
       const text = err instanceof Error ? err.message : 'Could not connect Solana wallet.'
       if (/reject|cancel|deny/i.test(text)) setError('Connection cancelled.')
       else setError(text)
     } finally {
+      setSigning(false)
       setBusy(null)
     }
   }
@@ -305,6 +342,7 @@ function ConnectModal() {
 
   async function onDisconnectSolana() {
     setError(null)
+    await logout()
     await persistExplicitDisconnect()
     try {
       await solana.disconnect()
@@ -316,6 +354,7 @@ function ConnectModal() {
     } catch {
       /* ignore */
     }
+    await logout()
     await persistExplicitDisconnect()
     setBoardWallet(null)
   }
@@ -358,9 +397,9 @@ function ConnectModal() {
           </button>
         </header>
 
-        {solana.publicKey || evmConnected ? (
+        {solAuthed || evmConnected ? (
           <section className="crew-connect-session" aria-label="Connected">
-            {solana.publicKey ? (
+            {solAuthed && solana.publicKey ? (
               <div className="crew-connect-session-row">
                 <span>
                   <strong>Solana</strong> {shortAddr(solana.publicKey.toBase58())}
@@ -385,6 +424,9 @@ function ConnectModal() {
           </section>
         ) : null}
 
+        {signing ? (
+          <p className="crew-connect-caption">Approve the sign-in message in your wallet.</p>
+        ) : null}
         {error ? <p className="crew-connect-error">{error}</p> : null}
 
         <div className={`crew-connect-cols${solanaFirst ? '' : ' is-evm-first'}`}>

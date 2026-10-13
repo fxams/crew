@@ -1,6 +1,7 @@
 import { useWallet } from '@solana/wallet-adapter-react'
 import { useAccount } from 'wagmi'
 import { useConnectModal, type ConnectPreferred } from './ConnectModal'
+import { useWalletAuth } from './WalletAuthProvider'
 import { shortAddr, type LaunchAction, networkForLaunch } from '../lib/wallet'
 
 type Props = {
@@ -23,10 +24,12 @@ export function ConnectButton({
   idleLabel = 'Connect',
 }: Props) {
   const solana = useWallet()
+  const { isAuthenticated } = useWalletAuth()
   const { address: evmAddress } = useAccount()
   const { open } = useConnectModal()
   const network = preferred || (platform ? networkForLaunch(platform) : 'any')
-  const solAddr = solana.publicKey?.toBase58()
+  const rawSol = solana.publicKey?.toBase58()
+  const solAddr = rawSol && isAuthenticated(rawSol) ? rawSol : null
   const showEvm = network === 'evm' && evmAddress
   const label = showEvm
     ? shortAddr(evmAddress)
