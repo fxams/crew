@@ -14,10 +14,13 @@ export async function listRegisteredHireBoosts(): Promise<RegisteredHireBoost[]>
       evm_wallet?: string | null
       followers: number
       registered_at: string
+      x_user_id?: string
+      x_verified?: boolean
+      tg_channel_verified?: boolean
     }>
     try {
       ;({ rows } = await query(
-        `SELECT x_username, wallet, evm_wallet, followers, registered_at FROM kol_registrations`,
+        `SELECT x_username, wallet, evm_wallet, followers, registered_at, x_user_id, x_verified, tg_channel_verified FROM kol_registrations`,
       ))
     } catch {
       ;({ rows } = await query(
@@ -33,6 +36,10 @@ export async function listRegisteredHireBoosts(): Promise<RegisteredHireBoost[]>
         evmWallet: row.evm_wallet ? String(row.evm_wallet) : undefined,
         followers: Number(row.followers || 0),
         registeredAt: row.registered_at ? new Date(String(row.registered_at)).toISOString() : undefined,
+        tgOnlyUnverified:
+          String(row.x_user_id || '').startsWith('tg:') &&
+          !row.x_verified &&
+          !row.tg_channel_verified,
       }))
       // Add a wallet to get hired and paid. KOLs without a wallet are skipped for crews.
       .filter((r) => r.handle && isPayoutWallet(r.wallet))

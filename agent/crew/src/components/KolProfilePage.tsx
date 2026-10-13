@@ -19,6 +19,7 @@ import { ADD_WALLET_TO_RECEIVE, NO_CRYPTO_NEEDED } from '../lib/kol-onboarding'
 import { isPayoutWallet } from '../lib/payout-wallet'
 import { resolvePrivyAppId } from '../lib/privy-app'
 import { useConnectModal } from './ConnectModal'
+import { TelegramDeskCard } from './TelegramDeskCard'
 import { PlatformBadge } from './PlatformBadge'
 import {
   explorerLabel,
@@ -54,6 +55,13 @@ type Profile = {
   pendingUntil?: string | null
   registeredAt: string
   rank: number
+  telegramUsername?: string | null
+  telegramAlerts?: boolean
+  telegramChatId?: string | null
+  tgChannel?: string | null
+  tgChannelVerified?: boolean
+  tgReach?: number | null
+  telegramOnly?: boolean
 }
 
 type DeskCoin = {
@@ -162,6 +170,7 @@ export function KolProfilePage() {
   const [evmInput, setEvmInput] = useState('')
   const [evmBusy, setEvmBusy] = useState(false)
   const [evmMsg, setEvmMsg] = useState<string | null>(null)
+  const [deskTick, setDeskTick] = useState(0)
   const justRegistered = params.get('registered') === '1'
   const fromXOauth = params.get('from') === 'x'
   const viewingOwnDesk =
@@ -204,7 +213,7 @@ export function KolProfilePage() {
     return () => {
       cancelled = true
     }
-  }, [handle])
+  }, [handle, deskTick])
 
   useEffect(() => {
     if (evmAddress) {
@@ -550,11 +559,17 @@ export function KolProfilePage() {
                 </h1>
                 <a
                   className="desk-handle"
-                  href={`https://x.com/${desk.profile.xUsername}`}
+                  href={
+                    desk.profile.telegramOnly && desk.profile.telegramUsername
+                      ? `https://t.me/${desk.profile.telegramUsername}`
+                      : `https://x.com/${desk.profile.xUsername}`
+                  }
                   target="_blank"
                   rel="noreferrer"
                 >
-                  @{desk.profile.xUsername}
+                  @{desk.profile.telegramOnly && desk.profile.telegramUsername
+                    ? desk.profile.telegramUsername
+                    : desk.profile.xUsername}
                 </a>
                 <div className="desk-wallet-row">
                   {hasPayoutWallet ? (
@@ -585,14 +600,29 @@ export function KolProfilePage() {
                       Base
                     </a>
                   ) : null}
-                  <a
-                    className="btn btn-ghost btn-sm"
-                    href={`https://x.com/${desk.profile.xUsername}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    X
-                  </a>
+                  {desk.profile.telegramOnly ? (
+                    <a
+                      className="btn btn-ghost btn-sm"
+                      href={
+                        desk.profile.telegramUsername
+                          ? `https://t.me/${desk.profile.telegramUsername}`
+                          : 'https://t.me/CrewPay_Bot'
+                      }
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Telegram
+                    </a>
+                  ) : (
+                    <a
+                      className="btn btn-ghost btn-sm"
+                      href={`https://x.com/${desk.profile.xUsername}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      X
+                    </a>
+                  )}
                 </div>
                 {!(isOwner || viewingOwnDesk) && desk.profile.evmWallet ? (
                   <p className="desk-evm-hint">Base · {shortAddr(desk.profile.evmWallet)}</p>
@@ -649,6 +679,19 @@ export function KolProfilePage() {
                   ) : null}
                   {payoutMsg ? <p className="hint">{payoutMsg}</p> : null}
                 </div>
+              ) : null}
+              {isOwner || viewingOwnDesk ? (
+                <TelegramDeskCard
+                  telegramLogin
+                  telegramUsername={desk.profile.telegramUsername}
+                  telegramAlerts={desk.profile.telegramAlerts}
+                  telegramChatId={desk.profile.telegramChatId}
+                  tgChannel={desk.profile.tgChannel}
+                  tgChannelVerified={desk.profile.tgChannelVerified}
+                  tgReach={desk.profile.tgReach}
+                  telegramOnly={desk.profile.telegramOnly}
+                  onRefresh={() => setDeskTick((n) => n + 1)}
+                />
               ) : null}
               {isOwner || viewingOwnDesk ? (
                 <div className="desk-evm-row">

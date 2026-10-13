@@ -912,6 +912,30 @@ a {
   gap: 0.5rem;
 }
 
+.register-telegram,
+.desk-telegram-card {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.85rem;
+  text-align: left;
+}
+
+.register-telegram-label {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.telegram-login-host {
+  min-height: 2.4rem;
+}
+
+.desk-telegram-card {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid rgba(200, 255, 61, 0.1);
+}
+
 .register-ok {
   margin: 0;
   color: var(--acid);

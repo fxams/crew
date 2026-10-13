@@ -484,6 +484,37 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
   )
 
   server.registerTool(
+    'crew_notify_hired_crew',
+    {
+      title: 'Notify hired crew on Telegram',
+      description:
+        'DM hired KOLs via @CrewPay_Bot. Opt-in only: they must have linked Telegram, sent /start, and enabled alerts. Never uses channel member counts.',
+      inputSchema: {
+        mint: z.string().max(64).optional().describe('Coin mint — notifies that launch’s hired crew'),
+        handles: z
+          .array(z.string().max(32))
+          .max(20)
+          .optional()
+          .describe('Optional hired handles if mint is omitted'),
+        message: z.string().max(500).optional().describe('Optional short note (≤500)'),
+      },
+      annotations: { readOnlyHint: false, openWorldHint: true },
+    },
+    async (input) => {
+      const data = await crewFetch(cfg, '/api/agent/crew/notify-telegram', {
+        method: 'POST',
+        auth: true,
+        body: JSON.stringify({
+          mint: input.mint || undefined,
+          handles: input.handles,
+          message: input.message,
+        }),
+      })
+      return asText(data)
+    },
+  )
+
+  server.registerTool(
     'crew_launch_dry_run',
     {
       title: 'Dry-run a CREW launch (no chain tx)',
