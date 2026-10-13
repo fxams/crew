@@ -7,6 +7,7 @@ import { createSolanaAdapters } from '../lib/wallet-solana'
 import { wagmiConfig } from '../lib/wallet-evm'
 import { WALLET_ADAPTER_STORAGE_KEY, shouldAutoConnectWallet } from '../lib/wallet-session'
 import { ConnectModalProvider } from '../components/ConnectModal'
+import { WalletAuthProvider } from '../components/WalletAuthProvider'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,7 +27,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             localStorageKey={WALLET_ADAPTER_STORAGE_KEY}
             autoConnect={async () => shouldAutoConnectWallet()}
           >
-            <ConnectModalProvider>{children}</ConnectModalProvider>
+            <WalletAuthProvider>
+              <ConnectModalProvider>{children}</ConnectModalProvider>
+            </WalletAuthProvider>
           </SolanaWalletProvider>
         </ConnectionProvider>
       </QueryClientProvider>

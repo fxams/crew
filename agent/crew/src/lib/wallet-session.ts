@@ -10,6 +10,7 @@
  */
 
 import { clearPendingRegistration } from './register-pending'
+import { clearWalletAuth, logoutWalletAuth, readWalletAuth } from './wallet-auth'
 
 export const WALLET_ADAPTER_STORAGE_KEY = 'walletName'
 export const USER_DISCONNECTED_KEY = 'crew_wallet_user_disconnected'
@@ -126,18 +127,22 @@ export async function logoutPrivyIfUsed(
 export async function shouldAutoConnectWallet(
   storage: WalletStorage | null = localStore(),
 ): Promise<boolean> {
-  return !isUserDisconnected(storage)
+  if (isUserDisconnected(storage)) return false
+  // Fresh sessions and post-Disconnect must SIWS before the adapter reconnects.
+  return readWalletAuth(storage) !== null
 }
 
-/** Persist a user Disconnect: flag + adapter keys + Privy + pending wallet. */
+/** Persist a user Disconnect: flag + adapter keys + SIWS session + Privy + pending wallet. */
 export async function persistExplicitDisconnect(
   storage: WalletStorage | null = localStore(),
   session?: Pick<Storage, 'removeItem'> | null,
 ): Promise<void> {
   markUserDisconnected(storage)
+  await logoutWalletAuth(storage)
   clearWalletAdapterPersistence(storage)
   clearAppWalletKeys(session)
   await logoutPrivyIfUsed(storage)
   // Adapter connect() may rewrite walletName during teardown — wipe again.
   clearWalletAdapterPersistence(storage)
+  clearWalletAuth(storage)
 }

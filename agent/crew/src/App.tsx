@@ -5,6 +5,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useAccount } from "wagmi";
 import { ConnectButton } from "./components/ConnectButton";
 import { useConnectModal } from "./components/ConnectModal";
+import { useWalletAuth } from "./components/WalletAuthProvider";
 import {
   DEFAULT_DRAFT,
   DESK_MODES,
@@ -180,6 +181,7 @@ function initialDraft(): LaunchDraft {
 
 export default function App() {
   const wallet = useWallet();
+  const walletAuth = useWalletAuth();
   const { address: evmAddress } = useAccount();
   const { open: openConnect } = useConnectModal();
   const location = useLocation();
@@ -528,7 +530,9 @@ export default function App() {
   }, [handleFingerprint]);
   const allocOk = shareTotal === 100;
   const deskBps = MODE_DESK_BPS[draft.mode];
-  const connected = Boolean(wallet.publicKey);
+  const connected = Boolean(
+    wallet.publicKey && walletAuth.isAuthenticated(wallet.publicKey.toBase58()),
+  );
   const launchReady = isLaunchReady(draft);
   const launchBlockers = useMemo(() => getLaunchBlockers(draft), [draft]);
   const imagePreviewUrl = useMemo(() => {
