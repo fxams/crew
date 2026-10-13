@@ -3291,11 +3291,11 @@ a {
   }
 
   .nav-socials {
-    gap: 0.04rem;
+    gap: 0.02rem;
   }
 
   .nav-links a.nav-icon-link {
-    padding: 0.38rem 0.26rem;
+    padding: 0.38rem 0.18rem;
   }
 
   .nav-links::-webkit-scrollbar {

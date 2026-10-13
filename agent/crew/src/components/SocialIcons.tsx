@@ -1,4 +1,4 @@
-import { CREW_FARCASTER_URL, CREW_X_URL } from '../lib/config'
+import { CREW_FARCASTER_URL, CREW_TELEGRAM_URL, CREW_X_URL } from '../lib/config'
 
 /** Official X mark — same box as the Farcaster arch. */
 export function XIcon() {
@@ -24,7 +24,19 @@ export function FarcasterArchIcon() {
   )
 }
 
-/** Header socials: X then Farcaster, both new-tab icon links. */
+/** Telegram paper plane — same box as X / Farcaster. */
+export function TelegramIcon() {
+  return (
+    <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M21.8 3.2 2.9 10.5c-1.3.5-1.3 1.2-.2 1.5l4.8 1.5 1.9 5.8c.2.7.8.9 1.3.5l2.7-2.2 4.9 3.6c.9.5 1.5.2 1.8-.8l3.3-16.1c.3-1.2-.4-1.7-1.6-1.3zM9.4 13.6l8.4-5.2c.4-.2.8 0 .5.3l-6.8 6.2-.3 3.3-1.8-4.6z"
+      />
+    </svg>
+  )
+}
+
+/** Header socials: X, Farcaster, Telegram — new-tab icon links. */
 export function NavSocialLinks() {
   return (
     <span className="nav-socials">
@@ -46,11 +58,20 @@ export function NavSocialLinks() {
       >
         <FarcasterArchIcon />
       </a>
+      <a
+        className="nav-icon-link nav-link-tg"
+        href={CREW_TELEGRAM_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Telegram @CrewPayHQ"
+      >
+        <TelegramIcon />
+      </a>
     </span>
   )
 }
 
-/** Footer handles: @CrewPayHQ then @crewpay. */
+/** Footer handles: @CrewPayHQ · @crewpay · Telegram. */
 export function FooterSocials() {
   return (
     <>
@@ -60,6 +81,10 @@ export function FooterSocials() {
       {' · '}
       <a href={CREW_FARCASTER_URL} target="_blank" rel="noreferrer" aria-label="Farcaster @crewpay">
         @crewpay
+      </a>
+      {' · '}
+      <a href={CREW_TELEGRAM_URL} target="_blank" rel="noreferrer" aria-label="Telegram @CrewPayHQ">
+        Telegram
       </a>
     </>
   )
