@@ -1,4 +1,9 @@
-import { CREW_FARCASTER_URL, CREW_TELEGRAM_URL, CREW_X_URL } from '../lib/config'
+import {
+  CREW_FARCASTER_URL,
+  CREW_TELEGRAM_COMMUNITY_URL,
+  CREW_TELEGRAM_URL,
+  CREW_X_URL,
+} from '../lib/config'
 
 /** Official X mark — same box as the Farcaster arch. */
 export function XIcon() {
@@ -71,7 +76,7 @@ export function NavSocialLinks() {
   )
 }
 
-/** Footer handles: @CrewPayHQ · @crewpay · Telegram. */
+/** Footer handles: @CrewPayHQ · @crewpay · Telegram · Community. */
 export function FooterSocials() {
   return (
     <>
@@ -85,6 +90,15 @@ export function FooterSocials() {
       {' · '}
       <a href={CREW_TELEGRAM_URL} target="_blank" rel="noreferrer" aria-label="Telegram @CrewPayHQ">
         Telegram
+      </a>
+      {' · '}
+      <a
+        href={CREW_TELEGRAM_COMMUNITY_URL}
+        target="_blank"
+        rel="noreferrer"
+        aria-label="Telegram Community"
+      >
+        Community
       </a>
     </>
   )
