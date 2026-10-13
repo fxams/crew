@@ -860,8 +860,39 @@ a {
   justify-content: center;
 }
 
-.register-card .register-actions .btn-primary {
-  min-width: 11rem;
+.register-card .register-actions-auth {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+
+.register-card .register-actions-auth .btn,
+.register-card .register-actions-auth .telegram-login,
+.register-card .register-actions-auth .telegram-continue-btn {
+  width: 100%;
+  min-width: 0;
+}
+
+.telegram-login {
+  display: grid;
+  gap: 0.45rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.telegram-continue-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  font-weight: 600;
+  color: var(--acid);
+  border: 1px solid var(--acid);
+  background: transparent;
+}
+
+.telegram-continue-btn:hover {
+  background: var(--acid-soft);
 }
 
 .register-check-hint,
@@ -912,8 +943,7 @@ a {
   gap: 0.5rem;
 }
 
-.register-telegram,
-.desk-telegram-card {
+.register-telegram {
   display: grid;
   gap: 0.45rem;
   margin-top: 0.85rem;
@@ -927,13 +957,61 @@ a {
 }
 
 .telegram-login-host {
-  min-height: 2.4rem;
+  min-height: 0;
+}
+
+.telegram-login-host:not(.is-ready),
+.telegram-login-host[hidden] {
+  display: none;
 }
 
 .desk-telegram-card {
-  margin-top: 0.75rem;
-  padding-top: 0.65rem;
-  border-top: 1px solid rgba(200, 255, 61, 0.1);
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.55rem;
+  grid-column: 1 / -1;
+  min-width: 0;
+  width: 100%;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid rgba(200, 255, 61, 0.28);
+  background: rgba(8, 16, 12, 0.45);
+  border-radius: var(--radius);
+  text-align: left;
+}
+
+.desk-telegram-lead,
+.desk-telegram-help {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.desk-telegram-card .telegram-login,
+.desk-telegram-card .telegram-continue-btn {
+  width: 100%;
+}
+
+.desk-telegram-channel {
+  margin: 0.15rem 0 0;
+}
+
+.desk-telegram-channel input {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.desk-telegram-actions,
+.desk-telegram-channel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.desk-telegram-channel-actions .btn {
+  flex: 1 1 7rem;
 }
 
 .register-ok {
@@ -4155,8 +4233,11 @@ a {
     justify-content: center;
   }
 
-  .register-card .register-actions .btn-primary {
+  .register-card .register-actions .btn-primary,
+  .register-card .register-actions .telegram-continue-btn,
+  .register-card .register-actions .telegram-login {
     flex: 1 1 12rem;
+    width: 100%;
     min-width: 0;
   }
 
@@ -4173,6 +4254,14 @@ a {
   .desk-hero {
     grid-template-columns: 84px minmax(0, 1fr);
     overflow: hidden;
+  }
+
+  .desk-hero > .desk-payout-card,
+  .desk-hero > .desk-telegram-card,
+  .desk-hero > .desk-evm-row {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
   }
 
   .desk-avatar,
@@ -4441,8 +4530,12 @@ a {
     font-size: 0.84rem;
   }
 
-  .page-desk .desk-payout-card {
+  .page-desk .desk-payout-card,
+  .page-desk .desk-telegram-card {
     padding: 0.7rem 0.75rem;
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
   }
 
   .page-register .register-steps {
@@ -4541,6 +4634,14 @@ a {
     gap: 0.55rem 0.65rem;
     padding: 0.7rem;
     margin-bottom: 0.5rem;
+  }
+
+  .page-desk .desk-hero > .desk-payout-card,
+  .page-desk .desk-hero > .desk-telegram-card,
+  .page-desk .desk-hero > .desk-evm-row {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
   }
 
   .page-desk .desk-avatar,
@@ -6103,7 +6204,9 @@ ol.coin-timeline.coin-panel {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .page-desk .desk-evm-row {
+  .page-desk .desk-evm-row,
+  .page-desk .desk-telegram-card,
+  .page-desk .desk-payout-card {
     grid-column: 1 / -1;
   }
 
