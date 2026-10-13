@@ -42,7 +42,7 @@ export function createWagmiConfig(env: WalletEnv = viteWalletEnv()): Config {
     injected({ shimDisconnect: true }),
     coinbaseWallet({
       appName: 'CrewPay',
-      preference: 'all',
+      preference: { options: 'all' },
     }),
     ...(projectId
       ? [

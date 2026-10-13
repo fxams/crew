@@ -9,7 +9,7 @@
  * Intentionally not cleared: `crew_kol` (X KOL desk session) and board/UI keys.
  */
 
-import { PENDING_REG_KEY, clearPendingRegistration } from './register-pending'
+import { clearPendingRegistration } from './register-pending'
 
 export const WALLET_ADAPTER_STORAGE_KEY = 'walletName'
 export const USER_DISCONNECTED_KEY = 'crew_wallet_user_disconnected'
