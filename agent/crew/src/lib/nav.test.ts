@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { CREW_FARCASTER_URL, CREW_X_URL } from './config'
+import { CREW_FARCASTER_URL, CREW_TELEGRAM_URL, CREW_X_URL } from './config'
 import { headerKolLinks, mobileStickyCta } from './nav'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -110,12 +110,13 @@ describe('mobileStickyCta', () => {
 })
 
 describe('header and footer socials', () => {
-  it('points X and Farcaster at the official CrewPay profiles', () => {
+  it('points X, Farcaster, and Telegram at the official CrewPay profiles', () => {
     expect(CREW_X_URL).toBe('https://x.com/CrewPayHQ')
     expect(CREW_FARCASTER_URL).toBe('https://farcaster.xyz/crewpay')
+    expect(CREW_TELEGRAM_URL).toBe('https://t.me/CrewPayHQ')
   })
 
-  it('puts Farcaster next to X in the site nav with the arch icon', () => {
+  it('puts Farcaster then Telegram next to X in the site nav', () => {
     const app = readFileSync(join(here, '../App.tsx'), 'utf8')
     const nav = app.slice(app.indexOf('<nav className="nav-links"'), app.indexOf('</nav>'))
     expect(nav).toContain('<NavSocialLinks />')
@@ -124,20 +125,24 @@ describe('header and footer socials', () => {
     const socials = readFileSync(join(here, '../components/SocialIcons.tsx'), 'utf8')
     const xIdx = socials.indexOf('nav-link-x')
     const fcIdx = socials.indexOf('nav-link-fc')
+    const tgIdx = socials.indexOf('nav-link-tg')
     expect(xIdx).toBeGreaterThan(-1)
     expect(fcIdx).toBeGreaterThan(xIdx)
+    expect(tgIdx).toBeGreaterThan(fcIdx)
     expect(socials).toContain('aria-label="Farcaster @crewpay"')
+    expect(socials).toContain('aria-label="Telegram @CrewPayHQ"')
     expect(socials).toContain('CREW_FARCASTER_URL')
+    expect(socials).toContain('CREW_TELEGRAM_URL')
     expect(socials).toContain('target="_blank"')
     expect(socials).toContain('M257.778 155.556H742.222V844.445')
   })
 
-  it('adds Farcaster beside @CrewPayHQ in footer socials', () => {
+  it('adds Farcaster and Telegram beside @CrewPayHQ in footer socials', () => {
     const app = readFileSync(join(here, '../App.tsx'), 'utf8')
     expect(app).toContain('<FooterSocials />')
     const onepager = readFileSync(join(here, '../components/OnepagerPage.tsx'), 'utf8')
     expect(onepager).toContain('<FooterSocials />')
     const socials = readFileSync(join(here, '../components/SocialIcons.tsx'), 'utf8')
-    expect(socials).toMatch(/@CrewPayHQ[\s\S]*@crewpay/)
+    expect(socials).toMatch(/@CrewPayHQ[\s\S]*@crewpay[\s\S]*Telegram/)
   })
 })
