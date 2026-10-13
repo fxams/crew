@@ -67,7 +67,7 @@ describe('wallet-less crew safety', () => {
     expect(crew[0]?.share).toBe(60)
   })
 
-  it('holds the whole crew when nobody has a payout wallet', () => {
+  it('skips the whole crew when nobody has a payout wallet', () => {
     const { crew, skipped, heldShare } = skipCrewWithoutPayoutWallets([
       { handle: '@new', wallet: '', share: 100, hireRole: 'kol' },
     ])

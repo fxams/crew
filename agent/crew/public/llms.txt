@@ -123,6 +123,7 @@ Agents can hire CrewPay via Agent Commerce Protocol v2 jobs when `ACP_ENABLED=1`
 ## Trust notes
 
 - Autohire is **registered-first**: registered KOLs are prioritized to fill seats first; remaining seats use narrative picks from the public Pump directory (listing ≠ consent)
+- Add a wallet to get hired and paid. KOLs without a wallet are skipped for crews.
 - **Buyback status:** every launch locks **25%** (or **20%** when referred) creator fees to the CrewPay treasury wallet. Automatic market buybacks of a CREW token are **not live yet** (only when operators set buyback mint + key). Empty proof tape ≠ broken fee-shares.
 - **Always dry-run** before any launch that spends SOL. **No price talk / ROI promises.**
 

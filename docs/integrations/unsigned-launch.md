@@ -108,6 +108,7 @@ Example (pseudocode):
 ## Consent / KOL opt-in
 
 - `optInOnly=true` limits Autohire to the `kol_registrations` table (registered KOLs).
+- Add a wallet to get hired and paid. KOLs without a wallet are skipped for crews.
 - `autohire` defaults to `optInOnly=true`.
 - For explicit `crew[]`, set `optInOnly=true` to hard-reject non-registered wallets.
 - Responses include `registered` flags on Autohire and `optedInOnly` on autohire responses.
