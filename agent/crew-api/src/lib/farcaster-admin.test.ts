@@ -14,6 +14,8 @@ import {
   consumeFarcasterNonce,
   getFarcasterConnection,
   issueFarcasterNonce,
+  neynarApiKey,
+  neynarClientId,
   parseConnectBody,
   publicFarcasterStatus,
   resetFarcasterStoreForTests,
@@ -81,6 +83,7 @@ describe('farcaster admin auth', () => {
     saved.DATABASE_URL = process.env.DATABASE_URL
     for (const key of ADMIN_TOKEN_ENVS) saved[key] = process.env[key]
     saved.CREW_FARCASTER_NONCE = process.env.CREW_FARCASTER_NONCE
+    saved.NEYNAR_CLIENT_ID = process.env.NEYNAR_CLIENT_ID
     saved.NEYNAR_API_KEY = process.env.NEYNAR_API_KEY
     process.env.NODE_ENV = 'production'
     delete process.env.DATABASE_URL
@@ -88,6 +91,7 @@ describe('farcaster admin auth', () => {
     delete process.env.CREW_FARCASTER_ADMIN_TOKEN
     delete process.env.ADMIN_TOKEN
     delete process.env.CREW_FARCASTER_NONCE
+    delete process.env.NEYNAR_CLIENT_ID
     delete process.env.NEYNAR_API_KEY
     resetFarcasterStoreForTests()
   })
@@ -102,9 +106,21 @@ describe('farcaster admin auth', () => {
     }
     if (saved.CREW_FARCASTER_NONCE) process.env.CREW_FARCASTER_NONCE = saved.CREW_FARCASTER_NONCE
     else delete process.env.CREW_FARCASTER_NONCE
+    if (saved.NEYNAR_CLIENT_ID) process.env.NEYNAR_CLIENT_ID = saved.NEYNAR_CLIENT_ID
+    else delete process.env.NEYNAR_CLIENT_ID
     if (saved.NEYNAR_API_KEY) process.env.NEYNAR_API_KEY = saved.NEYNAR_API_KEY
     else delete process.env.NEYNAR_API_KEY
     resetFarcasterStoreForTests()
+  })
+
+  it('reads Render Neynar names NEYNAR_CLIENT_ID and NEYNAR_API_KEY', () => {
+    expect(neynarClientId({})).toBe('')
+    expect(neynarApiKey({})).toBe('')
+    expect(
+      neynarClientId({ NEYNAR_CLIENT_ID: ' 5228faec-6153-49e8-8503-dcf0a717a075 ' }),
+    ).toBe('5228faec-6153-49e8-8503-dcf0a717a075')
+    expect(neynarApiKey({ NEYNAR_API_KEY: ' server-key ' })).toBe('server-key')
+    expect(neynarApiKey({ NEYNAR_CLIENT_ID: '5228faec-6153-49e8-8503-dcf0a717a075' })).toBe('')
   })
 
   it('reads CREW_ADMIN_TOKEN and rejects a wrong token', () => {

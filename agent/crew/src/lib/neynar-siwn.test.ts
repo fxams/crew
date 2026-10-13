@@ -23,10 +23,10 @@ describe('neynar client id', () => {
   })
 
   it('enables SIWN when a client id is set', () => {
-    expect(neynarClientId({ VITE_NEYNAR_CLIENT_ID: ' 00b75745-aaaa-4bbb-8ccc-ddddeeeeffff ' })).toBe(
-      '00b75745-aaaa-4bbb-8ccc-ddddeeeeffff',
+    expect(neynarClientId({ VITE_NEYNAR_CLIENT_ID: ' 5228faec-6153-49e8-8503-dcf0a717a075 ' })).toBe(
+      '5228faec-6153-49e8-8503-dcf0a717a075',
     )
-    expect(siwnEnabled({ VITE_NEYNAR_CLIENT_ID: '00b75745-aaaa-4bbb-8ccc-ddddeeeeffff' })).toBe(true)
+    expect(siwnEnabled({ VITE_NEYNAR_CLIENT_ID: '5228faec-6153-49e8-8503-dcf0a717a075' })).toBe(true)
   })
 })
 

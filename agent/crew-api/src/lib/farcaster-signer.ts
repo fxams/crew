@@ -285,8 +285,14 @@ export async function authorizeFarcasterAdmin(
   return { ok: false, status: 401, error: 'Unauthorized' }
 }
 
-export function neynarApiKey(): string {
-  return (process.env.NEYNAR_API_KEY || '').trim()
+/** Public Neynar app id — same value as VITE_NEYNAR_CLIENT_ID. Not a secret. */
+export function neynarClientId(env: NodeJS.ProcessEnv = process.env): string {
+  return (env.NEYNAR_CLIENT_ID || '').trim()
+}
+
+/** Server-only Neynar key. Never a VITE_* value. */
+export function neynarApiKey(env: NodeJS.ProcessEnv = process.env): string {
+  return (env.NEYNAR_API_KEY || '').trim()
 }
 
 /** Optional username hydrate. Never throws; never logs the key. */
