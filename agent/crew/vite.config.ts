@@ -58,6 +58,10 @@ export default defineConfig(() => {
               name: 'irys',
               test: /node_modules[\\/]@irys/,
             },
+            {
+              name: 'phantom-connect',
+              test: /node_modules[\\/]@phantom/,
+            },
           ],
         },
       },

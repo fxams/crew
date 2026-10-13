@@ -14,6 +14,11 @@ import {
 import { formatSol } from '../lib/format-sol'
 import { useOwnRegisteredHandle } from '../lib/registered-kol'
 import { kolHandleFromPath, referralInvitePath } from '../lib/routes'
+import { SocialWalletButton } from './SocialWalletButton'
+import { ADD_WALLET_TO_RECEIVE, NO_CRYPTO_NEEDED } from '../lib/kol-onboarding'
+import { isPayoutWallet, resolvePhantomAppId } from '../lib/payout-wallet'
+import type { SocialWallet } from '../lib/phantom-connect'
+import { useConnectModal } from './ConnectModal'
 import { PlatformBadge } from './PlatformBadge'
 import {
   explorerLabel,
@@ -138,7 +143,11 @@ export function KolProfilePage() {
   const [params] = useSearchParams()
   const wallet = useWallet()
   const { address: evmAddress } = useAccount()
+  const { open: openConnect } = useConnectModal()
   const ownHandle = useOwnRegisteredHandle(wallet.publicKey?.toBase58())
+  const [phantomAppId, setPhantomAppId] = useState(() => resolvePhantomAppId())
+  const [payoutBusy, setPayoutBusy] = useState(false)
+  const [payoutMsg, setPayoutMsg] = useState<string | null>(null)
   const [desk, setDesk] = useState<Desk | null>(null)
   const [missing, setMissing] = useState(false)
   const [paidPitch, setPaidPitch] = useState<PaidPitch | null>(null)
@@ -212,7 +221,26 @@ export function KolProfilePage() {
   }, [desk])
 
   const connected = wallet.publicKey?.toBase58() || ''
-  const isOwner = Boolean(desk && connected && desk.profile.wallet === connected)
+  const hasPayoutWallet = isPayoutWallet(desk?.profile.wallet)
+  const isWalletOwner = Boolean(desk && connected && hasPayoutWallet && desk.profile.wallet === connected)
+  const isOwner = Boolean(desk && (isWalletOwner || viewingOwnDesk))
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetch(`${API}/api/kols/register/status`)
+        if (!res.ok) return
+        const body = (await res.json()) as { phantomConnect?: { appId?: string } }
+        if (!cancelled) setPhantomAppId(resolvePhantomAppId(body.phantomConnect?.appId))
+      } catch {
+        /* optional */
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   async function loadReferralEarnings() {
     if (!wallet.publicKey || !wallet.signMessage || !desk) return
@@ -256,6 +284,63 @@ export function KolProfilePage() {
     } catch {
       setCopied(false)
     }
+  }
+
+  async function savePayoutWallet(opts: {
+    address: string
+    signMessage: (msg: Uint8Array) => Promise<Uint8Array>
+  }) {
+    if (!desk) return
+    setPayoutBusy(true)
+    setPayoutMsg(null)
+    try {
+      const address = opts.address.trim()
+      if (!isPayoutWallet(address)) throw new Error('Invalid Solana payout wallet.')
+      const ts = Date.now()
+      const message = `crew-kol-wallet-set:${address}:${ts}`
+      const sig = await opts.signMessage(new TextEncoder().encode(message))
+      const res = await fetch(`${API}/api/kols/register/wallet`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          wallet: address,
+          signature: bs58.encode(sig),
+          timestamp: ts,
+        }),
+      })
+      const body = (await res.json()) as Desk & { error?: string }
+      if (!res.ok) throw new Error(body.error || 'Could not save payout wallet.')
+      setDesk((prev) =>
+        prev
+          ? {
+              ...prev,
+              profile: {
+                ...prev.profile,
+                wallet: body.profile?.wallet || address,
+                pendingWallet: body.profile?.pendingWallet,
+                pendingUntil: body.profile?.pendingUntil,
+              },
+            }
+          : prev,
+      )
+      setPayoutMsg(
+        body.profile?.pendingWallet
+          ? 'Wallet change pending — sign with the current wallet or wait 48h.'
+          : 'Payout wallet saved. Earnings are now claimable at this address.',
+      )
+    } catch (err) {
+      setPayoutMsg(err instanceof Error ? err.message : 'Could not save payout wallet.')
+    } finally {
+      setPayoutBusy(false)
+    }
+  }
+
+  async function onSocialPayout(social: SocialWallet) {
+    await savePayoutWallet({
+      address: social.address,
+      signMessage: social.signMessage,
+    })
   }
 
   async function saveEvmWallet() {
@@ -475,6 +560,8 @@ export function KolProfilePage() {
                   @{desk.profile.xUsername}
                 </a>
                 <div className="desk-wallet-row">
+                  {hasPayoutWallet ? (
+                    <>
                   <button type="button" className="desk-wallet" onClick={() => void copyWallet()}>
                     <span>{shortAddr(desk.profile.wallet)}</span>
                     <strong>{copied ? 'Copied' : 'Copy'}</strong>
@@ -487,6 +574,10 @@ export function KolProfilePage() {
                   >
                     Solscan
                   </a>
+                    </>
+                  ) : (
+                    <p className="desk-wallet-missing">{ADD_WALLET_TO_RECEIVE}</p>
+                  )}
                   {desk.profile.evmWallet ? (
                     <a
                       className="btn btn-ghost btn-sm"
@@ -514,6 +605,54 @@ export function KolProfilePage() {
                 <span>Rank</span>
                 <strong>#{desk.profile.rank || '—'}</strong>
               </div>
+              {isOwner || viewingOwnDesk ? (
+                <div className="desk-payout-card">
+                  {!hasPayoutWallet ? (
+                    <p className="desk-wallet-banner">
+                      {ADD_WALLET_TO_RECEIVE}. {NO_CRYPTO_NEEDED} Earnings accrue and become
+                      claimable once a wallet is added — we never send to an empty address.
+                    </p>
+                  ) : (
+                    <p className="desk-pnl-sub">
+                      Change your Solana payout wallet. CrewPay never holds keys.
+                    </p>
+                  )}
+                  <div className="register-actions">
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      disabled={payoutBusy}
+                      onClick={() => {
+                        if (!wallet.publicKey || !wallet.signMessage) {
+                          openConnect({ preferred: 'solana' })
+                          return
+                        }
+                        void savePayoutWallet({
+                          address: wallet.publicKey.toBase58(),
+                          signMessage: wallet.signMessage,
+                        })
+                      }}
+                    >
+                      {payoutBusy
+                        ? 'Saving…'
+                        : wallet.publicKey
+                          ? hasPayoutWallet
+                            ? 'Use connected wallet'
+                            : 'Save connected wallet'
+                          : 'Connect a wallet'}
+                    </button>
+                  </div>
+                  {phantomAppId ? (
+                    <SocialWalletButton
+                      appId={phantomAppId}
+                      disabled={payoutBusy}
+                      onWallet={(w) => void onSocialPayout(w)}
+                      onError={setPayoutMsg}
+                    />
+                  ) : null}
+                  {payoutMsg ? <p className="hint">{payoutMsg}</p> : null}
+                </div>
+              ) : null}
               {isOwner || viewingOwnDesk ? (
                 <div className="desk-evm-row">
                   <label className="register-ref register-evm">
@@ -571,11 +710,11 @@ export function KolProfilePage() {
                 <span> SOL</span>
               </p>
               <p className="desk-pnl-sub">
-                Creator fees across the linked wallet
-                {desk.profile.priorWallets?.length
-                  ? ' and prior / directory wallets'
-                  : ''}
-                .
+                {hasPayoutWallet
+                  ? `Creator fees across the linked wallet${
+                      desk.profile.priorWallets?.length ? ' and prior / directory wallets' : ''
+                    }.`
+                  : 'Earnings accrue here and become claimable once you add a payout wallet.'}
               </p>
               <div className="desk-pnl-chips">
                 <span>{desk.performance.coinsHired} hired</span>

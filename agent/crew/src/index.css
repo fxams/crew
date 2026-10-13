@@ -1321,6 +1321,70 @@ a {
   align-items: center;
 }
 
+.hero-register-cluster {
+  display: grid;
+  gap: 0.35rem;
+  flex: 1 1 auto;
+  min-width: min(100%, 16rem);
+}
+
+.hero-no-crypto,
+.register-no-crypto {
+  margin: 0;
+  color: var(--acid);
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.register-no-crypto {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.register-no-crypto-cta {
+  color: var(--acid);
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.social-wallet {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.social-wallet-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.social-wallet-note {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.desk-payout-card {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.55rem;
+  grid-column: 1 / -1;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid rgba(200, 255, 61, 0.28);
+  background: rgba(8, 16, 12, 0.45);
+  border-radius: var(--radius);
+}
+
+.desk-wallet-banner,
+.desk-wallet-missing {
+  margin: 0;
+  color: var(--acid);
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 .hero-cta-register {
   flex: 1 1 auto;
   min-width: min(100%, 16rem);
@@ -1334,6 +1398,13 @@ a {
 
 .hero-cta-register:hover:not(:disabled) {
   box-shadow: 0 0 0 1px rgba(200, 255, 61, 0.55), 0 0 36px rgba(200, 255, 61, 0.32);
+}
+
+.hero-register-cluster .hero-cta-register,
+.hero-register-cluster > .btn-primary {
+  width: 100%;
+  min-width: 0;
+  flex: none;
 }
 
 .home-fee-map {
@@ -4301,6 +4372,15 @@ a {
     padding: 0.6rem 0.7rem;
   }
 
+  .page-register .register-no-crypto,
+  .page-register .register-no-crypto-cta {
+    font-size: 0.84rem;
+  }
+
+  .page-desk .desk-payout-card {
+    padding: 0.7rem 0.75rem;
+  }
+
   .page-register .register-steps {
     gap: 0.18rem;
   }
@@ -5705,6 +5785,16 @@ ol.coin-timeline.coin-panel {
     width: auto;
     padding: 0.8rem 1.15rem;
     font-size: 0.82rem;
+  }
+
+  .hero-register-cluster {
+    flex: 0 1 20rem;
+    min-width: 16rem;
+  }
+
+  .hero-register-cluster .hero-cta-register,
+  .hero-register-cluster > .btn-primary {
+    width: auto;
   }
 
   .section {

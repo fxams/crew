@@ -74,4 +74,22 @@ describe('beginXAuth signed OAuth state', () => {
     expect(inserted[0]?.[2]).toBe(wallet)
     expect(inserted[0]?.[7]).toBe(parsed.claims.sh)
   })
+
+  it('starts X-only registration without a wallet signature', async () => {
+    const out = await beginXAuth({
+      referralCode: undefined,
+      ip: '127.0.0.1',
+      regCookie: 'fallback-cookie',
+    })
+    const url = new URL(out.authorizeUrl)
+    const state = url.searchParams.get('state') || ''
+    expect(state.startsWith('v1.')).toBe(true)
+    expect(out.wallet).toBe('')
+    const parsed = parseOAuthStateParam(state, 'test-client-secret')
+    expect(parsed.kind).toBe('signed')
+    if (parsed.kind !== 'signed') return
+    expect(parsed.claims.w).toBe('')
+    expect(parsed.claims.sh).toMatch(/^[a-f0-9]{64}$/)
+    expect(inserted[0]?.[2]).toBe('')
+  })
 })

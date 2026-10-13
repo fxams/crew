@@ -10,8 +10,10 @@ import {
   getClaimPitch,
   getKolProfile,
   getKolProfileByWallet,
+  getKolProfileByXUserId,
   issueNonce,
   updateKolEvmWallet,
+  updateKolPayoutWallet,
   KOL_REFERRAL_CUT_PCT,
   listRegistered,
   REFERRAL_POINTS_HIRE,
@@ -21,6 +23,12 @@ import {
   siteUrl,
   xOAuthConfigured,
 } from '../lib/kol-register.js'
+import {
+  issueKolSessionToken,
+  kolSessionCookieHeader,
+  phantomAppIdFromEnv,
+  readKolSessionCookie,
+} from '../lib/kol-session.js'
 import {
   listMentionDrafts,
   setMentionDraftStatus,
@@ -34,10 +42,18 @@ export const kolRegisterRouter = Router()
 const solanaAddress = z.string().min(32).max(64)
 
 kolRegisterRouter.get('/kols/register/status', (_req, res) => {
+  const phantomAppId = phantomAppIdFromEnv()
   res.json({
     xOauth: xOAuthConfigured(),
     redirectUri: process.env.X_REDIRECT_URI?.trim() || 'https://api.crewpay.dev/api/kols/register/callback',
-    requires: ['solana wallet signature', 'x oauth'],
+    requires: ['x oauth'],
+    walletOptional: true,
+    noCryptoNeeded: 'No crypto needed. Just an X account.',
+    phantomConnect: {
+      enabled: Boolean(phantomAppId),
+      appId: phantomAppId || undefined,
+      env: ['PHANTOM_APP_ID', 'VITE_PHANTOM_APP_ID'],
+    },
     referral: {
       cutPct: KOL_REFERRAL_CUT_PCT,
       cutBps: AGENT_REFERRAL_BPS,
@@ -45,7 +61,7 @@ kolRegisterRouter.get('/kols/register/status', (_req, res) => {
       note:
         'Every registered KOL gets a referral code + link (crewpay.dev/r/<code>). Agents that claim a key with your code permanently bind you as referrer — referred launches split fees 60% to the KOL crew / 15% to the launching agent / 5% you / 20% to the treasury (non-referred stay 60% to the KOL crew, 15% to the launching agent, 25% to the treasury). The launching agent does not receive the 60% crew slice. Buyback cron is NOT live.',
     evmWallet:
-      'Optional Base (0x) address. Needed to be paid on Zora / Base launches. Solana wallet still required for Pump.fun and Bags.fm.',
+      'Optional Base (0x) address. Needed to be paid on Zora / Base launches. Solana payout wallet is optional at signup — add one later on Desk to receive Pump.fun / Bags.fm payouts.',
       points: {
         register: REFERRAL_POINTS_REGISTER,
         hire: REFERRAL_POINTS_HIRE,
@@ -221,6 +237,84 @@ kolRegisterRouter.post('/kols/mentions/drafts/:id/:action', async (req, res) => 
   }
 })
 
+kolRegisterRouter.get('/kols/me', async (req, res) => {
+  try {
+    const session = readKolSessionCookie(req.headers.cookie)
+    if (!session) {
+      res.status(401).json({ ok: false, error: 'Sign in with X to manage this desk.' })
+      return
+    }
+    const profile = await getKolProfileByXUserId(session.u)
+    if (!profile) {
+      res.status(404).json({ ok: false, error: 'KOL is not registered.' })
+      return
+    }
+    res.json({ ok: true, ...profile, session: { handle: session.h } })
+  } catch (err) {
+    sendInternalError(res, err, 'kol-register')
+  }
+})
+
+kolRegisterRouter.post('/kols/register/wallet', async (req, res) => {
+  try {
+    const ip = clientIp(req)
+    const gate = takeRateLimit(`kolreg:wallet:${ip}`, { limit: 20, windowMs: 60_000 })
+    if (!gate.ok) {
+      res.setHeader('Retry-After', String(gate.retryAfterSec))
+      res.status(429).json({ ok: false, error: 'Slow down and retry.' })
+      return
+    }
+    const session = readKolSessionCookie(req.headers.cookie)
+    const body = z
+      .object({
+        wallet: solanaAddress,
+        message: z.string().min(10).max(400).optional(),
+        signature: z.string().min(64).max(128),
+        timestamp: z.number().optional(),
+        changeSignature: z.string().min(64).max(128).optional(),
+        changeTimestamp: z.number().optional(),
+      })
+      .parse(req.body)
+    let handle = session?.h || ''
+    if (!handle) {
+      const fromWallet = kolReferralsWalletFresh(req)
+      if (fromWallet) {
+        const existing = await getKolProfileByWallet(fromWallet.wallet)
+        handle = existing?.profile.xUsername || ''
+      }
+    }
+    if (!handle) {
+      res.status(401).json({
+        ok: false,
+        error:
+          'Sign in with X or connect the linked Solana wallet to add a payout address.',
+      })
+      return
+    }
+    const ts =
+      Number(req.header('x-crew-timestamp') || '') ||
+      Number(body.timestamp) ||
+      Date.now()
+    const profile = await updateKolPayoutWallet({
+      xUsername: handle,
+      newWallet: body.wallet,
+      newWalletSignature: body.signature,
+      newWalletTimestamp: ts,
+      changeSignature: body.changeSignature,
+      changeTimestamp: body.changeTimestamp,
+    })
+    res.json({
+      ok: true,
+      ...profile,
+      tip: 'Payouts go to this Solana address. CrewPay never holds keys — Phantom social wallets are non-custodial.',
+    })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'wallet update failed'
+    const status = /not a registered/i.test(msg) ? 404 : /Sign /i.test(msg) ? 401 : 400
+    res.status(status).json({ ok: false, error: msg })
+  }
+})
+
 kolRegisterRouter.get('/kols/registered/wallet/:wallet', async (req, res) => {
   try {
     const profile = await getKolProfileByWallet(String(req.params.wallet || ''))
@@ -290,12 +384,19 @@ kolRegisterRouter.post('/kols/register/start', async (req, res) => {
     }
     const body = z
       .object({
-        wallet: solanaAddress,
-        message: z.string().min(20).max(400),
-        signature: z.string().min(64).max(128),
+        wallet: solanaAddress.optional(),
+        message: z.string().min(20).max(400).optional(),
+        signature: z.string().min(64).max(128).optional(),
         referralCode: z.string().min(2).max(32).optional(),
         evmWallet: z.string().max(42).optional(),
       })
+      .refine(
+        (data) => {
+          const has = Boolean(data.wallet)
+          return has === Boolean(data.message) && has === Boolean(data.signature)
+        },
+        { message: 'Wallet, message, and signature must be sent together — or omit all three to register with X only.' },
+      )
       .parse(req.body)
     // Optional CSRF cookie — primary proof is the signed OAuth `state` param.
     const cookieVal = randomBytes(16).toString('hex')
@@ -340,6 +441,14 @@ kolRegisterRouter.get('/kols/register/callback', async (req, res) => {
     const match = cookieHeader.match(/(?:^|;)\s*crew_reg=([^;]+)/)
     const cookieVal = match ? decodeURIComponent(match[1]!) : ''
     const saved = await completeXCallback(code, state, { regCookie: cookieVal })
+    if (saved.xUserId) {
+      try {
+        const token = issueKolSessionToken({ xUserId: saved.xUserId, username: saved.xUsername })
+        res.setHeader('Set-Cookie', kolSessionCookieHeader(token))
+      } catch {
+        /* session is optional — desk still loads from the redirect */
+      }
+    }
     // `from=x` tells the desk to show "return to the wallet and tap Check" when
     // X opened in Safari / the X app instead of the wallet in-app browser.
     res.redirect(

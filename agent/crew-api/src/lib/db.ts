@@ -484,4 +484,15 @@ export async function migrate(): Promise<void> {
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['020_agent_keys_ops'],
   )
+  // Wallet-optional KOL signup: many empty wallets must not collide on the unique index.
+  await query(`DROP INDEX IF EXISTS kol_registrations_wallet_idx`)
+  await query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS kol_registrations_wallet_idx
+      ON kol_registrations (wallet)
+      WHERE wallet IS NOT NULL AND length(trim(wallet)) >= 32
+  `)
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['021_kol_wallet_optional'],
+  )
 }
