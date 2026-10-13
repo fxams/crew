@@ -15,6 +15,7 @@
   "dependencies": {
     "@irys/web-upload": "^0.0.15",
     "@irys/web-upload-solana": "^0.1.8",
+    "@phantom/browser-sdk": "^2.0.4",
     "@pump-fun/pump-sdk": "^2.0.0",
     "@solana-mobile/wallet-adapter-mobile": "^3.0.0",
     "@solana/spl-token": "^0.4.15",

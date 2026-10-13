@@ -37,6 +37,7 @@ import {
   buildCrewShareholders,
   maxCrewSeats,
   normalizeCrew,
+  skipCrewWithoutPayoutWallets,
 } from './shareholders.js'
 import { assertSafeHttpUrl } from './safe-url.js'
 import { pollAdminRevokedOnChain } from './fee-lock-integrity.js'
@@ -148,7 +149,13 @@ export async function resolveCrew(
     return { crew: [] }
   }
   if (input.crew?.length) {
-    return { crew: normalizeCrew(input.crew, mode, { maxSeats }) }
+    const filtered = skipCrewWithoutPayoutWallets(input.crew)
+    if (!filtered.crew.length) {
+      throw new Error(
+        'Crew has no payout wallets — add a Solana address for each KOL before launch. Never send to an empty address.',
+      )
+    }
+    return { crew: normalizeCrew(filtered.crew, mode, { maxSeats }) }
   }
   const requested = Math.max(1, Math.floor(input.autoHire?.seats ?? 5))
   const seats = Math.min(maxSeats, requested)

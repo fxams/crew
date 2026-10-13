@@ -9,9 +9,11 @@ import {
 import {
   agentReferrerDualRoleHandles,
   buildCrewShareholders,
+  isPayoutWallet,
   maxCrewSeats,
   normalizeCrew,
   normalizeShareholderRole,
+  skipCrewWithoutPayoutWallets,
 } from './shareholders.js'
 import type { CrewMember } from './narrative.js'
 
@@ -35,6 +37,45 @@ function equalCrew(wallets: string[]): CrewMember[] {
     hireRole: 'kol' as const,
   }))
 }
+
+describe('wallet-less crew safety', () => {
+  it('isPayoutWallet rejects empty and junk destinations', () => {
+    expect(isPayoutWallet('')).toBe(false)
+    expect(isPayoutWallet(null)).toBe(false)
+    expect(isPayoutWallet('short')).toBe(false)
+    expect(isPayoutWallet(kolA)).toBe(true)
+  })
+
+  it('skips KOLs without a wallet and renormalizes remaining shares to 100%', () => {
+    const { crew, skipped, heldShare } = skipCrewWithoutPayoutWallets([
+      { handle: '@a', wallet: kolA, share: 60, hireRole: 'kol' },
+      { handle: '@b', wallet: '', share: 40, hireRole: 'caller' },
+    ])
+    expect(skipped).toEqual(['@b'])
+    expect(heldShare).toBe(40)
+    expect(crew).toHaveLength(1)
+    expect(crew[0]?.wallet).toBe(kolA)
+    expect(crew[0]?.share).toBe(100)
+    expect(crew.every((c) => isPayoutWallet(c.wallet))).toBe(true)
+  })
+
+  it('does not rewrite shares when every seat already has a wallet', () => {
+    const { crew, skipped } = skipCrewWithoutPayoutWallets([
+      { handle: '@a', wallet: kolA, share: 60, hireRole: 'kol' },
+    ])
+    expect(skipped).toEqual([])
+    expect(crew[0]?.share).toBe(60)
+  })
+
+  it('holds the whole crew when nobody has a payout wallet', () => {
+    const { crew, skipped, heldShare } = skipCrewWithoutPayoutWallets([
+      { handle: '@new', wallet: '', share: 100, hireRole: 'kol' },
+    ])
+    expect(crew).toEqual([])
+    expect(skipped).toEqual(['@new'])
+    expect(heldShare).toBe(100)
+  })
+})
 
 describe('normalizeShareholderRole', () => {
   it('maps kol display alias to crew for earnings attribution', () => {

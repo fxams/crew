@@ -86,6 +86,7 @@ import { formatSol, formatSolSigned } from "./lib/format-sol";
 import type { HireRole } from "./lib/types";
 import { launchCrew } from "./lib/launch";
 import { useOwnRegisteredHandle } from "./lib/registered-kol";
+import { NO_CRYPTO_NEEDED } from "./lib/kol-onboarding";
 import { headerKolLinks, mobileStickyCta } from "./lib/nav";
 import { isAdminKickoffPath, isAgentsPath, isApprovePath, isClaimPath, isCoinPath, isCoinsPath, isHomePath, isKolsPath, isLaunchPath, isOnepagerPath, isProofPath, isReferralPath, isRegisterPath, kolHandleFromPath, referralCodeFromPath } from "./lib/routes";
 import { ApprovePage } from "./components/ApprovePage";
@@ -1525,9 +1526,12 @@ export default function App() {
               </p>
               <PlatformChipRow venues={venues} x402={x402} acp={acp} />
               <div className="hero-actions">
+                <div className="hero-register-cluster">
                 <Link className="btn btn-primary hero-cta-register" to="/register">
                   Register as KOL to get Paid
                 </Link>
+                <p className="hero-no-crypto">{NO_CRYPTO_NEEDED}</p>
+                </div>
                 <Link className="btn btn-ghost" to="/launch">
                   Launch with crew
                 </Link>
@@ -1622,9 +1626,12 @@ export default function App() {
             {REFERRAL_POINTS_REGISTER_DAILY_CAP}/day. Buyback cron is not live.
           </p>
           <div className="home-ref-actions">
+            <div className="hero-register-cluster">
             <Link className="btn btn-primary" to="/register">
               Register &amp; get your code
             </Link>
+            <p className="hero-no-crypto">{NO_CRYPTO_NEEDED}</p>
+            </div>
             <Link className="btn btn-ghost" to="/kols">
               See registered crew
             </Link>

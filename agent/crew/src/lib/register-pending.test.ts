@@ -22,4 +22,12 @@ describe('pending KOL registration', () => {
     expect(parsePendingRegistration('not-json')).toBeNull()
     expect(parsePendingRegistration('{"wallet":"short","startedAt":1}')).toBeNull()
   })
+
+  it('keeps an X-only pending registration with no wallet yet', () => {
+    const raw = serializePendingRegistration({ wallet: '', startedAt: 1_700_000_000_000 })
+    expect(parsePendingRegistration(raw, 1_700_000_000_000)).toEqual({
+      wallet: '',
+      startedAt: 1_700_000_000_000,
+    })
+  })
 })

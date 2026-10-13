@@ -50,6 +50,15 @@ function row(over: Partial<StoredOAuthState> = {}): StoredOAuthState {
 }
 
 describe('signed registration OAuth state', () => {
+  it('round-trips X-only state with an empty wallet', () => {
+    const token = signRegistrationOAuthState(claims({ w: '', sh: sha256Hex('x-only:sid') }), SECRET)
+    const verified = verifyRegistrationOAuthState(token, SECRET)
+    expect(verified.ok).toBe(true)
+    if (!verified.ok) return
+    expect(verified.claims.w).toBe('')
+    expect(verified.claims.sh).toBe(sha256Hex('x-only:sid'))
+  })
+
   it('round-trips a payload bound to wallet + signature hash', () => {
     const token = signRegistrationOAuthState(claims(), SECRET)
     expect(token.startsWith('v1.')).toBe(true)

@@ -140,6 +140,7 @@ describe('migrate() against an existing pre-#127 coins table', () => {
     )
     expect(afterSchema).toMatch(/019_featured_graduation/)
     expect(afterSchema).toMatch(/020_agent_keys_ops/)
+    expect(afterSchema).toMatch(/021_kol_wallet_optional/)
     const alter = afterSchema.indexOf(
       'ALTER TABLE coins ADD COLUMN IF NOT EXISTS graduated_at TIMESTAMPTZ',
     )

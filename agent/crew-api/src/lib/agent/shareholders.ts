@@ -52,6 +52,75 @@ export function assertWallet(value: string, chain: AddressChain = 'solana'): str
   }
 }
 
+/** True when an address can receive an on-chain payout (never treat empty as a destination). */
+export function isPayoutWallet(value: string | null | undefined, chain: AddressChain = 'solana'): boolean {
+  const w = (value || '').trim()
+  if (chain === 'evm') {
+    try {
+      assertEvmAddress(w, 'wallet')
+      return true
+    } catch {
+      return false
+    }
+  }
+  if (w.length < 32 || w.length > 64) return false
+  try {
+    new PublicKey(w)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Drop KOLs who have no payout wallet, then renormalize remaining shares to 100%.
+ * Their seat is held (not sent to an empty address) until they add a wallet.
+ */
+export function skipCrewWithoutPayoutWallets(
+  crew: CrewMember[],
+  chain: AddressChain = 'solana',
+): { crew: CrewMember[]; skipped: string[]; heldShare: number } {
+  const kept: CrewMember[] = []
+  const skipped: string[] = []
+  let heldShare = 0
+  for (const member of crew) {
+    if (isPayoutWallet(member.wallet, chain)) {
+      kept.push(member)
+      continue
+    }
+    skipped.push(member.handle)
+    heldShare += Math.max(0, Number(member.share) || 0)
+  }
+  if (!kept.length) {
+    return { crew: [], skipped, heldShare }
+  }
+  if (!skipped.length) {
+    return { crew: kept, skipped, heldShare }
+  }
+  const sum = kept.reduce((s, m) => s + Math.max(0, Number(m.share) || 0), 0)
+  if (sum <= 0) {
+    const share = Math.floor(100 / kept.length)
+    const rem = 100 - share * kept.length
+    return {
+      crew: kept.map((m, i) => ({ ...m, share: share + (i < rem ? 1 : 0) })),
+      skipped,
+      heldShare,
+    }
+  }
+  const raw = kept.map((m) => ({
+    ...m,
+    share: Math.floor((100 * Math.max(0, Number(m.share) || 0)) / sum),
+  }))
+  let allocated = raw.reduce((s, m) => s + m.share, 0)
+  let i = 0
+  while (allocated < 100 && raw.length) {
+    raw[i % raw.length]!.share += 1
+    allocated += 1
+    i += 1
+  }
+  return { crew: raw, skipped, heldShare }
+}
+
 export function normalizeHandle(raw: string): string {
   const h = raw.trim().replace(/^@+/, '')
   if (!/^[a-z0-9_]{1,15}$/i.test(h)) {

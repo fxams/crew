@@ -37,6 +37,10 @@ export function buildKolEvmWalletMessage(
   return `crew-kol-evm:${wallet}:${evmWallet}:${timestamp}`
 }
 
+export function buildKolWalletSetMessage(wallet: string, timestamp: number): string {
+  return `crew-kol-wallet-set:${wallet}:${timestamp}`
+}
+
 /** Verify Phantom-signed EVM wallet update on a KOL desk. */
 export function kolEvmWalletFresh(req: {
   header(name: string): string | undefined

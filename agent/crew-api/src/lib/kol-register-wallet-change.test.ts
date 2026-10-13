@@ -15,6 +15,16 @@ describe('KOL wallet change takeover protection', () => {
   const currentWallet = current.publicKey.toBase58()
   const newWallet = next.publicKey.toBase58()
 
+  it('sets a first payout wallet immediately when the KOL has none yet', () => {
+    const decision = decideWalletChange({
+      currentWallet: '',
+      newWallet,
+    })
+    expect(decision.action).toBe('set')
+    expect(decision.wallet).toBe(newWallet)
+    expect(decision.pendingWallet).toBeNull()
+  })
+
   it('without current-wallet signature, change becomes pending and keeps current wallet', () => {
     const now = Date.UTC(2026, 0, 1)
     const decision = decideWalletChange({

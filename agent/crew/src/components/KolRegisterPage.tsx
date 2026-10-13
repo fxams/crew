@@ -14,6 +14,13 @@ import {
 } from '../lib/register-pending'
 import { lookupRegisteredHandle, useOwnRegisteredHandle } from '../lib/registered-kol'
 import { kolProfilePath } from '../lib/routes'
+import { SocialWalletButton } from './SocialWalletButton'
+import {
+  NO_CRYPTO_NEEDED,
+  WALLET_OPTIONAL_HINT,
+} from '../lib/kol-onboarding'
+import { isPayoutWallet, resolvePhantomAppId } from '../lib/payout-wallet'
+import type { SocialWallet } from '../lib/phantom-connect'
 
 const MCP_PIN = '1.2.6'
 
@@ -170,6 +177,8 @@ export function KolRegisterPage() {
   const [tape, setTape] = useState<Registration[]>([])
   const [total, setTotal] = useState(0)
   const [xOauth, setXOauth] = useState<boolean | null>(null)
+  const [phantomAppId, setPhantomAppId] = useState(() => resolvePhantomAppId())
+  const [socialWallet, setSocialWallet] = useState<SocialWallet | null>(null)
   const [busy, setBusy] = useState(false)
   const [awaitingX, setAwaitingX] = useState(false)
   const [checkBusy, setCheckBusy] = useState(false)
@@ -179,7 +188,7 @@ export function KolRegisterPage() {
   const [evmWallet, setEvmWallet] = useState('')
   const [moreOpen, setMoreOpen] = useState(() => Boolean(normalizeRef(params.get('ref'))))
   const [copiedSnippet, setCopiedSnippet] = useState<string | null>(null)
-  const connectedWallet = wallet.publicKey?.toBase58() || ''
+  const connectedWallet = wallet.publicKey?.toBase58() || socialWallet?.address || ''
   const ownHandle = useOwnRegisteredHandle(connectedWallet, refreshTick)
   const registeredHandle = params.get('registered') === '1' ? params.get('handle') : null
   const deskHandle = registeredHandle || ownHandle
@@ -222,8 +231,12 @@ export function KolRegisterPage() {
       fetch(`${API}/api/kols/registered?limit=40`),
     ])
     if (statusRes.ok) {
-      const status = (await statusRes.json()) as { xOauth?: boolean }
+      const status = (await statusRes.json()) as {
+        xOauth?: boolean
+        phantomConnect?: { enabled?: boolean; appId?: string }
+      }
       setXOauth(Boolean(status.xOauth))
+      setPhantomAppId(resolvePhantomAppId(status.phantomConnect?.appId))
     } else {
       setXOauth(false)
     }
@@ -262,26 +275,38 @@ export function KolRegisterPage() {
 
   const onCheck = useCallback(
     async (opts?: { silent?: boolean }) => {
-      const pubkey = (wallet.publicKey?.toBase58() || loadPendingRegistration()?.wallet || '').trim()
-      if (!pubkey) {
-        if (!opts?.silent) {
-          openConnect({ preferred: 'solana' })
-          setError('Connect the wallet you signed with, then tap Check.')
-        }
-        return
-      }
+      const pubkey = (
+        wallet.publicKey?.toBase58() ||
+        socialWallet?.address ||
+        loadPendingRegistration()?.wallet ||
+        ''
+      ).trim()
       if (!opts?.silent) {
         setCheckBusy(true)
         setError(null)
       }
       try {
-        const handle = await lookupRegisteredHandle(pubkey)
-        setRefreshTick((n) => n + 1)
-        if (handle) {
-          clearPendingRegistration()
-          setAwaitingX(false)
-          navigate(kolProfilePath(handle))
-          return
+        if (isPayoutWallet(pubkey)) {
+          const handle = await lookupRegisteredHandle(pubkey)
+          setRefreshTick((n) => n + 1)
+          if (handle) {
+            clearPendingRegistration()
+            setAwaitingX(false)
+            navigate(kolProfilePath(handle))
+            return
+          }
+        }
+        const me = await fetch(`${API}/api/kols/me`, { credentials: 'include' })
+        if (me.ok) {
+          const body = (await me.json()) as { profile?: { xUsername?: string } }
+          const handle = body.profile?.xUsername?.trim()
+          if (handle) {
+            clearPendingRegistration()
+            setAwaitingX(false)
+            setRefreshTick((n) => n + 1)
+            navigate(kolProfilePath(handle))
+            return
+          }
         }
         if (!opts?.silent) {
           setError(`Not on the board yet. ${CHECK_HINT}`)
@@ -294,7 +319,7 @@ export function KolRegisterPage() {
         if (!opts?.silent) setCheckBusy(false)
       }
     },
-    [navigate, openConnect, wallet.publicKey],
+    [navigate, socialWallet?.address, wallet.publicKey],
   )
 
   useEffect(() => {
@@ -319,41 +344,43 @@ export function KolRegisterPage() {
       return
     }
     setError(null)
-    if (!wallet.publicKey || !wallet.signMessage) {
-      openConnect({ preferred: 'solana' })
-      setError('Connect a Solana wallet that can sign messages.')
-      return
-    }
+    const pubkey = (wallet.publicKey?.toBase58() || socialWallet?.address || '').trim()
+    const canSign = Boolean(wallet.publicKey && wallet.signMessage) || Boolean(socialWallet)
     setBusy(true)
     try {
-      const pubkey = wallet.publicKey.toBase58()
-      const nonceRes = await fetch(`${API}/api/kols/register/nonce`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ wallet: pubkey }),
-      })
-      const nonceBody = (await nonceRes.json()) as { message?: string; error?: string }
-      if (!nonceRes.ok || !nonceBody.message) {
-        throw new Error(nonceBody.error || 'Could not start registration.')
+      const startBodyPayload: Record<string, string> = {
+        ...(referralCode.length >= 2 ? { referralCode } : {}),
+        ...(evmWallet.trim() ? { evmWallet: evmWallet.trim() } : {}),
       }
-      const sigBytes = await wallet.signMessage(new TextEncoder().encode(nonceBody.message))
+      if (isPayoutWallet(pubkey) && canSign) {
+        const nonceRes = await fetch(`${API}/api/kols/register/nonce`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ wallet: pubkey }),
+        })
+        const nonceBody = (await nonceRes.json()) as { message?: string; error?: string }
+        if (!nonceRes.ok || !nonceBody.message) {
+          throw new Error(nonceBody.error || 'Could not start registration.')
+        }
+        const encoder = new TextEncoder()
+        const sigBytes = wallet.signMessage
+          ? await wallet.signMessage(encoder.encode(nonceBody.message))
+          : await socialWallet!.signMessage(encoder.encode(nonceBody.message))
+        startBodyPayload.wallet = pubkey
+        startBodyPayload.message = nonceBody.message
+        startBodyPayload.signature = bs58.encode(sigBytes)
+      }
       const startRes = await fetch(`${API}/api/kols/register/start`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          wallet: pubkey,
-          message: nonceBody.message,
-          signature: bs58.encode(sigBytes),
-          ...(referralCode.length >= 2 ? { referralCode } : {}),
-          ...(evmWallet.trim() ? { evmWallet: evmWallet.trim() } : {}),
-        }),
+        body: JSON.stringify(startBodyPayload),
       })
       const startBody = (await startRes.json()) as { authorizeUrl?: string; error?: string }
       if (!startRes.ok || !startBody.authorizeUrl) {
         throw new Error(startBody.error || 'X sign-in did not start.')
       }
-      savePendingRegistration(pubkey)
+      savePendingRegistration(isPayoutWallet(pubkey) ? pubkey : '')
       setAwaitingX(true)
       window.location.assign(startBody.authorizeUrl)
     } catch (err) {
@@ -362,7 +389,7 @@ export function KolRegisterPage() {
     }
   }
 
-  const connected = Boolean(wallet.publicKey)
+  const connected = isPayoutWallet(connectedWallet)
 
   return (
     <div className="app-shell page-kols page-register">
@@ -382,8 +409,9 @@ export function KolRegisterPage() {
           ) : (
             <>
               <p className="section-sub">
-                Connect a Solana wallet, sign, then Register with X. About a minute.
+                {NO_CRYPTO_NEEDED} Register with X — about a minute.
               </p>
+              <p className="register-no-crypto">{WALLET_OPTIONAL_HINT}</p>
               {referralCode.length >= 2 ? (
                 <p className="register-invite-chip">
                   Invite code <strong>{referralCode}</strong>
@@ -404,19 +432,16 @@ export function KolRegisterPage() {
           ) : (
           <div className="register-card">
             <ol className="register-steps">
+              <li className={awaitingX || deskHandle ? 'is-done' : ''}>
+                <strong>1. X</strong>
+                <span>{xOauth === false ? 'Waiting on X app credentials' : awaitingX ? 'Waiting…' : 'Required'}</span>
+              </li>
               <li className={connected ? 'is-done' : ''}>
-                <strong>1. Wallet</strong>
-                <span>{connected ? shortAddr(wallet.publicKey!.toBase58()) : 'Connect'}</span>
-              </li>
-              <li className={awaitingX || deskHandle ? 'is-done' : ''}>
-                <strong>2. Sign</strong>
-                <span>Proves the address</span>
-              </li>
-              <li className={awaitingX || deskHandle ? 'is-done' : ''}>
-                <strong>3. X</strong>
-                <span>{xOauth === false ? 'Waiting on X app credentials' : awaitingX ? 'Waiting…' : 'Register'}</span>
+                <strong>2. Wallet</strong>
+                <span>{connected ? shortAddr(connectedWallet) : 'Optional'}</span>
               </li>
             </ol>
+            <p className="register-no-crypto register-no-crypto-cta">{NO_CRYPTO_NEEDED}</p>
 
             <details
               className="register-more"
@@ -472,11 +497,6 @@ export function KolRegisterPage() {
               </p>
             ) : null}
             <div className="register-actions">
-              {!connected ? (
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => openConnect({ preferred: 'solana' })}>
-                  Connect wallet
-                </button>
-              ) : null}
               <button
                 type="button"
                 className="btn btn-primary btn-sm"
@@ -485,6 +505,11 @@ export function KolRegisterPage() {
               >
                 {busy ? 'Waiting for X…' : 'Register with X'}
               </button>
+              {!connected ? (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => openConnect({ preferred: 'solana' })}>
+                  I already have a wallet
+                </button>
+              ) : null}
               {awaitingX ? (
                 <button
                   type="button"
@@ -496,6 +521,17 @@ export function KolRegisterPage() {
                 </button>
               ) : null}
             </div>
+            {phantomAppId && !connected ? (
+              <SocialWalletButton
+                appId={phantomAppId}
+                disabled={busy}
+                onWallet={(w) => {
+                  setSocialWallet(w)
+                  setError(null)
+                }}
+                onError={setError}
+              />
+            ) : null}
           </div>
           )}
         </div>
@@ -559,7 +595,8 @@ export function KolRegisterPage() {
               <strong>Hired first.</strong> Autohire fills seats with registered KOLs before anyone else.
             </li>
             <li>
-              <strong>Your wallet.</strong> Fee-shares go to the wallet you sign with, not a scraped one.
+              <strong>Your wallet, when you want one.</strong> {NO_CRYPTO_NEEDED} Add a payout
+              address later — fee-shares never go to an empty address.
             </li>
             <li>
               <strong>Referral link.</strong> Agents that claim a key with your code pay you{' '}

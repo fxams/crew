@@ -198,7 +198,7 @@ CREATE TABLE IF NOT EXISTS mode_actions (
 
 CREATE INDEX IF NOT EXISTS mode_actions_mint_idx ON mode_actions (mint, created_at DESC);
 
--- Opt-in KOL registrations (X OAuth + signed Solana wallet). Separate from the seeded directory.
+-- Opt-in KOL registrations (X OAuth; Solana payout wallet optional). Separate from the seeded directory.
 CREATE TABLE IF NOT EXISTS kol_registrations (
   x_user_id TEXT PRIMARY KEY,
   x_username TEXT NOT NULL,
@@ -210,7 +210,7 @@ CREATE TABLE IF NOT EXISTS kol_registrations (
   listed_count INT NOT NULL DEFAULT 0,
   profile_image_url TEXT,
   description TEXT NOT NULL DEFAULT '',
-  wallet TEXT NOT NULL,
+  wallet TEXT NOT NULL DEFAULT '',
   pending_wallet TEXT,
   pending_until TIMESTAMPTZ,
   -- Scraped Pump wallets + previous linked wallets; desk earnings sum across these.
@@ -228,7 +228,9 @@ CREATE TABLE IF NOT EXISTS kol_registrations (
   stats_refreshed_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS kol_registrations_wallet_idx ON kol_registrations (wallet);
+CREATE UNIQUE INDEX IF NOT EXISTS kol_registrations_wallet_idx
+  ON kol_registrations (wallet)
+  WHERE wallet IS NOT NULL AND length(trim(wallet)) >= 32;
 CREATE UNIQUE INDEX IF NOT EXISTS kol_registrations_username_idx ON kol_registrations (lower(x_username));
 CREATE UNIQUE INDEX IF NOT EXISTS kol_registrations_referral_code_idx
   ON kol_registrations (lower(referral_code)) WHERE referral_code IS NOT NULL;

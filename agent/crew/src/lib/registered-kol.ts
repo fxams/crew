@@ -34,6 +34,17 @@ export async function lookupRegisteredHandle(wallet: string): Promise<string | n
 }
 
 /** Resolve the X handle for a registered Solana wallet (null if not registered). */
+async function lookupSessionHandle(): Promise<string | null> {
+  try {
+    const res = await fetch(`${API}/api/kols/me`, { credentials: 'include' })
+    if (!res.ok) return null
+    const body = (await res.json()) as { profile?: { xUsername?: string } }
+    return body.profile?.xUsername?.trim() || null
+  } catch {
+    return null
+  }
+}
+
 export function useOwnRegisteredHandle(
   wallet: string | null | undefined,
   refreshTick = 0,
@@ -44,28 +55,27 @@ export function useOwnRegisteredHandle(
   )
 
   useEffect(() => {
-    if (!address) {
-      setHandle(null)
-      return
-    }
-    if (refreshTick > 0) cache.delete(address)
-    if (refreshTick === 0 && cache.has(address)) {
+    if (refreshTick > 0 && address) cache.delete(address)
+    if (refreshTick === 0 && address && cache.has(address)) {
       setHandle(cache.get(address) ?? null)
       return
     }
     let cancelled = false
     void (async () => {
       try {
-        const res = await fetch(`${API}/api/kols/registered/wallet/${encodeURIComponent(address)}`)
-        if (!res.ok) {
+        if (address) {
+          const res = await fetch(`${API}/api/kols/registered/wallet/${encodeURIComponent(address)}`)
+          if (res.ok) {
+            const body = (await res.json()) as { profile?: { xUsername?: string } }
+            const next = body.profile?.xUsername?.trim() || null
+            cache.set(address, next)
+            if (!cancelled) setHandle(next)
+            return
+          }
           cache.set(address, null)
-          if (!cancelled) setHandle(null)
-          return
         }
-        const body = (await res.json()) as { profile?: { xUsername?: string } }
-        const next = body.profile?.xUsername?.trim() || null
-        cache.set(address, next)
-        if (!cancelled) setHandle(next)
+        const session = await lookupSessionHandle()
+        if (!cancelled) setHandle(session)
       } catch {
         if (!cancelled) setHandle(null)
       }
