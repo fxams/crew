@@ -2,7 +2,12 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { CREW_FARCASTER_URL, CREW_TELEGRAM_URL, CREW_X_URL } from './config'
+import {
+  CREW_FARCASTER_URL,
+  CREW_TELEGRAM_COMMUNITY_URL,
+  CREW_TELEGRAM_URL,
+  CREW_X_URL,
+} from './config'
 import { headerKolLinks, mobileStickyCta } from './nav'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -114,6 +119,7 @@ describe('header and footer socials', () => {
     expect(CREW_X_URL).toBe('https://x.com/CrewPayHQ')
     expect(CREW_FARCASTER_URL).toBe('https://farcaster.xyz/crewpay')
     expect(CREW_TELEGRAM_URL).toBe('https://t.me/CrewPayHQ')
+    expect(CREW_TELEGRAM_COMMUNITY_URL).toBe('https://t.me/crewpay_hq')
   })
 
   it('puts Farcaster then Telegram next to X in the site nav', () => {
@@ -135,14 +141,21 @@ describe('header and footer socials', () => {
     expect(socials).toContain('CREW_TELEGRAM_URL')
     expect(socials).toContain('target="_blank"')
     expect(socials).toContain('M257.778 155.556H742.222V844.445')
+    const navFn = socials.slice(
+      socials.indexOf('export function NavSocialLinks'),
+      socials.indexOf('/** Footer handles'),
+    )
+    expect(navFn).not.toContain('CREW_TELEGRAM_COMMUNITY_URL')
+    expect(navFn).not.toContain('crewpay_hq')
   })
 
-  it('adds Farcaster and Telegram beside @CrewPayHQ in footer socials', () => {
+  it('adds Farcaster, Telegram, and Community beside @CrewPayHQ in footer socials', () => {
     const app = readFileSync(join(here, '../App.tsx'), 'utf8')
     expect(app).toContain('<FooterSocials />')
     const onepager = readFileSync(join(here, '../components/OnepagerPage.tsx'), 'utf8')
     expect(onepager).toContain('<FooterSocials />')
     const socials = readFileSync(join(here, '../components/SocialIcons.tsx'), 'utf8')
-    expect(socials).toMatch(/@CrewPayHQ[\s\S]*@crewpay[\s\S]*Telegram/)
+    expect(socials).toMatch(/@CrewPayHQ[\s\S]*@crewpay[\s\S]*Telegram[\s\S]*Community/)
+    expect(socials).toContain('CREW_TELEGRAM_COMMUNITY_URL')
   })
 })
