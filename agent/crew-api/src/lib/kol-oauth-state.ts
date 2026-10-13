@@ -27,6 +27,23 @@ export const SESSION_USED_ERROR = `This sign-in was already used. ${CROSS_CONTEX
 export const SESSION_EXPIRED_ERROR =
   'Sign-in expired. Tap Register with X again.'
 
+export function xOauthErrorFlag(msg: string): 'used' | 'expired' | null {
+  if (/already used/i.test(msg)) return 'used'
+  if (/expired/i.test(msg)) return 'expired'
+  return null
+}
+
+export function isRecoverableXOauthError(
+  error: string | null | undefined,
+  xoauth?: string | null,
+): boolean {
+  const flag = String(xoauth || '').toLowerCase()
+  if (flag === 'used' || flag === 'expired') return true
+  const s = String(error || '')
+  if (!s) return false
+  return /already used/i.test(s) || /sign-in expired/i.test(s) || /session expired/i.test(s)
+}
+
 export type RegistrationClaims = {
   v: 1
   /** One-time server row id (also stored as kol_oauth_states.state). */

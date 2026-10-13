@@ -308,6 +308,8 @@ CREATE TABLE IF NOT EXISTS kol_oauth_states (
   signature_sha256 TEXT,
   -- One-time use; callback sets this instead of deleting so a second hit can say "already used".
   consumed_at TIMESTAMPTZ,
+  -- Set after a successful callback so Check can finish in another browser without cookies.
+  completed_username TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

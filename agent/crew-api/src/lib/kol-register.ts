@@ -13,6 +13,7 @@ import { isPayoutWallet } from './agent/shareholders.js'
 import { query } from './db.js'
 import { verifyWalletSignature } from './wallet-auth.js'
 import {
+  REGISTRATION_OAUTH_TTL_MS,
   REGISTRATION_OAUTH_TTL_SEC,
   SESSION_USED_ERROR,
   cookieSha256,
@@ -310,7 +311,7 @@ export async function beginXAuth(opts: {
   ip?: string
   /** Optional CSRF cookie; hashed into the state row as a fallback only. */
   regCookie?: string
-}): Promise<{ authorizeUrl: string; state: string; wallet: string; expiresAt: number }> {
+}): Promise<{ authorizeUrl: string; state: string; sid: string; wallet: string; expiresAt: number }> {
   if (!xOAuthConfigured()) {
     throw new Error('X sign-in is not configured. Set X_CLIENT_ID and X_CLIENT_SECRET on crewpay-api.')
   }
@@ -397,13 +398,15 @@ export async function beginXAuth(opts: {
   return {
     authorizeUrl: buildXAuthorizeUrl({ state, codeVerifier }),
     state,
+    sid,
     wallet: hasWallet ? wallet : '',
     expiresAt: exp * 1000,
   }
 }
 
 function mapOAuthRow(r: Record<string, unknown> | undefined): StoredOAuthState | null {
-  if (!r?.state || !r.code_verifier || !r.wallet) return null
+  // X-only signup stores wallet as '' — must still resolve, or callback reports "already used".
+  if (!r?.state || !r.code_verifier || r.wallet == null) return null
   const createdAtMs =
     r.created_at instanceof Date ? r.created_at.getTime() : Date.parse(String(r.created_at || ''))
   let consumedAtMs: number | null = null
@@ -415,7 +418,7 @@ function mapOAuthRow(r: Record<string, unknown> | undefined): StoredOAuthState |
   return {
     sid: String(r.state),
     codeVerifier: String(r.code_verifier),
-    wallet: String(r.wallet),
+    wallet: String(r.wallet || ''),
     sigSha256: r.signature_sha256 ? String(r.signature_sha256) : null,
     referralCode: r.referral_code ? String(r.referral_code) : null,
     evmWallet: r.evm_wallet ? String(r.evm_wallet) : null,
@@ -704,7 +707,94 @@ export async function completeXCallback(
 
   const saved = await getRegistrationByX(user.id)
   if (!saved) throw new Error('Registration saved but could not be read back.')
+  await markOAuthCompleted(row.sid, saved.xUsername)
   return saved
+}
+
+export type RegistrationProgress =
+  | { status: 'pending' }
+  | { status: 'done'; handle: string }
+  | { status: 'used' }
+  | { status: 'expired' }
+  | { status: 'unknown' }
+
+export type RegistrationProgressClassified =
+  | RegistrationProgress
+  | { status: 'lookup_wallet'; wallet: string }
+
+/** Pure Check classifier — cookie-less progress from the one-time OAuth row. */
+export function classifyRegistrationProgress(input: {
+  found: boolean
+  consumed: boolean
+  createdAtMs: number
+  completedUsername?: string | null
+  wallet?: string | null
+  now?: number
+}): RegistrationProgressClassified {
+  if (!input.found) return { status: 'unknown' }
+  const handle = String(input.completedUsername || '')
+    .replace(/^@+/, '')
+    .trim()
+  if (input.consumed) {
+    if (handle) return { status: 'done', handle }
+    const wallet = String(input.wallet || '')
+    if (isPayoutWallet(wallet)) return { status: 'lookup_wallet', wallet }
+    return { status: 'used' }
+  }
+  const now = input.now ?? Date.now()
+  if (Number.isFinite(input.createdAtMs) && now - input.createdAtMs > REGISTRATION_OAUTH_TTL_MS) {
+    return { status: 'expired' }
+  }
+  return { status: 'pending' }
+}
+
+async function markOAuthCompleted(sid: string, username: string): Promise<void> {
+  const handle = username.replace(/^@+/, '').trim()
+  if (!sid || !handle) return
+  try {
+    await query(`UPDATE kol_oauth_states SET completed_username = $2 WHERE state = $1`, [sid, handle])
+  } catch {
+    /* column may not exist until migrate */
+  }
+}
+
+/** Cookie-less Check for wallet in-app browsers after X finished in another context. */
+export async function getRegistrationProgress(sid: string): Promise<RegistrationProgress> {
+  const clean = sid.trim().toLowerCase()
+  if (!/^[a-f0-9]{32}$/.test(clean)) return { status: 'unknown' }
+  let rows: Array<Record<string, unknown>> = []
+  try {
+    const out = await query(
+      `SELECT wallet, consumed_at, created_at, completed_username FROM kol_oauth_states WHERE state = $1`,
+      [clean],
+    )
+    rows = out.rows as Array<Record<string, unknown>>
+  } catch {
+    const out = await query(
+      `SELECT wallet, consumed_at, created_at FROM kol_oauth_states WHERE state = $1`,
+      [clean],
+    )
+    rows = out.rows as Array<Record<string, unknown>>
+  }
+  const r = rows[0]
+  const createdAtMs =
+    r?.created_at instanceof Date
+      ? r.created_at.getTime()
+      : Date.parse(String(r?.created_at || ''))
+  const classified = classifyRegistrationProgress({
+    found: Boolean(r),
+    consumed: Boolean(r?.consumed_at),
+    createdAtMs: Number.isFinite(createdAtMs) ? createdAtMs : 0,
+    completedUsername: r ? String(r.completed_username || '') : '',
+    wallet: r ? String(r.wallet || '') : '',
+  })
+  if (classified.status === 'lookup_wallet') {
+    const profile = await getKolProfileByWallet(classified.wallet)
+    const fromWallet = profile?.profile.xUsername?.replace(/^@+/, '').trim()
+    if (fromWallet) return { status: 'done', handle: fromWallet }
+    return { status: 'used' }
+  }
+  return classified
 }
 
 function mapReg(r: Record<string, unknown>, rank: number): KolRegistration {

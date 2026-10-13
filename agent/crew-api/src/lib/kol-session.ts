@@ -105,7 +105,8 @@ export function issueKolSessionToken(opts: { xUserId: string; username: string }
 }
 
 export function kolSessionCookieHeader(token: string): string {
-  return `${KOL_SESSION_COOKIE}=${encodeURIComponent(token)}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${KOL_SESSION_TTL_SEC}`
+  // None: crewpay.dev → api.crewpay.dev Check (/kols/me) is cross-site.
+  return `${KOL_SESSION_COOKIE}=${encodeURIComponent(token)}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=${KOL_SESSION_TTL_SEC}`
 }
 
 export function readKolSessionCookie(
