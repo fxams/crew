@@ -4,6 +4,7 @@ import { useCreateWallet, useSignMessage, useWallets } from '@privy-io/react-aut
 import { SOCIAL_WALLET_LABEL, SOCIAL_WALLET_NOTE } from '../lib/kol-onboarding'
 import { isPayoutWallet } from '../lib/payout-wallet'
 import { PRIVY_CLIENT_CONFIG } from '../lib/privy-config'
+import { registerPrivyLogout } from '../lib/wallet-session'
 
 export type PrivyPayoutReady = {
   address: string
@@ -33,7 +34,7 @@ function PrivyPayoutWalletInner(props: {
   onWallet: (wallet: PrivyPayoutReady) => void
   onError?: (message: string) => void
 }) {
-  const { ready, authenticated, login, getAccessToken } = usePrivy()
+  const { ready, authenticated, login, logout, getAccessToken } = usePrivy()
   const { ready: walletsReady, wallets } = useWallets()
   const { createWallet } = useCreateWallet()
   const { signMessage } = useSignMessage()
@@ -43,6 +44,11 @@ function PrivyPayoutWalletInner(props: {
   const handed = useRef('')
 
   const solana = wallets.find((w) => isPayoutWallet(w.address))
+
+  useEffect(() => {
+    registerPrivyLogout(authenticated ? () => logout() : null)
+    return () => registerPrivyLogout(null)
+  }, [authenticated, logout])
 
   useEffect(() => {
     if (!ready || !props.autoStart || authenticated || started.current || props.disabled) return

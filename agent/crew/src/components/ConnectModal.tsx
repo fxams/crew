@@ -28,6 +28,8 @@ import {
   type LaunchAction,
   type WalletNetwork,
 } from '../lib/wallet'
+import { persistExplicitDisconnect, rememberWalletConnect } from '../lib/wallet-session'
+import { setBoardWallet } from '../lib/store'
 
 export type ConnectPreferred = WalletNetwork | 'any'
 
@@ -244,6 +246,7 @@ function ConnectModal() {
     setBusy(row.key)
     try {
       if (row.wallet) {
+        rememberWalletConnect()
         solana.select(row.wallet.adapter.name as WalletName)
         if (!row.wallet.adapter.connected) {
           await row.wallet.adapter.connect()
@@ -302,11 +305,19 @@ function ConnectModal() {
 
   async function onDisconnectSolana() {
     setError(null)
+    await persistExplicitDisconnect()
     try {
       await solana.disconnect()
     } catch {
       /* ignore */
     }
+    try {
+      solana.select(null)
+    } catch {
+      /* ignore */
+    }
+    await persistExplicitDisconnect()
+    setBoardWallet(null)
   }
 
   async function onDisconnectEvm() {
