@@ -27,9 +27,10 @@ export const SESSION_USED_ERROR = `This sign-in was already used. ${CROSS_CONTEX
 export const SESSION_EXPIRED_ERROR =
   'Sign-in expired. Tap Register with X again.'
 
-export function xOauthErrorFlag(msg: string): 'used' | 'expired' | null {
+export function xOauthErrorFlag(msg: string): 'used' | 'expired' | 'cancelled' | null {
   if (/already used/i.test(msg)) return 'used'
   if (/expired/i.test(msg)) return 'expired'
+  if (/access_denied|user.?denied|cancell?ed/i.test(msg)) return 'cancelled'
   return null
 }
 
@@ -38,10 +39,16 @@ export function isRecoverableXOauthError(
   xoauth?: string | null,
 ): boolean {
   const flag = String(xoauth || '').toLowerCase()
-  if (flag === 'used' || flag === 'expired') return true
+  if (flag === 'used' || flag === 'expired' || flag === 'cancelled') return true
   const s = String(error || '')
   if (!s) return false
-  return /already used/i.test(s) || /sign-in expired/i.test(s) || /session expired/i.test(s)
+  return (
+    /already used/i.test(s) ||
+    /sign-in expired/i.test(s) ||
+    /session expired/i.test(s) ||
+    /access_denied/i.test(s) ||
+    /user.?denied/i.test(s)
+  )
 }
 
 export type RegistrationClaims = {

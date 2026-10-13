@@ -6,7 +6,9 @@ import {
   PENDING_REG_TTL_MS,
   STUCK_OAUTH_KEY,
   clearPendingRegistration,
+  classifyStuckXOauth,
   clearStuckXOauth,
+  humanizeRegisterError,
   isRecoverableXOauthError,
   loadPendingRegistration,
   loadStuckXOauth,
@@ -101,6 +103,10 @@ describe('recoverable X OAuth errors', () => {
     expect(isRecoverableXOauthError('', 'expired')).toBe(true)
     expect(isRecoverableXOauthError('Unknown referral code.')).toBe(false)
     expect(isRecoverableXOauthError(null, 'nope')).toBe(false)
+    expect(isRecoverableXOauthError('access_denied', 'cancelled')).toBe(true)
+    expect(classifyStuckXOauth('access_denied', 'cancelled')).toBe('cancelled')
+    expect(stuckXOauthMessage('cancelled')).toMatch(/cancelled/i)
+    expect(humanizeRegisterError('Failed to fetch')).toMatch(/Could not reach CrewPay/i)
   })
 
   it('persists stuck used/expired so Start over survives a remount', () => {

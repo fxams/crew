@@ -7,6 +7,7 @@ import {
   telegramAuthFromLocation,
 } from '../lib/telegram-login'
 import { TelegramLogin } from './TelegramLogin'
+import { RegisterRecovery } from './RegisterRecovery'
 
 const API = (
   (import.meta.env.VITE_CREW_API_URL as string | undefined)?.replace(/\/$/, '') ||
@@ -208,7 +209,21 @@ export function TelegramDeskCard({
           {tgReach != null ? ` · ${tgReach} members` : ''}
         </p>
       ) : null}
-      {msg ? <p className="hint">{msg}</p> : null}
+      {msg && /failed|could not|invalid|sign in/i.test(msg) ? (
+        <RegisterRecovery
+          testId="telegram-desk-recovery"
+          message={msg}
+          actionLabel="Try again"
+          onAction={() => {
+            setMsg(null)
+            if (/verify/i.test(msg)) void onChannelVerify()
+            else if (/channel/i.test(msg)) void onChannelStart()
+            else void onStartAlerts()
+          }}
+        />
+      ) : msg ? (
+        <p className="hint" data-testid="telegram-desk-msg">{msg}</p>
+      ) : null}
     </div>
   )
 }
