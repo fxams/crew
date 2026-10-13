@@ -3,13 +3,21 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { useAccount } from 'wagmi'
 import { useConnectModal } from './ConnectModal'
-import { detectInjected, isMobileUserAgent, phantomBrowseUrl, solflareBrowseUrl } from '../lib/wallet'
+import {
+  backpackBrowseUrl,
+  detectInjected,
+  isMobileUserAgent,
+  phantomBrowseUrl,
+  solflareBrowseUrl,
+} from '../lib/wallet'
 import bs58 from 'bs58'
 import { CREW_VERSION, KOL_REFERRAL_CUT_PCT } from '../lib/config'
 import { formatSol } from '../lib/format-sol'
 import {
+  classifyStuckXOauth,
   clearPendingRegistration,
   clearStuckXOauth,
+  humanizeRegisterError,
   isRecoverableXOauthError,
   loadPendingRegistration,
   loadStuckXOauth,
@@ -17,7 +25,9 @@ import {
   saveStuckXOauth,
   stuckXOauthMessage,
   takeXOauthAutoRestart,
+  type StuckXOauth,
 } from '../lib/register-pending'
+import { RegisterRecovery } from './RegisterRecovery'
 import {
   lookupRegisteredHandle,
   lookupRegistrationProgress,
@@ -100,13 +110,17 @@ function normalizeRef(raw: string | null): string {
 type PaidRow = { handle: string; totalSol: number; remits: number; tickers: string[] }
 
 /** Mobile browsers without an injected wallet: offer Phantom / Solflare universal links. */
-function mobileBrowseLinks(): { phantom: string; solflare: string } | null {
+function mobileBrowseLinks(): { phantom: string; solflare: string; backpack: string } | null {
   if (typeof window === 'undefined') return null
   if (detectInjected(window).solana) return null
   if (!isMobileUserAgent(navigator.userAgent)) return null
   const here = window.location.href
   const origin = window.location.origin
-  return { phantom: phantomBrowseUrl(here, origin), solflare: solflareBrowseUrl(here, origin) }
+  return {
+    phantom: phantomBrowseUrl(here, origin),
+    solflare: solflareBrowseUrl(here, origin),
+    backpack: backpackBrowseUrl(here),
+  }
 }
 
 function PaidByAgents() {
@@ -154,14 +168,42 @@ function PaidByAgents() {
 function HiredLookup() {
   const navigate = useNavigate()
   const [h, setH] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [missing, setMissing] = useState(false)
+  const [lookupError, setLookupError] = useState<string | null>(null)
   const clean = h.trim().replace(/^@/, '').replace(/^https?:\/\/(x|twitter)\.com\//i, '').split(/[/?#]/)[0]
   const valid = /^[A-Za-z0-9_]{1,15}$/.test(clean)
+
+  async function onLookup() {
+    if (!valid || busy) return
+    setBusy(true)
+    setMissing(false)
+    setLookupError(null)
+    try {
+      const res = await fetch(`${API}/api/kols/registered/${encodeURIComponent(clean)}`)
+      if (res.ok) {
+        navigate(kolProfilePath(clean))
+        return
+      }
+      if (res.status === 404) {
+        setMissing(true)
+        return
+      }
+      setLookupError('Could not check that handle. Try again.')
+    } catch {
+      setLookupError('Could not reach CrewPay. Try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <form
       className="register-lookup"
+      data-testid="handle-lookup"
       onSubmit={(e) => {
         e.preventDefault()
-        if (valid) navigate(kolProfilePath(clean))
+        void onLookup()
       }}
     >
       <label>
@@ -170,17 +212,43 @@ function HiredLookup() {
           <input
             type="text"
             value={h}
-            onChange={(e) => setH(e.target.value)}
+            onChange={(e) => {
+              setH(e.target.value)
+              setMissing(false)
+              setLookupError(null)
+            }}
             placeholder="@yourhandle"
             autoComplete="off"
             spellCheck={false}
             maxLength={40}
+            data-testid="handle-lookup-input"
           />
-          <button type="submit" className="btn btn-ghost btn-sm" disabled={!valid}>
-            Check
+          <button
+            type="submit"
+            className="btn btn-ghost btn-sm"
+            disabled={!valid || busy}
+            data-testid="handle-lookup-submit"
+          >
+            {busy ? 'Checking…' : 'Check'}
           </button>
         </div>
       </label>
+      {missing ? (
+        <RegisterRecovery
+          testId="handle-lookup-missing"
+          message={`No desk for @${clean} yet. Register to claim it.`}
+          actionLabel="Go to register"
+          to="/register"
+        />
+      ) : null}
+      {lookupError ? (
+        <RegisterRecovery
+          testId="handle-lookup-error"
+          message={lookupError}
+          actionLabel="Try again"
+          onAction={() => void onLookup()}
+        />
+      ) : null}
     </form>
   )
 }
@@ -200,7 +268,7 @@ export function KolRegisterPage() {
   const [privyAppId, setPrivyAppId] = useState(() => resolvePrivyAppId())
   const [busy, setBusy] = useState(false)
   const [awaitingX, setAwaitingX] = useState(false)
-  const [stuckOauth, setStuckOauth] = useState<'used' | 'expired' | null>(() => loadStuckXOauth())
+  const [stuckOauth, setStuckOauth] = useState<StuckXOauth | null>(() => loadStuckXOauth())
   const [checkBusy, setCheckBusy] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
   const [error, setError] = useState<string | null>(() => {
@@ -210,6 +278,7 @@ export function KolRegisterPage() {
     return stuck ? stuckXOauthMessage(stuck) : null
   })
   const recoverOnceRef = useRef(false)
+  const registerInFlightRef = useRef(false)
   const onRegisterRef = useRef<() => Promise<void>>(async () => {})
   const [refInput, setRefInput] = useState(() => normalizeRef(params.get('ref')))
   const [evmWallet, setEvmWallet] = useState('')
@@ -400,6 +469,10 @@ export function KolRegisterPage() {
     if (alreadyRegistered && ownHandle) {
       return
     }
+    if (registerInFlightRef.current || busy) {
+      return
+    }
+    registerInFlightRef.current = true
     setError(null)
     const pubkey = (wallet.publicKey?.toBase58() || '').trim()
     const canSign = Boolean(wallet.publicKey && wallet.signMessage)
@@ -447,10 +520,11 @@ export function KolRegisterPage() {
       setAwaitingX(true)
       window.location.assign(startBody.authorizeUrl)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed.')
+      setError(humanizeRegisterError(err instanceof Error ? err.message : 'Registration failed.'))
       setBusy(false)
+      registerInFlightRef.current = false
     }
-  }, [alreadyRegistered, evmWallet, ownHandle, referralCode, wallet])
+  }, [alreadyRegistered, busy, evmWallet, ownHandle, referralCode, wallet])
 
   onRegisterRef.current = onRegister
 
@@ -471,8 +545,8 @@ export function KolRegisterPage() {
     next.delete('error')
     next.delete('xoauth')
     setSearchParams(next, { replace: true })
-    const kind: 'used' | 'expired' =
-      xoauth === 'expired' || /expired/i.test(err || '') ? 'expired' : 'used'
+    const kind = classifyStuckXOauth(err, xoauth)
+    if (!kind) return
     saveStuckXOauth(kind)
     setStuckOauth(kind)
     setError(stuckXOauthMessage(kind))
@@ -481,7 +555,7 @@ export function KolRegisterPage() {
       if (found) return
       clearPendingRegistration()
       setAwaitingX(false)
-      if (takeXOauthAutoRestart()) {
+      if (kind !== 'cancelled' && takeXOauthAutoRestart()) {
         setError('Starting a fresh X sign-in…')
         await onRegisterRef.current()
         return
@@ -575,7 +649,7 @@ export function KolRegisterPage() {
               </p>
             </div>
           ) : (
-          <div className="register-card">
+          <div className="register-card" id="register-join" data-testid="register-join">
             <ol className="register-steps">
               <li className={awaitingX || deskHandle ? 'is-done' : stuckOauth ? 'is-stuck' : ''}>
                 <strong>1. X</strong>
@@ -640,16 +714,24 @@ export function KolRegisterPage() {
               </label>
             </details>
 
-            {stuckOauth && !deskHandle ? (
-              <p className="hint register-check-hint">
-                {stuckOauth === 'expired'
-                  ? 'That X sign-in expired. Start over for a fresh one — the previous link cannot be reused.'
-                  : 'That X sign-in was already used. If you finished in Safari or the X app, tap Check. Otherwise Start over.'}
-              </p>
-            ) : awaitingX && !deskHandle ? (
+            {!stuckOauth && awaitingX && !deskHandle ? (
               <p className="hint register-check-hint">{CHECK_HINT}</p>
             ) : null}
-            {error ? <p className="register-err">{error}</p> : null}
+            {error && stuckOauth ? (
+              <RegisterRecovery
+                testId="register-x-recovery"
+                message={error}
+                actionLabel="Start over"
+                onAction={() => void onStartOver()}
+              />
+            ) : error ? (
+              <RegisterRecovery
+                testId="register-error"
+                message={humanizeRegisterError(error)}
+                actionLabel={awaitingX || loadPendingRegistration() ? 'Check' : 'Try again'}
+                onAction={() => (awaitingX || loadPendingRegistration() ? void onCheck() : void onRegister())}
+              />
+            ) : null}
             {xOauth === false ? (
               <p className="register-err">
                 X sign-in is not configured on the API yet (X_CLIENT_ID / X_CLIENT_SECRET). The board below still works.
@@ -659,9 +741,11 @@ export function KolRegisterPage() {
             {!connected && mobileBrowseLinks() ? (
               <p className="hint register-mobile-hint">
                 On a phone without a wallet extension?{' '}
-                <a href={mobileBrowseLinks()!.phantom}>Open in Phantom</a>
+                <a href={mobileBrowseLinks()!.phantom} data-testid="open-in-phantom">Open in Phantom</a>
                 {' · '}
-                <a href={mobileBrowseLinks()!.solflare}>Open in Solflare</a>
+                <a href={mobileBrowseLinks()!.solflare} data-testid="open-in-solflare">Open in Solflare</a>
+                {' · '}
+                <a href={mobileBrowseLinks()!.backpack} data-testid="open-in-backpack">Open in Backpack</a>
                 {' '}to connect and sign.
               </p>
             ) : null}
@@ -670,6 +754,7 @@ export function KolRegisterPage() {
                 <button
                   type="button"
                   className="btn btn-primary btn-sm"
+                  data-testid="register-start-over"
                   disabled={busy || xOauth === false}
                   onClick={() => void onStartOver()}
                 >
@@ -679,6 +764,7 @@ export function KolRegisterPage() {
                 <button
                   type="button"
                   className="btn btn-primary btn-sm"
+                  data-testid="register-with-x"
                   disabled={busy || xOauth === false}
                   onClick={() => void onRegister()}
                 >
@@ -696,7 +782,12 @@ export function KolRegisterPage() {
                 }
               />
               {!connected ? (
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => openConnect({ preferred: 'solana' })}>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  data-testid="register-connect-wallet"
+                  onClick={() => openConnect({ preferred: 'solana' })}
+                >
                   I already have a wallet
                 </button>
               ) : null}
@@ -704,6 +795,7 @@ export function KolRegisterPage() {
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm"
+                  data-testid="register-check"
                   disabled={checkBusy}
                   onClick={() => void onCheck()}
                 >

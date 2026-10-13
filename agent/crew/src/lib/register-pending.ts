@@ -6,7 +6,7 @@ export const AUTORESTART_KEY = 'crew_reg_x_autorestart'
 export const AUTORESTART_COOLDOWN_MS = 2 * 60_000
 export const STUCK_OAUTH_KEY = 'crew_reg_x_stuck'
 
-export type StuckXOauth = 'used' | 'expired'
+export type StuckXOauth = 'used' | 'expired' | 'cancelled'
 
 export type PendingRegistration = {
   wallet: string
@@ -19,10 +19,42 @@ export function isRecoverableXOauthError(
   xoauth?: string | null,
 ): boolean {
   const flag = String(xoauth || '').toLowerCase()
-  if (flag === 'used' || flag === 'expired') return true
+  if (flag === 'used' || flag === 'expired' || flag === 'cancelled') return true
   const s = String(error || '')
   if (!s) return false
-  return /already used/i.test(s) || /sign-in expired/i.test(s) || /session expired/i.test(s)
+  return (
+    /already used/i.test(s) ||
+    /sign-in expired/i.test(s) ||
+    /session expired/i.test(s) ||
+    /access_denied/i.test(s) ||
+    /user.?denied/i.test(s) ||
+    /cancell?ed/i.test(s)
+  )
+}
+
+export function classifyStuckXOauth(
+  error: string | null | undefined,
+  xoauth?: string | null,
+): StuckXOauth | null {
+  const flag = String(xoauth || '').toLowerCase()
+  if (flag === 'used' || flag === 'expired' || flag === 'cancelled') return flag
+  const s = String(error || '')
+  if (/already used/i.test(s)) return 'used'
+  if (/sign-in expired|session expired/i.test(s)) return 'expired'
+  if (/access_denied|user.?denied|cancell?ed/i.test(s)) return 'cancelled'
+  return isRecoverableXOauthError(error, xoauth) ? 'used' : null
+}
+
+export function humanizeRegisterError(error: string | null | undefined): string {
+  const s = String(error || '').trim()
+  if (!s) return ''
+  if (/failed to fetch|networkerror|load failed|network request failed|err_network/i.test(s)) {
+    return 'Could not reach CrewPay. Check your connection, then tap Check or Start over.'
+  }
+  if (/access_denied|user.?denied/i.test(s)) {
+    return 'X sign-in was cancelled. Tap Start over to try again.'
+  }
+  return s
 }
 
 export function serializePendingRegistration(pending: PendingRegistration): string {
@@ -136,7 +168,7 @@ export function loadStuckXOauth(
   for (const store of stores) {
     try {
       const raw = String(store.getItem(STUCK_OAUTH_KEY) || '').toLowerCase()
-      if (raw === 'used' || raw === 'expired') return raw
+      if (raw === 'used' || raw === 'expired' || raw === 'cancelled') return raw
     } catch {
       /* private mode */
     }
@@ -172,9 +204,9 @@ export function clearStuckXOauth(
 }
 
 export function stuckXOauthMessage(kind: StuckXOauth): string {
-  return kind === 'expired'
-    ? 'That X sign-in expired. Tap Start over for a fresh one.'
-    : 'That X sign-in was already used. Tap Check if you finished in another browser, or Start over.'
+  if (kind === 'expired') return 'That X sign-in expired. Tap Start over for a fresh one.'
+  if (kind === 'cancelled') return 'X sign-in was cancelled. Tap Start over to try again.'
+  return 'That X sign-in was already used. Tap Check if you finished in another browser, or Start over.'
 }
 
 /** One auto-restart per cooldown so a broken callback cannot loop Register → used → Register. */

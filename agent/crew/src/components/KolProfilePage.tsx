@@ -438,7 +438,7 @@ export function KolProfilePage() {
   }
 
   return (
-    <div className="app-shell page-kols page-desk">
+    <div className="app-shell page-kols page-desk" data-testid="kol-desk-page">
       <section className="section section-kols">
         <div className="kols-page-head">
           <div className="launch-page-head-row">
@@ -450,12 +450,13 @@ export function KolProfilePage() {
         </div>
 
         {justRegistered && desk ? (
-          <div className="register-ok-block">
+          <div className="register-ok-block" data-testid="desk-registered-banner">
             <p className="register-ok">Registered. This desk is yours.</p>
             {fromXOauth ? (
-              <p className="hint register-check-hint">
+              <p className="hint register-check-hint" data-testid="desk-wallet-check-hint">
                 If you started in a wallet browser (Phantom), return there and tap Check — this
-                page may have opened in Safari or the X app.
+                page may have opened in Safari or the X app.{' '}
+                <Link to="/register">Back to register</Link>
               </p>
             ) : null}
           </div>

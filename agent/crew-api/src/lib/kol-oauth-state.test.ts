@@ -281,6 +281,7 @@ describe('recoverable X OAuth errors', () => {
   it('flags already-used and expired callback copy', () => {
     expect(xOauthErrorFlag(SESSION_USED_ERROR)).toBe('used')
     expect(xOauthErrorFlag(SESSION_EXPIRED_ERROR)).toBe('expired')
+    expect(xOauthErrorFlag('access_denied')).toBe('cancelled')
     expect(xOauthErrorFlag('Unknown referral code.')).toBeNull()
     expect(isRecoverableXOauthError(SESSION_USED_ERROR)).toBe(true)
     expect(isRecoverableXOauthError(SESSION_EXPIRED_ERROR)).toBe(true)

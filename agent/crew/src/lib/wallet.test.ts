@@ -11,6 +11,7 @@ import {
   isMobileUserAgent,
   matchesListedWallet,
   networkForLaunch,
+  backpackBrowseUrl,
   phantomBrowseUrl,
   readWalletConnectProjectId,
   robinhoodChainEnabled,
@@ -92,6 +93,8 @@ describe('injected + mobile detection', () => {
     expect(url).toContain(encodeURIComponent('https://crewpay.dev/launch'))
     const solflare = solflareBrowseUrl('https://crewpay.dev/launch', 'https://crewpay.dev')
     expect(solflare).toContain('https://solflare.com/ul/v1/browse/')
+    const backpack = backpackBrowseUrl('https://crewpay.dev/register')
+    expect(backpack).toContain('https://backpack.app/ul/v1/browse/')
   })
 })
 
