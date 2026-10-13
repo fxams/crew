@@ -34,6 +34,7 @@ export async function listRegisteredHireBoosts(): Promise<RegisteredHireBoost[]>
         followers: Number(row.followers || 0),
         registeredAt: row.registered_at ? new Date(String(row.registered_at)).toISOString() : undefined,
       }))
+      // Add a wallet to get hired and paid. KOLs without a wallet are skipped for crews.
       .filter((r) => r.handle && isPayoutWallet(r.wallet))
   } catch {
     return []

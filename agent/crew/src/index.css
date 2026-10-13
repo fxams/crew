@@ -2925,6 +2925,16 @@ a {
 }
 
 @media (min-width: 720px) {
+  .page-register .social-wallet,
+  .page-desk .social-wallet {
+    max-width: 28rem;
+  }
+
+  .page-register .social-wallet-note,
+  .page-desk .social-wallet-note {
+    font-size: 0.8rem;
+  }
+
   .crew-connect-backdrop {
     align-items: center;
     padding: 1.5rem;
