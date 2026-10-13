@@ -5,6 +5,7 @@ import { ConnectionProvider, WalletProvider as SolanaWalletProvider } from '@sol
 import { RPC_URL } from '../lib/config'
 import { createSolanaAdapters } from '../lib/wallet-solana'
 import { wagmiConfig } from '../lib/wallet-evm'
+import { WALLET_ADAPTER_STORAGE_KEY, shouldAutoConnectWallet } from '../lib/wallet-session'
 import { ConnectModalProvider } from '../components/ConnectModal'
 
 const queryClient = new QueryClient({
@@ -20,7 +21,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
         <ConnectionProvider endpoint={RPC_URL}>
-          <SolanaWalletProvider wallets={wallets} autoConnect>
+          <SolanaWalletProvider
+            wallets={wallets}
+            localStorageKey={WALLET_ADAPTER_STORAGE_KEY}
+            autoConnect={async () => shouldAutoConnectWallet()}
+          >
             <ConnectModalProvider>{children}</ConnectModalProvider>
           </SolanaWalletProvider>
         </ConnectionProvider>
