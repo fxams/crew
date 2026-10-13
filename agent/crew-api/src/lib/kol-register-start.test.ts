@@ -60,6 +60,7 @@ describe('beginXAuth signed OAuth state', () => {
     const state = url.searchParams.get('state') || ''
     expect(state.startsWith('v1.')).toBe(true)
     expect(out.state).toBe(state)
+    expect(out.sid).toMatch(/^[a-f0-9]{32}$/)
     expect(out.wallet).toBe(wallet)
     expect(out.expiresAt).toBeGreaterThan(Date.now())
 
@@ -70,6 +71,7 @@ describe('beginXAuth signed OAuth state', () => {
     expect(parsed.claims.sh).toBe(sha256Hex(signature))
     expect(parsed.claims.e).toBe('0x1111111111111111111111111111111111111111')
     expect(inserted).toHaveLength(1)
+    expect(out.sid).toBe(parsed.claims.sid)
     expect(inserted[0]?.[0]).toBe(parsed.claims.sid)
     expect(inserted[0]?.[2]).toBe(wallet)
     expect(inserted[0]?.[7]).toBe(parsed.claims.sh)
@@ -84,6 +86,7 @@ describe('beginXAuth signed OAuth state', () => {
     const url = new URL(out.authorizeUrl)
     const state = url.searchParams.get('state') || ''
     expect(state.startsWith('v1.')).toBe(true)
+    expect(out.sid).toMatch(/^[a-f0-9]{32}$/)
     expect(out.wallet).toBe('')
     const parsed = parseOAuthStateParam(state, 'test-client-secret')
     expect(parsed.kind).toBe('signed')

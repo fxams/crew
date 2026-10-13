@@ -8,10 +8,12 @@ import {
   SESSION_EXPIRED_ERROR,
   SESSION_MISSING_ERROR,
   SESSION_USED_ERROR,
+  isRecoverableXOauthError,
   sha256Hex,
   signRegistrationOAuthState,
   verifyRegistrationOAuthState,
   walletLinkedElsewhereError,
+  xOauthErrorFlag,
   type RegistrationClaims,
   type StoredOAuthState,
 } from './kol-oauth-state.js'
@@ -176,6 +178,23 @@ describe('resolveRegistrationOAuth', () => {
     expect(out.source).toBe('legacy')
   })
 
+  it('resolves X-only state with an empty wallet row', async () => {
+    const sh = sha256Hex('x-only:sid')
+    const stored = row({ wallet: '', sigSha256: sh })
+    const token = signRegistrationOAuthState(claims({ w: '', sh }), SECRET)
+    const out = await resolveRegistrationOAuth({
+      stateParam: token,
+      regCookie: '',
+      secret: SECRET,
+      getBySid: async () => stored,
+      getByCookieSha: async () => null,
+    })
+    expect(out.ok).toBe(true)
+    if (!out.ok) return
+    expect(out.source).toBe('signed')
+    expect(out.row.wallet).toBe('')
+  })
+
   it('rejects a used (consumed) row', async () => {
     const stored = row({ consumedAtMs: Date.now() - 100 })
     const token = signRegistrationOAuthState(claims(), SECRET)
@@ -255,6 +274,19 @@ describe('resolveRegistrationOAuth', () => {
     expect(out).toEqual({ ok: false, error: SESSION_MISSING_ERROR, code: 'missing' })
     expect(SESSION_MISSING_ERROR).toContain(CROSS_CONTEXT_HINT)
     expect(SESSION_MISSING_ERROR).not.toMatch(/Missing registration cookie/)
+  })
+})
+
+describe('recoverable X OAuth errors', () => {
+  it('flags already-used and expired callback copy', () => {
+    expect(xOauthErrorFlag(SESSION_USED_ERROR)).toBe('used')
+    expect(xOauthErrorFlag(SESSION_EXPIRED_ERROR)).toBe('expired')
+    expect(xOauthErrorFlag('Unknown referral code.')).toBeNull()
+    expect(isRecoverableXOauthError(SESSION_USED_ERROR)).toBe(true)
+    expect(isRecoverableXOauthError(SESSION_EXPIRED_ERROR)).toBe(true)
+    expect(isRecoverableXOauthError(SESSION_MISSING_ERROR)).toBe(true)
+    expect(isRecoverableXOauthError(null, 'used')).toBe(true)
+    expect(isRecoverableXOauthError('Unknown referral code.')).toBe(false)
   })
 })
 

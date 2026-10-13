@@ -125,10 +125,14 @@ describe('migrate() pre-schema column adds', () => {
     const consumed = firstBlock.indexOf(
       'ALTER TABLE kol_oauth_states ADD COLUMN IF NOT EXISTS consumed_at TIMESTAMPTZ',
     )
+    const completed = firstBlock.indexOf(
+      'ALTER TABLE kol_oauth_states ADD COLUMN IF NOT EXISTS completed_username TEXT',
+    )
     expect(referral).toBeGreaterThan(-1)
     expect(cookie).toBeGreaterThan(referral)
     expect(signature).toBeGreaterThan(cookie)
     expect(consumed).toBeGreaterThan(signature)
+    expect(completed).toBeGreaterThan(consumed)
   })
 })
 

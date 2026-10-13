@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { issueKolSessionToken, signKolSession, verifyKolSession } from './kol-session.js'
+import {
+  issueKolSessionToken,
+  kolSessionCookieHeader,
+  signKolSession,
+  verifyKolSession,
+} from './kol-session.js'
 
 const SECRET = 'test-kol-session-secret'
 
@@ -27,6 +32,13 @@ describe('KOL desk session', () => {
     expect(verifyKolSession(`ks1.${bits[1]}.aaaa`, SECRET).ok).toBe(false)
     const expired = signKolSession({ v: 1, u: 'x-user-1', h: 'alice', exp: 10 }, SECRET)
     expect(verifyKolSession(expired, SECRET, 11).ok).toBe(false)
+  })
+
+  it('sets SameSite=None so SPA Check can send the cookie cross-site', () => {
+    const header = kolSessionCookieHeader('ks1.test')
+    expect(header).toMatch(/SameSite=None/)
+    expect(header).toMatch(/Secure/)
+    expect(header).not.toMatch(/SameSite=Lax/)
   })
 
   it('issues a live token when X secret is set', () => {
