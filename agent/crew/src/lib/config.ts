@@ -11,6 +11,9 @@ export const CREW_FARCASTER_URL = 'https://farcaster.xyz/crewpay'
 /** Official CREW / CrewPay HQ channel on Telegram. */
 export const CREW_TELEGRAM_URL = 'https://t.me/CrewPayHQ'
 
+/** Official CREW / CrewPay Telegram community group. */
+export const CREW_TELEGRAM_COMMUNITY_URL = 'https://t.me/crewpay_hq'
+
 /**
  * Canonical public API host for docs / Agents page / agent-facing copy.
  * Always the custom domain — do not derive from VITE_CREW_API_URL (build env may lag).
