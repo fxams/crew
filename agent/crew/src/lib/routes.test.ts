@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   claimHandleFromPath,
+  isAdminFarcasterPath,
   isAgentsPath,
   isClaimPath,
   isCoinsPath,
@@ -113,6 +114,18 @@ describe("isOnepagerPath", () => {
     expect(isOnepagerPath("/onepager.pdf")).toBe(false);
     expect(isOnepagerPath("/")).toBe(false);
     expect(isOnepagerPath("/proof")).toBe(false);
+  });
+});
+
+describe("isAdminFarcasterPath", () => {
+  it("matches the unlisted Farcaster admin page only", () => {
+    expect(isAdminFarcasterPath("/admin/farcaster")).toBe(true);
+    expect(isAdminFarcasterPath("/admin/farcaster/")).toBe(true);
+    expect(isAdminFarcasterPath("/crew/admin/farcaster")).toBe(true);
+    expect(isAdminFarcasterPath("/admin/kickoff")).toBe(false);
+    expect(isAdminFarcasterPath("/admin")).toBe(false);
+    expect(isAdminFarcasterPath("/")).toBe(false);
+    expect(isHomePath("/admin/farcaster")).toBe(false);
   });
 });
 
