@@ -25,7 +25,12 @@ import {
 } from '../lib/kol-register.js'
 import { issueKolSessionToken, kolSessionCookieHeader, readKolSessionCookie } from '../lib/kol-session.js'
 import { privyAppIdFromEnv, verifyPrivyPayoutWallet } from '../lib/privy.js'
-import { TELEGRAM_BOT_URL, TELEGRAM_BOT_USERNAME, telegramConfigured } from '../lib/telegram.js'
+import {
+  TELEGRAM_BOT_URL,
+  TELEGRAM_BOT_USERNAME,
+  telegramBotId,
+  telegramConfigured,
+} from '../lib/telegram.js'
 import {
   listMentionDrafts,
   setMentionDraftStatus,
@@ -50,6 +55,7 @@ kolRegisterRouter.get('/kols/register/status', (_req, res) => {
       enabled: telegramConfigured(),
       botUsername: TELEGRAM_BOT_USERNAME,
       botUrl: TELEGRAM_BOT_URL,
+      botId: telegramBotId() || undefined,
       login: telegramConfigured(),
     },
     privy: {

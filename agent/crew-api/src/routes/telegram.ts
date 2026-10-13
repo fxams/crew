@@ -30,12 +30,12 @@ import {
 export const telegramRouter = Router()
 
 const widgetBody = z.object({
-  id: z.number().int().positive(),
+  id: z.coerce.number().int().positive(),
   first_name: z.string().min(1).max(64),
   last_name: z.string().max(64).optional(),
   username: z.string().max(32).optional(),
   photo_url: z.string().max(500).optional(),
-  auth_date: z.number().int(),
+  auth_date: z.coerce.number().int(),
   hash: z.string().min(32).max(128),
 })
 

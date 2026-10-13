@@ -33,6 +33,13 @@ export function telegramConfigured(): boolean {
   return Boolean(telegramBotToken())
 }
 
+/** Public numeric bot id (token prefix). Never the secret suffix. */
+export function telegramBotId(token = telegramBotToken()): number | null {
+  const head = token.split(':')[0] || ''
+  const id = Number(head)
+  return Number.isFinite(id) && id > 0 ? id : null
+}
+
 export function redactTelegramSecret(text: string): string {
   const token = telegramBotToken()
   const secret = telegramWebhookSecret()

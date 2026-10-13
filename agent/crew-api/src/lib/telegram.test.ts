@@ -6,6 +6,7 @@ import {
   isTelegramOnlyKol,
   normalizeTelegramChannel,
   redactTelegramSecret,
+  telegramBotId,
   telegramDeskHandle,
   telegramSyntheticXUserId,
   telegramWidgetCheckString,
@@ -58,6 +59,12 @@ describe('Telegram login widget HMAC', () => {
       auth_date: Math.floor(Date.now() / 1000) - 48 * 60 * 60,
     })
     expect(() => verifyTelegramWidget(ok, { token: TOKEN })).toThrow(/expired/i)
+  })
+
+  it('exposes only the public numeric bot id from the token prefix', () => {
+    process.env.TELEGRAM_BOT_TOKEN = TOKEN
+    expect(telegramBotId()).toBe(123456)
+    expect(JSON.stringify({ botId: telegramBotId() })).not.toContain('TEST-telegram')
   })
 
   it('never echoes the bot token from error text', () => {
