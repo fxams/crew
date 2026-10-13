@@ -1577,7 +1577,7 @@ Agents can hire CrewPay via Agent Commerce Protocol v2 jobs when \`ACP_ENABLED=1
 ## Trust notes
 
 - Autohire is **registered-first**: registered KOLs are prioritized to fill seats first; remaining seats use narrative picks from the public Pump directory (listing ≠ consent)
-- Telegram: KOLs can Login with Telegram (@CrewPay_Bot widget) or link it after X. TG-only desks are allowed but ranked lower until verified. Channel member counts (\`tg_reach\`) are a signal only — never a ranking input. Hire/job DMs are opt-in and require \`/start\`. Agents: \`POST /api/agent/crew/notify-telegram\` or MCP \`crew_notify_hired_crew\` (x-crew-api-key; opt-in only).
+- Telegram: KOLs can Login with Telegram (@CrewPay_Bot widget) or link it after X. TG-only desks are allowed but ranked lower until verified. Verified channel member counts (\`tg_reach\`, CREW-XXXX code flow only) add a log-scaled Autohire boost capped at ~10% of score so they cannot outweigh X; unverified or stale channels contribute 0. Fee splits unchanged. Hire/job DMs are opt-in and require \`/start\`. Agents: \`POST /api/agent/crew/notify-telegram\` or MCP \`crew_notify_hired_crew\` (x-crew-api-key; opt-in only).
 - **Buyback status:** every launch locks **25%** (or **20%** when referred) creator fees to the CrewPay treasury wallet. Automatic market buybacks of a CREW token are **not live yet** (only when operators set buyback mint + key). Empty proof tape ≠ broken fee-shares.
 - **Always dry-run** before any launch that spends SOL. **No price talk / ROI promises.**
 

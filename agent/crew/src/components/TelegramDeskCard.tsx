@@ -198,14 +198,14 @@ export function TelegramDeskCard({
         </button>
       </div>
       <p className="hint desk-telegram-help">
-        Post a one-time code. Member count is stored as reach — not used for rank.
+        Post a one-time code. Verified member count is a small capped Autohire boost — not a fee split.
       </p>
       {phrase ? <p className="register-invite-chip">Post {phrase} in the channel</p> : null}
       {tgChannel ? (
         <p className="hint">
           {tgChannel}
           {tgChannelVerified ? ' · verified' : ' · not verified'}
-          {tgReach != null ? ` · ${tgReach} members (signal only)` : ''}
+          {tgReach != null ? ` · ${tgReach} members` : ''}
         </p>
       ) : null}
       {msg ? <p className="hint">{msg}</p> : null}

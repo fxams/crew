@@ -189,6 +189,74 @@ describe('agent narrative autohire', () => {
     }
   })
 
+  it('verified telegram channel reach is a capped boost; unverified and stale are zero', () => {
+    const prev = process.env.AUTOHIRE_REGISTERED_FIRST
+    process.env.AUTOHIRE_REGISTERED_FIRST = 'true'
+    try {
+      const walletA = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
+      const walletB = 'So11111111111111111111111111111111111111112'
+      const walletC = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr'
+      const common = { followers: 10 }
+      const verified = planNarrativeHires(
+        { name: 'Agent Frog', ticker: 'FROG', vibe: 'ai trench meme' },
+        {
+          limit: 3,
+          onlyRegistered: true,
+          registered: [
+            { handle: 'x_plain', wallet: walletA, ...common },
+            {
+              handle: 'x_verified_tg',
+              wallet: walletB,
+              ...common,
+              tgChannelVerified: true,
+              tgReach: 80_000,
+              tgChannelVerifiedAt: new Date().toISOString(),
+            },
+            {
+              handle: 'x_unverified_tg',
+              wallet: walletC,
+              ...common,
+              tgChannelVerified: false,
+              tgReach: 9_999_999,
+            },
+          ],
+        },
+      )
+      expect(verified.hires[0]!.kol.pump.toLowerCase()).toBe('x_verified_tg')
+      expect(verified.hires[0]!.reasons.some((r) => /tgReach/i.test(r))).toBe(true)
+      const unverified = verified.hires.find((h) => h.kol.pump.toLowerCase() === 'x_unverified_tg')
+      expect(unverified).toBeTruthy()
+      expect(unverified!.reasons.some((r) => /tgReach/i.test(r))).toBe(false)
+      expect(verified.hires[0]!.score).toBeGreaterThan(
+        verified.hires.find((h) => h.kol.pump.toLowerCase() === 'x_plain')!.score,
+      )
+
+      const stale = planNarrativeHires(
+        { name: 'Agent Frog', ticker: 'FROG', vibe: 'ai trench meme' },
+        {
+          limit: 2,
+          onlyRegistered: true,
+          registered: [
+            { handle: 'x_plain', wallet: walletA, ...common },
+            {
+              handle: 'x_stale_tg',
+              wallet: walletB,
+              ...common,
+              tgChannelVerified: true,
+              tgReach: 80_000,
+              tgChannelVerifiedAt: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString(),
+            },
+          ],
+        },
+      )
+      expect(stale.hires.find((h) => h.kol.pump.toLowerCase() === 'x_stale_tg')!.reasons.some((r) => /tgReach/i.test(r))).toBe(
+        false,
+      )
+    } finally {
+      process.env.AUTOHIRE_REGISTERED_FIRST = prev
+    }
+  })
+
   it('no duplicate wallets across picks', () => {
     const prev = process.env.AUTOHIRE_REGISTERED_FIRST
     process.env.AUTOHIRE_REGISTERED_FIRST = 'true'
