@@ -3,6 +3,7 @@
  */
 
 import { query } from './db.js'
+import { isPayoutWallet } from './agent/shareholders.js'
 import type { RegisteredHireBoost } from './agent/narrative.js'
 
 export async function listRegisteredHireBoosts(): Promise<RegisteredHireBoost[]> {
@@ -33,7 +34,7 @@ export async function listRegisteredHireBoosts(): Promise<RegisteredHireBoost[]>
         followers: Number(row.followers || 0),
         registeredAt: row.registered_at ? new Date(String(row.registered_at)).toISOString() : undefined,
       }))
-      .filter((r) => r.handle && r.wallet.length >= 32)
+      .filter((r) => r.handle && isPayoutWallet(r.wallet))
   } catch {
     return []
   }

@@ -24,7 +24,7 @@ export function parsePendingRegistration(
     const parsed = JSON.parse(raw) as Partial<PendingRegistration>
     const wallet = typeof parsed.wallet === 'string' ? parsed.wallet.trim() : ''
     const startedAt = Number(parsed.startedAt)
-    if (wallet.length < 32 || !Number.isFinite(startedAt)) return null
+    if ((wallet && wallet.length < 32) || !Number.isFinite(startedAt)) return null
     if (now - startedAt > PENDING_REG_TTL_MS) return null
     return { wallet, startedAt }
   } catch {
@@ -38,7 +38,7 @@ export function savePendingRegistration(
   storage: Pick<Storage, 'setItem'> | null = defaultStorage(),
 ): PendingRegistration | null {
   const pending = { wallet: wallet.trim(), startedAt }
-  if (pending.wallet.length < 32 || !storage) return null
+  if ((pending.wallet && pending.wallet.length < 32) || !storage) return null
   try {
     storage.setItem(PENDING_REG_KEY, serializePendingRegistration(pending))
     return pending

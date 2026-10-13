@@ -341,6 +341,9 @@ export async function upsertRemits(remits: ApiRemit[]): Promise<number> {
         pumpUrl: `https://pump.fun/coin/${r.mint}`,
       })
     }
+    if (!r.wallet || String(r.wallet).trim().length < 32) {
+      continue
+    }
     const res = await query(
       `INSERT INTO remits (id, mint, ticker, handle, wallet, amount_sol, mode, at, signature, source)
        VALUES ($1,$2,$3,$4,$5,$6,$7, to_timestamp($8/1000.0), $9, $10)

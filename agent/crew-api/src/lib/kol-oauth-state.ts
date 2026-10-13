@@ -20,20 +20,20 @@ export const REGISTRATION_OAUTH_TTL_SEC = REGISTRATION_OAUTH_TTL_MS / 1000
 export const CROSS_CONTEXT_HINT =
   'If you started in a wallet browser (Phantom), return there and tap Check.'
 
-export const SESSION_MISSING_ERROR = `Sign-in session expired or this browser did not start registration. ${CROSS_CONTEXT_HINT} Otherwise connect your wallet and start again.`
+export const SESSION_MISSING_ERROR = `Sign-in session expired or this browser did not start registration. ${CROSS_CONTEXT_HINT} Otherwise tap Register with X again.`
 
 export const SESSION_USED_ERROR = `This sign-in was already used. ${CROSS_CONTEXT_HINT} Registration may have finished in another browser.`
 
 export const SESSION_EXPIRED_ERROR =
-  'Sign-in expired. Connect your wallet and tap Register with X again.'
+  'Sign-in expired. Tap Register with X again.'
 
 export type RegistrationClaims = {
   v: 1
   /** One-time server row id (also stored as kol_oauth_states.state). */
   sid: string
-  /** Solana wallet that signed the registration message. */
+  /** Solana wallet that signed the registration message. Empty when X-only signup. */
   w: string
-  /** SHA-256 hex of the wallet signature (binds state; raw sig stays off the URL). */
+  /** SHA-256 hex of the wallet signature (or of `x-only:{sid}` when no wallet). */
   sh: string
   /** Optional referral code. */
   r?: string
@@ -151,7 +151,7 @@ export function verifyRegistrationOAuthState(
     typeof c.sid !== 'string' ||
     !/^[a-f0-9]{32}$/i.test(c.sid) ||
     typeof c.w !== 'string' ||
-    c.w.length < 32 ||
+    (c.w.length > 0 && c.w.length < 32) ||
     typeof c.sh !== 'string' ||
     !/^[a-f0-9]{64}$/i.test(c.sh) ||
     typeof c.exp !== 'number' ||

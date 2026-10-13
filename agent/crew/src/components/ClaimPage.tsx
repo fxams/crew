@@ -63,7 +63,7 @@ export function ClaimPage() {
           </div>
           <h1 className="section-title">Claim your desk.</h1>
           <p className="section-sub">
-            Past CrewPay payouts become a pitch. Register with X + your wallet to own the page.
+            Past CrewPay payouts become a pitch. Register with X to own the page. No crypto needed. Just an X account.
           </p>
         </div>
 

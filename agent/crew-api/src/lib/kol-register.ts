@@ -9,6 +9,7 @@ import bs58 from 'bs58'
 import nacl from 'tweetnacl'
 import { KOL_DB } from './agent/narrative.js'
 import { assertEvmAddress, isEvmAddress } from './agent/evm-address.js'
+import { isPayoutWallet } from './agent/shareholders.js'
 import { query } from './db.js'
 import { verifyWalletSignature } from './wallet-auth.js'
 import {
@@ -102,6 +103,7 @@ export const REFERRAL_POINTS_MIN_FOLLOWERS = 50
 export const REFERRAL_POINTS_REGISTER_DAILY_CAP = 10
 
 export type KolRegistration = {
+  xUserId?: string
   xUsername: string
   xName: string
   xVerified: boolean
@@ -290,9 +292,9 @@ export async function issueNonce(wallet: string): Promise<{ nonce: string; messa
 }
 
 export async function beginXAuth(opts: {
-  wallet: string
-  message: string
-  signature: string
+  wallet?: string
+  message?: string
+  signature?: string
   referralCode?: string
   /** Optional Base address for Zora / 0xSplits payouts. */
   evmWallet?: string
@@ -304,22 +306,35 @@ export async function beginXAuth(opts: {
   if (!xOAuthConfigured()) {
     throw new Error('X sign-in is not configured. Set X_CLIENT_ID and X_CLIENT_SECRET on crewpay-api.')
   }
-  const wallet = opts.wallet.trim()
-  const expectedPrefix = `${REGISTER_MESSAGE_PREFIX}\nWallet: ${wallet}\nNonce: `
-  if (!opts.message.startsWith(expectedPrefix)) {
-    throw new Error('Registration message does not match this wallet.')
+  const wallet = (opts.wallet || '').trim()
+  const hasWallet = isPayoutWallet(wallet)
+  const message = (opts.message || '').trim()
+  const signature = (opts.signature || '').trim()
+  if (wallet && !hasWallet) {
+    throw new Error('Invalid Solana wallet.')
   }
-  const nonce = opts.message.slice(expectedPrefix.length).trim()
-  if (!/^[a-f0-9]{32}$/.test(nonce)) throw new Error('Invalid registration nonce.')
-  if (!verifyWalletLink(wallet, opts.message, opts.signature)) {
-    throw new Error('Wallet signature did not verify. Sign with the linked Solana wallet.')
-  }
+  if (hasWallet) {
+    if (!message || !signature) {
+      throw new Error('Sign with the linked Solana wallet, or register with X only.')
+    }
+    const expectedPrefix = `${REGISTER_MESSAGE_PREFIX}\nWallet: ${wallet}\nNonce: `
+    if (!message.startsWith(expectedPrefix)) {
+      throw new Error('Registration message does not match this wallet.')
+    }
+    const nonce = message.slice(expectedPrefix.length).trim()
+    if (!/^[a-f0-9]{32}$/.test(nonce)) throw new Error('Invalid registration nonce.')
+    if (!verifyWalletLink(wallet, message, signature)) {
+      throw new Error('Wallet signature did not verify. Sign with the linked Solana wallet.')
+    }
 
-  const { rows } = await query(`DELETE FROM kol_oauth_nonces WHERE nonce = $1 AND wallet = $2 RETURNING nonce`, [
-    nonce,
-    wallet,
-  ])
-  if (!rows.length) throw new Error('Registration nonce expired or already used. Start again.')
+    const { rows } = await query(`DELETE FROM kol_oauth_nonces WHERE nonce = $1 AND wallet = $2 RETURNING nonce`, [
+      nonce,
+      wallet,
+    ])
+    if (!rows.length) throw new Error('Registration nonce expired or already used. Start again.')
+  } else if (message || signature) {
+    throw new Error('Connect a Solana wallet to sign, or register with X only.')
+  }
 
   let referralCode: string | null = null
   const wanted = normalizeReferralCode(opts.referralCode || '')
@@ -331,7 +346,7 @@ export async function beginXAuth(opts: {
     if (!found.rows[0]) {
       throw new Error('Unknown referral code.')
     }
-    if (found.rows[0].wallet === wallet) {
+    if (hasWallet && found.rows[0].wallet === wallet) {
       throw new Error('You cannot use your own referral code.')
     }
     referralCode = String(found.rows[0].referral_code)
@@ -351,13 +366,13 @@ export async function beginXAuth(opts: {
   const codeVerifier = b64url(randomBytes(32))
   const ip = (opts.ip || '').trim().slice(0, 64) || null
   const cookieSha = opts.regCookie ? cookieSha256(opts.regCookie) : null
-  const sigSha = sha256Hex(opts.signature.trim())
+  const sigSha = hasWallet ? sha256Hex(signature) : sha256Hex(`x-only:${sid}`)
   const exp = Math.floor(Date.now() / 1000) + REGISTRATION_OAUTH_TTL_SEC
   const state = signRegistrationOAuthState(
     {
       v: 1,
       sid,
-      w: wallet,
+      w: hasWallet ? wallet : '',
       sh: sigSha,
       exp,
       ...(referralCode ? { r: referralCode } : {}),
@@ -369,12 +384,12 @@ export async function beginXAuth(opts: {
     `INSERT INTO kol_oauth_states (
        state, code_verifier, wallet, referral_code, cookie_sha256, ip, evm_wallet, signature_sha256
      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-    [sid, codeVerifier, wallet, referralCode, cookieSha, ip, evmWallet, sigSha],
+    [sid, codeVerifier, hasWallet ? wallet : '', referralCode, cookieSha, ip, evmWallet, sigSha],
   )
   return {
     authorizeUrl: buildXAuthorizeUrl({ state, codeVerifier }),
     state,
-    wallet,
+    wallet: hasWallet ? wallet : '',
     expiresAt: exp * 1000,
   }
 }
@@ -534,12 +549,14 @@ export async function completeXCallback(
   const metrics = user.public_metrics || {}
 
   // Prevent linking conflicts across accounts (same wallet used elsewhere).
-  const conflict = await query<{ x_user_id: string; x_username: string }>(
-    `SELECT x_user_id, x_username FROM kol_registrations WHERE wallet = $1 AND x_user_id <> $2 LIMIT 1`,
-    [row.wallet, user.id],
-  )
-  if (conflict.rows.length) {
-    throw new Error(walletLinkedElsewhereError(String(conflict.rows[0]!.x_username || 'that account')))
+  if (isPayoutWallet(row.wallet)) {
+    const conflict = await query<{ x_user_id: string; x_username: string }>(
+      `SELECT x_user_id, x_username FROM kol_registrations WHERE wallet = $1 AND x_user_id <> $2 LIMIT 1`,
+      [row.wallet, user.id],
+    )
+    if (conflict.rows.length) {
+      throw new Error(walletLinkedElsewhereError(String(conflict.rows[0]!.x_username || 'that account')))
+    }
   }
 
   const prior = new Set<string>()
@@ -578,8 +595,8 @@ export async function completeXCallback(
       if (
         referrer &&
         referrer.x_user_id !== user.id &&
-        referrer.wallet !== row.wallet &&
-        !prior.has(referrer.wallet)
+        (!isPayoutWallet(row.wallet) || referrer.wallet !== row.wallet) &&
+        !(isPayoutWallet(referrer.wallet) && prior.has(referrer.wallet))
       ) {
         referredBy = String(referrer.referral_code)
       }
@@ -595,17 +612,21 @@ export async function completeXCallback(
   let pendingWallet: string | null = null
   let pendingUntil: Date | null = null
   if (prev?.wallet && prev.wallet !== row.wallet) {
-    const tsHeader = (opts?.headers?.['x-crew-timestamp'] as string | undefined)?.trim() || ''
-    const sigHeader = (opts?.headers?.['x-crew-signature'] as string | undefined)?.trim() || ''
-    const decision = decideWalletChange({
-      currentWallet: String(prev.wallet),
-      newWallet: row.wallet,
-      changeSignature: sigHeader || undefined,
-      changeTimestamp: tsHeader ? Number(tsHeader) : undefined,
-    })
-    applyWallet = decision.wallet
-    pendingWallet = decision.pendingWallet
-    pendingUntil = decision.pendingUntil
+    if (!isPayoutWallet(row.wallet)) {
+      applyWallet = String(prev.wallet)
+    } else {
+      const tsHeader = (opts?.headers?.['x-crew-timestamp'] as string | undefined)?.trim() || ''
+      const sigHeader = (opts?.headers?.['x-crew-signature'] as string | undefined)?.trim() || ''
+      const decision = decideWalletChange({
+        currentWallet: String(prev.wallet),
+        newWallet: row.wallet,
+        changeSignature: sigHeader || undefined,
+        changeTimestamp: tsHeader ? Number(tsHeader) : undefined,
+      })
+      applyWallet = decision.wallet
+      pendingWallet = decision.pendingWallet
+      pendingUntil = decision.pendingUntil
+    }
   }
 
   await query(
@@ -680,6 +701,7 @@ export async function completeXCallback(
 
 function mapReg(r: Record<string, unknown>, rank: number): KolRegistration {
   return {
+    xUserId: r.x_user_id ? String(r.x_user_id) : undefined,
     xUsername: String(r.x_username),
     xName: String(r.x_name || ''),
     xVerified: Boolean(r.x_verified),
@@ -880,6 +902,7 @@ export async function lookupReferralCuts(
      WHERE lower(kr.x_username) = ANY ($1::text[])
        AND kr.referred_by_code IS NOT NULL
        AND ref.wallet IS NOT NULL
+       AND length(trim(ref.wallet)) >= 32
        AND ref.wallet <> kr.wallet`,
     [normalized],
   )
@@ -1158,7 +1181,7 @@ export async function getClaimPitch(username: string): Promise<ClaimPitch | null
     registerPath: '/register',
     pitch: registered
       ? `You've earned ${solText} SOL on CrewPay. Your desk is live.`
-      : `You've earned ${solText} SOL on CrewPay. Claim your page — register with X + your Solana wallet.`,
+      : `You've earned ${solText} SOL on CrewPay. Claim your page — register with X. No crypto needed.`,
   }
 }
 
@@ -1168,7 +1191,7 @@ export async function getKolProfile(username: string): Promise<KolProfile | null
 
 export async function getKolProfileByWallet(wallet: string): Promise<KolProfile | null> {
   const address = wallet.trim()
-  if (address.length < 32 || address.length > 64) return null
+  if (!isPayoutWallet(address)) return null
   const { rows } = await query<{ x_username: string }>(
     `SELECT x_username FROM kol_registrations WHERE wallet = $1`,
     [address],
@@ -1176,6 +1199,100 @@ export async function getKolProfileByWallet(wallet: string): Promise<KolProfile 
   const name = rows[0]?.x_username
   if (!name) return null
   return profileFromUsername(name)
+}
+
+export async function getKolProfileByXUserId(xUserId: string): Promise<KolProfile | null> {
+  const id = xUserId.trim()
+  if (!id) return null
+  const { rows } = await query<{ x_username: string }>(
+    `SELECT x_username FROM kol_registrations WHERE x_user_id = $1`,
+    [id],
+  )
+  const name = rows[0]?.x_username
+  if (!name) return null
+  return profileFromUsername(name)
+}
+
+export function buildWalletSetMessage(wallet: string, timestamp: number): string {
+  return `crew-kol-wallet-set:${wallet}:${timestamp}`
+}
+
+/** First-time payout wallet, or a later change from Desk. Never writes an empty address. */
+export async function updateKolPayoutWallet(opts: {
+  xUsername: string
+  newWallet: string
+  newWalletSignature?: string
+  newWalletTimestamp?: number
+  changeSignature?: string
+  changeTimestamp?: number
+}): Promise<KolProfile> {
+  const handle = opts.xUsername.trim().replace(/^@+/, '')
+  if (!X_HANDLE.test(handle)) throw new Error('Invalid X handle.')
+  if (!isPayoutWallet(opts.newWallet)) {
+    throw new Error('Invalid Solana payout wallet.')
+  }
+  const newWallet = new PublicKey(opts.newWallet.trim()).toBase58()
+  const existing = await profileFromUsername(handle)
+  if (!existing) throw new Error('Wallet is not a registered KOL — complete /register first.')
+
+  const conflict = await query<{ x_username: string }>(
+    `SELECT x_username FROM kol_registrations
+     WHERE wallet = $1 AND lower(x_username) <> lower($2) LIMIT 1`,
+    [newWallet, handle],
+  )
+  if (conflict.rows.length) {
+    throw new Error(walletLinkedElsewhereError(String(conflict.rows[0]!.x_username || 'that account')))
+  }
+
+  const currentWallet = existing.profile.wallet
+  const now = Date.now()
+  const ts = Number(opts.newWalletTimestamp)
+  const freshSet = Number.isFinite(ts) && Math.abs(now - ts) <= WALLET_CHANGE_SIG_TTL_MS
+  const ownsNew =
+    freshSet &&
+    Boolean(opts.newWalletSignature) &&
+    verifyWalletSignature({
+      wallet: newWallet,
+      message: buildWalletSetMessage(newWallet, ts),
+      signatureBase58: String(opts.newWalletSignature),
+    })
+  if (!ownsNew) {
+    throw new Error('Sign crew-kol-wallet-set with the new Solana wallet to prove you own it.')
+  }
+
+  const decision = decideWalletChange({
+    currentWallet,
+    newWallet,
+    changeSignature: opts.changeSignature,
+    changeTimestamp: opts.changeTimestamp,
+    nowMs: now,
+  })
+
+  const prior = new Set(existing.profile.priorWallets)
+  if (isPayoutWallet(currentWallet) && currentWallet !== decision.wallet) {
+    prior.add(currentWallet)
+  }
+  const priorWallets = [...prior].filter((w) => w !== decision.wallet)
+
+  await query(
+    `UPDATE kol_registrations
+     SET wallet = $1,
+         prior_wallets = $2,
+         pending_wallet = $3,
+         pending_until = $4,
+         updated_at = now()
+     WHERE lower(x_username) = lower($5)`,
+    [
+      decision.wallet,
+      priorWallets,
+      decision.pendingWallet,
+      decision.pendingUntil,
+      handle,
+    ],
+  )
+  const profile = await profileFromUsername(handle)
+  if (!profile) throw new Error('Could not read the updated desk.')
+  return profile
 }
 
 /** Owner-signed update of the optional Base / EVM payout address. */
