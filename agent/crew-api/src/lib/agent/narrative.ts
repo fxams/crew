@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { applyTelegramReachBoost, type TelegramReachInput } from '../telegram-reach.js'
 import { equalShares, MAX_CREW, type HireRole } from './constants.js'
 import { autohireOptOuts, isOptedOut } from './optout.js'
 
@@ -70,8 +71,30 @@ export type RegisteredHireBoost = {
   roles?: HireRole[]
   /** Optional preferred narratives from registration (fallback to ['general']). */
   narratives?: NarrativeTag[]
-  /** TG-only desks without X or channel verify — allowed, ranked lower. Not tg_reach. */
+  /** TG-only desks without X or channel verify — allowed, ranked lower. */
   tgOnlyUnverified?: boolean
+  /** Verified via posted CREW-XXXX only. Unverified / stale contribute 0. */
+  tgChannelVerified?: boolean
+  tgReach?: number | null
+  tgChannelVerifiedAt?: string | null
+}
+
+function telegramReachInput(reg?: RegisteredHireBoost | null): TelegramReachInput {
+  return {
+    verified: Boolean(reg?.tgChannelVerified),
+    reach: reg?.tgReach,
+    verifiedAt: reg?.tgChannelVerifiedAt,
+  }
+}
+
+function withTelegramReach(
+  score: number,
+  reasons: string[],
+  reg?: RegisteredHireBoost | null,
+): number {
+  const { score: next, boost } = applyTelegramReachBoost(score, telegramReachInput(reg))
+  if (boost > 0) reasons.push(`tgReach ${Number(reg?.tgReach)}`)
+  return next
 }
 
 const TAG_KEYWORDS: Record<NarrativeTag, string[]> = {
@@ -322,6 +345,7 @@ export function planNarrativeHires(
             score -= 24
             reasons.push('telegram-only until verified')
           }
+          score = withTelegramReach(score, reasons, regRow)
           break
         }
       }
@@ -476,6 +500,7 @@ export function planNarrativeHires(
       score -= 24
       reasons.push('telegram-only until verified')
     }
+    score = withTelegramReach(score, reasons, r)
     const regRegisteredAtMs = r.registeredAt ? Date.parse(r.registeredAt) || null : null
     registeredPool.push({
       kol,

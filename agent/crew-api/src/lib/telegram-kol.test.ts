@@ -78,7 +78,7 @@ describe('Telegram KOL link + alerts', () => {
     process.env.TELEGRAM_BOT_TOKEN = '123:test'
     const verified = await verifyChannelOwnership(created.xUserId)
     expect(verified.verified).toBe(true)
-    expect(verified.note).toMatch(/signal only/i)
+    expect(verified.note).toMatch(/capped Autohire boost/i)
     delete process.env.TELEGRAM_BOT_TOKEN
   })
 
@@ -90,7 +90,7 @@ describe('Telegram KOL link + alerts', () => {
     expect(out.skipped.some((s) => s.reason === 'no_telegram_opt_in')).toBe(true)
   })
 
-  it('does not treat tg_reach as a ranking field on the row mapper', () => {
+  it('maps tg_reach without implying verification', () => {
     const fields = telegramFieldsFromRow({
       telegram_user_id: '1',
       tg_reach: 999999,
@@ -99,5 +99,6 @@ describe('Telegram KOL link + alerts', () => {
     })
     expect(fields.tgReach).toBe(999999)
     expect(fields.tgChannelVerified).toBe(false)
+    expect(fields.tgChannelVerifiedAt).toBeNull()
   })
 })

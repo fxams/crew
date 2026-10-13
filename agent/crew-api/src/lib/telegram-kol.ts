@@ -1,6 +1,6 @@
 /**
  * KOL Telegram identity, channel verify, and opt-in alerts.
- * Member counts (tg_reach) are a signal only — never a ranking input.
+ * Verified tg_reach is a small capped Autohire boost (see telegram-reach.ts). Fee splits unchanged.
  */
 
 import { randomBytes } from 'node:crypto'
@@ -153,6 +153,7 @@ export type TelegramKolFields = {
   tgChannel: string | null
   tgChannelId: string | null
   tgChannelVerified: boolean
+  tgChannelVerifiedAt: string | null
   tgReach: number | null
 }
 
@@ -165,6 +166,9 @@ export function telegramFieldsFromRow(r: Record<string, unknown>): TelegramKolFi
     tgChannel: r.tg_channel ? String(r.tg_channel) : null,
     tgChannelId: r.tg_channel_id ? String(r.tg_channel_id) : null,
     tgChannelVerified: Boolean(r.tg_channel_verified),
+    tgChannelVerifiedAt: r.tg_channel_verified_at
+      ? new Date(String(r.tg_channel_verified_at)).toISOString()
+      : null,
     tgReach: r.tg_reach != null && Number.isFinite(Number(r.tg_reach)) ? Number(r.tg_reach) : null,
   }
 }
@@ -272,6 +276,12 @@ export async function applyTelegramLink(
   }>,
 ): Promise<void> {
   const prev = (await loadByXUserId(xUserId)) || { x_user_id: xUserId }
+  const verifiedAt =
+    patch.tgChannelVerified === true
+      ? new Date().toISOString()
+      : patch.tgChannelVerified === false
+        ? null
+        : prev.tg_channel_verified_at
   const next = {
     ...prev,
     telegram_user_id: patch.telegramUserId ?? prev.telegram_user_id,
@@ -283,6 +293,7 @@ export async function applyTelegramLink(
     tg_channel_id: patch.tgChannelId === undefined ? prev.tg_channel_id : patch.tgChannelId,
     tg_channel_verified:
       patch.tgChannelVerified === undefined ? prev.tg_channel_verified : patch.tgChannelVerified,
+    tg_channel_verified_at: verifiedAt,
     tg_reach: patch.tgReach === undefined ? prev.tg_reach : patch.tgReach,
     tg_channel_code:
       patch.tgChannelCode === undefined ? prev.tg_channel_code : patch.tgChannelCode,
@@ -299,6 +310,11 @@ export async function applyTelegramLink(
        tg_channel = COALESCE($6, tg_channel),
        tg_channel_id = COALESCE($7, tg_channel_id),
        tg_channel_verified = COALESCE($8, tg_channel_verified),
+       tg_channel_verified_at = CASE
+         WHEN $8::boolean IS TRUE THEN now()
+         WHEN $8::boolean IS FALSE THEN NULL
+         ELSE tg_channel_verified_at
+       END,
        tg_reach = COALESCE($9, tg_reach),
        tg_channel_code = COALESCE($10, tg_channel_code),
        updated_at = now()
@@ -452,7 +468,7 @@ export async function verifyChannelOwnership(xUserId: string): Promise<{
       verified: true,
       channel,
       tgReach: reach,
-      note: 'Channel verified via the posted code. Member count is a signal only — it does not change rank.',
+      note: 'Channel verified via the posted code. Fresh member count is a small capped Autohire boost (≤10% of score). Fee splits unchanged.',
     }
   }
 
@@ -475,7 +491,7 @@ export async function verifyChannelOwnership(xUserId: string): Promise<{
       verified: false,
       channel,
       tgReach: reach,
-      note: 'Public channel found. Add @CrewPay_Bot and post the code so we can verify ownership. Member count is not used for ranking.',
+      note: 'Public channel found. Add @CrewPay_Bot and post the code so we can verify ownership. Unverified member count does not change rank.',
     }
   }
 

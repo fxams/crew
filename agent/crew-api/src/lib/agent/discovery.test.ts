@@ -140,6 +140,8 @@ describe('agent discovery docs', () => {
     expect(llmsTxt()).toContain('crewpay_autohire_kol_crew')
     expect(llmsTxt()).toContain('crew_notify_hired_crew')
     expect(llmsTxt()).toContain('@CrewPay_Bot')
+    expect(llmsTxt()).toMatch(/tg_reach[\s\S]*capped at ~10%/)
+    expect(llmsTxt()).toContain('Fee splits unchanged')
     expect(agentDiscoveryJson().endpoints['POST /api/agent/crew/notify-telegram']).toBeTruthy()
     expect(agentDiscoveryJson().mcp.tools).toContain('crew_notify_hired_crew')
     expect(llmsTxt().toLowerCase()).not.toMatch(/launcher gets 60/)

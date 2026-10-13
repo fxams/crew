@@ -17,15 +17,25 @@ export async function listRegisteredHireBoosts(): Promise<RegisteredHireBoost[]>
       x_user_id?: string
       x_verified?: boolean
       tg_channel_verified?: boolean
+      tg_reach?: number | null
+      tg_channel_verified_at?: string | null
     }>
     try {
       ;({ rows } = await query(
-        `SELECT x_username, wallet, evm_wallet, followers, registered_at, x_user_id, x_verified, tg_channel_verified FROM kol_registrations`,
+        `SELECT x_username, wallet, evm_wallet, followers, registered_at, x_user_id, x_verified,
+                tg_channel_verified, tg_reach, tg_channel_verified_at
+           FROM kol_registrations`,
       ))
     } catch {
-      ;({ rows } = await query(
-        `SELECT x_username, wallet, followers, registered_at FROM kol_registrations`,
-      ))
+      try {
+        ;({ rows } = await query(
+          `SELECT x_username, wallet, evm_wallet, followers, registered_at, x_user_id, x_verified, tg_channel_verified, tg_reach FROM kol_registrations`,
+        ))
+      } catch {
+        ;({ rows } = await query(
+          `SELECT x_username, wallet, followers, registered_at FROM kol_registrations`,
+        ))
+      }
     }
     return rows
       .map((row) => ({
@@ -40,6 +50,12 @@ export async function listRegisteredHireBoosts(): Promise<RegisteredHireBoost[]>
           String(row.x_user_id || '').startsWith('tg:') &&
           !row.x_verified &&
           !row.tg_channel_verified,
+        tgChannelVerified: Boolean(row.tg_channel_verified),
+        tgReach:
+          row.tg_reach != null && Number.isFinite(Number(row.tg_reach)) ? Number(row.tg_reach) : null,
+        tgChannelVerifiedAt: row.tg_channel_verified_at
+          ? new Date(String(row.tg_channel_verified_at)).toISOString()
+          : null,
       }))
       // Add a wallet to get hired and paid. KOLs without a wallet are skipped for crews.
       .filter((r) => r.handle && isPayoutWallet(r.wallet))
