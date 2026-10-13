@@ -14,10 +14,10 @@ import {
 import { formatSol } from '../lib/format-sol'
 import { useOwnRegisteredHandle } from '../lib/registered-kol'
 import { kolHandleFromPath, referralInvitePath } from '../lib/routes'
-import { SocialWalletButton } from './SocialWalletButton'
+import { PrivyPayoutWallet } from './PrivyPayoutWallet'
 import { ADD_WALLET_TO_RECEIVE, NO_CRYPTO_NEEDED } from '../lib/kol-onboarding'
-import { isPayoutWallet, resolvePhantomAppId } from '../lib/payout-wallet'
-import type { SocialWallet } from '../lib/phantom-connect'
+import { isPayoutWallet } from '../lib/payout-wallet'
+import { resolvePrivyAppId } from '../lib/privy-app'
 import { useConnectModal } from './ConnectModal'
 import { PlatformBadge } from './PlatformBadge'
 import {
@@ -145,7 +145,7 @@ export function KolProfilePage() {
   const { address: evmAddress } = useAccount()
   const { open: openConnect } = useConnectModal()
   const ownHandle = useOwnRegisteredHandle(wallet.publicKey?.toBase58())
-  const [phantomAppId, setPhantomAppId] = useState(() => resolvePhantomAppId())
+  const [privyAppId, setPrivyAppId] = useState(() => resolvePrivyAppId())
   const [payoutBusy, setPayoutBusy] = useState(false)
   const [payoutMsg, setPayoutMsg] = useState<string | null>(null)
   const [desk, setDesk] = useState<Desk | null>(null)
@@ -231,8 +231,8 @@ export function KolProfilePage() {
       try {
         const res = await fetch(`${API}/api/kols/register/status`)
         if (!res.ok) return
-        const body = (await res.json()) as { phantomConnect?: { appId?: string } }
-        if (!cancelled) setPhantomAppId(resolvePhantomAppId(body.phantomConnect?.appId))
+        const body = (await res.json()) as { privy?: { appId?: string } }
+        if (!cancelled) setPrivyAppId(resolvePrivyAppId(body.privy?.appId))
       } catch {
         /* optional */
       }
@@ -289,6 +289,7 @@ export function KolProfilePage() {
   async function savePayoutWallet(opts: {
     address: string
     signMessage: (msg: Uint8Array) => Promise<Uint8Array>
+    getAccessToken?: () => Promise<string | null>
   }) {
     if (!desk) return
     setPayoutBusy(true)
@@ -299,6 +300,7 @@ export function KolProfilePage() {
       const ts = Date.now()
       const message = `crew-kol-wallet-set:${address}:${ts}`
       const sig = await opts.signMessage(new TextEncoder().encode(message))
+      const privyToken = opts.getAccessToken ? await opts.getAccessToken() : null
       const res = await fetch(`${API}/api/kols/register/wallet`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -307,6 +309,7 @@ export function KolProfilePage() {
           wallet: address,
           signature: bs58.encode(sig),
           timestamp: ts,
+          ...(privyToken ? { privyToken } : {}),
         }),
       })
       const body = (await res.json()) as Desk & { error?: string }
@@ -336,12 +339,6 @@ export function KolProfilePage() {
     }
   }
 
-  async function onSocialPayout(social: SocialWallet) {
-    await savePayoutWallet({
-      address: social.address,
-      signMessage: social.signMessage,
-    })
-  }
 
   async function saveEvmWallet() {
     if (!wallet.publicKey || !wallet.signMessage || !desk) return
@@ -641,11 +638,12 @@ export function KolProfilePage() {
                           : 'Connect a wallet'}
                     </button>
                   </div>
-                  {phantomAppId ? (
-                    <SocialWalletButton
-                      appId={phantomAppId}
+                  {privyAppId && !hasPayoutWallet ? (
+                    <PrivyPayoutWallet
+                      appId={privyAppId}
+                      autoStart={justRegistered || fromXOauth}
                       disabled={payoutBusy}
-                      onWallet={(w) => void onSocialPayout(w)}
+                      onWallet={(w) => void savePayoutWallet(w)}
                       onError={setPayoutMsg}
                     />
                   ) : null}

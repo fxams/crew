@@ -31,7 +31,17 @@ export default defineConfig(() => {
     react(),
   ],
   optimizeDeps: {
-    include: ['buffer', 'process', 'bn.js', 'crypto', 'stream', 'wagmi', 'viem', '@tanstack/react-query'],
+    include: [
+      'buffer',
+      'process',
+      'bn.js',
+      'crypto',
+      'stream',
+      'wagmi',
+      'viem',
+      '@tanstack/react-query',
+      '@privy-io/react-auth',
+    ],
   },
   build: {
     outDir: 'dist',
@@ -59,8 +69,8 @@ export default defineConfig(() => {
               test: /node_modules[\\/]@irys/,
             },
             {
-              name: 'phantom-connect',
-              test: /node_modules[\\/]@phantom/,
+              name: 'privy',
+              test: /node_modules[\\/]@privy-io/,
             },
           ],
         },

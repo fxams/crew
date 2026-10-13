@@ -124,6 +124,3 @@ export function readKolSessionCookie(
   return verified.ok ? verified.claims : null
 }
 
-export function phantomAppIdFromEnv(): string {
-  return (process.env.PHANTOM_APP_ID || process.env.VITE_PHANTOM_APP_ID || '').trim()
-}

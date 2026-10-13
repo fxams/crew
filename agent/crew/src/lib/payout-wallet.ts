@@ -6,14 +6,3 @@ export function isPayoutWallet(value: string | null | undefined): boolean {
   return true
 }
 
-export function vitePhantomAppId(): string {
-  return (
-    (import.meta.env.VITE_PHANTOM_APP_ID as string | undefined) ||
-    (import.meta.env.VITE_PHANTOM_CONNECT_APP_ID as string | undefined) ||
-    ''
-  ).trim()
-}
-
-export function resolvePhantomAppId(fromApi?: string | null): string {
-  return vitePhantomAppId() || (fromApi || '').trim()
-}

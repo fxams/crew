@@ -23,12 +23,8 @@ import {
   siteUrl,
   xOAuthConfigured,
 } from '../lib/kol-register.js'
-import {
-  issueKolSessionToken,
-  kolSessionCookieHeader,
-  phantomAppIdFromEnv,
-  readKolSessionCookie,
-} from '../lib/kol-session.js'
+import { issueKolSessionToken, kolSessionCookieHeader, readKolSessionCookie } from '../lib/kol-session.js'
+import { privyAppIdFromEnv, verifyPrivyPayoutWallet } from '../lib/privy.js'
 import {
   listMentionDrafts,
   setMentionDraftStatus,
@@ -42,17 +38,17 @@ export const kolRegisterRouter = Router()
 const solanaAddress = z.string().min(32).max(64)
 
 kolRegisterRouter.get('/kols/register/status', (_req, res) => {
-  const phantomAppId = phantomAppIdFromEnv()
+  const privyAppId = privyAppIdFromEnv()
   res.json({
     xOauth: xOAuthConfigured(),
     redirectUri: process.env.X_REDIRECT_URI?.trim() || 'https://api.crewpay.dev/api/kols/register/callback',
     requires: ['x oauth'],
     walletOptional: true,
     noCryptoNeeded: 'No crypto needed. Just an X account.',
-    phantomConnect: {
-      enabled: Boolean(phantomAppId),
-      appId: phantomAppId || undefined,
-      env: ['PHANTOM_APP_ID', 'VITE_PHANTOM_APP_ID'],
+    privy: {
+      enabled: Boolean(privyAppId),
+      appId: privyAppId || undefined,
+      env: ['PRIVY_APP_ID', 'VITE_PRIVY_APP_ID', 'PRIVY_APP_SECRET'],
     },
     referral: {
       cutPct: KOL_REFERRAL_CUT_PCT,
@@ -273,8 +269,12 @@ kolRegisterRouter.post('/kols/register/wallet', async (req, res) => {
         timestamp: z.number().optional(),
         changeSignature: z.string().min(64).max(128).optional(),
         changeTimestamp: z.number().optional(),
+        privyToken: z.string().min(20).max(8000).optional(),
       })
       .parse(req.body)
+    if (body.privyToken) {
+      await verifyPrivyPayoutWallet({ token: body.privyToken, address: body.wallet })
+    }
     let handle = session?.h || ''
     if (!handle) {
       const fromWallet = kolReferralsWalletFresh(req)
@@ -306,7 +306,7 @@ kolRegisterRouter.post('/kols/register/wallet', async (req, res) => {
     res.json({
       ok: true,
       ...profile,
-      tip: 'Payouts go to this Solana address. CrewPay never holds keys — Phantom social wallets are non-custodial.',
+      tip: 'Payouts go to this Solana address. CrewPay never holds keys — Privy embedded wallets are non-custodial.',
     })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'wallet update failed'

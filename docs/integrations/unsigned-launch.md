@@ -109,6 +109,7 @@ Example (pseudocode):
 
 - `optInOnly=true` limits Autohire to the `kol_registrations` table (registered KOLs).
 - Add a wallet to get hired and paid. KOLs without a wallet are skipped for crews.
+- After X signup, a KOL without a wallet can receive a non-custodial Privy embedded Solana address (`VITE_PRIVY_APP_ID` / `PRIVY_APP_ID`, optional `PRIVY_APP_SECRET`). CrewPay never holds keys.
 - `autohire` defaults to `optInOnly=true`.
 - For explicit `crew[]`, set `optInOnly=true` to hard-reject non-registered wallets.
 - Responses include `registered` flags on Autohire and `optedInOnly` on autohire responses.
