@@ -36,7 +36,7 @@ describe('Privy app id', () => {
 
 describe('onboarding copy', () => {
   it('keeps the crypto-new signup promise', () => {
-    expect(NO_CRYPTO_NEEDED).toBe('No crypto needed. Just an X account.')
+    expect(NO_CRYPTO_NEEDED).toBe('No crypto needed. Just an X account — or Telegram.')
     expect(ADD_WALLET_TO_RECEIVE).toBe(
       'Add a wallet to get hired and paid. KOLs without a wallet are skipped for crews.',
     )

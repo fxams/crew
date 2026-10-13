@@ -107,6 +107,7 @@ export function agentDiscoveryJson() {
         'crew_list_kols',
         'crew_search_kols',
         'crew_autohire',
+        'crew_notify_hired_crew',
         'crew_build_unsigned',
         'crew_launch_dry_run',
         'crew_launch',
@@ -123,7 +124,7 @@ export function agentDiscoveryJson() {
         'crew_job_create_dry_run',
       ],
       flow:
-        'crew_claim_key → crew_discover → crew_list_kols (select explicit crew) → crew_launch_dry_run → crew_launch → (fallback: crew_autohire) → crew_list_launches / public coin page / post_coin_job (JOBS_ENABLED, test/devnet) → crew_status / crew_wire_fees / crew_crank_remits',
+        'crew_claim_key → crew_discover → crew_list_kols (select explicit crew) → crew_launch_dry_run → crew_launch → (fallback: crew_autohire) → crew_notify_hired_crew (opt-in Telegram) → crew_list_launches / public coin page / post_coin_job (JOBS_ENABLED, test/devnet) → crew_status / crew_wire_fees / crew_crank_remits',
     },
     proof: {
       http: `${API_URL}/api/proof`,
@@ -212,6 +213,16 @@ export function agentDiscoveryJson() {
         auth: 'x-crew-api-key or X-PAYMENT (x402, when enabled)',
         body: { name: 'string', ticker: 'string', description: 'string', seats: '1-8' },
         returns: 'Narrative hire plan + crew wallets + disclaimer (no on-chain tx)',
+      },
+      'POST /api/agent/crew/notify-telegram': {
+        auth: 'x-crew-api-key',
+        body: {
+          mint: 'optional coin mint',
+          handles: 'optional hired handles',
+          message: 'optional ≤500',
+        },
+        returns:
+          'sent + skipped[]. Opt-in only — DMs KOLs who linked Telegram, /start-ed @CrewPay_Bot, and enabled alerts. Never uses member counts.',
       },
       'POST /api/agent/launch/dry-run': {
         auth: 'x-crew-api-key or X-PAYMENT (x402, when enabled)',
@@ -470,6 +481,33 @@ export function openApiSpec() {
             '200': { description: 'Hire plan + crew wallets' },
             '401': { description: 'Missing/invalid API key' },
             '402': { description: 'Payment Required — X-PAYMENT (x402) when X402_ENABLED and no API key' },
+          },
+        },
+      },
+      '/api/agent/crew/notify-telegram': {
+        post: {
+          tags: ['agent', 'telegram'],
+          summary: 'DM hired crew via Telegram (opt-in only)',
+          operationId: 'postAgentNotifyTelegram',
+          security: [{ CrewApiKey: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    mint: { type: 'string' },
+                    handles: { type: 'array', items: { type: 'string' } },
+                    message: { type: 'string', maxLength: 500 },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            '200': { description: 'sent + skipped (no_telegram_opt_in)' },
+            '401': { description: 'Missing/invalid API key' },
           },
         },
       },
@@ -1539,6 +1577,7 @@ Agents can hire CrewPay via Agent Commerce Protocol v2 jobs when \`ACP_ENABLED=1
 ## Trust notes
 
 - Autohire is **registered-first**: registered KOLs are prioritized to fill seats first; remaining seats use narrative picks from the public Pump directory (listing ≠ consent)
+- Telegram: KOLs can Login with Telegram (@CrewPay_Bot widget) or link it after X. TG-only desks are allowed but ranked lower until verified. Channel member counts (\`tg_reach\`) are a signal only — never a ranking input. Hire/job DMs are opt-in and require \`/start\`. Agents: \`POST /api/agent/crew/notify-telegram\` or MCP \`crew_notify_hired_crew\` (x-crew-api-key; opt-in only).
 - **Buyback status:** every launch locks **25%** (or **20%** when referred) creator fees to the CrewPay treasury wallet. Automatic market buybacks of a CREW token are **not live yet** (only when operators set buyback mint + key). Empty proof tape ≠ broken fee-shares.
 - **Always dry-run** before any launch that spends SOL. **No price talk / ROI promises.**
 

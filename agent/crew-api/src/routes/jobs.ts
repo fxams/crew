@@ -23,6 +23,7 @@ import {
 import { jobToJson } from '../lib/jobs/serialize.js'
 import { coinPageUrl } from '../lib/coin-page.js'
 import { getCoin } from '../lib/coins.js'
+import { notifyJobOpenTelegram } from '../lib/telegram-kol.js'
 
 export const jobsRouter = Router()
 
@@ -262,6 +263,12 @@ jobsRouter.post('/jobs/coin', requireAgentApiKey, async (req, res) => {
       memoryJobs.setJob(job)
       funding = memoryJobs.addFunding(job.id, rail.name, job.budget, vf.ok, vf.detail)
     }
+    void notifyJobOpenTelegram({
+      mint: body.mint,
+      jobId: job.id,
+      template: plan.templateId || body.template,
+      crew: coin?.crew,
+    }).catch(() => {})
     res.status(201).json({
       ok: true,
       job: jobToJson(job),

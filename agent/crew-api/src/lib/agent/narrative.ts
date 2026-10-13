@@ -70,6 +70,8 @@ export type RegisteredHireBoost = {
   roles?: HireRole[]
   /** Optional preferred narratives from registration (fallback to ['general']). */
   narratives?: NarrativeTag[]
+  /** TG-only desks without X or channel verify — allowed, ranked lower. Not tg_reach. */
+  tgOnlyUnverified?: boolean
 }
 
 const TAG_KEYWORDS: Record<NarrativeTag, string[]> = {
@@ -316,6 +318,10 @@ export function planNarrativeHires(
           )
           regFollowers = Number(regRow?.followers || 0)
           regRegisteredAtMs = regRow?.registeredAt ? Date.parse(regRow.registeredAt) || null : null
+          if (regRow?.tgOnlyUnverified) {
+            score -= 24
+            reasons.push('telegram-only until verified')
+          }
           break
         }
       }
@@ -466,6 +472,10 @@ export function planNarrativeHires(
     }
     // Ensure a base boost so pure 'general' still competes within the registered tier.
     score += preferRegistered ? 32 : 16
+    if (r.tgOnlyUnverified) {
+      score -= 24
+      reasons.push('telegram-only until verified')
+    }
     const regRegisteredAtMs = r.registeredAt ? Date.parse(r.registeredAt) || null : null
     registeredPool.push({
       kol,

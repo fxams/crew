@@ -115,6 +115,7 @@ discoveryRouter.get('/mcp.json', (_req, res) =>
       'crew_claim_key',
       'crew_search_kols',
       'crew_autohire',
+      'crew_notify_hired_crew',
       'crew_launch_dry_run',
       'crew_launch',
       'crew_list_launches',

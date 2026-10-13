@@ -223,6 +223,15 @@ CREATE TABLE IF NOT EXISTS kol_registrations (
   -- Client IP at first registration (self-referral claim checks).
   register_ip TEXT,
   evm_wallet TEXT,
+  telegram_user_id TEXT,
+  telegram_username TEXT,
+  telegram_chat_id TEXT,
+  telegram_alerts BOOLEAN NOT NULL DEFAULT false,
+  tg_channel TEXT,
+  tg_channel_id TEXT,
+  tg_channel_verified BOOLEAN NOT NULL DEFAULT false,
+  tg_reach INT,
+  tg_channel_code TEXT,
   registered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   stats_refreshed_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -237,6 +246,24 @@ CREATE UNIQUE INDEX IF NOT EXISTS kol_registrations_referral_code_idx
 CREATE INDEX IF NOT EXISTS kol_registrations_referred_by_idx ON kol_registrations (lower(referred_by_code));
 CREATE INDEX IF NOT EXISTS kol_registrations_followers_idx ON kol_registrations (followers DESC, registered_at ASC);
 CREATE INDEX IF NOT EXISTS kol_registrations_registered_idx ON kol_registrations (registered_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS kol_registrations_telegram_user_idx
+  ON kol_registrations (telegram_user_id) WHERE telegram_user_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS telegram_link_codes (
+  code TEXT PRIMARY KEY,
+  x_user_id TEXT NOT NULL,
+  purpose TEXT NOT NULL DEFAULT 'start',
+  channel TEXT,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS telegram_channel_posts (
+  code TEXT PRIMARY KEY,
+  chat_id TEXT NOT NULL,
+  username TEXT,
+  seen_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
 -- Draft @CrewPayHQ mention posts after remits — operator approves before posting.
 CREATE TABLE IF NOT EXISTS kol_mention_drafts (

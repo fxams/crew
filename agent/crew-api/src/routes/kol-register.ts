@@ -25,6 +25,7 @@ import {
 } from '../lib/kol-register.js'
 import { issueKolSessionToken, kolSessionCookieHeader, readKolSessionCookie } from '../lib/kol-session.js'
 import { privyAppIdFromEnv, verifyPrivyPayoutWallet } from '../lib/privy.js'
+import { TELEGRAM_BOT_URL, TELEGRAM_BOT_USERNAME, telegramConfigured } from '../lib/telegram.js'
 import {
   listMentionDrafts,
   setMentionDraftStatus,
@@ -44,7 +45,13 @@ kolRegisterRouter.get('/kols/register/status', (_req, res) => {
     redirectUri: process.env.X_REDIRECT_URI?.trim() || 'https://api.crewpay.dev/api/kols/register/callback',
     requires: ['x oauth'],
     walletOptional: true,
-    noCryptoNeeded: 'No crypto needed. Just an X account.',
+    noCryptoNeeded: 'No crypto needed. Just an X account — or Telegram.',
+    telegram: {
+      enabled: telegramConfigured(),
+      botUsername: TELEGRAM_BOT_USERNAME,
+      botUrl: TELEGRAM_BOT_URL,
+      login: telegramConfigured(),
+    },
     privy: {
       enabled: Boolean(privyAppId),
       appId: privyAppId || undefined,

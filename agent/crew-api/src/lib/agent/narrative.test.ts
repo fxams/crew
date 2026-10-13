@@ -69,6 +69,38 @@ describe('agent narrative autohire', () => {
     expect(hit!.hireRank).toBe(1)
   })
 
+  it('telegram-only unverified registered KOLs rank below X-registered ones', () => {
+    const prev = process.env.AUTOHIRE_REGISTERED_FIRST
+    process.env.AUTOHIRE_REGISTERED_FIRST = 'true'
+    try {
+      const plan = planNarrativeHires(
+        { name: 'Agent Frog', ticker: 'FROG', vibe: 'ai trench meme' },
+        {
+          limit: 2,
+          onlyRegistered: true,
+          registered: [
+            {
+              handle: 'x_primary',
+              wallet: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+              followers: 10,
+            },
+            {
+              handle: 'tg_only_zz',
+              wallet: 'So11111111111111111111111111111111111111112',
+              followers: 10,
+              tgOnlyUnverified: true,
+            },
+          ],
+        },
+      )
+      expect(plan.hires.length).toBe(2)
+      expect(plan.hires[0]!.kol.pump.toLowerCase()).toBe('x_primary')
+      expect(plan.hires[1]!.reasons.some((r) => /telegram-only/i.test(r))).toBe(true)
+    } finally {
+      process.env.AUTOHIRE_REGISTERED_FIRST = prev
+    }
+  })
+
   it('registered not in kol-db gets picked (registered-first)', () => {
     const prev = process.env.AUTOHIRE_REGISTERED_FIRST
     process.env.AUTOHIRE_REGISTERED_FIRST = 'true'
