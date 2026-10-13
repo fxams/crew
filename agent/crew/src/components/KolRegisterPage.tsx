@@ -9,10 +9,20 @@ import { CREW_VERSION, KOL_REFERRAL_CUT_PCT } from '../lib/config'
 import { formatSol } from '../lib/format-sol'
 import {
   clearPendingRegistration,
+  clearStuckXOauth,
+  isRecoverableXOauthError,
   loadPendingRegistration,
+  loadStuckXOauth,
   savePendingRegistration,
+  saveStuckXOauth,
+  stuckXOauthMessage,
+  takeXOauthAutoRestart,
 } from '../lib/register-pending'
-import { lookupRegisteredHandle, useOwnRegisteredHandle } from '../lib/registered-kol'
+import {
+  lookupRegisteredHandle,
+  lookupRegistrationProgress,
+  useOwnRegisteredHandle,
+} from '../lib/registered-kol'
 import { kolProfilePath } from '../lib/routes'
 import {
   ADD_WALLET_TO_RECEIVE,
@@ -190,9 +200,17 @@ export function KolRegisterPage() {
   const [privyAppId, setPrivyAppId] = useState(() => resolvePrivyAppId())
   const [busy, setBusy] = useState(false)
   const [awaitingX, setAwaitingX] = useState(false)
+  const [stuckOauth, setStuckOauth] = useState<'used' | 'expired' | null>(() => loadStuckXOauth())
   const [checkBusy, setCheckBusy] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
-  const [error, setError] = useState<string | null>(params.get('error'))
+  const [error, setError] = useState<string | null>(() => {
+    const fromUrl = params.get('error')
+    if (fromUrl) return fromUrl
+    const stuck = loadStuckXOauth()
+    return stuck ? stuckXOauthMessage(stuck) : null
+  })
+  const recoverOnceRef = useRef(false)
+  const onRegisterRef = useRef<() => Promise<void>>(async () => {})
   const [refInput, setRefInput] = useState(() => normalizeRef(params.get('ref')))
   const [evmWallet, setEvmWallet] = useState('')
   const [moreOpen, setMoreOpen] = useState(() => Boolean(normalizeRef(params.get('ref'))))
@@ -286,13 +304,22 @@ export function KolRegisterPage() {
     if (stored) setAwaitingX(true)
   }, [])
 
+  const finishOnDesk = useCallback(
+    (handle: string) => {
+      clearPendingRegistration()
+      clearStuckXOauth()
+      setAwaitingX(false)
+      setStuckOauth(null)
+      setRefreshTick((n) => n + 1)
+      navigate(kolProfilePath(handle))
+    },
+    [navigate],
+  )
+
   const onCheck = useCallback(
-    async (opts?: { silent?: boolean }) => {
-      const pubkey = (
-        wallet.publicKey?.toBase58() ||
-        loadPendingRegistration()?.wallet ||
-        ''
-      ).trim()
+    async (opts?: { silent?: boolean }): Promise<boolean> => {
+      const pending = loadPendingRegistration()
+      const pubkey = (wallet.publicKey?.toBase58() || pending?.wallet || '').trim()
       if (!opts?.silent) {
         setCheckBusy(true)
         setError(null)
@@ -302,10 +329,8 @@ export function KolRegisterPage() {
           const handle = await lookupRegisteredHandle(pubkey)
           setRefreshTick((n) => n + 1)
           if (handle) {
-            clearPendingRegistration()
-            setAwaitingX(false)
-            navigate(kolProfilePath(handle))
-            return
+            finishOnDesk(handle)
+            return true
           }
         }
         const me = await fetch(`${API}/api/kols/me`, { credentials: 'include' })
@@ -313,45 +338,65 @@ export function KolRegisterPage() {
           const body = (await me.json()) as { profile?: { xUsername?: string } }
           const handle = body.profile?.xUsername?.trim()
           if (handle) {
-            clearPendingRegistration()
-            setAwaitingX(false)
-            setRefreshTick((n) => n + 1)
-            navigate(kolProfilePath(handle))
-            return
+            finishOnDesk(handle)
+            return true
+          }
+        }
+        if (pending?.sid) {
+          const progress = await lookupRegistrationProgress(pending.sid)
+          if (progress?.status === 'done' && progress.handle) {
+            finishOnDesk(progress.handle)
+            return true
+          }
+          if (progress?.status === 'used' || progress?.status === 'expired') {
+            saveStuckXOauth(progress.status)
+            setStuckOauth(progress.status)
+            if (!opts?.silent) setError(stuckXOauthMessage(progress.status))
+            return false
           }
         }
         if (!opts?.silent) {
           setError(`Not on the board yet. ${CHECK_HINT}`)
         }
+        return false
       } catch (err) {
         if (!opts?.silent) {
           setError(err instanceof Error ? err.message : 'Could not check registration.')
         }
+        return false
       } finally {
         if (!opts?.silent) setCheckBusy(false)
       }
     },
-    [navigate, wallet.publicKey],
+    [finishOnDesk, wallet.publicKey],
   )
 
   useEffect(() => {
     if (!awaitingX) return
+    void onCheck({ silent: true })
     const onShow = () => {
       void onCheck({ silent: true })
     }
+    window.addEventListener('focus', onShow)
     window.addEventListener('pageshow', onShow)
     document.addEventListener('visibilitychange', onShow)
     const tick = window.setInterval(() => {
       if (document.visibilityState === 'visible') void onCheck({ silent: true })
     }, 4000)
     return () => {
+      window.removeEventListener('focus', onShow)
       window.removeEventListener('pageshow', onShow)
       document.removeEventListener('visibilitychange', onShow)
       window.clearInterval(tick)
     }
   }, [awaitingX, onCheck])
 
-  async function onRegister() {
+  useEffect(() => {
+    if (!awaitingX || !isPayoutWallet(connectedWallet)) return
+    void onCheck({ silent: true })
+  }, [awaitingX, connectedWallet, onCheck])
+
+  const onRegister = useCallback(async () => {
     if (alreadyRegistered && ownHandle) {
       return
     }
@@ -386,18 +431,64 @@ export function KolRegisterPage() {
         credentials: 'include',
         body: JSON.stringify(startBodyPayload),
       })
-      const startBody = (await startRes.json()) as { authorizeUrl?: string; error?: string }
+      const startBody = (await startRes.json()) as {
+        authorizeUrl?: string
+        error?: string
+        sid?: string
+      }
       if (!startRes.ok || !startBody.authorizeUrl) {
         throw new Error(startBody.error || 'X sign-in did not start.')
       }
-      savePendingRegistration(isPayoutWallet(pubkey) ? pubkey : '')
+      savePendingRegistration(isPayoutWallet(pubkey) ? pubkey : '', Date.now(), {
+        sid: startBody.sid,
+      })
+      clearStuckXOauth()
+      setStuckOauth(null)
       setAwaitingX(true)
       window.location.assign(startBody.authorizeUrl)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed.')
       setBusy(false)
     }
-  }
+  }, [alreadyRegistered, evmWallet, ownHandle, referralCode, wallet])
+
+  onRegisterRef.current = onRegister
+
+  const onStartOver = useCallback(() => {
+    clearPendingRegistration()
+    setAwaitingX(false)
+    setError(null)
+    void onRegister()
+  }, [onRegister])
+
+  useEffect(() => {
+    const xoauth = params.get('xoauth')
+    const err = params.get('error')
+    if (!isRecoverableXOauthError(err, xoauth)) return
+    if (recoverOnceRef.current) return
+    recoverOnceRef.current = true
+    const next = new URLSearchParams(params)
+    next.delete('error')
+    next.delete('xoauth')
+    setSearchParams(next, { replace: true })
+    const kind: 'used' | 'expired' =
+      xoauth === 'expired' || /expired/i.test(err || '') ? 'expired' : 'used'
+    saveStuckXOauth(kind)
+    setStuckOauth(kind)
+    setError(stuckXOauthMessage(kind))
+    void (async () => {
+      const found = await onCheck({ silent: true })
+      if (found) return
+      clearPendingRegistration()
+      setAwaitingX(false)
+      if (takeXOauthAutoRestart()) {
+        setError('Starting a fresh X sign-in…')
+        await onRegisterRef.current()
+        return
+      }
+      setError(stuckXOauthMessage(kind))
+    })()
+  }, [onCheck, params, setSearchParams])
 
   const onTelegramAuth = useCallback(
     async (user: TelegramWidgetAuth) => {
@@ -486,9 +577,17 @@ export function KolRegisterPage() {
           ) : (
           <div className="register-card">
             <ol className="register-steps">
-              <li className={awaitingX || deskHandle ? 'is-done' : ''}>
+              <li className={awaitingX || deskHandle ? 'is-done' : stuckOauth ? 'is-stuck' : ''}>
                 <strong>1. X</strong>
-                <span>{xOauth === false ? 'Waiting on X app credentials' : awaitingX ? 'Waiting…' : 'Primary'}</span>
+                <span>
+                  {xOauth === false
+                    ? 'Waiting on X app credentials'
+                    : stuckOauth
+                      ? 'Start over'
+                      : awaitingX
+                        ? 'Waiting…'
+                        : 'Primary'}
+                </span>
               </li>
               <li>
                 <strong>2. Telegram</strong>
@@ -541,7 +640,13 @@ export function KolRegisterPage() {
               </label>
             </details>
 
-            {awaitingX && !deskHandle ? (
+            {stuckOauth && !deskHandle ? (
+              <p className="hint register-check-hint">
+                {stuckOauth === 'expired'
+                  ? 'That X sign-in expired. Start over for a fresh one — the previous link cannot be reused.'
+                  : 'That X sign-in was already used. If you finished in Safari or the X app, tap Check. Otherwise Start over.'}
+              </p>
+            ) : awaitingX && !deskHandle ? (
               <p className="hint register-check-hint">{CHECK_HINT}</p>
             ) : null}
             {error ? <p className="register-err">{error}</p> : null}
@@ -561,14 +666,25 @@ export function KolRegisterPage() {
               </p>
             ) : null}
             <div className="register-actions register-actions-auth">
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                disabled={busy || xOauth === false}
-                onClick={() => void onRegister()}
-              >
-                {busy ? 'Waiting…' : 'Register with X'}
-              </button>
+              {stuckOauth ? (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  disabled={busy || xOauth === false}
+                  onClick={() => void onStartOver()}
+                >
+                  {busy ? 'Starting…' : 'Start over'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  disabled={busy || xOauth === false}
+                  onClick={() => void onRegister()}
+                >
+                  {busy ? 'Waiting…' : 'Register with X'}
+                </button>
+              )}
               <TelegramLogin
                 botUsername={telegramBot}
                 botId={telegramBotId}
@@ -584,7 +700,7 @@ export function KolRegisterPage() {
                   I already have a wallet
                 </button>
               ) : null}
-              {awaitingX ? (
+              {awaitingX || stuckOauth ? (
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm"
@@ -592,6 +708,16 @@ export function KolRegisterPage() {
                   onClick={() => void onCheck()}
                 >
                   {checkBusy ? 'Checking…' : 'Check'}
+                </button>
+              ) : null}
+              {awaitingX && !stuckOauth ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={busy || xOauth === false}
+                  onClick={() => void onStartOver()}
+                >
+                  Start over
                 </button>
               ) : null}
             </div>

@@ -3,6 +3,7 @@ import bs58 from 'bs58'
 import nacl from 'tweetnacl'
 import { describe, expect, it } from 'vitest'
 import {
+  classifyRegistrationProgress,
   codeChallengeS256,
   isDefaultXProfileImage,
   normalizeReferralCode,
@@ -71,6 +72,78 @@ describe('KOL registration wallet link', () => {
     expect(REFERRAL_POINTS_HIRE).toBe(250)
     expect(REFERRAL_POINTS_MIN_FOLLOWERS).toBe(50)
     expect(REFERRAL_POINTS_REGISTER_DAILY_CAP).toBe(10)
+  })
+})
+
+describe('registration progress classifier', () => {
+  const now = 1_800_000_000_000
+
+  it('returns unknown when the sid row is gone', () => {
+    expect(
+      classifyRegistrationProgress({
+        found: false,
+        consumed: false,
+        createdAtMs: now,
+        now,
+      }),
+    ).toEqual({ status: 'unknown' })
+  })
+
+  it('returns done from completed_username even with an empty wallet', () => {
+    expect(
+      classifyRegistrationProgress({
+        found: true,
+        consumed: true,
+        createdAtMs: now - 1_000,
+        completedUsername: '@Alice',
+        wallet: '',
+        now,
+      }),
+    ).toEqual({ status: 'done', handle: 'Alice' })
+  })
+
+  it('asks for a wallet lookup when consumed without a handle', () => {
+    const wallet = Keypair.generate().publicKey.toBase58()
+    expect(
+      classifyRegistrationProgress({
+        found: true,
+        consumed: true,
+        createdAtMs: now - 1_000,
+        wallet,
+        now,
+      }),
+    ).toEqual({ status: 'lookup_wallet', wallet })
+  })
+
+  it('returns used for a consumed X-only row with no handle yet', () => {
+    expect(
+      classifyRegistrationProgress({
+        found: true,
+        consumed: true,
+        createdAtMs: now - 1_000,
+        wallet: '',
+        now,
+      }),
+    ).toEqual({ status: 'used' })
+  })
+
+  it('returns expired or pending for an unused row', () => {
+    expect(
+      classifyRegistrationProgress({
+        found: true,
+        consumed: false,
+        createdAtMs: now - 11 * 60_000,
+        now,
+      }),
+    ).toEqual({ status: 'expired' })
+    expect(
+      classifyRegistrationProgress({
+        found: true,
+        consumed: false,
+        createdAtMs: now - 1_000,
+        now,
+      }),
+    ).toEqual({ status: 'pending' })
   })
 })
 

@@ -13,6 +13,28 @@ export function invalidateRegisteredHandle(wallet?: string | null): void {
   else cache.clear()
 }
 
+export type RegistrationProgress = {
+  status: 'pending' | 'done' | 'used' | 'expired' | 'unknown'
+  handle?: string
+}
+
+/** Cookie-less Check via the one-time OAuth sid (wallet in-app browsers). */
+export async function lookupRegistrationProgress(
+  sid: string,
+): Promise<RegistrationProgress | null> {
+  const clean = sid.trim().toLowerCase()
+  if (!/^[a-f0-9]{32}$/.test(clean)) return null
+  try {
+    const res = await fetch(`${API}/api/kols/register/progress?sid=${encodeURIComponent(clean)}`)
+    if (!res.ok) return null
+    const body = (await res.json()) as RegistrationProgress
+    if (!body?.status) return null
+    return body
+  } catch {
+    return null
+  }
+}
+
 /** Fresh lookup — busts cache. Used by the post-OAuth Check button. */
 export async function lookupRegisteredHandle(wallet: string): Promise<string | null> {
   const address = wallet.trim()

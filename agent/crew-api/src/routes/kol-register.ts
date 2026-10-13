@@ -7,6 +7,7 @@ import { getKolReferralStats } from '../lib/agent-referral.js'
 import {
   beginXAuth,
   completeXCallback,
+  getRegistrationProgress,
   getClaimPitch,
   getKolProfile,
   getKolProfileByWallet,
@@ -23,6 +24,7 @@ import {
   siteUrl,
   xOAuthConfigured,
 } from '../lib/kol-register.js'
+import { xOauthErrorFlag } from '../lib/kol-oauth-state.js'
 import { issueKolSessionToken, kolSessionCookieHeader, readKolSessionCookie } from '../lib/kol-session.js'
 import { privyAppIdFromEnv, verifyPrivyPayoutWallet } from '../lib/privy.js'
 import {
@@ -428,11 +430,36 @@ kolRegisterRouter.post('/kols/register/start', async (req, res) => {
       authorizeUrl: out.authorizeUrl,
       expiresAt: out.expiresAt,
       wallet: out.wallet,
+      sid: out.sid,
     })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'start failed'
     const status = /not configured/i.test(msg) ? 503 : 400
     res.status(status).json({ ok: false, error: msg })
+  }
+})
+
+function registerErrorRedirect(site: string, msg: string): string {
+  const q = new URLSearchParams({ error: msg.slice(0, 180) })
+  const flag = xOauthErrorFlag(msg)
+  if (flag) q.set('xoauth', flag)
+  return `${site}/register?${q.toString()}`
+}
+
+kolRegisterRouter.get('/kols/register/progress', async (req, res) => {
+  try {
+    const ip = clientIp(req)
+    const gate = takeRateLimit(`kolreg:progress:${ip}`, { limit: 40, windowMs: 60_000 })
+    if (!gate.ok) {
+      res.setHeader('Retry-After', String(gate.retryAfterSec))
+      res.status(429).json({ ok: false, error: 'Slow down and retry.' })
+      return
+    }
+    const sid = typeof req.query.sid === 'string' ? req.query.sid : ''
+    const out = await getRegistrationProgress(sid)
+    res.json({ ok: true, ...out })
+  } catch (err) {
+    sendInternalError(res, err, 'kol-register-progress')
   }
 })
 
@@ -442,11 +469,11 @@ kolRegisterRouter.get('/kols/register/callback', async (req, res) => {
   const state = typeof req.query.state === 'string' ? req.query.state : ''
   const oauthError = typeof req.query.error === 'string' ? req.query.error : ''
   if (oauthError) {
-    res.redirect(`${site}/register?error=${encodeURIComponent(oauthError)}`)
+    res.redirect(registerErrorRedirect(site, oauthError))
     return
   }
   if (!code || !state) {
-    res.redirect(`${site}/register?error=${encodeURIComponent('Missing X authorization code')}`)
+    res.redirect(registerErrorRedirect(site, 'Missing X authorization code'))
     return
   }
   try {
@@ -469,6 +496,6 @@ kolRegisterRouter.get('/kols/register/callback', async (req, res) => {
     )
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Registration failed'
-    res.redirect(`${site}/register?error=${encodeURIComponent(msg.slice(0, 180))}`)
+    res.redirect(registerErrorRedirect(site, msg))
   }
 })
