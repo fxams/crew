@@ -40,6 +40,15 @@ export function telegramWidgetScriptSrc(): string {
   return 'https://telegram.org/js/telegram-widget.js?22'
 }
 
+/** Official iframe only on real desktop browsers — never mobile / in-app WebViews. */
+export function allowTelegramWidgetIframe(ua?: string | null): boolean {
+  const s = String(ua || '')
+  if (!s) return false
+  if (/Android|iPhone|iPad|iPod|Mobile/i.test(s)) return false
+  if (/Phantom|Solflare|Backpack|WebView|Instagram|FBAN|FBAV/i.test(s)) return false
+  return true
+}
+
 export function isTelegramWidgetAuth(value: unknown): value is TelegramWidgetAuth {
   if (!value || typeof value !== 'object') return false
   const v = value as Record<string, unknown>
@@ -85,6 +94,33 @@ export function telegramAuthFromSearchParams(
   return isTelegramWidgetAuth(raw) ? raw : null
 }
 
+function telegramAuthFromUnknown(value: unknown): TelegramWidgetAuth | null {
+  if (!isTelegramWidgetAuth(value)) return null
+  return {
+    ...value,
+    id: Number(value.id),
+    auth_date: Number(value.auth_date),
+  }
+}
+
+function telegramAuthFromPacked(packed: string): TelegramWidgetAuth | null {
+  const tries = [packed]
+  try {
+    tries.push(decodeURIComponent(packed))
+  } catch {
+    /* already decoded */
+  }
+  for (const text of tries) {
+    try {
+      const parsed = telegramAuthFromUnknown(JSON.parse(text) as unknown)
+      if (parsed) return parsed
+    } catch {
+      /* next */
+    }
+  }
+  return null
+}
+
 /** Query params or `#tgAuthResult=` / hash query — oauth.telegram.org return shapes. */
 export function telegramAuthFromLocation(
   params: URLSearchParams | { get(name: string): string | null },
@@ -94,21 +130,12 @@ export function telegramAuthFromLocation(
   if (fromQuery) return fromQuery
   const raw = String(hash || '').replace(/^#/, '')
   if (!raw) return null
+  if (raw.startsWith('{')) return telegramAuthFromPacked(raw)
   const hashParams = new URLSearchParams(raw)
   const packed = hashParams.get('tgAuthResult')
   if (packed) {
-    try {
-      const parsed = JSON.parse(decodeURIComponent(packed)) as unknown
-      if (isTelegramWidgetAuth(parsed)) {
-        return {
-          ...parsed,
-          id: Number(parsed.id),
-          auth_date: Number(parsed.auth_date),
-        }
-      }
-    } catch {
-      /* ignore */
-    }
+    const fromPacked = telegramAuthFromPacked(packed)
+    if (fromPacked) return fromPacked
   }
   return telegramAuthFromSearchParams(hashParams)
 }

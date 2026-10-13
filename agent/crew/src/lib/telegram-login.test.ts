@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   TELEGRAM_BOT_USERNAME,
+  allowTelegramWidgetIframe,
   isTelegramWidgetAuth,
   stripTelegramAuthParams,
   telegramAuthFromLocation,
@@ -56,6 +57,21 @@ describe('Telegram login widget payload', () => {
     )
     expect(fromHash?.id).toBe(9)
     expect(fromHash?.first_name).toBe('Ada')
+    const rawJson = telegramAuthFromLocation(
+      new URLSearchParams(),
+      '#{"id":8,"first_name":"Ada","auth_date":1700000000,"hash":"deadbeef"}',
+    )
+    expect(rawJson?.id).toBe(8)
+  })
+
+  it('keeps the official widget iframe off mobile and in-app browsers', () => {
+    expect(allowTelegramWidgetIframe('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)')).toBe(false)
+    expect(allowTelegramWidgetIframe('Mozilla/5.0 (Linux; Android 14) Phantom')).toBe(false)
+    expect(
+      allowTelegramWidgetIframe(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/129.0.0.0',
+      ),
+    ).toBe(true)
   })
 
   it('allows Telegram widget script + oauth iframe in CSP', () => {
@@ -74,10 +90,14 @@ describe('Telegram login widget payload', () => {
     expect(login).toContain('Continue with Telegram')
     expect(login).toContain('telegramOauthUrl')
     expect(login).toContain('data-testid="telegram-continue"')
-    expect(login).not.toContain('telegramWidgetScriptSrc')
+    expect(login).toContain('allowTelegramWidgetIframe')
     expect(page).toContain('<TelegramLogin')
     expect(page).toContain('label="Continue with Telegram"')
     expect(page).not.toMatch(/telegramLogin\s*&&\s*\(?\s*<TelegramLogin/)
     expect(css).toContain('.telegram-continue-btn')
+    expect(css).toMatch(/\.desk-telegram-card[\s\S]*grid-column:\s*1\s*\/\s*-1/)
+    const desk = readFileSync(join(here, '../components/TelegramDeskCard.tsx'), 'utf8')
+    expect(desk).toContain('Connect Telegram')
+    expect(desk).toContain('desk-telegram-channel')
   })
 })

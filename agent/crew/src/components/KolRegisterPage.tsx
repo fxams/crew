@@ -560,7 +560,7 @@ export function KolRegisterPage() {
                 {' '}to connect and sign.
               </p>
             ) : null}
-            <div className="register-actions">
+            <div className="register-actions register-actions-auth">
               <button
                 type="button"
                 className="btn btn-primary btn-sm"
@@ -575,7 +575,7 @@ export function KolRegisterPage() {
                 label="Continue with Telegram"
                 returnTo={
                   typeof window === 'undefined'
-                    ? undefined
+                    ? 'https://crewpay.dev/register'
                     : `${window.location.origin}/register${referralCode.length >= 2 ? `?ref=${encodeURIComponent(referralCode)}` : ''}`
                 }
               />
@@ -596,8 +596,8 @@ export function KolRegisterPage() {
               ) : null}
             </div>
             <p className="hint register-telegram-label">
-              X stays primary. Continue with Telegram opens oauth.telegram.org — the fallback when
-              the widget iframe is blocked (mobile / wallet browsers).
+              X stays primary. Continue with Telegram opens oauth.telegram.org — no widget iframe
+              required on mobile or wallet browsers.
             </p>
             {privyAppId && !connected ? (
               <p className="hint social-wallet-note">{SOCIAL_WALLET_NOTE}</p>

@@ -140,10 +140,10 @@ export function TelegramDeskCard({
   return (
     <div className="desk-telegram-card" data-testid="telegram-desk">
       <p className="section-label">Telegram</p>
-      <p className="desk-pnl-sub">
+      <p className="desk-telegram-lead">
         {telegramOnly
           ? 'Telegram-only desk — ranked lower until you verify on X or a channel you own.'
-          : 'Optional. X stays primary. Job/hire DMs are opt-in after /start.'}
+          : 'Link Telegram for optional job alerts. X stays primary.'}
       </p>
       {telegramUsername ? (
         <p className="hint">
@@ -153,7 +153,7 @@ export function TelegramDeskCard({
         </p>
       ) : telegramLogin ? (
         <TelegramLogin
-          label="Continue with Telegram"
+          label="Connect Telegram"
           returnTo={
             typeof window === 'undefined'
               ? undefined
@@ -162,7 +162,7 @@ export function TelegramDeskCard({
         />
       ) : null}
       {telegramUsername ? (
-        <div className="register-actions">
+        <div className="desk-telegram-actions">
           <a className="btn btn-ghost btn-sm" href={deepLink || TELEGRAM_BOT_URL} target="_blank" rel="noreferrer">
             Open @{TELEGRAM_BOT_USERNAME}
           </a>
@@ -177,7 +177,7 @@ export function TelegramDeskCard({
           )}
         </div>
       ) : null}
-      <label className="register-ref">
+      <label className="register-ref desk-telegram-channel">
         <span>Channel / group (optional)</span>
         <input
           type="text"
@@ -188,16 +188,18 @@ export function TelegramDeskCard({
           spellCheck={false}
           maxLength={40}
         />
-        <em>Post a one-time code. Member count is stored as reach — not used for rank.</em>
       </label>
-      <div className="register-actions">
+      <div className="desk-telegram-channel-actions">
         <button type="button" className="btn btn-ghost btn-sm" disabled={busy === 'channel'} onClick={() => void onChannelStart()}>
           {busy === 'channel' ? '…' : 'Get code'}
         </button>
-        <button type="button" className="btn btn-ghost btn-sm" disabled={busy === 'verify'} onClick={() => void onChannelVerify()}>
+        <button type="button" className="btn btn-primary btn-sm" disabled={busy === 'verify'} onClick={() => void onChannelVerify()}>
           {busy === 'verify' ? '…' : 'Verify'}
         </button>
       </div>
+      <p className="hint desk-telegram-help">
+        Post a one-time code. Member count is stored as reach — not used for rank.
+      </p>
       {phrase ? <p className="register-invite-chip">Post {phrase} in the channel</p> : null}
       {tgChannel ? (
         <p className="hint">
