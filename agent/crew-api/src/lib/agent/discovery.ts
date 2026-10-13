@@ -1766,6 +1766,7 @@ export function robotsTxt(): string {
   return `# CREW — allow AI crawlers to read agent discovery docs
 User-agent: *
 Allow: /
+Disallow: /admin/
 
 # Explicit allow for major AI crawlers / frontier LLM bots
 User-agent: GPTBot
