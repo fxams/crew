@@ -68,7 +68,8 @@ function scanFile(path) {
   const problems = []
   const allowDocExamples =
     base === 'openapi.json' || base.startsWith('llms') || base === 'AGENTS.md'
-  if (text.includes('crew_ak_') && !allowDocExamples) {
+  // Flag real-looking keys only. Public copy uses crew_ak_… / crew_ak_...
+  if (/crew_ak_[0-9A-Za-z]{6,}/.test(text) && !allowDocExamples) {
     problems.push("contains 'crew_ak_'")
   }
   const nearApiKeyHex = /x-crew-api-key[^]{0,120}([0-9a-fA-F]{40,})|([0-9a-fA-F]{40,})[^]{0,120}x-crew-api-key/gs
