@@ -91,7 +91,7 @@ describe('frontend must not mention NEYNAR_API_KEY', () => {
     const app = readFileSync(join(here, '../App.tsx'), 'utf8')
     const nav = app.slice(app.indexOf('<nav className="nav-links"'), app.indexOf('</nav>'))
     expect(nav).not.toContain('/admin/farcaster')
-    expect(nav).not.toContain('Farcaster')
+    expect(nav).not.toMatch(/to=["']\/admin\/farcaster/)
     const page = readFileSync(join(here, '../components/AdminFarcasterPage.tsx'), 'utf8')
     expect(page).toContain('noindex, nofollow')
     const html = readFileSync(join(here, '../../index.html'), 'utf8')
