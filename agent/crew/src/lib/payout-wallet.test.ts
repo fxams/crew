@@ -23,9 +23,14 @@ describe('payout wallet guard', () => {
 
 describe('Privy app id', () => {
   it('hides Privy UI when no env or API id is set', () => {
-    expect(vitePrivyAppId()).toBe('')
-    expect(resolvePrivyAppId('')).toBe('')
-    expect(resolvePrivyAppId('dashboard-app')).toBe('dashboard-app')
+    expect(vitePrivyAppId({})).toBe('')
+    expect(resolvePrivyAppId('', {})).toBe('')
+    expect(resolvePrivyAppId('dashboard-app', {})).toBe('dashboard-app')
+  })
+
+  it('reads VITE_PRIVY_APP_ID when Render sets it', () => {
+    expect(vitePrivyAppId({ VITE_PRIVY_APP_ID: ' clappid ' })).toBe('clappid')
+    expect(resolvePrivyAppId('', { VITE_PRIVY_APP_ID: 'clappid' })).toBe('clappid')
   })
 })
 
