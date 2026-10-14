@@ -1,6 +1,7 @@
 import { jobsPlatformFeeBps, jobsPlatformFeeWallet } from './config.js'
 import { railFor } from './settlement.js'
 import { memoryJobs } from './store.js'
+import { recordVerifiedJobCompletion } from '../kol-reputation.js'
 import { runTaskAutoChecks } from './task-checks.js'
 import {
   clampBigint,
@@ -71,6 +72,10 @@ export async function processAutoReleases(job: Job, opts?: { from?: string }) {
     sub.paidAmount = kolAmount
     sub.verifiedAt = sub.verifiedAt || now
     memoryJobs.setSubmission(sub)
+    recordVerifiedJobCompletion({
+      wallet: claim.kolWallet,
+      onTime: sub.verifiedAt <= job.deadline,
+    })
     job.budget = job.budget - amount
     out.push({
       claimId: claim.id,

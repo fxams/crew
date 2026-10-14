@@ -60,6 +60,14 @@ export type TaskAutoChecks = {
   fileExtensions?: string[]
   minFiles?: number
   maxFiles?: number
+  /** Promo delivery: post must be submitted within N hours of launchAtMs. */
+  postedWithinHours?: number
+  /** Promo delivery: re-check URL reachability after N hours (mock-friendly). */
+  stillLiveAfterHours?: number
+  /** Minimum engagement score (likes+replies+retweets) when provided in proof text. */
+  minEngagement?: number
+  /** Launch timestamp (ms) for postedWithinHours window. */
+  launchAtMs?: number
 }
 
 export type CampaignRules = {

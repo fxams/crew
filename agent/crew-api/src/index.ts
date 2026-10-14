@@ -15,6 +15,7 @@ import { webhooksRouter } from './routes/webhooks.js'
 import { jobsRouter } from './routes/jobs.js'
 import { tasksRouter } from './routes/tasks.js'
 import { postLaunchRouter } from './routes/post-launch.js'
+import { crewPayoutsRouter } from './routes/crew-payouts.js'
 import { farcasterRouter } from './routes/farcaster.js'
 import { maybeStartAcpInProcess } from './lib/acp-inprocess.js'
 import { configureTrustProxy } from './lib/client-ip.js'
@@ -67,6 +68,7 @@ async function main() {
   app.use(discoveryRouter)
   app.use('/api', healthRouter)
   app.use('/api', postLaunchRouter)
+  app.use('/api', crewPayoutsRouter)
   app.use('/api', farcasterRouter)
   app.use('/api', coinsRouter)
   app.use('/api', kolsRouter)
