@@ -14,9 +14,40 @@ import {
   telegramGetChat,
   telegramGetChatMemberCount,
   telegramSyntheticXUserId,
+  type TelegramInlineKeyboard,
   type TelegramWidgetUser,
 } from './telegram.js'
+import { normalizeRegisterSrc, TELEGRAM_REGISTER_KOL_URL } from './register-src.js'
 import { referralCodeFromUsername } from './kol-register.js'
+
+export { TELEGRAM_REGISTER_KOL_URL }
+
+export function registerKolInlineKeyboard(): TelegramInlineKeyboard {
+  return {
+    inline_keyboard: [[{ text: 'Register as KOL', url: TELEGRAM_REGISTER_KOL_URL }]],
+  }
+}
+
+export async function persistRegisterSrc(
+  xUserId: string,
+  raw: string | null | undefined,
+): Promise<void> {
+  const src = normalizeRegisterSrc(raw)
+  if (!src) return
+  const prev = await loadByXUserId(xUserId)
+  if (prev?.register_src) return
+  if (useDb()) {
+    await query(
+      `UPDATE kol_registrations
+       SET register_src = $2, updated_at = now()
+       WHERE x_user_id = $1 AND (register_src IS NULL OR register_src = '')`,
+      [xUserId, src],
+    )
+    return
+  }
+  const row = memRows.get(xUserId)
+  if (row && !row.register_src) row.register_src = src
+}
 import { isPayoutWallet } from './agent/shareholders.js'
 
 const START_TTL_MS = 30 * 60_000
@@ -338,6 +369,7 @@ export async function upsertTelegramKol(opts: {
   widget: TelegramWidgetUser
   linkXUserId?: string
   referralCode?: string
+  registerSrc?: string
 }): Promise<{
   xUserId: string
   username: string
@@ -354,6 +386,7 @@ export async function upsertTelegramKol(opts: {
       telegramUserId: tgId,
       telegramUsername: opts.widget.username || '',
     })
+    await persistRegisterSrc(opts.linkXUserId, opts.registerSrc)
     const linked = await loadByXUserId(opts.linkXUserId)
     return {
       xUserId: opts.linkXUserId,
@@ -367,6 +400,7 @@ export async function upsertTelegramKol(opts: {
       telegramUserId: tgId,
       telegramUsername: opts.widget.username || String(existingTg.telegram_username || ''),
     })
+    await persistRegisterSrc(String(existingTg.x_user_id), opts.registerSrc)
     return {
       xUserId: String(existingTg.x_user_id),
       username: String(existingTg.x_username),
@@ -380,6 +414,7 @@ export async function upsertTelegramKol(opts: {
   if (await usernameTaken(handle)) handle = telegramDeskHandle(undefined, tgId)
   const name = [opts.widget.first_name, opts.widget.last_name].filter(Boolean).join(' ').trim() || handle
   const referredBy = (opts.referralCode || '').trim().toLowerCase() || null
+  const registerSrc = normalizeRegisterSrc(opts.registerSrc)
   const row = {
     x_user_id: xUserId,
     x_username: handle,
@@ -391,6 +426,7 @@ export async function upsertTelegramKol(opts: {
     telegram_alerts: false,
     referral_code: referralCodeFromUsername(handle),
     referred_by_code: referredBy,
+    register_src: registerSrc,
     wallet: '',
     registered_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -401,13 +437,23 @@ export async function upsertTelegramKol(opts: {
       `INSERT INTO kol_registrations (
          x_user_id, x_username, x_name, x_verified, followers, wallet,
          referral_code, referred_by_code, telegram_user_id, telegram_username,
-         register_ip
-       ) VALUES ($1,$2,$3,false,0,'',$4,$5,$6,$7,null)
+         register_ip, register_src
+       ) VALUES ($1,$2,$3,false,0,'',$4,$5,$6,$7,null,$8)
        ON CONFLICT (x_user_id) DO UPDATE SET
          telegram_user_id = EXCLUDED.telegram_user_id,
          telegram_username = EXCLUDED.telegram_username,
+         register_src = COALESCE(kol_registrations.register_src, EXCLUDED.register_src),
          updated_at = now()`,
-      [xUserId, handle, name, row.referral_code, referredBy, tgId, opts.widget.username || ''],
+      [
+        xUserId,
+        handle,
+        name,
+        row.referral_code,
+        referredBy,
+        tgId,
+        opts.widget.username || '',
+        registerSrc,
+      ],
     )
   }
   return { xUserId, username: handle, created: true, telegramOnly: true }

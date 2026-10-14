@@ -140,7 +140,15 @@ export async function telegramApi(
   return json.result
 }
 
-export async function sendTelegramDm(chatId: string | number, text: string): Promise<boolean> {
+export type TelegramInlineKeyboard = {
+  inline_keyboard: Array<Array<{ text: string; url: string }>>
+}
+
+export async function sendTelegramDm(
+  chatId: string | number,
+  text: string,
+  opts?: { replyMarkup?: TelegramInlineKeyboard },
+): Promise<boolean> {
   const trimmed = text.trim().slice(0, 3500)
   if (!trimmed) return false
   try {
@@ -148,6 +156,7 @@ export async function sendTelegramDm(chatId: string | number, text: string): Pro
       chat_id: chatId,
       text: trimmed,
       disable_web_page_preview: true,
+      ...(opts?.replyMarkup ? { reply_markup: opts.replyMarkup } : {}),
     })
     return true
   } catch {

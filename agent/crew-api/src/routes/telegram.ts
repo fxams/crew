@@ -20,12 +20,14 @@ import {
   handleTelegramStop,
   issueTelegramStartCode,
   jobsHelpText,
+  registerKolInlineKeyboard,
   rememberChannelPost,
   startChannelVerify,
   upsertTelegramKol,
   verifyChannelOwnership,
   applyTelegramLink,
 } from '../lib/telegram-kol.js'
+import { normalizeRegisterSrc } from '../lib/register-src.js'
 
 export const telegramRouter = Router()
 
@@ -61,10 +63,14 @@ telegramRouter.post('/kols/telegram/login', async (req, res) => {
       }
     })()
     const referral = String((req.body as { referralCode?: string }).referralCode || '').trim()
+    const registerSrc = normalizeRegisterSrc(
+      String((req.body as { registerSrc?: string }).registerSrc || ''),
+    )
     const result = await upsertTelegramKol({
       widget,
       linkXUserId: session?.u,
       referralCode: referral,
+      registerSrc: registerSrc || undefined,
     })
     let token: string | null = null
     try {
@@ -234,6 +240,7 @@ telegramRouter.post('/telegram/webhook', async (req, res) => {
       return
     }
     let reply = 'CrewPay: /start · /stop · /jobs'
+    let startKeyboard = false
     if (/^\/start(?:@\w+)?(?:\s|$)/i.test(text)) {
       const payload = text.replace(/^\/start(?:@\w+)?\s*/i, '').trim()
       reply = await handleTelegramStart({
@@ -242,12 +249,17 @@ telegramRouter.post('/telegram/webhook', async (req, res) => {
         username: update.message?.from?.username,
         payload,
       })
+      startKeyboard = true
     } else if (/^\/stop\b/i.test(text)) {
       reply = await handleTelegramStop(String(fromId))
     } else if (/^\/jobs\b/i.test(text)) {
       reply = jobsHelpText()
     }
-    await sendTelegramDm(chatId, reply)
+    await sendTelegramDm(
+      chatId,
+      reply,
+      startKeyboard ? { replyMarkup: registerKolInlineKeyboard() } : undefined,
+    )
     res.json({ ok: true })
   } catch (err) {
     sendInternalError(res, err, 'telegram-webhook')
