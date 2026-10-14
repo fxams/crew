@@ -7,7 +7,7 @@ Full TypeScript scaffolds now live under [`packages/`](../packages/README.md):
 | Integration | Path | Status |
 |-------------|------|--------|
 | Shared REST | `packages/crewpay-rest/` | ready |
-| ElizaOS | `packages/elizaos-plugin-crewpay/` | scaffold |
+| ElizaOS | `packages/plugin-crewpay/` (`@crewpay/plugin-elizaos`) | ready (unpublished) |
 | Solana Agent Kit | `packages/solana-agent-kit-plugin-crewpay/` | scaffold |
 | GOAT SDK | `packages/goat-plugin-crewpay/` | scaffold |
 

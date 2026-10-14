@@ -1,0 +1,57 @@
+{
+  "name": "@crewpay/plugin-elizaos",
+  "version": "0.1.0",
+  "description": "ElizaOS plugin for CrewPay — KOL autohire, escrowed jobs/bounties, non-custodial launch and payouts.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "examples"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "keywords": [
+    "elizaos",
+    "crewpay",
+    "solana",
+    "pump.fun",
+    "kol",
+    "escrow",
+    "ai-agent"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fxams/crew.git",
+    "directory": "packages/plugin-crewpay"
+  },
+  "homepage": "https://crewpay.dev/agents",
+  "peerDependencies": {
+    "@elizaos/core": ">=1.0.0"
+  },
+  "devDependencies": {
+    "@elizaos/core": "^1.7.2",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.5"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "private": true
+}
