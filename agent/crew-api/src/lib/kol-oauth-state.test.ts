@@ -43,6 +43,7 @@ function row(over: Partial<StoredOAuthState> = {}): StoredOAuthState {
     sigSha256: SIG_SHA,
     referralCode: 'alice',
     evmWallet: '0x1111111111111111111111111111111111111111',
+    registerSrc: null,
     cookieSha256: cookieSha256('cookie-one'),
     ip: '1.1.1.1',
     createdAtMs: Date.now() - 1_000,

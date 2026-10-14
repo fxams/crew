@@ -48,7 +48,10 @@ import {
   stripTelegramAuthParams,
   telegramAuthFromLocation,
   type TelegramWidgetAuth,
+  telegramOauthUrl,
 } from '../lib/telegram-login'
+import { JoinTelegramBox } from './JoinTelegramBox'
+import { normalizeRegisterSrc, registerPageQuery } from '../lib/register-attribution'
 
 const MCP_PIN = '1.2.6'
 
@@ -290,6 +293,17 @@ export function KolRegisterPage() {
   const deskHandle = registeredHandle || ownHandle
   const alreadyRegistered = Boolean(ownHandle || registeredHandle)
   const referralCode = normalizeRef(refInput)
+  const registerSrc = normalizeRegisterSrc(params.get('src'))
+  const autoTgLogin = params.get('tg') === '1'
+  const tgAutoStarted = useRef(false)
+  const registerReturnTo =
+    typeof window === 'undefined'
+      ? 'https://crewpay.dev/register'
+      : `${window.location.origin}/register${registerPageQuery({
+          ref: referralCode,
+          src: registerSrc,
+          tg: autoTgLogin,
+        })}`
   const showAgentSnippets = !alreadyRegistered && referralCode.length >= 2
   const optionalsFilled = referralCode.length >= 2 || Boolean(evmWallet.trim())
 
@@ -481,6 +495,7 @@ export function KolRegisterPage() {
       const startBodyPayload: Record<string, string> = {
         ...(referralCode.length >= 2 ? { referralCode } : {}),
         ...(evmWallet.trim() ? { evmWallet: evmWallet.trim() } : {}),
+        ...(registerSrc.length >= 2 ? { registerSrc } : {}),
       }
       if (isPayoutWallet(pubkey) && canSign) {
         const nonceRes = await fetch(`${API}/api/kols/register/nonce`, {
@@ -524,7 +539,7 @@ export function KolRegisterPage() {
       setBusy(false)
       registerInFlightRef.current = false
     }
-  }, [alreadyRegistered, busy, evmWallet, ownHandle, referralCode, wallet])
+  }, [alreadyRegistered, busy, evmWallet, ownHandle, referralCode, registerSrc, wallet])
 
   onRegisterRef.current = onRegister
 
@@ -568,12 +583,17 @@ export function KolRegisterPage() {
     async (user: TelegramWidgetAuth) => {
       setError(null)
       setBusy(true)
+      const fromTgBot = autoTgLogin || registerSrc === 'tg_bot'
       try {
         const res = await fetch(`${API}/api/kols/telegram/login`, {
           method: 'POST',
           credentials: 'include',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ ...user, referralCode: refInput }),
+          body: JSON.stringify({
+            ...user,
+            referralCode: refInput,
+            ...(registerSrc.length >= 2 ? { registerSrc } : {}),
+          }),
         })
         const body = (await res.json()) as {
           ok?: boolean
@@ -582,13 +602,34 @@ export function KolRegisterPage() {
           deskPath?: string
         }
         if (!res.ok || !body.handle) throw new Error(body.error || 'Telegram login failed.')
+        if (fromTgBot) {
+          try {
+            await fetch(`${API}/api/kols/telegram/alerts`, {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ enabled: true }),
+            })
+            const startRes = await fetch(`${API}/api/kols/telegram/start-code`, {
+              method: 'POST',
+              credentials: 'include',
+            })
+            const startBody = (await startRes.json()) as { deepLink?: string }
+            if (startRes.ok && startBody.deepLink) {
+              window.location.assign(startBody.deepLink)
+              return
+            }
+          } catch {
+            /* fall through to desk */
+          }
+        }
         navigate(body.deskPath || `/kol/${body.handle}?registered=1&from=tg`)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Telegram login failed.')
         setBusy(false)
       }
     },
-    [navigate, refInput],
+    [autoTgLogin, navigate, refInput, registerSrc],
   )
 
   const telegramReturnStarted = useRef(false)
@@ -607,6 +648,29 @@ export function KolRegisterPage() {
     }
     void onTelegramAuth(auth)
   }, [onTelegramAuth, params, setSearchParams])
+
+  useEffect(() => {
+    if (!autoTgLogin || alreadyRegistered || busy || telegramReturnStarted.current) return
+    if (tgAutoStarted.current) return
+    if (!telegramBotId || telegramBotId <= 0) return
+    if (telegramAuthFromLocation(params, typeof window === 'undefined' ? '' : window.location.hash)) {
+      return
+    }
+    tgAutoStarted.current = true
+    const href = telegramOauthUrl({
+      botId: telegramBotId,
+      origin: window.location.origin,
+      returnTo: registerReturnTo,
+    })
+    window.location.assign(href)
+  }, [
+    alreadyRegistered,
+    autoTgLogin,
+    busy,
+    params,
+    registerReturnTo,
+    telegramBotId,
+  ])
 
   const connected = isPayoutWallet(connectedWallet)
 
@@ -639,6 +703,8 @@ export function KolRegisterPage() {
             </>
           )}
         </div>
+
+        <JoinTelegramBox />
 
         <div className="register-fold">
           {alreadyRegistered && deskHandle ? (
@@ -775,11 +841,7 @@ export function KolRegisterPage() {
                 botUsername={telegramBot}
                 botId={telegramBotId}
                 label="Continue with Telegram"
-                returnTo={
-                  typeof window === 'undefined'
-                    ? 'https://crewpay.dev/register'
-                    : `${window.location.origin}/register${referralCode.length >= 2 ? `?ref=${encodeURIComponent(referralCode)}` : ''}`
-                }
+                returnTo={registerReturnTo}
               />
               {!connected ? (
                 <button
