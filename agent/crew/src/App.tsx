@@ -1403,7 +1403,7 @@ export default function App() {
       isCoinsPage ||
       isTasksPage ||
       isAdminKickoffPage ||
-      isAdminFarcasterPage,
+      isAdminFarcasterPage ||
       isAdminOpsPage,
     deskOrClaim: isKolProfilePage || isClaimPage,
     onLaunchPage: isLaunchPage,
