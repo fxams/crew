@@ -63,6 +63,8 @@ export type RegistrationClaims = {
   r?: string
   /** Optional EVM / Base payout address. */
   e?: string
+  /** Optional signup attribution tag (e.g. tg_bot). */
+  s?: string
   /** Unix seconds expiry. */
   exp: number
 }
@@ -74,6 +76,7 @@ export type StoredOAuthState = {
   sigSha256: string | null
   referralCode: string | null
   evmWallet: string | null
+  registerSrc: string | null
   cookieSha256: string | null
   ip: string | null
   createdAtMs: number
@@ -195,6 +198,7 @@ export function verifyRegistrationOAuthState(
   }
   if (typeof c.r === 'string' && c.r.trim()) claims.r = c.r.trim()
   if (typeof c.e === 'string' && c.e.trim()) claims.e = c.e.trim()
+  if (typeof c.s === 'string' && c.s.trim()) claims.s = c.s.trim().slice(0, 32)
   return { ok: true, claims }
 }
 

@@ -11,6 +11,7 @@ import { KOL_DB } from './agent/narrative.js'
 import { assertEvmAddress, isEvmAddress } from './agent/evm-address.js'
 import { isPayoutWallet } from './agent/shareholders.js'
 import { query } from './db.js'
+import { normalizeRegisterSrc } from './register-src.js'
 import { verifyWalletSignature } from './wallet-auth.js'
 import {
   REGISTRATION_OAUTH_TTL_MS,
@@ -311,6 +312,8 @@ export async function beginXAuth(opts: {
   ip?: string
   /** Optional CSRF cookie; hashed into the state row as a fallback only. */
   regCookie?: string
+  /** Signup attribution tag (e.g. tg_bot). */
+  registerSrc?: string
 }): Promise<{ authorizeUrl: string; state: string; sid: string; wallet: string; expiresAt: number }> {
   if (!xOAuthConfigured()) {
     throw new Error('X sign-in is not configured. Set X_CLIENT_ID and X_CLIENT_SECRET on crewpay-api.')
@@ -376,6 +379,7 @@ export async function beginXAuth(opts: {
   const ip = (opts.ip || '').trim().slice(0, 64) || null
   const cookieSha = opts.regCookie ? cookieSha256(opts.regCookie) : null
   const sigSha = hasWallet ? sha256Hex(signature) : sha256Hex(`x-only:${sid}`)
+  const registerSrc = normalizeRegisterSrc(opts.registerSrc)
   const exp = Math.floor(Date.now() / 1000) + REGISTRATION_OAUTH_TTL_SEC
   const state = signRegistrationOAuthState(
     {
@@ -386,14 +390,25 @@ export async function beginXAuth(opts: {
       exp,
       ...(referralCode ? { r: referralCode } : {}),
       ...(evmWallet ? { e: evmWallet } : {}),
+      ...(registerSrc ? { s: registerSrc } : {}),
     },
     registrationStateSecret(),
   )
   await query(
     `INSERT INTO kol_oauth_states (
-       state, code_verifier, wallet, referral_code, cookie_sha256, ip, evm_wallet, signature_sha256
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-    [sid, codeVerifier, hasWallet ? wallet : '', referralCode, cookieSha, ip, evmWallet, sigSha],
+       state, code_verifier, wallet, referral_code, cookie_sha256, ip, evm_wallet, register_src, signature_sha256
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    [
+      sid,
+      codeVerifier,
+      hasWallet ? wallet : '',
+      referralCode,
+      cookieSha,
+      ip,
+      evmWallet,
+      registerSrc,
+      sigSha,
+    ],
   )
   return {
     authorizeUrl: buildXAuthorizeUrl({ state, codeVerifier }),
@@ -422,6 +437,7 @@ function mapOAuthRow(r: Record<string, unknown> | undefined): StoredOAuthState |
     sigSha256: r.signature_sha256 ? String(r.signature_sha256) : null,
     referralCode: r.referral_code ? String(r.referral_code) : null,
     evmWallet: r.evm_wallet ? String(r.evm_wallet) : null,
+    registerSrc: r.register_src ? String(r.register_src) : null,
     cookieSha256: r.cookie_sha256 ? String(r.cookie_sha256) : null,
     ip: r.ip ? String(r.ip) : null,
     createdAtMs: Number.isFinite(createdAtMs) ? createdAtMs : 0,
@@ -429,7 +445,7 @@ function mapOAuthRow(r: Record<string, unknown> | undefined): StoredOAuthState |
   }
 }
 
-const OAUTH_STATE_SELECT = `state, code_verifier, wallet, referral_code, cookie_sha256, ip, evm_wallet, signature_sha256, created_at, consumed_at`
+const OAUTH_STATE_SELECT = `state, code_verifier, wallet, referral_code, cookie_sha256, ip, evm_wallet, register_src, signature_sha256, created_at, consumed_at`
 
 async function loadOAuthStateBySid(sid: string): Promise<StoredOAuthState | null> {
   const { rows } = await query(`SELECT ${OAUTH_STATE_SELECT} FROM kol_oauth_states WHERE state = $1`, [
@@ -546,6 +562,7 @@ export async function completeXCallback(
   }
   const row = resolved.row
   const registerIp = (row.ip || '').trim().slice(0, 64) || null
+  const registerSrc = normalizeRegisterSrc(row.registerSrc)
   const evmWallet =
     row.evmWallet && isEvmAddress(row.evmWallet)
       ? assertEvmAddress(String(row.evmWallet), 'evmWallet')
@@ -644,9 +661,9 @@ export async function completeXCallback(
     `INSERT INTO kol_registrations (
        x_user_id, x_username, x_name, x_verified, followers, following, tweet_count,
        listed_count, profile_image_url, description, wallet, prior_wallets,
-       referral_code, referred_by_code, register_ip, pending_wallet, pending_until,
+       referral_code, referred_by_code, register_ip, register_src, pending_wallet, pending_until,
        evm_wallet, stats_refreshed_at, updated_at
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18, now(), now())
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19, now(), now())
      ON CONFLICT (x_user_id) DO UPDATE SET
        x_username = EXCLUDED.x_username,
        x_name = EXCLUDED.x_name,
@@ -662,6 +679,7 @@ export async function completeXCallback(
        referral_code = COALESCE(kol_registrations.referral_code, EXCLUDED.referral_code),
        referred_by_code = COALESCE(kol_registrations.referred_by_code, EXCLUDED.referred_by_code),
        register_ip = COALESCE(kol_registrations.register_ip, EXCLUDED.register_ip),
+       register_src = COALESCE(kol_registrations.register_src, EXCLUDED.register_src),
        pending_wallet = EXCLUDED.pending_wallet,
        pending_until = EXCLUDED.pending_until,
        evm_wallet = COALESCE(EXCLUDED.evm_wallet, kol_registrations.evm_wallet),
@@ -683,6 +701,7 @@ export async function completeXCallback(
       ownCode,
       referredBy,
       registerIp,
+      registerSrc,
       pendingWallet,
       pendingUntil,
       evmWallet,

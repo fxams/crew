@@ -74,7 +74,7 @@ describe('beginXAuth signed OAuth state', () => {
     expect(out.sid).toBe(parsed.claims.sid)
     expect(inserted[0]?.[0]).toBe(parsed.claims.sid)
     expect(inserted[0]?.[2]).toBe(wallet)
-    expect(inserted[0]?.[7]).toBe(parsed.claims.sh)
+    expect(inserted[0]?.[8]).toBe(parsed.claims.sh)
   })
 
   it('starts X-only registration without a wallet signature', async () => {
