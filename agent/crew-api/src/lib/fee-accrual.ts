@@ -55,6 +55,11 @@ export function peekFeeAccrual(mint: string): FeeAccrual | null {
   return cache.get(mint) || null
 }
 
+/** Read-only snapshot of warmed accrual rows (kickoff poller). */
+export function listFeeAccrualCache(): FeeAccrual[] {
+  return [...cache.values()]
+}
+
 export function seedFeeAccrual(row: FeeAccrual) {
   cache.set(row.mint, row)
 }

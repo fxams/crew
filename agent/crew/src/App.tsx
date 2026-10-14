@@ -89,12 +89,13 @@ import { launchCrew } from "./lib/launch";
 import { useOwnRegisteredHandle } from "./lib/registered-kol";
 import { NO_CRYPTO_NEEDED } from "./lib/kol-onboarding";
 import { headerKolLinks, mobileStickyCta } from "./lib/nav";
-import { isAdminFarcasterPath, isAdminKickoffPath, isAgentsPath, isApprovePath, isClaimPath, isCoinPath, isCoinsPath, isHomePath, isKolsPath, isLaunchPath, isOnepagerPath, isProofPath, isReferralPath, isRegisterPath, isTasksPath, kolHandleFromPath, referralCodeFromPath } from "./lib/routes";
+import { isAdminFarcasterPath, isAdminKickoffPath, isAdminOpsPath, isAgentsPath, isApprovePath, isClaimPath, isCoinPath, isCoinsPath, isHomePath, isKolsPath, isLaunchPath, isOnepagerPath, isProofPath, isReferralPath, isRegisterPath, isTasksPath, kolHandleFromPath, referralCodeFromPath } from "./lib/routes";
 import { ApprovePage } from "./components/ApprovePage";
 import { CoinPage } from "./components/CoinPage";
 import { CoinsPage } from "./components/CoinsPage";
 import { LiveCoins } from "./components/LiveCoins";
 import { AdminKickoffPage } from "./components/AdminKickoffPage";
+import { AdminOpsPage } from "./components/AdminOpsPage";
 import { AdminFarcasterPage } from "./components/AdminFarcasterPage";
 import { TasksPage } from "./components/TasksPage";
 import { distributeCreatorFees, lockHolderKolFeeShares, wireCrewFeeShares } from "./lib/pump/fees";
@@ -204,6 +205,7 @@ export default function App() {
   const isTasksPage = isTasksPath(path);
   const isAdminKickoffPage = isAdminKickoffPath(path);
   const isAdminFarcasterPage = isAdminFarcasterPath(path);
+  const isAdminOpsPage = isAdminOpsPath(path);
 
   useEffect(() => {
     if (!referralInviteCode || !isReferralPath(path)) return
@@ -1402,13 +1404,14 @@ export default function App() {
       isTasksPage ||
       isAdminKickoffPage ||
       isAdminFarcasterPage,
+      isAdminOpsPage,
     deskOrClaim: isKolProfilePage || isClaimPage,
     onLaunchPage: isLaunchPage,
     launchLabel,
   });
 
   return (
-    <div className={`site${isLaunchPage ? " site-launch" : ""}`}>
+    <div className={`site${isLaunchPage ? " site-launch" : ""}${isAdminOpsPage ? " site-admin-ops" : ""}`}>
       <div className="noise" aria-hidden />
 
       <header className="nav-shell">
@@ -1505,8 +1508,9 @@ export default function App() {
       {isTasksPage ? <TasksPage /> : null}
       {isAdminKickoffPage ? <AdminKickoffPage /> : null}
       {isAdminFarcasterPage ? <AdminFarcasterPage /> : null}
+      {isAdminOpsPage ? <AdminOpsPage /> : null}
 
-      {!isLaunchPage && !isKolsPage && !isRegisterPage && !isKolProfilePage && !isClaimPage && !isAgentsPage && !isProofPage && !isOnepagerPage && !isApprovePage && !isCoinPage && !isCoinsPage && !isTasksPage && !isAdminKickoffPage && !isAdminFarcasterPage ? (
+      {!isLaunchPage && !isKolsPage && !isRegisterPage && !isKolProfilePage && !isClaimPage && !isAgentsPage && !isProofPage && !isOnepagerPage && !isApprovePage && !isCoinPage && !isCoinsPage && !isTasksPage && !isAdminKickoffPage && !isAdminFarcasterPage && !isAdminOpsPage ? (
         <>
       <div className="app-shell">
         <main id="top">
@@ -3015,7 +3019,7 @@ export default function App() {
           </div>
         </footer>
       </div>
-      ) : isAgentsPage || isKolsPage || isRegisterPage || isKolProfilePage || isClaimPage || isProofPage || isOnepagerPage || isApprovePage || isCoinPage || isCoinsPage || isTasksPage || isAdminKickoffPage || isAdminFarcasterPage ? null : (
+      ) : isAgentsPage || isKolsPage || isRegisterPage || isKolProfilePage || isClaimPage || isProofPage || isOnepagerPage || isApprovePage || isCoinPage || isCoinsPage || isTasksPage || isAdminKickoffPage || isAdminFarcasterPage || isAdminOpsPage ? null : (
       <div className="app-shell">
         <section className="section" id="brand">
           <p className="section-label">Assets</p>

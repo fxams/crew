@@ -23,6 +23,16 @@ export type AcpProviderModule = {
 
 const idle: AcpListenerHandle = { started: false, stop: async () => {} }
 
+let listenerStarted = false
+
+export function getAcpListenerStatus(): { started: boolean } {
+  return { started: listenerStarted }
+}
+
+export function resetAcpListenerStatusForTests(): void {
+  listenerStarted = false
+}
+
 function flagOn(raw: string | undefined): boolean {
   const v = (raw || '').trim().toLowerCase()
   return v === '1' || v === 'true' || v === 'yes' || v === 'on'
@@ -72,18 +82,25 @@ export async function defaultLoadAcpProvider(): Promise<AcpProviderModule> {
  */
 export async function maybeStartAcpInProcess(): Promise<AcpListenerHandle> {
   try {
-    if (!acpInProcessEnabled()) return idle
+    if (!acpInProcessEnabled()) {
+      listenerStarted = false
+      return idle
+    }
     if (!acpEnabled()) {
       console.log('[acp] ACP_INPROCESS=1 but ACP_ENABLED is off — no-op')
+      listenerStarted = false
       return idle
     }
     const provider = await loadProvider()
-    return await provider.startAcpListener({
+    const handle = await provider.startAcpListener({
       runAutohire,
       runUnsignedLaunch,
     })
+    listenerStarted = Boolean(handle.started)
+    return handle
   } catch (err) {
     console.error('[acp] in-process listener failed to start; API continues', err)
+    listenerStarted = false
     return idle
   }
 }

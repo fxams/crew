@@ -137,3 +137,9 @@ export function isAdminFarcasterPath(pathname: string): boolean {
   const path = normalizePath(pathname)
   return path === '/admin/farcaster' || path.endsWith('/admin/farcaster')
 }
+
+/** Unlisted ops dashboard (admin token or approver wallet). Not in nav. */
+export function isAdminOpsPath(pathname: string): boolean {
+  const path = normalizePath(pathname)
+  return path === '/admin/ops' || path.endsWith('/admin/ops')
+}
