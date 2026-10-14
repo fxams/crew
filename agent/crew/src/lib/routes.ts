@@ -121,6 +121,12 @@ export function isCoinsPath(pathname: string): boolean {
   return path === '/coins' || path.endsWith('/coins')
 }
 
+/** Open tasks board (jobs + escrow). */
+export function isTasksPath(pathname: string): boolean {
+  const path = normalizePath(pathname)
+  return path === '/tasks' || path.endsWith('/tasks')
+}
+
 export function isAdminKickoffPath(pathname: string): boolean {
   const path = normalizePath(pathname)
   return path === '/admin/kickoff' || path.endsWith('/admin/kickoff')

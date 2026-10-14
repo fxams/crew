@@ -169,17 +169,29 @@ export class EvmSepoliaSettlementRail implements SettlementRail {
   }
 }
 
+const sharedSimRail = new SimulatedSettlementRail()
+let sharedSolanaDevnetRail: SolanaDevnetSettlementRail | null = null
+
+export function simSettlementRail(): SimulatedSettlementRail {
+  return sharedSimRail
+}
+
+function solanaDevnetRail(): SolanaDevnetSettlementRail {
+  if (!sharedSolanaDevnetRail) sharedSolanaDevnetRail = new SolanaDevnetSettlementRail()
+  return sharedSolanaDevnetRail
+}
+
 export function railFor(chainId: string | undefined, preferred?: string): SettlementRail {
   const name = (preferred || '').trim().toLowerCase()
-  if (name === 'solana-devnet') return new SolanaDevnetSettlementRail()
-  if (name === 'sim') return new SimulatedSettlementRail()
+  if (name === 'solana-devnet') return solanaDevnetRail()
+  if (name === 'sim') return simSettlementRail()
   // FLOP / tclk rail: explicit name, or chainId when FLOP_ENABLED (off by default).
   if (isFlopRailName(name) || (flopEnabled() && isFlopChainId(chainId))) {
     return sharedFlopRail()
   }
   // Default per chainId: devnet stub for solana-devnet; sim elsewhere
-  if (chainId === 'solana-devnet') return new SolanaDevnetSettlementRail()
+  if (chainId === 'solana-devnet') return solanaDevnetRail()
   if (chainId?.startsWith('evm:base-sepolia')) return new EvmSepoliaSettlementRail()
-  return new SimulatedSettlementRail()
+  return simSettlementRail()
 }
 

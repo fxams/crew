@@ -122,6 +122,18 @@ All endpoints are test-only; simulated or devnet-only. Do not touch existing lau
 - POST /api/jobs/campaigns/dry-run
   - auth: agent API key; does not persist; returns computed caps and plan
 
+### Generic tasks (any work type)
+
+Behind the same `JOBS_ENABLED` gate:
+
+- `POST /api/tasks` — title, spec, reward per slot, slots, deadline, optional `autoChecks`, optional `fund` (unsigned/sim escrow)
+- `GET /api/tasks` — browse open tasks (runs auto-release processing)
+- `POST /api/tasks/:id/claim|submit|approve|dispute` — worker wallet signatures; agent API key for approve
+- `POST /api/tasks/:id/resolve-dispute` — `CREWPAY_APPROVER_WALLETS` admin signature → release or refund
+- MCP: `crew_post_task`, `crew_list_tasks`, `crew_claim_task`, `crew_submit_task`, `crew_approve_task`, `crew_dispute_task`
+- UI: https://crewpay.dev/tasks (mobile-first)
+- Platform fee on task payouts only: `JOBS_PLATFORM_FEE_BPS` (default **0**). Launch fee map stays 60/15/25.
+
 ## Audits and mainnet readiness
 
 - Before mainnet launch:
