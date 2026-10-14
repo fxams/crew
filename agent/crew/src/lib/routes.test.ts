@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   claimHandleFromPath,
   isAdminFarcasterPath,
+  isAdminOpsPath,
   isAgentsPath,
   isClaimPath,
   isCoinsPath,
@@ -126,6 +127,16 @@ describe("isAdminFarcasterPath", () => {
     expect(isAdminFarcasterPath("/admin")).toBe(false);
     expect(isAdminFarcasterPath("/")).toBe(false);
     expect(isHomePath("/admin/farcaster")).toBe(false);
+  });
+});
+
+describe("isAdminOpsPath", () => {
+  it("matches the unlisted ops dashboard only", () => {
+    expect(isAdminOpsPath("/admin/ops")).toBe(true);
+    expect(isAdminOpsPath("/admin/ops/")).toBe(true);
+    expect(isAdminOpsPath("/crew/admin/ops")).toBe(true);
+    expect(isAdminOpsPath("/admin/kickoff")).toBe(false);
+    expect(isAdminOpsPath("/")).toBe(false);
   });
 });
 
