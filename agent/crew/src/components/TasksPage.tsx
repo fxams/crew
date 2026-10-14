@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useWallet } from '@solana/wallet-adapter-react'
 import bs58 from 'bs58'
 import { CREW_VERSION } from '../lib/config'
+import { JoinTelegramBox } from './JoinTelegramBox'
 
 type TaskRow = {
   id: string
@@ -144,6 +145,7 @@ export function TasksPage() {
           auto-release when checks pass. Test/devnet escrow — no earnings promises. Platform task fee
           defaults to 0 (<code>JOBS_PLATFORM_FEE_BPS</code>).
         </p>
+        <JoinTelegramBox />
         {loading ? <p className="muted">Loading tasks…</p> : null}
         {error ? <p className="form-error">{error}</p> : null}
         {note ? <p className="section-sub">{note}</p> : null}

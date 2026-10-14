@@ -222,6 +222,8 @@ CREATE TABLE IF NOT EXISTS kol_registrations (
   referral_points INT NOT NULL DEFAULT 0,
   -- Client IP at first registration (self-referral claim checks).
   register_ip TEXT,
+  -- Signup attribution (e.g. tg_bot from @CrewPay_Bot). Set once at first register.
+  register_src TEXT,
   evm_wallet TEXT,
   telegram_user_id TEXT,
   telegram_username TEXT,
@@ -304,6 +306,7 @@ CREATE TABLE IF NOT EXISTS kol_oauth_states (
   cookie_sha256 TEXT,
   ip TEXT,
   evm_wallet TEXT,
+  register_src TEXT,
   -- SHA-256 of the wallet signature that started this attempt (bound into signed OAuth state).
   signature_sha256 TEXT,
   -- One-time use; callback sets this instead of deleting so a second hit can say "already used".

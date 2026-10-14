@@ -567,4 +567,10 @@ export async function migrate(): Promise<void> {
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['023_kol_telegram'],
   )
+  await query(`ALTER TABLE kol_registrations ADD COLUMN IF NOT EXISTS register_src TEXT`)
+  await query(`ALTER TABLE kol_oauth_states ADD COLUMN IF NOT EXISTS register_src TEXT`)
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['024_register_src'],
+  )
 }

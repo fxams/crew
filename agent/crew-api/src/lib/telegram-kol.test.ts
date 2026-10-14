@@ -8,12 +8,14 @@ import {
   handleTelegramStop,
   issueTelegramStartCode,
   listAlertTargets,
+  registerKolInlineKeyboard,
   rememberChannelPost,
   startChannelVerify,
   telegramFieldsFromRow,
   upsertTelegramKol,
   verifyChannelOwnership,
 } from './telegram-kol.js'
+import { TELEGRAM_REGISTER_KOL_URL } from './register-src.js'
 
 const widget = {
   id: 777,
@@ -29,12 +31,33 @@ describe('Telegram KOL link + alerts', () => {
     delete process.env.DATABASE_URL
   })
 
+  it('exposes Register as KOL inline URL for /start replies', () => {
+    const kb = registerKolInlineKeyboard()
+    expect(kb.inline_keyboard[0]?.[0]).toEqual({
+      text: 'Register as KOL',
+      url: TELEGRAM_REGISTER_KOL_URL,
+    })
+  })
+
   it('creates a TG-only desk and ranks that path as telegram-only', async () => {
     const created = await upsertTelegramKol({ widget })
     expect(created.created).toBe(true)
     expect(created.telegramOnly).toBe(true)
     expect(created.xUserId).toBe('tg:777')
     expect(created.username).toBe('ada_tg')
+  })
+
+  it('stores register_src on TG signup', async () => {
+    const created = await upsertTelegramKol({
+      widget: { ...widget, id: 776, username: 'src_tg' },
+      registerSrc: 'tg_bot',
+    })
+    expect(created.created).toBe(true)
+    const row = await upsertTelegramKol({
+      widget: { ...widget, id: 776, username: 'src_tg' },
+      registerSrc: 'other',
+    })
+    expect(row.created).toBe(false)
   })
 
   it('links /start via one-time code and honors /stop', async () => {

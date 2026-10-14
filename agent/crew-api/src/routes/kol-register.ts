@@ -404,6 +404,7 @@ kolRegisterRouter.post('/kols/register/start', async (req, res) => {
         signature: z.string().min(64).max(128).optional(),
         referralCode: z.string().min(2).max(32).optional(),
         evmWallet: z.string().max(42).optional(),
+        registerSrc: z.string().min(2).max(32).optional(),
       })
       .refine(
         (data) => {
@@ -424,6 +425,7 @@ kolRegisterRouter.post('/kols/register/start', async (req, res) => {
       ip,
       regCookie: cookieVal,
       evmWallet: body.evmWallet,
+      registerSrc: body.registerSrc,
     })
     res.json({
       ok: true,
