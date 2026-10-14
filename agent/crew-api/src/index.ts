@@ -13,6 +13,7 @@ import { kolsRouter } from './routes/kols.js'
 import { proofRouter } from './routes/proof.js'
 import { webhooksRouter } from './routes/webhooks.js'
 import { jobsRouter } from './routes/jobs.js'
+import { tasksRouter } from './routes/tasks.js'
 import { postLaunchRouter } from './routes/post-launch.js'
 import { farcasterRouter } from './routes/farcaster.js'
 import { maybeStartAcpInProcess } from './lib/acp-inprocess.js'
@@ -80,6 +81,7 @@ async function main() {
     (process.env.JOBS_ENABLED || '').trim().toLowerCase() === 'true'
   if (jobsEnabled) {
     app.use('/api', jobsRouter)
+    app.use('/api', tasksRouter)
   }
 
   app.get('/', (_req, res) => {
@@ -89,6 +91,7 @@ async function main() {
       agent: '/api/agent',
       platforms: '/api/platforms',
       jobs: jobsEnabled ? '/api/jobs/open' : undefined,
+      tasks: jobsEnabled ? '/api/tasks' : undefined,
       proof: '/api/proof',
       buybacks: '/api/buybacks',
       webhooks: '/api/webhooks',

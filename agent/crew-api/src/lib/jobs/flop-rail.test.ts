@@ -152,9 +152,9 @@ describe('FlopTclkSettlementRail (tclk memory rail)', () => {
     memoryJobs.setJob(job)
 
     const claim = memoryJobs.claimJob(job.id, 'kol-ss58-or-hex', job.chainId, 'owl')
-    const submit = memoryJobs.submit(claim.id, [
-      'https://x.com/owl/status/1?ticker=hoot&link=https://pump.fun',
-    ])
+    const submit = memoryJobs.submit(claim.id, {
+      urls: ['https://x.com/owl/status/1?ticker=hoot&link=https://pump.fun'],
+    })
     const v = await defaultVerifier().verify({
       platform: 'x',
       kolHandle: 'owl',

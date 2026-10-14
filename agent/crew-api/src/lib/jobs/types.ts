@@ -9,7 +9,14 @@ export type ChainId =
 
 export type AssetSymbol = 'SOL' | 'USDC' | 'ETH' | 'USDT'
 
-export type JobType = 'campaign' | 'content' | 'design' | 'research' | 'community' | 'feedback'
+export type JobType =
+  | 'campaign'
+  | 'task'
+  | 'content'
+  | 'design'
+  | 'research'
+  | 'community'
+  | 'feedback'
 
 export type JobStatus =
   | 'created'
@@ -22,6 +29,8 @@ export type JobStatus =
   | 'refunded'
   | 'closed'
   | 'expired'
+  | 'disputed'
+  | 'frozen'
 
 export type CoinJobDeliverable =
   | 'meme-pack'
@@ -30,33 +39,68 @@ export type CoinJobDeliverable =
   | 'website-polish'
   | 'x-post'
 
+/** Configurable auto-checks for generic tasks (test-friendly; no live X API required). */
+export type TaskAutoChecks = {
+  /** Require at least one https URL in proof. */
+  requireHttpsUrls?: boolean
+  /** HEAD/GET the URL (mockable in tests). */
+  urlReachable?: boolean
+  /** Require an x.com / twitter.com URL and optional ticker/link substring checks. */
+  xPost?: boolean
+  requiredTicker?: string
+  requiredLink?: string
+  minUrls?: number
+  /** Minimum proof text length when text is provided. */
+  minTextLength?: number
+  /** Case-insensitive keyword that must appear in text or URLs. */
+  keyword?: string
+  /** Regex applied to combined proof text + URLs (invalid regex ignored). */
+  regex?: string
+  /** Allowed file extensions in proof.files[].name (e.g. png, jpg). */
+  fileExtensions?: string[]
+  minFiles?: number
+  maxFiles?: number
+}
+
 export type CampaignRules = {
   requiredTicker?: string
   requiredLink?: string
   minPostAgeHours?: number
   platform?: 'x' | 'any'
-  /** Optional auto-release window; after this time from submit, agent can auto-release. */
-  autoReleaseAfterHours?: number
+  /** Hours after auto-check pass before payout if agent does not object. */
+  objectionWindowHours?: number
   /** Creative / post-launch kit deliverable (jobs + escrow). */
   deliverableKind?: CoinJobDeliverable
   minUrls?: number
   postsPerWeek?: number
+  /** Generic task auto-checks (when job.mode === task). */
+  autoChecks?: TaskAutoChecks
 }
+
+export type JobMode = 'campaign' | 'task'
 
 export type JobBase = {
   id: string
   type: JobType
+  /** campaign = per-proof KOL campaigns; task = open generic work with title/spec. */
+  mode: JobMode
+  title?: string
+  spec?: string
+  /** Free-form category label (e.g. labeling, qa, research). */
+  taskCategory?: string
   createdBy: string // agent key id or fingerprint
   chainId: ChainId
   asset: AssetSymbol
   budget: bigint // base units
-  perProofAmount: bigint // base units
+  perProofAmount: bigint // base units (reward per slot / per proof)
   maxProofs: number
   perKOLCap: number
   deadline: number // ms since epoch
   rules: CampaignRules
   status: JobStatus
   escrowRef?: string | null
+  /** Funding wallet for non-custodial rails (unsigned release/refund). */
+  escrowFrom?: string | null
   createdAt: number
   updatedAt: number
   /** CrewPay-launched mint this job is for (post-launch kit). */
@@ -81,10 +125,19 @@ export type JobClaim = {
   updatedAt: number
 }
 
+export type SubmissionProofFile = {
+  name: string
+  url?: string
+  mime?: string
+  size?: number
+}
+
 export type Submission = {
   id: string
   claimId: string
   urls: string[]
+  text?: string
+  files?: SubmissionProofFile[]
   createdAt: number
   verifiedAt?: number
   verification?: {
@@ -93,7 +146,24 @@ export type Submission = {
     details?: Record<string, unknown>
     acceptedUrls?: string[]
   }
+  /** Agent explicitly blocked auto-release before the objection window elapsed. */
+  agentObjected?: boolean
+  /** When auto-release becomes eligible (ms epoch) after checks pass. */
+  autoReleaseEligibleAt?: number
   paidAmount?: bigint
+}
+
+export type JobDispute = {
+  id: string
+  jobId: string
+  claimId?: string
+  openedBy: 'agent' | 'worker'
+  reason: string
+  status: 'open' | 'resolved'
+  resolution?: 'release' | 'refund'
+  resolvedAt?: number
+  resolvedByWallet?: string
+  createdAt: number
 }
 
 export type FundingRecord = {

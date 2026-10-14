@@ -346,6 +346,221 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         return asText(data)
       },
     )
+
+    const taskChain = z.enum([
+      'solana-devnet',
+      'solana',
+      'evm:base-sepolia',
+      'evm:base',
+      'evm:ethereum',
+      'flop-testnet',
+    ])
+    const taskAsset = z.enum(['SOL', 'USDC', 'ETH', 'USDT'])
+    const autoChecksInput = z
+      .object({
+        requireHttpsUrls: z.boolean().optional(),
+        urlReachable: z.boolean().optional(),
+        xPost: z.boolean().optional(),
+        requiredTicker: z.string().max(24).optional(),
+        requiredLink: z.string().url().optional(),
+        minUrls: z.number().int().min(0).max(32).optional(),
+        minTextLength: z.number().int().min(0).optional(),
+        keyword: z.string().max(256).optional(),
+        regex: z.string().max(256).optional(),
+        fileExtensions: z.array(z.string().max(16)).max(16).optional(),
+        minFiles: z.number().int().min(0).optional(),
+        maxFiles: z.number().int().min(0).optional(),
+      })
+      .optional()
+
+    server.registerTool(
+      'crew_post_task',
+      {
+        title: 'Post a generic funded task (jobs + escrow)',
+        description:
+          'Post any task (labeling, QA, research, etc.) with title, spec, reward per slot, slots, deadline, and optional auto-checks. Locks budget via escrow (sim/devnet unsigned flow). Platform fee defaults to 0 (JOBS_PLATFORM_FEE_BPS). Launch fee map unchanged.',
+        inputSchema: {
+          title: z.string().min(3).max(120),
+          spec: z.string().min(10).max(20_000),
+          taskCategory: z.string().max(64).optional(),
+          chainId: taskChain,
+          asset: taskAsset,
+          budget: z.number().positive(),
+          rewardPerSlot: z.number().positive(),
+          slots: z.number().int().min(1).max(10_000),
+          slotsPerWorker: z.number().int().min(1).max(100).optional(),
+          deadlineHours: z.number().int().min(1).max(720).optional(),
+          autoChecks: autoChecksInput,
+          objectionWindowHours: z.number().int().min(0).max(168).optional(),
+          fund: z.boolean().optional().describe('Fund sim/flop-tclk escrow on create (never custodial mainnet spend)'),
+          rail: z.string().max(32).optional(),
+          from: z.string().max(128).optional().describe('Funding wallet for non-custodial rails'),
+        },
+        annotations: { readOnlyHint: false, openWorldHint: true },
+      },
+      async (input) => {
+        const data = await crewFetch(cfg, '/api/tasks', {
+          method: 'POST',
+          auth: true,
+          body: JSON.stringify(input),
+        })
+        return asText(data)
+      },
+    )
+
+    server.registerTool(
+      'crew_list_tasks',
+      {
+        title: 'List open generic tasks',
+        description: 'Browse agent-posted tasks (jobs+escrow). Optional category filter.',
+        inputSchema: {
+          category: z.string().max(64).optional(),
+        },
+        annotations: { readOnlyHint: true, openWorldHint: true },
+      },
+      async (input) => {
+        const q = input.category ? `?category=${encodeURIComponent(input.category)}` : ''
+        const data = await crewFetch(cfg, `/api/tasks${q}`)
+        return asText(data)
+      },
+    )
+
+    server.registerTool(
+      'crew_claim_task',
+      {
+        title: 'Claim a task slot (worker wallet)',
+        description:
+          'Claim a slot on a funded task. Requires worker wallet headers (x-crew-wallet, x-crew-timestamp, x-crew-signature) — MCP cannot sign; use REST from a wallet client or document headers for your agent operator.',
+        inputSchema: {
+          taskId: z.string().min(8).max(64),
+          kolHandle: z.string().max(32).optional(),
+          wallet: z.string().min(20).max(128).optional(),
+          timestamp: z.number().int().optional(),
+          signature: z.string().min(20).optional(),
+        },
+        annotations: { readOnlyHint: false, openWorldHint: true },
+      },
+      async (input) => {
+        if (!input.wallet || !input.timestamp || !input.signature) {
+          throw new Error(
+            'Worker claim requires wallet, timestamp, and signature (crew-task-claim message). Sign off-device and pass headers via crewFetch proxy or REST.',
+          )
+        }
+        const data = await crewFetch(cfg, `/api/tasks/${encodeURIComponent(input.taskId)}/claim`, {
+          method: 'POST',
+          headers: {
+            'x-crew-wallet': input.wallet,
+            'x-crew-timestamp': String(input.timestamp),
+            'x-crew-signature': input.signature,
+          },
+          body: JSON.stringify({ kolHandle: input.kolHandle }),
+        })
+        return asText(data)
+      },
+    )
+
+    server.registerTool(
+      'crew_submit_task',
+      {
+        title: 'Submit task proof',
+        description: 'Submit URLs, text, and/or file metadata for a claimed task slot.',
+        inputSchema: {
+          taskId: z.string().min(8).max(64),
+          urls: z.array(z.string().url()).optional(),
+          text: z.string().max(50_000).optional(),
+          files: z
+            .array(
+              z.object({
+                name: z.string().max(256),
+                url: z.string().url().optional(),
+                mime: z.string().max(128).optional(),
+                size: z.number().int().optional(),
+              }),
+            )
+            .optional(),
+          wallet: z.string().min(20).max(128).optional(),
+          timestamp: z.number().int().optional(),
+          signature: z.string().min(20).optional(),
+        },
+        annotations: { readOnlyHint: false, openWorldHint: true },
+      },
+      async (input) => {
+        if (!input.wallet || !input.timestamp || !input.signature) {
+          throw new Error('Submit requires wallet signature (crew-task-submit message).')
+        }
+        const data = await crewFetch(cfg, `/api/tasks/${encodeURIComponent(input.taskId)}/submit`, {
+          method: 'POST',
+          headers: {
+            'x-crew-wallet': input.wallet,
+            'x-crew-timestamp': String(input.timestamp),
+            'x-crew-signature': input.signature,
+          },
+          body: JSON.stringify({ urls: input.urls, text: input.text, files: input.files }),
+        })
+        return asText(data)
+      },
+    )
+
+    server.registerTool(
+      'crew_approve_task',
+      {
+        title: 'Approve or object to task proof (agent)',
+        description:
+          'Agent approves payout (unsigned release) or objects to block auto-release. Use object=true to veto before the objection window ends.',
+        inputSchema: {
+          taskId: z.string().min(8).max(64),
+          claimId: z.string().optional(),
+          object: z.boolean().optional(),
+          from: z.string().max(128).optional(),
+        },
+        annotations: { readOnlyHint: false, openWorldHint: true },
+      },
+      async (input) => {
+        const data = await crewFetch(cfg, `/api/tasks/${encodeURIComponent(input.taskId)}/approve`, {
+          method: 'POST',
+          auth: true,
+          body: JSON.stringify({
+            claimId: input.claimId,
+            object: input.object,
+            from: input.from,
+          }),
+        })
+        return asText(data)
+      },
+    )
+
+    server.registerTool(
+      'crew_dispute_task',
+      {
+        title: 'Open a task dispute (agent or worker)',
+        description:
+          'Freeze escrow and open a dispute. Workers must pass wallet signature; agents use API key.',
+        inputSchema: {
+          taskId: z.string().min(8).max(64),
+          reason: z.string().min(8).max(2000),
+          claimId: z.string().optional(),
+          wallet: z.string().optional(),
+          timestamp: z.number().int().optional(),
+          signature: z.string().optional(),
+        },
+        annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: true },
+      },
+      async (input) => {
+        const headers: Record<string, string> = {}
+        if (input.wallet && input.timestamp && input.signature) {
+          headers['x-crew-wallet'] = input.wallet
+          headers['x-crew-timestamp'] = String(input.timestamp)
+          headers['x-crew-signature'] = input.signature
+        }
+        const data = await crewFetch(cfg, `/api/tasks/${encodeURIComponent(input.taskId)}/dispute`, {
+          method: 'POST',
+          auth: !(input.wallet && input.signature),
+          headers,
+          body: JSON.stringify({ reason: input.reason, claimId: input.claimId }),
+        })
+        return asText(data)
+      },
+    )
   }
 
   server.registerTool(
