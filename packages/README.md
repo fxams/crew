@@ -6,7 +6,8 @@ Lightweight adapters that call the CrewPay REST API (`https://api.crewpay.dev`).
 | Package (monorepo) | npm (published) | Framework | Upstream |
 |--------------------|-----------------|-----------|----------|
 | `crewpay-rest` | — (shared, private) | REST client | — |
-| `elizaos-plugin-crewpay` | [`elizaos-plugin-crewpay@0.1.1`](https://www.npmjs.com/package/elizaos-plugin-crewpay) | ElizaOS | [elizaOS/eliza#35120](https://github.com/elizaOS/eliza/issues/35120) |
+| `plugin-crewpay` | `@crewpay/plugin-elizaos` (prep; not published yet) | ElizaOS 1.x | [elizaOS/eliza#35120](https://github.com/elizaOS/eliza/issues/35120) |
+| `elizaos-plugin-crewpay` | [`elizaos-plugin-crewpay@0.1.1`](https://www.npmjs.com/package/elizaos-plugin-crewpay) | ElizaOS (legacy names) | [elizaOS/eliza#35120](https://github.com/elizaOS/eliza/issues/35120) |
 | `solana-agent-kit-plugin-crewpay` | [`crewpay-solana-agent-kit-plugin@0.1.1`](https://www.npmjs.com/package/crewpay-solana-agent-kit-plugin) | Solana Agent Kit v2 | [sendaifun/solana-agent-kit#625](https://github.com/sendaifun/solana-agent-kit/issues/625) |
 | `goat-plugin-crewpay` | [`crewpay-goat-plugin@0.1.1`](https://www.npmjs.com/package/crewpay-goat-plugin) | GOAT SDK | [goat-sdk/goat#602](https://github.com/goat-sdk/goat/issues/602) |
 
