@@ -99,6 +99,7 @@ function FlowDiagram({ flow }: { flow: OpsSnapshot['flow'] }) {
     { key: 'acp', label: 'ACP', color: '#c084fc' },
     { key: 'x402', label: 'x402', color: '#fb7185' },
     { key: 'elizaos', label: 'ElizaOS', color: '#fbbf24' },
+    { key: 'direct', label: 'Direct / site', color: '#94a3b8' },
   ]
   const maxW = Math.max(1, ...channels.map((c) => flow.channels[c.key] || 0), flow.recentHires, flow.kolCrewSeats)
 
