@@ -6445,3 +6445,403 @@ ol.coin-timeline.coin-panel {
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+
+/* —— Admin ops dashboard (unlisted /admin/ops) —— */
+.site-admin-ops .nav-shell,
+.site-admin-ops .tape-top {
+  display: none;
+}
+
+.admin-ops {
+  --ops-bg: #0a0a0c;
+  --ops-cyan: #5eead4;
+  --ops-green: #4ade80;
+  max-width: 72rem;
+  padding: 1.25rem 1rem 2rem;
+  color: #e8e8ec;
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+
+.admin-ops .ops-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.admin-ops .ops-kicker {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.admin-ops .ops-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--ops-green);
+  box-shadow: 0 0 8px var(--ops-green);
+}
+
+.admin-ops .ops-title {
+  font-size: clamp(1.5rem, 4vw, 2.2rem);
+  font-weight: 700;
+  margin: 0.2rem 0;
+  font-family: var(--font-sans, system-ui, sans-serif);
+}
+
+.admin-ops .ops-sub {
+  font-size: 0.8rem;
+  opacity: 0.65;
+  margin: 0;
+}
+
+.admin-ops .ops-profit {
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
+  color: var(--ops-green);
+  text-shadow: 0 0 24px rgba(74, 222, 128, 0.35);
+  margin: 0;
+  text-align: right;
+}
+
+.admin-ops .ops-profit-sub {
+  font-size: 0.75rem;
+  opacity: 0.65;
+  text-align: right;
+  margin: 0.2rem 0 0;
+}
+
+.admin-ops .ops-auth {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.65rem;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.admin-ops .ops-auth-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+  flex: 1;
+  min-width: 12rem;
+}
+
+.admin-ops .ops-auth-input {
+  font: inherit;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #111;
+  color: inherit;
+}
+
+.admin-ops .ops-auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.admin-ops .ops-btn.is-active {
+  border-color: var(--ops-cyan);
+  color: var(--ops-cyan);
+}
+
+.admin-ops .ops-back {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  margin-left: auto;
+}
+
+.admin-ops .ops-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.admin-ops .ops-stat {
+  padding: 0.55rem 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 0.5rem;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.admin-ops .ops-stat-val {
+  display: block;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.admin-ops .ops-stat-label {
+  font-size: 0.65rem;
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.admin-ops .ops-stat-safe .ops-stat-val {
+  color: var(--ops-green);
+}
+
+.admin-ops .ops-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.admin-ops .ops-pill {
+  font-size: 0.68rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.admin-ops .ops-pill-warn {
+  border-color: rgba(251, 191, 36, 0.45);
+  color: #fcd34d;
+}
+
+.admin-ops .ops-roles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.admin-ops .ops-role {
+  text-align: center;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.admin-ops .ops-role-icon {
+  display: block;
+  font-size: 1.25rem;
+  margin-bottom: 0.2rem;
+}
+
+.admin-ops .ops-role-name {
+  display: block;
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.admin-ops .ops-role-time {
+  display: block;
+  font-size: 0.6rem;
+  opacity: 0.55;
+  margin-top: 0.15rem;
+}
+
+.admin-ops .ops-flow {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  min-height: 12rem;
+}
+
+@media (min-width: 720px) {
+  .admin-ops .ops-flow {
+    grid-template-columns: 1fr 1.2fr 0.8fr;
+    align-items: stretch;
+  }
+}
+
+.admin-ops .ops-flow-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  opacity: 0.55;
+  margin: 0 0 0.4rem;
+}
+
+.admin-ops .ops-flow-node {
+  padding: 0.45rem 0.55rem;
+  margin-bottom: 0.35rem;
+  border-left: 2px solid var(--ops-cyan);
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 0 0.35rem 0.35rem 0;
+}
+
+.admin-ops .ops-flow-node-title {
+  display: block;
+  font-size: 0.8rem;
+}
+
+.admin-ops .ops-flow-node-meta {
+  font-size: 0.65rem;
+  opacity: 0.6;
+}
+
+.admin-ops .ops-flow-bar {
+  height: 2px;
+  margin-top: 0.35rem;
+  border-radius: 1px;
+  opacity: 0.85;
+}
+
+.admin-ops .ops-flow-hub {
+  position: relative;
+  min-height: 10rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-ops .ops-flow-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.75;
+}
+
+.admin-ops .ops-flow-line {
+  stroke-dasharray: 4 6;
+  animation: ops-flow-dash 2.5s linear infinite;
+}
+
+.admin-ops .ops-flow-line-out {
+  animation-duration: 3.2s;
+  animation-direction: reverse;
+}
+
+@keyframes ops-flow-dash {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+.admin-ops .ops-flow-core {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 1rem 1.25rem;
+  border-radius: 50%;
+  border: 1px solid rgba(94, 234, 212, 0.35);
+  box-shadow: 0 0 32px rgba(94, 234, 212, 0.15);
+  background: rgba(10, 10, 12, 0.85);
+}
+
+.admin-ops .ops-flow-core-title {
+  display: block;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.admin-ops .ops-flow-core-meta {
+  display: block;
+  font-size: 0.65rem;
+  opacity: 0.65;
+}
+
+.admin-ops .ops-lower {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .admin-ops .ops-lower {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.admin-ops .ops-panel-title {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0 0 0.5rem;
+  opacity: 0.7;
+}
+
+.admin-ops .ops-panel-sub {
+  font-size: 0.7rem;
+  margin: 0.75rem 0 0.35rem;
+  opacity: 0.65;
+}
+
+.admin-ops .ops-panel-meta {
+  font-size: 0.72rem;
+  opacity: 0.65;
+  margin: 0 0 0.5rem;
+}
+
+.admin-ops .ops-table {
+  width: 100%;
+  font-size: 0.78rem;
+  border-collapse: collapse;
+}
+
+.admin-ops .ops-table th {
+  text-align: left;
+  font-weight: 500;
+  opacity: 0.65;
+  padding: 0.25rem 0.5rem 0.25rem 0;
+}
+
+.admin-ops .ops-table td {
+  text-align: right;
+  padding: 0.25rem 0;
+}
+
+.admin-ops .ops-mono {
+  font-size: 0.65rem;
+  word-break: break-all;
+}
+
+.admin-ops .ops-pending {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.72rem;
+  max-height: 8rem;
+  overflow: auto;
+}
+
+.admin-ops .ops-pending li {
+  padding: 0.2rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.admin-ops .ops-pending-empty {
+  opacity: 0.55;
+}
+
+.admin-ops .ops-job-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.72rem;
+}
+
+.admin-ops .ops-job-list li {
+  padding: 0.2rem 0;
+}
+
+.admin-ops .ops-log {
+  margin-top: 1rem;
+  padding: 0.55rem 0.65rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.72rem;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
