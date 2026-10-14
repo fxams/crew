@@ -162,6 +162,7 @@ jobsRouter.post('/jobs/:id/fund', requireAgentApiKey, async (req, res) => {
     const locked = await rail.lock(ctx, escrow)
     const vf = await rail.verifyFunding(ctx, escrow)
     job.escrowRef = escrow.ref || escrow.id
+    job.escrowFrom = from || null
     job.status = vf.ok ? 'funded' : 'created'
     memoryJobs.setJob(job)
     const rec = memoryJobs.addFunding(job.id, rail.name, job.budget, vf.ok, vf.detail)
@@ -364,7 +365,7 @@ jobsRouter.post('/jobs/:id/submit', async (req, res) => {
       res.status(400).json({ ok: false, error: 'Provide urls[]' })
       return
     }
-    const sub = memoryJobs.submit(claim.id, urls as string[])
+    const sub = memoryJobs.submit(claim.id, { urls: urls as string[] })
     res.status(201).json({ ok: true, submission: sub, claimId: claim.id })
   } catch (err) {
     res.status(400).json({ ok: false, error: err instanceof Error ? err.message : 'submit failed' })

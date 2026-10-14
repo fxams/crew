@@ -89,13 +89,14 @@ import { launchCrew } from "./lib/launch";
 import { useOwnRegisteredHandle } from "./lib/registered-kol";
 import { NO_CRYPTO_NEEDED } from "./lib/kol-onboarding";
 import { headerKolLinks, mobileStickyCta } from "./lib/nav";
-import { isAdminFarcasterPath, isAdminKickoffPath, isAgentsPath, isApprovePath, isClaimPath, isCoinPath, isCoinsPath, isHomePath, isKolsPath, isLaunchPath, isOnepagerPath, isProofPath, isReferralPath, isRegisterPath, kolHandleFromPath, referralCodeFromPath } from "./lib/routes";
+import { isAdminFarcasterPath, isAdminKickoffPath, isAgentsPath, isApprovePath, isClaimPath, isCoinPath, isCoinsPath, isHomePath, isKolsPath, isLaunchPath, isOnepagerPath, isProofPath, isReferralPath, isRegisterPath, isTasksPath, kolHandleFromPath, referralCodeFromPath } from "./lib/routes";
 import { ApprovePage } from "./components/ApprovePage";
 import { CoinPage } from "./components/CoinPage";
 import { CoinsPage } from "./components/CoinsPage";
 import { LiveCoins } from "./components/LiveCoins";
 import { AdminKickoffPage } from "./components/AdminKickoffPage";
 import { AdminFarcasterPage } from "./components/AdminFarcasterPage";
+import { TasksPage } from "./components/TasksPage";
 import { distributeCreatorFees, lockHolderKolFeeShares, wireCrewFeeShares } from "./lib/pump/fees";
 import {
   remitsFromSignature,
@@ -200,6 +201,7 @@ export default function App() {
   const isApprovePage = isApprovePath(path);
   const isCoinPage = isCoinPath(path);
   const isCoinsPage = isCoinsPath(path);
+  const isTasksPage = isTasksPath(path);
   const isAdminKickoffPage = isAdminKickoffPath(path);
   const isAdminFarcasterPage = isAdminFarcasterPath(path);
 
@@ -1397,6 +1399,7 @@ export default function App() {
       isOnepagerPage ||
       isCoinPage ||
       isCoinsPage ||
+      isTasksPage ||
       isAdminKickoffPage ||
       isAdminFarcasterPage,
     deskOrClaim: isKolProfilePage || isClaimPage,
@@ -1456,6 +1459,9 @@ export default function App() {
             >
               Coins
             </Link>
+            <Link className={isTasksPage ? "is-active-nav-text" : undefined} to="/tasks">
+              Tasks
+            </Link>
             <Link
               className={isProofPage ? "is-active-nav-text" : undefined}
               to="/proof"
@@ -1496,10 +1502,11 @@ export default function App() {
       {isApprovePage ? <ApprovePage /> : null}
       {isCoinPage ? <CoinPage /> : null}
       {isCoinsPage ? <CoinsPage /> : null}
+      {isTasksPage ? <TasksPage /> : null}
       {isAdminKickoffPage ? <AdminKickoffPage /> : null}
       {isAdminFarcasterPage ? <AdminFarcasterPage /> : null}
 
-      {!isLaunchPage && !isKolsPage && !isRegisterPage && !isKolProfilePage && !isClaimPage && !isAgentsPage && !isProofPage && !isOnepagerPage && !isApprovePage && !isCoinPage && !isCoinsPage && !isAdminKickoffPage && !isAdminFarcasterPage ? (
+      {!isLaunchPage && !isKolsPage && !isRegisterPage && !isKolProfilePage && !isClaimPage && !isAgentsPage && !isProofPage && !isOnepagerPage && !isApprovePage && !isCoinPage && !isCoinsPage && !isTasksPage && !isAdminKickoffPage && !isAdminFarcasterPage ? (
         <>
       <div className="app-shell">
         <main id="top">
@@ -3008,7 +3015,7 @@ export default function App() {
           </div>
         </footer>
       </div>
-      ) : isAgentsPage || isKolsPage || isRegisterPage || isKolProfilePage || isClaimPage || isProofPage || isOnepagerPage || isApprovePage || isCoinPage || isCoinsPage || isAdminKickoffPage || isAdminFarcasterPage ? null : (
+      ) : isAgentsPage || isKolsPage || isRegisterPage || isKolProfilePage || isClaimPage || isProofPage || isOnepagerPage || isApprovePage || isCoinPage || isCoinsPage || isTasksPage || isAdminKickoffPage || isAdminFarcasterPage ? null : (
       <div className="app-shell">
         <section className="section" id="brand">
           <p className="section-label">Assets</p>

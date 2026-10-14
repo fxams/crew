@@ -59,6 +59,12 @@ const MCP_WELL_KNOWN = {
     'post_coin_job',
     'crew_job_templates',
     'crew_job_list',
+    'crew_post_task',
+    'crew_list_tasks',
+    'crew_claim_task',
+    'crew_submit_task',
+    'crew_approve_task',
+    'crew_dispute_task',
   ],
 }
 

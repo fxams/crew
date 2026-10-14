@@ -115,7 +115,7 @@ describe('creative job lifecycle on sim rail', () => {
       'https://imgur.com/a/pack3',
       'https://imgur.com/a/pack4',
     ]
-    const sub = memoryJobs.submit(claim.id, urls)
+    const sub = memoryJobs.submit(claim.id, { urls })
     const v = await defaultVerifier(job.rules.deliverableKind).verify({
       platform: 'any',
       urls: sub.urls,

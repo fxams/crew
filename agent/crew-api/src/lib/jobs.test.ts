@@ -38,10 +38,12 @@ describe('jobs + escrow (sim rail)', () => {
 
     // KOL claims and submits a matching X post
     const claim = memoryJobs.claimJob(job.id, '4j4nFvh7cDg4fUD7E2w8aQ5u6fPhantomFakeWallet', job.chainId, 'owl')
-    const submit = memoryJobs.submit(claim.id, [
-      'https://x.com/owl/status/1?ticker=hoot&link=https://pump.fun',
-      'https://twitter.com/owl/status/2?blah',
-    ])
+    const submit = memoryJobs.submit(claim.id, {
+      urls: [
+        'https://x.com/owl/status/1?ticker=hoot&link=https://pump.fun',
+        'https://twitter.com/owl/status/2?blah',
+      ],
+    })
     expect(submit.urls.length).toBeGreaterThan(0)
 
     // Verify proof (mock verifier accepts URL containing ticker and link on x/twitter host)
@@ -101,11 +103,13 @@ describe('jobs + escrow (sim rail)', () => {
     job.escrowRef = escrow.id
     memoryJobs.setJob(job)
     const claim = memoryJobs.claimJob(job.id, 'Wallet', job.chainId, 'a')
-    const submit = memoryJobs.submit(claim.id, [
-      'https://x.com/a/status/1?ticker=aaa',
-      'https://x.com/a/status/2?ticker=aaa',
-      'https://x.com/a/status/3?ticker=aaa',
-    ])
+    const submit = memoryJobs.submit(claim.id, {
+      urls: [
+        'https://x.com/a/status/1?ticker=aaa',
+        'https://x.com/a/status/2?ticker=aaa',
+        'https://x.com/a/status/3?ticker=aaa',
+      ],
+    })
     const v = await defaultVerifier().verify({
       platform: 'x',
       kolHandle: 'a',

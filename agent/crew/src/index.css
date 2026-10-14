@@ -6338,3 +6338,70 @@ ol.coin-timeline.coin-panel {
     flex-basis: 9.5rem;
   }
 }
+
+.page-tasks {
+  padding-bottom: 2.5rem;
+}
+
+.tasks-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.tasks-card {
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: 0.75rem;
+  background: rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.tasks-card-head {
+  width: 100%;
+  text-align: left;
+  padding: 0.85rem 1rem;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.tasks-title {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.tasks-meta {
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.tasks-card-body {
+  padding: 0 1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.tasks-spec {
+  white-space: pre-wrap;
+  font-size: 0.82rem;
+  max-height: 12rem;
+  overflow: auto;
+  margin: 0;
+  padding: 0.65rem;
+  border-radius: 0.5rem;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.tasks-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
