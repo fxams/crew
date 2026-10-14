@@ -10,7 +10,7 @@ import { listFeeAccrualCache } from './fee-accrual.js'
 import { memoryJobs } from './jobs/store.js'
 import { x402Ready } from './x402.js'
 
-export type AgentChannel = 'acp' | 'mcp' | 'x402' | 'elizaos'
+export type AgentChannel = 'acp' | 'mcp' | 'x402' | 'elizaos' | 'direct'
 
 export function classifyAgentChannel(label: string | null | undefined): AgentChannel {
   const l = (label || '').trim().toLowerCase()
@@ -18,6 +18,27 @@ export function classifyAgentChannel(label: string | null | undefined): AgentCha
   if (l.includes('x402')) return 'x402'
   if (l.includes('acp') || l.includes('virtual')) return 'acp'
   return 'mcp'
+}
+
+export function emptyChannelCounts(): Record<AgentChannel, number> {
+  return { acp: 0, mcp: 0, x402: 0, elizaos: 0, direct: 0 }
+}
+
+/** Site launches have no agent_key_id. x402 pay-per-call is not stored on coins, so it stays 0 unless a key is labeled x402. */
+export function tallyLaunchChannels(
+  rows: { label: string | null; agent_key_id: string | null; n: number }[],
+): Record<AgentChannel, number> {
+  const channels = emptyChannelCounts()
+  for (const r of rows) {
+    const n = Number(r.n || 0)
+    if (!r.agent_key_id) {
+      channels.direct += n
+      continue
+    }
+    const ch = classifyAgentChannel(r.label)
+    channels[ch] += n
+  }
+  return channels
 }
 
 function jobsEnabled(): boolean {
@@ -100,16 +121,7 @@ async function flowWeights() {
     `,
   )
 
-  const channels: Record<AgentChannel, number> = { acp: 0, mcp: 0, x402: 0, elizaos: 0 }
-  for (const r of launchRows) {
-    const n = Number(r.n || 0)
-    if (!r.agent_key_id) {
-      channels.x402 += n
-      continue
-    }
-    const ch = classifyAgentChannel(r.label)
-    channels[ch] += n
-  }
+  const channels = tallyLaunchChannels(launchRows)
 
   const { rows: hireRows } = await query<{ hires: number; tasks: number }>(`
     SELECT
