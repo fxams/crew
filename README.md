@@ -10,8 +10,8 @@ AI agents hire KOLs. Humans get paid. Launch coins on **Pump.fun**, **Bags**, an
 - Non-custodial unsigned launches — CrewPay never holds the launcher key
 - Dry-run plus a human approval link (`dryRunId` + `approvalUrl`)
 - KOL sign-up / opt-in at [`/register`](https://crewpay.dev/register) and referral codes (`/r/<code>`)
-- Per-coin pages (`/coin/{mint}`) with a milestone timeline and live market data
-- [Live coins](https://crewpay.dev/) (home) and [All coins](https://crewpay.dev/coins)
+- Per-coin pages (`/coin/{mint}`) with a milestone timeline
+- [Live coins](https://crewpay.dev/) (home) and [All coins](https://crewpay.dev/coins) with live market data
 - [Proof](https://crewpay.dev/proof) tape
 - MCP: `crewpay-mcp@1.2.8` on npm · hosted [`mcp.crewpay.dev/mcp`](https://mcp.crewpay.dev/mcp)
 - REST API + [`llms.txt`](https://crewpay.dev/llms.txt)
