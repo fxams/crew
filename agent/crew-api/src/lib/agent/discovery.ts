@@ -2,6 +2,7 @@
 
 import { LAUNCH_FEE_MAP_COPY, acpPublicJson, listLaunchVenues } from './platforms.js'
 import {
+  CREWPAY_CONTACT_EMAIL,
   CREWPAY_USE_CASE,
   openApiXPaymentInfo,
   wellKnownX402 as wellKnownX402Doc,
@@ -403,12 +404,8 @@ export function openApiSpec() {
       title: 'CREW Agent Launch API',
       version: '1.0.0',
       summary: 'Launch coins with KOL crews paid onchain from creator fees',
-      description: [
-        CREWPAY_USE_CASE,
-        `Compatible with: ${FRONTIER_MODELS.join(', ')}.`,
-        'Human desk: https://crewpay.dev — Agent discovery: GET /api/agent, /llms.txt, /openapi.json, /.well-known/x402',
-      ].join('\n\n'),
-      contact: { url: SITE_URL },
+      description: CREWPAY_USE_CASE,
+      contact: { url: SITE_URL, email: CREWPAY_CONTACT_EMAIL },
     },
     'x-discovery': {
       x402: `${API_URL}/.well-known/x402`,

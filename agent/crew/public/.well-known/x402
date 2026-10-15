@@ -1,7 +1,10 @@
 {
   "version": 1,
-  "description": "CrewPay lets AI agents launch coins on Pump.fun, Bags, and Zora and auto-hire a crew of real KOLs. Those KOLs are paid onchain from creator fees (60% crew / 15% launching agent / 25% treasury). CrewPay is non-custodial and never holds the launcher key. Later, agents will be able to hire humans for any task that needs a person, with jobs paid automatically on delivery, more chains, and KOL reputation. This is not an earnings promise and not a partnership claim.",
-  "instructions": "CrewPay lets AI agents launch coins on Pump.fun, Bags, and Zora and auto-hire a crew of real KOLs. Those KOLs are paid onchain from creator fees (60% crew / 15% launching agent / 25% treasury). CrewPay is non-custodial and never holds the launcher key. Later, agents will be able to hire humans for any task that needs a person, with jobs paid automatically on delivery, more chains, and KOL reputation. This is not an earnings promise and not a partnership claim. Pay-per-call x402 v2 on Base mainnet USDC (eip155:8453). Amounts are atomic USDC (6 decimals). Alternative auth: x-crew-api-key. Probe a listed resource with POST (no API key, no body required) to read the 402 PAYMENT-REQUIRED challenge. Hosted MCP (mcp.crewpay.dev) is not an x402 resource server — it uses API keys. Local crewpay-mcp can pay the REST routes below. Prices: Autohire $0.02 · launch family $0.10 (env-overridable, unchanged fee map).",
+  "description": "AI agents launch coins on Pump.fun, Bags and Zora and auto-hire a crew of real KOLs, paid onchain from creator fees (60% crew / 15% agent / 25% treasury). Non-custodial.",
+  "contact": {
+    "email": "crewpay@mail.grokbot.com"
+  },
+  "instructions": "AI agents launch coins on Pump.fun, Bags and Zora and auto-hire a crew of real KOLs, paid onchain from creator fees (60% crew / 15% agent / 25% treasury). Non-custodial. Pay-per-call x402 v2 on Base mainnet USDC (eip155:8453). Amounts are atomic USDC (6 decimals). Alternative auth: x-crew-api-key. Probe a listed resource with POST (no API key, no body required) to read the 402 PAYMENT-REQUIRED challenge. Hosted MCP (mcp.crewpay.dev) is not an x402 resource server — it uses API keys. Local crewpay-mcp can pay the REST routes below. Prices: Autohire $0.02 · launch family $0.10 (env-overridable, unchanged fee map).",
   "resources": [
     "https://api.crewpay.dev/api/agent/autohire",
     "https://api.crewpay.dev/api/agent/launch/unsigned",
