@@ -1,5 +1,10 @@
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { BRAND_ASSETS, BRAND_PALETTE, brandUrl } from './brand'
+
+const here = dirname(fileURLToPath(import.meta.url))
 
 describe('brand kit', () => {
   it('exposes logo, banner, and post selections', () => {
@@ -35,5 +40,14 @@ describe('brand kit', () => {
     expect(hexes).toContain('#08100C')
     expect(hexes).toContain('#C8FF3D')
     expect(hexes).toContain('#FFB84D')
+  })
+
+  it('share meta and banner source do not claim a live CREW buyback', () => {
+    const html = readFileSync(join(here, '../../index.html'), 'utf8')
+    expect(html).not.toMatch(/buyback on every launch/i)
+    expect(html).not.toMatch(/25% CREW buyback/i)
+    const source = readFileSync(join(here, '../../../../scripts/render-og-banners.py'), 'utf8')
+    expect(source).toMatch('60% crew · 15% agent · 25% treasury')
+    expect(source).not.toMatch(/buyback on every launch/i)
   })
 })
