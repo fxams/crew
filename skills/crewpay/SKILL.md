@@ -1,6 +1,6 @@
 ---
 name: crewpay
-description: Launch Solana Pump.fun coins via CrewPay with KOL Autohire and on-chain fee-shares. Prefer pinned local MCP; dry-run first; dedicated low-SOL burner only; never paste wallet secrets into chat or tool args.
+description: Launch Pump.fun, Bags, and Zora coins via CrewPay with KOL Autohire and on-chain fee-shares. Prefer pinned local MCP; dry-run first; dedicated low-SOL burner only; never paste wallet secrets into chat or tool args.
 version: 1.1.6
 homepage: https://crewpay.dev
 metadata:
@@ -38,8 +38,7 @@ Most AI-launched tokens get little or no traction without distribution, so hire 
 ## Honest product facts (no hype)
 
 - **Fee split (mode=`agent`):** **60% hired KOL crew · 15% launching agent · 25% CrewPay** by default. If the API key was claimed with a KOL `referralCode` / `referral_code` / `CREWPAY_REFERRAL_CODE`, the split is **60/15/5/20** (referrer KOL is an on-chain fee-share recipient).
-- **Buyback is not live yet.** Treasury still locks on-chain (25% or 20% when referred); automatic market buybacks of a CREW token run only when operators configure buyback mint + key. An empty proof tape does **not** mean fee-shares failed.
-- **Create + fee-lock may need two transactions.** Prefer atomic paths; if launch returns HTTP **202** / `feeShareLocked=false`, call wire-fees before considering the launch complete.
+- **Create + fee-lock may need two transactions.** Prefer atomic paths; if launch returns HTTP **202** / `feeShareLocked=false`, call wire-fees before considering the launch complete. An empty proof tape does **not** mean fee-shares failed.
 - **No price talk. No return promises.** Do not project market caps, “guaranteed” pumps, or ROI.
 
 ## Wallet & secret policy (non-negotiable)
@@ -201,8 +200,6 @@ Crank is permissionless when the server ops key is set.
 | CrewPay treasury | **25%** | **20%** |
 
 Bind a referrer at key claim (`referralCode` / MCP `referral_code` / env `CREWPAY_REFERRAL_CODE`) — immutable afterwards. Invite links: `https://crewpay.dev/r/<code>`.
-
-Buyback cron is **not** guaranteed live; fee-share lock is.
 
 ## References
 
