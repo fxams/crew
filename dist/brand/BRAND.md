@@ -36,8 +36,8 @@ Prefer **PNG** or **JPG** for social uploads and CT. Keep **SVG** for product UI
 
 | File | Formats | Size intent | Use |
 |------|---------|-------------|-----|
-| `banner-og` | `.jpg` `.png` | 16:9 | Open Graph / link preview |
-| `banner-x-header` | `.jpg` `.png` | 16:9 | X/Twitter profile header |
+| `banner-og` | `.jpg` `.png` | 16:9 | Open Graph / link preview — last line `60% crew · 15% agent · 25% treasury` (`python3 scripts/render-og-banners.py`) |
+| `banner-x-header` | `.jpg` `.png` | 16:9 | X/Twitter profile header — same caption as `banner-og` |
 | `post-hire` | `.jpg` `.png` | 1:1 | “Humans get paid” |
 | `post-tape` | `.jpg` `.png` | 1:1 | Money tape |
 | `post-zero-cut` | `.jpg` `.png` | 1:1 | 25% CrewPay treasury |
