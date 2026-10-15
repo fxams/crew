@@ -54,9 +54,9 @@ describe('crewFetch x402', () => {
         if (!payment) {
           return new Response(
             JSON.stringify({
-              x402Version: 1,
+              x402Version: 2,
               error: 'Payment Required',
-              accepts: [{ scheme: 'exact', network: 'base', maxAmountRequired: '100000', payTo: '0x11' }],
+              accepts: [{ scheme: 'exact', network: 'eip155:8453', amount: '100000', payTo: '0x11' }],
             }),
             { status: 402, headers: { 'content-type': 'application/json' } },
           )

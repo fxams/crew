@@ -14,6 +14,7 @@ import {
   openApiSpec,
   robotsTxt,
   SITE_URL,
+  wellKnownX402,
 } from '../lib/agent/discovery.js'
 import { platformsPublicJson } from '../lib/agent/platforms.js'
 
@@ -52,6 +53,7 @@ discoveryRouter.get('/llms-full.txt', (_req, res) => textPlain(res, llmsFullTxt(
 discoveryRouter.get('/robots.txt', (_req, res) => textPlain(res, robotsTxt()))
 discoveryRouter.get('/openapi.json', (_req, res) => jsonDoc(res, openApiSpec()))
 discoveryRouter.get('/api/openapi.json', (_req, res) => jsonDoc(res, openApiSpec()))
+discoveryRouter.get('/.well-known/x402', (_req, res) => jsonDoc(res, wellKnownX402()))
 
 discoveryRouter.get('/.well-known/llms.txt', (_req, res) => textPlain(res, llmsTxt()))
 discoveryRouter.get('/.well-known/agent.json', (_req, res) =>

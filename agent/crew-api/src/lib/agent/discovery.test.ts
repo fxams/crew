@@ -8,6 +8,7 @@ import {
   llmsTxt,
   openApiSpec,
   robotsTxt,
+  wellKnownX402,
 } from './discovery.js'
 
 describe('agent discovery docs', () => {
@@ -129,6 +130,13 @@ describe('agent discovery docs', () => {
     expect(agentDiscoveryJson().platforms.x402).toBeTruthy()
     expect(openApiSpec().components.securitySchemes.X402Payment).toBeTruthy()
     expect(openApiSpec().paths['/api/agent/launch/unsigned'].post.responses['402']).toBeTruthy()
+    expect(openApiSpec().info.description).toMatch(/Pump\.fun, Bags, and Zora/)
+    expect(openApiSpec().info.description).toMatch(/60% crew/)
+    expect(openApiSpec().info.description.toLowerCase()).not.toMatch(/guaranteed/)
+    expect(openApiSpec().paths['/.well-known/x402']).toBeTruthy()
+    expect(openApiSpec().paths['/api/agent/autohire'].post['x-payment-info'].protocols).toEqual(['x402'])
+    expect(wellKnownX402().description).toMatch(/non-custodial/)
+    expect(wellKnownX402().resources).toContain('https://api.crewpay.dev/api/agent/autohire')
     expect(llmsTxt()).toContain('openclaw skills install @fxams/crewpay')
     expect(llmsTxt()).toContain('/api/agent/crank')
     expect(llmsTxt()).toContain('60%')

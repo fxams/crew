@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   USDC_BASE,
   USDC_SOLANA,
+  X402_VERSION,
   createHttpFacilitator,
   decodePaymentHeader,
   encodePaymentResponse,
@@ -19,6 +20,7 @@ import {
   type PaymentPayload,
   type PaymentRequirements,
 } from './x402.js'
+import { X402_NETWORK_BASE, X402_NETWORK_SOLANA } from './x402-discovery.js'
 
 const EVM = '0x1111111111111111111111111111111111111111'
 const SOL = 'DKqEbHvb7KHSdChzF54KTdj6io4dVZvbieFEMcS1C5cw'
@@ -87,18 +89,22 @@ describe('x402 config', () => {
     expect(reqs).toHaveLength(2)
     expect(reqs[0]).toMatchObject({
       scheme: 'exact',
-      network: 'base',
+      network: X402_NETWORK_BASE,
       payTo: EVM,
       asset: USDC_BASE,
+      amount: usdToUsdcAtomic(0.1),
       maxAmountRequired: usdToUsdcAtomic(0.1),
     })
+    expect(reqs[0]?.amount).toBe('100000')
     expect(reqs[1]).toMatchObject({
       scheme: 'exact',
-      network: 'solana',
+      network: X402_NETWORK_SOLANA,
       payTo: SOL,
       asset: USDC_SOLANA,
     })
     expect(formatUsdPrice(0.1)).toBe('$0.10')
+    expect(x402PublicDiscovery().protocol).toBe('x402 v2')
+    expect(X402_VERSION).toBe(2)
   })
 })
 
@@ -122,11 +128,9 @@ describe('x402 payment header', () => {
     const accepts: PaymentRequirements[] = [
       {
         scheme: 'exact',
-        network: 'base',
+        network: X402_NETWORK_BASE,
+        amount: '100000',
         maxAmountRequired: '100000',
-        resource: 'https://api.crewpay.dev/x',
-        description: 'test',
-        mimeType: 'application/json',
         payTo: EVM,
         maxTimeoutSeconds: 60,
         asset: USDC_BASE,
@@ -134,10 +138,16 @@ describe('x402 payment header', () => {
     ]
     expect(
       matchRequirements(
+        { x402Version: 2, scheme: 'exact', network: X402_NETWORK_BASE, payload: {} },
+        accepts,
+      )?.network,
+    ).toBe(X402_NETWORK_BASE)
+    expect(
+      matchRequirements(
         { x402Version: 1, scheme: 'exact', network: 'base', payload: {} },
         accepts,
       )?.network,
-    ).toBe('base')
+    ).toBe(X402_NETWORK_BASE)
     expect(
       matchRequirements(
         { x402Version: 1, scheme: 'exact', network: 'solana', payload: {} },
@@ -173,9 +183,9 @@ describe('HTTP facilitator (mocked fetch)', () => {
 
     const fac = createHttpFacilitator('https://facilitator.test', fetchImpl)
     const payload: PaymentPayload = {
-      x402Version: 1,
+      x402Version: 2,
       scheme: 'exact',
-      network: 'base',
+      network: X402_NETWORK_BASE,
       payload: { authorization: { from: EVM } },
     }
     process.env.X402_PAY_TO_EVM = EVM

@@ -15,6 +15,11 @@ describe('x402-pay helpers', () => {
         { network: 'base', payTo: '0x1111111111111111111111111111111111111111', maxAmountRequired: '100000' },
       ])?.network,
     ).toBe('base')
+    expect(
+      pickBaseAccept([
+        { network: 'eip155:8453', payTo: '0x1111111111111111111111111111111111111111', amount: '20000' },
+      ])?.amount,
+    ).toBe('20000')
     expect(pickBaseAccept([{ network: 'solana', payTo: 'So111', maxAmountRequired: '1' }])).toBeNull()
   })
 })

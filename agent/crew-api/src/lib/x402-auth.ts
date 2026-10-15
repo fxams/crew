@@ -10,6 +10,7 @@ import { getAgentKeyReferral, getAgentReferralByOwnerWallet } from './agent-refe
 import { readAgentKeyHeader, requireAgentApiKey, type AgentAuthContext } from './auth.js'
 import {
   decodePaymentHeader,
+  encodePaymentRequired,
   encodePaymentResponse,
   extractPayerFromPayload,
   getX402Facilitator,
@@ -17,11 +18,21 @@ import {
   paymentRequirementsFor,
   x402Fingerprint,
   x402KindForPath,
+  x402NetworkFamily,
   x402Ready,
+  PAYMENT_REQUIRED_HEADER,
+  PAYMENT_RESPONSE_HEADER,
+  PAYMENT_SIGNATURE_HEADER,
   X_PAYMENT_HEADER,
   X_PAYMENT_RESPONSE_HEADER,
+  X402_VERSION,
   type PaymentRequirements,
 } from './x402.js'
+import {
+  bazaarExtensionFor,
+  paidX402RouteForPath,
+  resourceInfoFor,
+} from './x402-discovery.js'
 
 const API_PUBLIC = (process.env.CREW_API_PUBLIC_URL || 'https://api.crewpay.dev').replace(/\/$/, '')
 
@@ -30,8 +41,17 @@ function resourceUrl(req: Request): string {
   return `${API_PUBLIC}${path.startsWith('/') ? path : `/${path}`}`
 }
 
+function requestPath(req: Request): string {
+  return (req.originalUrl || req.url || req.path || '').split('?')[0] || '/'
+}
+
 function readPaymentHeader(req: Request): string {
-  return (req.header(X_PAYMENT_HEADER) || req.header('PAYMENT-SIGNATURE') || '').trim()
+  return (
+    req.header(PAYMENT_SIGNATURE_HEADER) ||
+    req.header(X_PAYMENT_HEADER) ||
+    req.header('PAYMENT-SIGNATURE') ||
+    ''
+  ).trim()
 }
 
 function exposePaymentResponse(res: Response): void {
@@ -43,27 +63,43 @@ function exposePaymentResponse(res: Response): void {
       .filter(Boolean),
   )
   next.add(X_PAYMENT_RESPONSE_HEADER)
+  next.add(PAYMENT_RESPONSE_HEADER)
+  next.add(PAYMENT_REQUIRED_HEADER)
   res.setHeader('Access-Control-Expose-Headers', [...next].join(', '))
 }
 
-function paymentRequiredBody(req: Request, extra?: { error?: string }) {
-  const path = req.path || req.originalUrl || ''
+export function paymentRequiredBody(req: Request, extra?: { error?: string }) {
+  const path = requestPath(req)
+  const url = resourceUrl(req)
+  const route = paidX402RouteForPath(path)
   const accepts = paymentRequirementsFor({
-    resource: resourceUrl(req),
-    kind: x402KindForPath(path),
+    resource: url,
+    kind: route.kind,
   })
+  const resource = resourceInfoFor(route, url)
   return {
-    x402Version: 1,
+    x402Version: X402_VERSION,
     error:
       extra?.error ||
-      'Payment Required — send X-PAYMENT (USDC on Base or Solana) or x-crew-api-key.',
+      'Payment Required — send PAYMENT-SIGNATURE (USDC on Base eip155:8453) or x-crew-api-key.',
+    resource,
     accepts,
+    extensions: {
+      bazaar: bazaarExtensionFor(route),
+    },
     alternativeAuth: {
       header: 'x-crew-api-key',
       claim: 'POST https://api.crewpay.dev/api/agent/keys/claim',
     },
     docs: 'https://api.crewpay.dev/llms.txt',
   }
+}
+
+function send402(req: Request, res: Response, extra?: { error?: string }) {
+  const body = paymentRequiredBody(req, extra)
+  exposePaymentResponse(res)
+  res.setHeader(PAYMENT_REQUIRED_HEADER, encodePaymentRequired(body))
+  res.status(402).json(body)
 }
 
 export function requireAgentApiKeyOrX402(
@@ -80,7 +116,7 @@ export function requireAgentApiKeyOrX402(
 async function settleX402(req: Request, res: Response, next: NextFunction): Promise<void> {
   const accepts = paymentRequirementsFor({
     resource: resourceUrl(req),
-    kind: x402KindForPath(req.path || req.originalUrl || ''),
+    kind: x402KindForPath(requestPath(req)),
   })
   if (!accepts.length) {
     void requireAgentApiKey(req, res, next)
@@ -89,8 +125,7 @@ async function settleX402(req: Request, res: Response, next: NextFunction): Prom
 
   const raw = readPaymentHeader(req)
   if (!raw) {
-    exposePaymentResponse(res)
-    res.status(402).json(paymentRequiredBody(req))
+    send402(req, res)
     return
   }
 
@@ -107,12 +142,9 @@ async function settleX402(req: Request, res: Response, next: NextFunction): Prom
 
   const selected = matchRequirements(payload, accepts)
   if (!selected) {
-    exposePaymentResponse(res)
-    res.status(402).json(
-      paymentRequiredBody(req, {
-        error: `Payment network/scheme does not match requirements (got ${payload.network}/${payload.scheme}).`,
-      }),
-    )
+    send402(req, res, {
+      error: `Payment network/scheme does not match requirements (got ${payload.network}/${payload.scheme}).`,
+    })
     return
   }
 
@@ -120,32 +152,28 @@ async function settleX402(req: Request, res: Response, next: NextFunction): Prom
   try {
     const verified = await facilitator.verify(payload, selected)
     if (!verified.isValid) {
-      exposePaymentResponse(res)
-      res.status(402).json(
-        paymentRequiredBody(req, {
-          error: verified.invalidReason || 'Payment verification failed',
-        }),
-      )
+      send402(req, res, {
+        error: verified.invalidReason || 'Payment verification failed',
+      })
       return
     }
     const settled = await facilitator.settle(payload, selected)
     if (!settled.success) {
-      exposePaymentResponse(res)
-      res.status(402).json(
-        paymentRequiredBody(req, {
-          error: settled.errorReason || 'Payment settlement failed',
-        }),
-      )
+      send402(req, res, {
+        error: settled.errorReason || 'Payment settlement failed',
+      })
       return
     }
     const payer =
       (settled.payer || verified.payer || extractPayerFromPayload(payload) || '').trim()
     if (!payer) {
-      res.status(402).json(paymentRequiredBody(req, { error: 'Facilitator did not return a payer' }))
+      send402(req, res, { error: 'Facilitator did not return a payer' })
       return
     }
     exposePaymentResponse(res)
-    res.setHeader(X_PAYMENT_RESPONSE_HEADER, encodePaymentResponse(settled))
+    const encoded = encodePaymentResponse(settled)
+    res.setHeader(X_PAYMENT_RESPONSE_HEADER, encoded)
+    res.setHeader(PAYMENT_RESPONSE_HEADER, encoded)
     req.crewAgentAuth = x402AuthContext(payer, selected)
     next()
   } catch (err) {
@@ -162,7 +190,7 @@ export function x402AuthContext(payer: string, selected: PaymentRequirements): A
     source: 'x402',
     fingerprint: x402Fingerprint(payer),
     payerWallet: payer,
-    payerNetwork: selected.network === 'solana' ? 'solana' : 'base',
+    payerNetwork: x402NetworkFamily(selected.network),
     launchesPerHour: 5,
     requireApproval: false,
   }

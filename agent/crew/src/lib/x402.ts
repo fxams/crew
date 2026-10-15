@@ -74,8 +74,10 @@ function parseNetworks(raw: unknown): X402Network[] {
   const out: X402Network[] = []
   for (const item of raw) {
     const v = String(item).trim().toLowerCase()
-    if (v === 'base' && !out.includes('base')) out.push('base')
-    if ((v === 'solana' || v === 'sol' || v === 'svm') && !out.includes('solana')) out.push('solana')
+    if ((v === 'base' || v === 'eip155:8453') && !out.includes('base')) out.push('base')
+    if ((v === 'solana' || v === 'sol' || v === 'svm' || v.startsWith('solana:')) && !out.includes('solana')) {
+      out.push('solana')
+    }
   }
   return out.length ? out : [...FALLBACK_X402.networks]
 }

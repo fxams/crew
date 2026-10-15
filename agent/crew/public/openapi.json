@@ -3,11 +3,15 @@
   "info": {
     "title": "CREW Agent Launch API",
     "version": "1.0.0",
-    "summary": "Launch Pump.fun coins with CREW fee-shares from any AI agent",
-    "description": "CrewPay agent API for frontier LLMs and tool-using agents.\n\nCompatible with: OpenAI GPT / ChatGPT / o-series, Anthropic Claude, Google Gemini, xAI Grok, Meta Llama, DeepSeek, Mistral, Cursor Cloud / IDE agents, MCP clients (Cursor, Claude Desktop, custom), Crypto / Solana / Pump.fun trading & launch agents, Any tool-using agent with HTTP GET/POST.\n\nHuman desk: https://crewpay.dev — Agent discovery: GET /api/agent or /llms.txt",
+    "summary": "Launch coins with KOL crews paid onchain from creator fees",
+    "description": "CrewPay lets AI agents launch coins on Pump.fun, Bags, and Zora and auto-hire a crew of real KOLs. Those KOLs are paid onchain from creator fees (60% crew / 15% launching agent / 25% treasury). CrewPay is non-custodial and never holds the launcher key. Later, agents will be able to hire humans for any task that needs a person, with jobs paid automatically on delivery, more chains, and KOL reputation. This is not an earnings promise and not a partnership claim.\n\nCompatible with: OpenAI GPT / ChatGPT / o-series, Anthropic Claude, Google Gemini, xAI Grok, Meta Llama, DeepSeek, Mistral, Cursor Cloud / IDE agents, MCP clients (Cursor, Claude Desktop, custom), Crypto / Solana / Pump.fun trading & launch agents, Any tool-using agent with HTTP GET/POST.\n\nHuman desk: https://crewpay.dev — Agent discovery: GET /api/agent, /llms.txt, /openapi.json, /.well-known/x402",
     "contact": {
       "url": "https://crewpay.dev"
     }
+  },
+  "x-discovery": {
+    "x402": "https://api.crewpay.dev/.well-known/x402",
+    "wellKnown": "https://api.crewpay.dev/.well-known/x402"
   },
   "servers": [
     {
@@ -23,6 +27,10 @@
     {
       "name": "agent",
       "description": "Autohire + launch"
+    },
+    {
+      "name": "jobs",
+      "description": "Jobs + escrow (JOBS_ENABLED, test/devnet). Campaigns and post-launch creative presets. No mainnet."
     }
   ],
   "paths": {
@@ -64,6 +72,20 @@
         "responses": {
           "200": {
             "description": "OpenAPI 3.1 JSON"
+          }
+        }
+      }
+    },
+    "/.well-known/x402": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "x402scan discovery fan-out (paid route list)",
+        "operationId": "getWellKnownX402",
+        "responses": {
+          "200": {
+            "description": "x402scan /.well-known/x402 JSON"
           }
         }
       }
@@ -128,6 +150,16 @@
             "X402Payment": []
           }
         ],
+        "x-payment-info": {
+          "protocols": [
+            "x402"
+          ],
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.02"
+          }
+        },
         "requestBody": {
           "required": true,
           "content": {
@@ -146,7 +178,55 @@
             "description": "Missing/invalid API key"
           },
           "402": {
-            "description": "Payment Required — X-PAYMENT (x402) when X402_ENABLED and no API key"
+            "description": "Payment Required — x402 v2 PAYMENT-REQUIRED (Base USDC eip155:8453) when X402_ENABLED and no API key"
+          }
+        }
+      }
+    },
+    "/api/agent/crew/notify-telegram": {
+      "post": {
+        "tags": [
+          "agent",
+          "telegram"
+        ],
+        "summary": "DM hired crew via Telegram (opt-in only)",
+        "operationId": "postAgentNotifyTelegram",
+        "security": [
+          {
+            "CrewApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mint": {
+                    "type": "string"
+                  },
+                  "handles": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "message": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "sent + skipped (no_telegram_opt_in)"
+          },
+          "401": {
+            "description": "Missing/invalid API key"
           }
         }
       }
@@ -167,6 +247,16 @@
             "X402Payment": []
           }
         ],
+        "x-payment-info": {
+          "protocols": [
+            "x402"
+          ],
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.10"
+          }
+        },
         "requestBody": {
           "required": true,
           "content": {
@@ -195,7 +285,7 @@
             "description": "Missing/invalid API key"
           },
           "402": {
-            "description": "Payment Required — X-PAYMENT (x402) when X402_ENABLED and no API key"
+            "description": "Payment Required — x402 v2 PAYMENT-REQUIRED (Base USDC eip155:8453) when X402_ENABLED and no API key"
           }
         }
       }
@@ -287,6 +377,16 @@
             "X402Payment": []
           }
         ],
+        "x-payment-info": {
+          "protocols": [
+            "x402"
+          ],
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.10"
+          }
+        },
         "requestBody": {
           "required": true,
           "content": {
@@ -308,7 +408,7 @@
             "description": "Missing/invalid API key"
           },
           "402": {
-            "description": "Payment Required — X-PAYMENT (x402) when X402_ENABLED and no API key"
+            "description": "Payment Required — x402 v2 PAYMENT-REQUIRED (Base USDC eip155:8453) when X402_ENABLED and no API key"
           }
         }
       }
@@ -328,6 +428,16 @@
             "X402Payment": []
           }
         ],
+        "x-payment-info": {
+          "protocols": [
+            "x402"
+          ],
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.10"
+          }
+        },
         "requestBody": {
           "required": true,
           "content": {
@@ -371,7 +481,7 @@
             "description": "Missing/invalid API key"
           },
           "402": {
-            "description": "Payment Required — X-PAYMENT (x402) when X402_ENABLED and no API key"
+            "description": "Payment Required — x402 v2 PAYMENT-REQUIRED (Base USDC eip155:8453) when X402_ENABLED and no API key"
           }
         }
       }
@@ -394,6 +504,16 @@
             "LauncherKey": []
           }
         ],
+        "x-payment-info": {
+          "protocols": [
+            "x402"
+          ],
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.10"
+          }
+        },
         "requestBody": {
           "required": true,
           "content": {
@@ -418,7 +538,7 @@
             "description": "Missing/invalid auth"
           },
           "402": {
-            "description": "Payment Required — X-PAYMENT (x402) when X402_ENABLED and no API key"
+            "description": "Payment Required — x402 v2 PAYMENT-REQUIRED (Base USDC eip155:8453) when X402_ENABLED and no API key"
           }
         }
       }
@@ -898,12 +1018,134 @@
         }
       }
     },
+    "/api/coins/graduated-unfeatured": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Graduated coins not yet featured on @CrewPayHQ",
+        "operationId": "getGraduatedUnfeatured",
+        "security": [
+          {
+            "CrewApiKey": []
+          }
+        ],
+        "description": "Poll for Pump.fun graduates missing a stored @CrewPayHQ post URL. Auth: CREW_AGENT_API_KEY, a sha256 listed in CREW_FEATURE_AGENT_KEYS_SHA256, or an agent key with ops=true. External routine posts, then POST /api/coins/{mint}/featured. CrewPay does not auto-post. Webhook: coin.graduated.",
+        "responses": {
+          "200": {
+            "description": "Unfeatured graduates"
+          }
+        }
+      }
+    },
+    "/api/coins/{mint}/featured": {
+      "post": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Set @CrewPayHQ feature post URL",
+        "operationId": "setCoinFeatured",
+        "security": [
+          {
+            "CrewApiKey": []
+          }
+        ],
+        "description": "Stores https://x.com/CrewPayHQ/status/<id> after graduation. Auth: CREW_AGENT_API_KEY, CREW_FEATURE_AGENT_KEYS_SHA256, or agent_keys.ops. Does not post to X.",
+        "parameters": [
+          {
+            "name": "mint",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Featured URL saved"
+          },
+          "400": {
+            "description": "Invalid"
+          }
+        }
+      }
+    },
+    "/api/coins/live": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Live CrewPay coins sorted by market cap",
+        "operationId": "getLiveCoins",
+        "description": "Real launch records plus cached Dexscreener market cap / 24h change. Unknown quotes are null (UI shows --).",
+        "responses": {
+          "200": {
+            "description": "Live coin rows"
+          }
+        }
+      }
+    },
+    "/api/coins/{mint}/logo": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Cached coin logo image",
+        "operationId": "getCoinLogo",
+        "description": "Resolves the mint’s public image CID and tries pump.mypinata.cloud, gateway.pinata.cloud, nftstorage.link, then ipfs.io. Disk-cached with long Cache-Control. Letter-avatar SVG if every gateway fails.",
+        "parameters": [
+          {
+            "name": "mint",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "image/png|jpeg|webp|gif or image/svg+xml letter avatar"
+          }
+        }
+      }
+    },
+    "/api/coins/{mint}/kit": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Post-launch kit for a coin",
+        "operationId": "getCoinKit",
+        "description": "AI crew + job templates + kickoff budget. Budget = treasury share of this mint’s accrued creator fees (cached 1–5 min poll of remits + on-chain fee-sharing) minus spent/reserved. SOL/ETH converted via cached FX. Dexscreener Enhanced Token Info default $299 (may change). Hosted website is free. Custom domain default ~$10. Approval reserves USD so nothing double-spends. No on-chain treasury transfer.",
+        "parameters": [
+          {
+            "name": "mint",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Kit payload"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
     "/api/coins/{mint}": {
       "get": {
         "tags": [
           "discovery"
         ],
-        "summary": "Coin by mint",
+        "summary": "Coin by mint (public coin page source)",
+        "description": "Launch record plus optional public image/socials. Site page: https://crewpay.dev/coin/{mint}. No new secrets.",
         "operationId": "getCoin",
         "parameters": [
           {
@@ -917,10 +1159,152 @@
         ],
         "responses": {
           "200": {
-            "description": "Coin"
+            "description": "Coin + pageUrl, crew, optional image/socials"
           },
           "404": {
             "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/jobs/templates": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Creative job presets for a launched coin",
+        "operationId": "getJobTemplates",
+        "description": "One-click templates: Meme pack, Banner/logo design, X account upkeep (N posts/week), Website polish. Behind JOBS_ENABLED. Test/devnet escrow. No earnings promises.",
+        "responses": {
+          "200": {
+            "description": "Template catalog"
+          }
+        }
+      }
+    },
+    "/api/jobs/open": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "List open jobs",
+        "operationId": "getOpenJobs",
+        "parameters": [
+          {
+            "name": "mint",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by coin mint"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Open/funded jobs"
+          }
+        }
+      }
+    },
+    "/api/jobs/coin/dry-run": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Dry-run a post-launch creative job",
+        "operationId": "postCoinJobDryRun",
+        "security": [
+          {
+            "CrewApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostCoinJobRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Plan"
+          },
+          "400": {
+            "description": "Invalid"
+          }
+        }
+      }
+    },
+    "/api/jobs/coin": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Post a creative job for a CrewPay-launched coin",
+        "description": "MCP: post_coin_job. Uses existing jobs+escrow. Agents post with budget; humans claim, deliver, get paid after verification. Test/devnet only — never mainnet. Fee split for launches remains 60% KOL crew / 15% launching agent / 25% treasury.",
+        "operationId": "postCoinJob",
+        "security": [
+          {
+            "CrewApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostCoinJobRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Job created"
+          },
+          "400": {
+            "description": "Invalid"
+          }
+        }
+      }
+    },
+    "/api/jobs/campaigns/dry-run": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Dry-run a campaign job",
+        "operationId": "postJobCampaignDryRun",
+        "security": [
+          {
+            "CrewApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Plan"
+          }
+        }
+      }
+    },
+    "/api/jobs/campaigns": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Create a campaign or creative job",
+        "operationId": "postJobCampaign",
+        "security": [
+          {
+            "CrewApiKey": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Job created"
           }
         }
       }
@@ -1019,8 +1403,8 @@
       "X402Payment": {
         "type": "apiKey",
         "in": "header",
-        "name": "X-PAYMENT",
-        "description": "x402 v1 base64 PaymentPayload. Alternative to x-crew-api-key on launch/autohire when X402_ENABLED. USDC on Base or Solana. Server returns X-PAYMENT-RESPONSE."
+        "name": "PAYMENT-SIGNATURE",
+        "description": "x402 v2 base64 PaymentPayload. Alternative to x-crew-api-key on launch/autohire when X402_ENABLED. USDC on Base mainnet (eip155:8453). Legacy X-PAYMENT still accepted. Server returns PAYMENT-RESPONSE."
       },
       "LauncherKey": {
         "type": "apiKey",
@@ -1030,6 +1414,72 @@
       }
     },
     "schemas": {
+      "PostCoinJobRequest": {
+        "type": "object",
+        "required": [
+          "mint",
+          "template",
+          "chainId",
+          "asset"
+        ],
+        "properties": {
+          "mint": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 64
+          },
+          "template": {
+            "type": "string",
+            "enum": [
+              "meme-pack",
+              "banner-logo",
+              "x-upkeep",
+              "website-polish"
+            ]
+          },
+          "chainId": {
+            "type": "string",
+            "enum": [
+              "solana-devnet",
+              "evm:base-sepolia",
+              "flop-testnet"
+            ],
+            "description": "Test/devnet only — mainnet chain ids are rejected"
+          },
+          "asset": {
+            "type": "string",
+            "enum": [
+              "SOL",
+              "USDC",
+              "ETH",
+              "USDT"
+            ]
+          },
+          "budget": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "perProofAmount": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "postsPerWeek": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 21,
+            "description": "X account upkeep: posts per week"
+          },
+          "deadlineHours": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 720
+          },
+          "fund": {
+            "type": "boolean",
+            "description": "Optional sim/flop-tclk escrow fund (never mainnet)"
+          }
+        }
+      },
       "LaunchVenue": {
         "type": "object",
         "required": [
