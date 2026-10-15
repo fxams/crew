@@ -47,7 +47,7 @@ async function main() {
       // Needed so /kols/register/start can set the optional crew_reg cookie
       // (crewpay.dev → api.crewpay.dev is cross-origin). Cookie is fallback only.
       credentials: true,
-      exposedHeaders: ['X-PAYMENT-RESPONSE', 'PAYMENT-RESPONSE'],
+      exposedHeaders: ['X-PAYMENT-RESPONSE', 'PAYMENT-RESPONSE', 'PAYMENT-REQUIRED'],
     }),
   )
   // Default JSON cap 100kb. Launch paths (including unsigned/submit/dry-run/x402)
@@ -104,6 +104,7 @@ async function main() {
         llms: '/.well-known/llms.txt',
         agent: '/.well-known/agent.json',
         aiPlugin: '/.well-known/ai-plugin.json',
+        x402: '/.well-known/x402',
       },
       mcp: '/mcp.json',
       mcpHttp: 'https://mcp.crewpay.dev/mcp',

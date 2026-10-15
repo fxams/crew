@@ -1,4 +1,10 @@
-import { canX402Pay, createXPaymentHeader, type X402Accept } from './x402-pay.js'
+import {
+  canX402Pay,
+  createXPaymentHeader,
+  parsePaymentRequiredHeader,
+  type X402Accept,
+  type X402Challenge,
+} from './x402-pay.js'
 
 export const DEFAULT_API_URL = 'https://api.crewpay.dev'
 export const DEFAULT_SITE_URL = 'https://crewpay.dev'
@@ -14,8 +20,8 @@ export type CrewApiConfig = {
   publicMode?: boolean
   /** Hex EVM key for Base USDC x402. Ignored in publicMode. Never a tool arg. */
   x402EvmPrivateKey?: string
-  /** Test hook — return a ready X-PAYMENT header from 402 accepts[]. */
-  x402Pay?: (accepts: X402Accept[]) => Promise<string>
+  /** Test hook — return a ready PAYMENT-SIGNATURE header from 402 accepts[]. */
+  x402Pay?: (accepts: X402Accept[], challenge?: X402Challenge) => Promise<string>
 }
 
 export function resolvePublicMode(explicit?: boolean): boolean {
@@ -54,16 +60,28 @@ export function cfgCanX402Pay(cfg: CrewApiConfig): boolean {
   return Boolean(cfg.x402Pay) || canX402Pay(cfg.x402EvmPrivateKey)
 }
 
-async function pay402(cfg: CrewApiConfig, json: unknown): Promise<string> {
+function challengeFrom402(json: unknown, headers: Headers): X402Challenge {
+  const fromHeader = parsePaymentRequiredHeader(headers.get('PAYMENT-REQUIRED'))
+  const fromBody = json && typeof json === 'object' ? (json as X402Challenge) : {}
   const accepts =
-    json && typeof json === 'object' && 'accepts' in json && Array.isArray((json as { accepts: unknown }).accepts)
-      ? ((json as { accepts: X402Accept[] }).accepts)
-      : []
-  if (cfg.x402Pay) return cfg.x402Pay(accepts)
+    (Array.isArray(fromBody.accepts) && fromBody.accepts.length ? fromBody.accepts : null) ||
+    fromHeader?.accepts ||
+    []
+  return {
+    ...fromHeader,
+    ...fromBody,
+    accepts,
+  }
+}
+
+async function pay402(cfg: CrewApiConfig, json: unknown, headers: Headers): Promise<string> {
+  const challenge = challengeFrom402(json, headers)
+  const accepts = challenge.accepts || []
+  if (cfg.x402Pay) return cfg.x402Pay(accepts, challenge)
   if (!cfg.x402EvmPrivateKey) {
     throw new Error('x402 payment configured incorrectly — missing X402_EVM_PRIVATE_KEY')
   }
-  return createXPaymentHeader({ accepts, evmPrivateKey: cfg.x402EvmPrivateKey })
+  return createXPaymentHeader({ accepts, evmPrivateKey: cfg.x402EvmPrivateKey, challenge })
 }
 
 export async function crewFetch(
@@ -110,8 +128,16 @@ export async function crewFetch(
   let res = await fetch(url, { ...init, headers })
   let { json, text } = await readJson(res)
 
-  if (res.status === 402 && init?.auth && !cfg.apiKey && cfgCanX402Pay(cfg) && !headers.has('X-PAYMENT')) {
-    const payment = await pay402(cfg, json)
+  if (
+    res.status === 402 &&
+    init?.auth &&
+    !cfg.apiKey &&
+    cfgCanX402Pay(cfg) &&
+    !headers.has('X-PAYMENT') &&
+    !headers.has('PAYMENT-SIGNATURE')
+  ) {
+    const payment = await pay402(cfg, json, res.headers)
+    headers.set('PAYMENT-SIGNATURE', payment)
     headers.set('X-PAYMENT', payment)
     res = await fetch(url, { ...init, headers })
     ;({ json, text } = await readJson(res))

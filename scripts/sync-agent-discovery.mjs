@@ -41,6 +41,7 @@ const files = [
     '.well-known/ai-plugin.json',
     JSON.stringify(mod.aiPluginManifest(), null, 2) + '\n',
   ],
+  ['.well-known/x402', JSON.stringify(mod.wellKnownX402(), null, 2) + '\n'],
 ]
 
 for (const [rel, body] of files) {

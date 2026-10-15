@@ -56,7 +56,7 @@ describe('x402 discovery parse', () => {
   it('ignores junk prices and unknown networks', () => {
     const info = normalizeX402({
       prices: { launch: 'nope', autohire: -1 },
-      networks: ['ethereum', 'base', 'base', 'sol'],
+      networks: ['ethereum', 'base', 'base', 'eip155:8453', 'sol', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
       asset: 'usdc',
     })
     expect(info.prices.launch).toBe('$0.10')

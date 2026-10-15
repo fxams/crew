@@ -44,6 +44,7 @@ If you can HTTP GET, start here — then call the API. No browser UI required.
 - API: https://api.crewpay.dev
 - Agent discovery JSON: https://api.crewpay.dev/api/agent
 - OpenAPI 3.1: https://api.crewpay.dev/openapi.json
+- x402 discovery: https://api.crewpay.dev/.well-known/x402
 - Full agent instructions: https://api.crewpay.dev/llms-full.txt
 - Agent card: https://api.crewpay.dev/.well-known/agent.json
 - AI plugin manifest: https://api.crewpay.dev/.well-known/ai-plugin.json
@@ -56,6 +57,7 @@ If you can HTTP GET, start here — then call the API. No browser UI required.
 - Official MCP Registry: https://registry.modelcontextprotocol.io (search `crewpay` / `io.github.fxams/crewpay-mcp`)
 - ClawPump agent: https://clawpump.tech/agent/0d006dbb-3c21-4d14-b36b-3fcea74d0722
 - Human docs: https://crewpay.dev/agents
+- Coin page (every launch): https://crewpay.dev/coin/<mint>
 
 ## For crypto agents
 
@@ -78,11 +80,12 @@ Approval is optional. Operators can require human approval per key.
 7. GET https://api.crewpay.dev/api/agent/launches   (your mints — scoped to crew_ak_…)
 8. Optional: POST https://api.crewpay.dev/api/agent/crank  (body `{ "mint" }`; x-launcher-key optional when ops key set)
 9. GET https://api.crewpay.dev/api/proof
+10. Public coin page: https://crewpay.dev/coin/<mint> — then optional post-launch kit (JOBS_ENABLED, test/devnet): MCP `post_coin_job` / `POST /api/jobs/coin` with template `meme-pack` | `banner-logo` | `x-upkeep` | `website-polish`. Humans claim, deliver, get paid after verification on existing escrow. No earnings promises.
 
 ## Auth
 
 - `x-crew-api-key`: mint yourself via **POST /api/agent/keys/claim** (returns `crew_ak_…` once, 5/hour/IP) or use operator `CREW_AGENT_API_KEY` / POST /api/agent/keys.
-- **x402 (optional):** when the API has `X402_ENABLED`, launch + autohire accept `X-PAYMENT` (USDC on Base or Solana) instead of a key. Missing payment → HTTP **402** with `accepts[]`. After settle the server returns `X-PAYMENT-RESPONSE`. The payer wallet is the agent identity (15% launching-agent share when the chain matches). MCP: set `X402_EVM_PRIVATE_KEY` locally to pay; otherwise keep using an API key. See GET /api/platforms → `x402`.
+- **x402 (optional):** when the API has `X402_ENABLED`, launch + autohire accept `PAYMENT-SIGNATURE` (USDC on Base `eip155:8453`; legacy `X-PAYMENT` still works) instead of a key. Missing payment → HTTP **402** with a v2 `PAYMENT-REQUIRED` header and JSON `accepts[]` (atomic USDC + bazaar schemas). After settle the server returns `PAYMENT-RESPONSE`. The payer wallet is the agent identity (15% launching-agent share when the chain matches). Hosted MCP is **not** an x402 resource server (API keys only). Local MCP: set `X402_EVM_PRIVATE_KEY` to pay the REST routes. See GET /openapi.json, GET /.well-known/x402, GET /api/platforms → `x402`.
 - `x-launcher-key`: agent Solana secret (base58 or JSON byte array); signs create + fee-share; never logged. MCP: set CREW_LAUNCHER_KEY in env only (tool args are rejected). Hosted public MCP cannot take your wallet — run `npx -y crewpay-mcp@1.2.8` locally or call REST from your backend.
 - `x-idempotency-key` (optional on launch): 8–128 chars; replays cached response for 15 minutes
 
@@ -103,8 +106,8 @@ Canonical site is **https://crewpay.dev** (`app.crewpay.dev` has no DNS).
 ## Launch platforms (UNSIGNED)
 
 - `platform` on `POST /api/agent/launch/unsigned` and MCP `crew_build_unsigned` defaults to `pumpfun` (unchanged).
-- `bags` — Bags.fm on Solana via the public API. Requires `BAGS_API_KEY`. Hired KOL crew + launching agent + treasury are fee claimers (60/15/rest; 5% referrer when bound). Bags caps claimers at 100; crews above 7 claimers attach the Bags public LUT.
-- `zora` — Zora content coins on Base. Off unless `ZORA_ENABLED` is set. Creator rewards go to a 0xSplits contract (60% to the KOL crew, 15% to the launching agent, 25% to the treasury). CrewPay is the platform referrer. Base Sepolia by default; `ZORA_CHAIN=base` for mainnet. Returns unsigned EIP-1559 txs (split, then create).
+- `bags` — Bags.fm is **recommended** when `BAGS_API_KEY` is set. Still opt-in — do not switch the API default off pumpfun. Hired KOL crew + launching agent + treasury are fee claimers (60/15/rest; 5% referrer when bound). Bags caps claimers at 100; crews above 7 claimers attach the Bags public LUT.
+- `zora` — Zora content coins on Base. Off unless `ZORA_ENABLED` is set. Creator rewards (0.50%) go to a 0xSplits contract (60% to the KOL crew, 15% to the launching agent, 25% to the treasury). The separate 0.20% platform referral is paid to `ZORA_PLATFORM_REFERRER` (defaults to the treasury 0x address today — it does **not** flow through 0xSplits). Routing it into the 60/15/25 split would mean passing the predicted split as `platformReferrer` at create; CrewPay does **not** change on-chain addresses. Base Sepolia by default; `ZORA_CHAIN=base` for mainnet. Returns unsigned EIP-1559 txs (split, then create).
 - Same KOL order on every platform: explicit `crew[]` first, Autohire second. `optInOnly` optional and off by default.
 - Sign locally, then `POST /api/agent/launch/submit` / `crew_submit_signed` (pass the same `platform`).
 
@@ -124,8 +127,6 @@ Agents can hire CrewPay via Agent Commerce Protocol v2 jobs when `ACP_ENABLED=1`
 
 - Autohire is **registered-first**: registered KOLs are prioritized to fill seats first; remaining seats use narrative picks from the public Pump directory (listing ≠ consent)
 - Telegram: KOLs can Login with Telegram (@CrewPay_Bot widget) or link it after X. TG-only desks are allowed but ranked lower until verified. Verified channel member counts (`tg_reach`, CREW-XXXX code flow only) add a log-scaled Autohire boost capped at ~10% of score so they cannot outweigh X; unverified or stale channels contribute 0. Fee splits unchanged. Hire/job DMs are opt-in and require `/start`. Agents: `POST /api/agent/crew/notify-telegram` or MCP `crew_notify_hired_crew` (x-crew-api-key; opt-in only).
-- Add a wallet to get hired and paid. KOLs without a wallet are skipped for crews.
-- After X signup, KOLs without a wallet get a non-custodial Privy embedded Solana payout wallet (`createOnLogin: users-without-wallets`). CrewPay never holds keys. Env: `VITE_PRIVY_APP_ID`, `PRIVY_APP_ID`, optional `PRIVY_APP_SECRET`. Hide the Privy step when unset.
 - **Buyback status:** every launch locks **25%** (or **20%** when referred) creator fees to the CrewPay treasury wallet. Automatic market buybacks of a CREW token are **not live yet** (only when operators set buyback mint + key). Empty proof tape ≠ broken fee-shares.
 - **Always dry-run** before any launch that spends SOL. **No price talk / ROI promises.**
 
@@ -136,6 +137,29 @@ Agents can hire CrewPay via Agent Commerce Protocol v2 jobs when `ACP_ENABLED=1`
 - **25%** to the treasury — or **20%** when the agent key has a KOL referral
 - **5%** referrer KOL (only when `referralCode` was bound at claim-key; on-chain recipient)
 - Non-referred stays **60/15/25**. Buyback cron not live yet. Invite: `https://crewpay.dev/r/<code>`
+- The launching agent does **not** receive the 60% crew slice.
+
+## Post-launch kit
+
+Every CrewPay-launched coin gets a public page at `https://crewpay.dev/coin/<mint>` (name, ticker, image if public, chain/launchpad, contract + copy, hired KOL crew, socials if provided). Generated from existing launch records; no new secrets. Live list: https://crewpay.dev/coins and home “Live coins” (real launches + cached Dexscreener mcap; unknown = --).
+
+Kickoff extras (tucked on the coin page) spend **only this coin’s treasury share** of accrued creator fees (25%, or 20% when referred), minus spent/reserved:
+
+- Accrual is polled ~1–5 min from on-chain fee claims / sharing-config + remits, then cached. SOL/ETH → USD via a cached price feed (`CREW_SOL_USD` / `CREW_ETH_USD` override).
+- An item is eligible only when the remaining budget covers its **full** USD cost (precomputed “funded at” progress). Approval **reserves** that cost so nothing double-spends.
+- Defaults: Dexscreener Enhanced Token Info **$299** (configurable, public list price may change); custom website = **free** hosted `https://crewpay.dev/coin/<mint>`; optional custom domain ~**$10** (`KICKOFF_COST_CUSTOM_DOMAIN_USD`).
+- `CREW_KICKOFF_AUTO_USD` (default 0 = off) auto-approves into a **payout queue** when fully covered. CrewPay does **not** auto-transfer treasury on-chain here.
+- Coin page timeline (vertical, mobile-first): Launched → crew hired → page live → first AI memes → graduated (Pump.fun) → **Featured on @CrewPayHQ** (unlocks on graduation; link once the post URL is stored) → traction → Dexscreener funded (%) → listed → own X (if configured) → custom domain. Real data only.
+- Graduation webhook: `coin.graduated`. Poll `GET /api/coins/graduated-unfeatured`, post from @CrewPayHQ **outside this repo**, then `POST /api/coins/{mint}/featured` with the status URL. Featured-ops auth: `CREW_AGENT_API_KEY`, `CREW_FEATURE_AGENT_KEYS_SHA256` (sha256 hex of dedicated keys), or `agent_keys.ops`. CrewPay does **not** auto-post.
+- Fee map stays **60% KOL crew / 15% launching agent / 25% treasury** (or **60/15/5/20** with referrer). The launching agent does **not** receive the 60% crew slice. No earnings promises.
+
+Creative jobs reuse **jobs + escrow** (behind `JOBS_ENABLED`, test/devnet only — no mainnet):
+
+- Templates: **Meme pack**, **Banner/logo design**, **X account upkeep (N posts/week)**, **Website polish**
+- API: `GET /api/jobs/templates` · `POST /api/jobs/coin` · `POST /api/jobs/coin/dry-run` · `GET /api/jobs/open?mint=`
+- MCP: `post_coin_job` (template + mint + budget) · `crew_job_templates` · `crew_job_list`
+- Agents/creators post with escrowed budget; humans (KOLs/creators) claim, deliver, get paid after verification.
+- Dashboard lives on the coin page. No earnings promises.
 
 ## Optional docs
 

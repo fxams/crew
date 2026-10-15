@@ -1,15 +1,18 @@
 /**
- * x402 (HTTP 402 pay-per-request) — Coinbase/x402 v1.
+ * x402 (HTTP 402 pay-per-request) — Coinbase/x402 v2.
  *
- * Off unless X402_ENABLED is set. Speaks X-PAYMENT / X-PAYMENT-RESPONSE and
+ * Off unless X402_ENABLED is set. Speaks PAYMENT-REQUIRED / PAYMENT-SIGNATURE /
+ * PAYMENT-RESPONSE (plus legacy X-PAYMENT / X-PAYMENT-RESPONSE) and
  * verifies/settles through a facilitator (default https://x402.org/facilitator).
- * No secrets live here — payTo addresses are public receiving wallets.
+ * No secrets live here — payTo addresses are public receiving wallets from env.
  */
 
 import { createHash } from 'node:crypto'
 import { isEvmAddress } from './agent/evm-address.js'
+import { X402_NETWORK_BASE, X402_NETWORK_SOLANA } from './x402-discovery.js'
 
-export const X402_VERSION = 1
+export const X402_VERSION = 2
+export const X402_VERSION_V1 = 1
 export const DEFAULT_X402_FACILITATOR_URL = 'https://x402.org/facilitator'
 export const DEFAULT_X402_PRICE_LAUNCH_USD = 0.1
 export const DEFAULT_X402_PRICE_AUTOHIRE_USD = 0.02
@@ -21,20 +24,34 @@ export const USDC_SOLANA = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
 
 export const X_PAYMENT_HEADER = 'X-PAYMENT'
 export const X_PAYMENT_RESPONSE_HEADER = 'X-PAYMENT-RESPONSE'
+export const PAYMENT_REQUIRED_HEADER = 'PAYMENT-REQUIRED'
+export const PAYMENT_SIGNATURE_HEADER = 'PAYMENT-SIGNATURE'
+export const PAYMENT_RESPONSE_HEADER = 'PAYMENT-RESPONSE'
 
 export type X402Network = 'base' | 'solana'
+export type X402CaipNetwork = typeof X402_NETWORK_BASE | typeof X402_NETWORK_SOLANA
 
 export type PaymentRequirements = {
   scheme: 'exact'
-  network: X402Network
+  /** CAIP-2 (eip155:8453 / solana:…). */
+  network: string
+  /** Atomic USDC units (6 decimals). */
+  amount: string
+  /** v1 alias of amount — same atomic string, for legacy clients. */
   maxAmountRequired: string
-  resource: string
-  description: string
-  mimeType: string
   payTo: string
   maxTimeoutSeconds: number
   asset: string
   extra?: Record<string, string>
+}
+
+export type ResourceInfo = {
+  url: string
+  description?: string
+  mimeType?: string
+  serviceName?: string
+  tags?: string[]
+  iconUrl?: string
 }
 
 export type PaymentPayload = {
@@ -42,6 +59,11 @@ export type PaymentPayload = {
   scheme: string
   network: string
   payload: Record<string, unknown>
+  accepted?: PaymentRequirements
+  resource?: ResourceInfo
+  extensions?: Record<string, unknown>
+  /** Original decoded object posted to the facilitator. */
+  raw?: Record<string, unknown>
 }
 
 export type VerifyResponse = {
@@ -130,6 +152,26 @@ export function formatUsdPrice(usd: number): string {
   return `$${usd.toFixed(2)}`
 }
 
+/** Map CAIP-2 / v1 aliases to the identity chain used for fee-share desk wallet. */
+export function x402NetworkFamily(network: string): X402Network {
+  const n = network.trim().toLowerCase()
+  if (n === 'solana' || n.startsWith('solana:')) return 'solana'
+  return 'base'
+}
+
+export function networksEqual(a: string, b: string): boolean {
+  const na = a.trim().toLowerCase()
+  const nb = b.trim().toLowerCase()
+  if (na === nb) return true
+  const famA = x402NetworkFamily(na)
+  const famB = x402NetworkFamily(nb)
+  if (famA !== famB) return false
+  const baseAliases = new Set(['base', X402_NETWORK_BASE.toLowerCase(), 'eip155:8453'])
+  const solAliases = new Set(['solana', X402_NETWORK_SOLANA.toLowerCase()])
+  if (famA === 'base') return baseAliases.has(na) && baseAliases.has(nb)
+  return solAliases.has(na) && solAliases.has(nb)
+}
+
 export function paymentRequirementsFor(opts: {
   resource: string
   kind: X402EndpointKind
@@ -137,21 +179,14 @@ export function paymentRequirementsFor(opts: {
 }): PaymentRequirements[] {
   const usd = x402PriceUsdForKind(opts.kind)
   const amount = usdToUsdcAtomic(usd)
-  const description =
-    opts.description ||
-    (opts.kind === 'autohire'
-      ? 'CrewPay Autohire preview'
-      : 'CrewPay agent launch')
   const out: PaymentRequirements[] = []
   const evm = x402PayToEvm()
   if (evm) {
     out.push({
       scheme: 'exact',
-      network: 'base',
+      network: X402_NETWORK_BASE,
+      amount,
       maxAmountRequired: amount,
-      resource: opts.resource,
-      description,
-      mimeType: 'application/json',
       payTo: evm,
       maxTimeoutSeconds: 60,
       asset: USDC_BASE,
@@ -162,11 +197,9 @@ export function paymentRequirementsFor(opts: {
   if (sol) {
     out.push({
       scheme: 'exact',
-      network: 'solana',
+      network: X402_NETWORK_SOLANA,
+      amount,
       maxAmountRequired: amount,
-      resource: opts.resource,
-      description,
-      mimeType: 'application/json',
       payTo: sol,
       maxTimeoutSeconds: 60,
       asset: USDC_SOLANA,
@@ -185,19 +218,26 @@ export function x402PublicDiscovery() {
   return {
     enabled,
     spec: 'https://docs.x402.org',
-    protocol: 'x402 v1',
+    protocol: 'x402 v2',
     docs: 'https://crewpay.dev/llms.txt',
     integration: 'https://github.com/fxams/crew/blob/main/docs/integrations/x402.md',
     note: enabled
-      ? 'Pay per call with USDC (X-PAYMENT). No API key required. Existing x-crew-api-key still works.'
-      : 'Off unless X402_ENABLED is set (plus X402_PAY_TO_EVM and/or X402_PAY_TO_SOL).',
+      ? 'Pay per call with USDC on Base mainnet (eip155:8453). Send PAYMENT-SIGNATURE (or legacy X-PAYMENT). No API key required. Existing x-crew-api-key still works.'
+      : 'Off unless X402_ENABLED is set (plus X402_PAY_TO_EVM and/or X402_PAY_TO_SOL). Base payTo is env-driven (X402_PAY_TO_EVM, else ZORA_TREASURY_ADDRESS, else CREW_BUYBACK_WALLET_EVM).',
     headers: {
-      request: X_PAYMENT_HEADER,
-      response: X_PAYMENT_RESPONSE_HEADER,
+      request: PAYMENT_SIGNATURE_HEADER,
+      response: PAYMENT_RESPONSE_HEADER,
+      paymentRequired: PAYMENT_REQUIRED_HEADER,
+      legacyRequest: X_PAYMENT_HEADER,
+      legacyResponse: X_PAYMENT_RESPONSE_HEADER,
     },
     alternativeAuth: 'x-crew-api-key',
     facilitator: enabled ? x402FacilitatorUrl() : undefined,
     networks,
+    caip2: {
+      base: enabled && x402PayToEvm() ? X402_NETWORK_BASE : undefined,
+      solana: enabled && x402PayToSol() ? X402_NETWORK_SOLANA : undefined,
+    },
     asset: 'USDC',
     prices: {
       launch: launch,
@@ -219,6 +259,26 @@ export function x402PublicDiscovery() {
   }
 }
 
+function asReq(raw: unknown): PaymentRequirements | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const r = raw as Record<string, unknown>
+  const amount = String(r.amount || r.maxAmountRequired || '')
+  if (!amount || !r.payTo) return undefined
+  return {
+    scheme: (String(r.scheme || 'exact') as 'exact') || 'exact',
+    network: String(r.network || ''),
+    amount,
+    maxAmountRequired: amount,
+    payTo: String(r.payTo),
+    maxTimeoutSeconds: Number(r.maxTimeoutSeconds || 60),
+    asset: String(r.asset || ''),
+    extra:
+      r.extra && typeof r.extra === 'object'
+        ? (r.extra as Record<string, string>)
+        : undefined,
+  }
+}
+
 export function decodePaymentHeader(raw: string): PaymentPayload {
   const trimmed = raw.trim()
   if (!trimmed) throw new Error('empty payment header')
@@ -226,24 +286,46 @@ export function decodePaymentHeader(raw: string): PaymentPayload {
   try {
     json = Buffer.from(trimmed, 'base64').toString('utf8')
   } catch {
-    throw new Error('X-PAYMENT is not valid base64')
+    throw new Error('PAYMENT-SIGNATURE is not valid base64')
   }
   let parsed: unknown
   try {
     parsed = JSON.parse(json)
   } catch {
-    throw new Error('X-PAYMENT is not valid JSON')
+    throw new Error('PAYMENT-SIGNATURE is not valid JSON')
   }
-  if (!parsed || typeof parsed !== 'object') throw new Error('X-PAYMENT payload must be an object')
+  if (!parsed || typeof parsed !== 'object') throw new Error('payment payload must be an object')
   const p = parsed as Record<string, unknown>
   const payload = p.payload
-  if (!payload || typeof payload !== 'object') throw new Error('X-PAYMENT missing payload')
+  if (!payload || typeof payload !== 'object') throw new Error('payment payload missing payload')
+  const accepted = asReq(p.accepted)
+  const version = Number(p.x402Version || 0)
+  const network =
+    accepted?.network ||
+    String(p.network || '')
+  const scheme = accepted?.scheme || String(p.scheme || 'exact')
+  const resource =
+    p.resource && typeof p.resource === 'object'
+      ? (p.resource as ResourceInfo)
+      : undefined
+  const extensions =
+    p.extensions && typeof p.extensions === 'object'
+      ? (p.extensions as Record<string, unknown>)
+      : undefined
   return {
-    x402Version: Number(p.x402Version || X402_VERSION),
-    scheme: String(p.scheme || 'exact'),
-    network: String(p.network || ''),
+    x402Version: version || (accepted ? X402_VERSION : X402_VERSION_V1),
+    scheme,
+    network,
     payload: payload as Record<string, unknown>,
+    accepted,
+    resource,
+    extensions,
+    raw: p,
   }
+}
+
+export function encodePaymentRequired(body: unknown): string {
+  return Buffer.from(JSON.stringify(body), 'utf8').toString('base64')
 }
 
 export function encodePaymentResponse(settle: SettleResponse): string {
@@ -268,11 +350,12 @@ export function matchRequirements(
   payload: PaymentPayload,
   accepts: PaymentRequirements[],
 ): PaymentRequirements | null {
-  const network = payload.network.trim().toLowerCase()
-  const scheme = (payload.scheme || 'exact').trim().toLowerCase()
+  const network = (payload.accepted?.network || payload.network || '').trim()
+  const scheme = (payload.accepted?.scheme || payload.scheme || 'exact').trim().toLowerCase()
+  if (!network) return null
   return (
-    accepts.find((a) => a.network === network && a.scheme === scheme) ||
-    accepts.find((a) => a.network === network) ||
+    accepts.find((a) => networksEqual(a.network, network) && a.scheme === scheme) ||
+    accepts.find((a) => networksEqual(a.network, network)) ||
     null
   )
 }
@@ -316,6 +399,37 @@ async function postFacilitator<T>(
   }
 }
 
+/**
+ * v1 facilitator expects network `base`/`solana` + maxAmountRequired.
+ * v2 expects CAIP-2 + amount. Match the payload version.
+ */
+function requirementsForFacilitator(
+  payload: PaymentPayload,
+  requirements: PaymentRequirements,
+): Record<string, unknown> {
+  if ((payload.x402Version || X402_VERSION) >= 2) {
+    return {
+      scheme: requirements.scheme,
+      network: requirements.network,
+      amount: requirements.amount,
+      asset: requirements.asset,
+      payTo: requirements.payTo,
+      maxTimeoutSeconds: requirements.maxTimeoutSeconds,
+      extra: requirements.extra,
+    }
+  }
+  return {
+    scheme: requirements.scheme,
+    network: x402NetworkFamily(requirements.network),
+    maxAmountRequired: requirements.maxAmountRequired || requirements.amount,
+    payTo: requirements.payTo,
+    maxTimeoutSeconds: requirements.maxTimeoutSeconds,
+    asset: requirements.asset,
+    extra: requirements.extra,
+    mimeType: 'application/json',
+  }
+}
+
 /** Default HTTP facilitator. Tests inject a mock via createHttpFacilitator(url, fetch). */
 export function createHttpFacilitator(
   url: string = x402FacilitatorUrl(),
@@ -327,7 +441,11 @@ export function createHttpFacilitator(
       const json = await postFacilitator<VerifyResponse>(
         base,
         '/verify',
-        { x402Version: X402_VERSION, paymentPayload: payload, paymentRequirements: requirements },
+        {
+          x402Version: payload.x402Version || X402_VERSION,
+          paymentPayload: payload.raw || payload,
+          paymentRequirements: requirementsForFacilitator(payload, requirements),
+        },
         fetchImpl,
       )
       return {
@@ -340,7 +458,11 @@ export function createHttpFacilitator(
       const json = await postFacilitator<SettleResponse>(
         base,
         '/settle',
-        { x402Version: X402_VERSION, paymentPayload: payload, paymentRequirements: requirements },
+        {
+          x402Version: payload.x402Version || X402_VERSION,
+          paymentPayload: payload.raw || payload,
+          paymentRequirements: requirementsForFacilitator(payload, requirements),
+        },
         fetchImpl,
       )
       return {
