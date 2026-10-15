@@ -1,8 +1,25 @@
 # CREW / CrewPay
 
-AI agents hire KOLs. Humans get paid. Launch **Solana Pump.fun** coins with permanent on-chain creator fee-shares (60/15/25 default; 60/15/5/20 when the agent claimed a key with a KOL referral code; buyback cron not live yet).
+AI agents hire KOLs. Humans get paid. Launch coins on **Pump.fun**, **Bags**, and **Zora** with on-chain creator fee-shares (**60% crew / 15% agent / 25% treasury**, or **60/15/5/20** when the agent claimed a key with a KOL referral code).
 
 **Live:** [crewpay.dev](https://crewpay.dev) · API [api.crewpay.dev](https://api.crewpay.dev) · MCP [mcp.crewpay.dev/mcp](https://mcp.crewpay.dev/mcp)
+
+## Features
+
+- Auto-hire a KOL crew (narrative match; prefer registered / opt-in KOLs)
+- Non-custodial unsigned launches — CrewPay never holds the launcher key
+- Dry-run plus a human approval link (`dryRunId` + `approvalUrl`)
+- KOL sign-up / opt-in at [`/register`](https://crewpay.dev/register) and referral codes (`/r/<code>`)
+- Per-coin pages (`/coin/{mint}`) with a milestone timeline and live market data
+- [Live coins](https://crewpay.dev/) (home) and [All coins](https://crewpay.dev/coins)
+- [Proof](https://crewpay.dev/proof) tape
+- MCP: `crewpay-mcp@1.2.8` on npm · hosted [`mcp.crewpay.dev/mcp`](https://mcp.crewpay.dev/mcp)
+- REST API + [`llms.txt`](https://crewpay.dev/llms.txt)
+- OpenClaw skill: `openclaw skills install @fxams/crewpay`
+- [Official MCP Registry](https://registry.modelcontextprotocol.io) (`io.github.fxams/crewpay-mcp`) and [Glama](https://glama.ai/mcp/servers/fxams/crew)
+- x402 on Base — Autohire **$0.02**, launch family **$0.10** — listed on [x402scan](https://www.x402scan.com/)
+- Virtuals ACP offerings on Base (`8453`): Autohire **$0.25**, launch with crew **$1.00**
+- Jobs + escrow: **testnet only** (`JOBS_ENABLED`; production templates API is off)
 
 ## For AI / crypto agents
 
@@ -20,7 +37,7 @@ npx -y crewpay-mcp@1.2.8
 
 Env: `CREWPAY_API_KEY` (or `CREW_AGENT_API_KEY`) + dedicated low-SOL `CREW_LAUNCHER_KEY` in **local MCP env** — **never** as tool arguments or chat paste. Hosted: https://mcp.crewpay.dev/mcp
 
-**OpenClaw / ClawHub skill:** [`skills/crewpay`](./skills/crewpay/SKILL.md) — `openclaw skills install @fxams/crewpay` — hire KOLs, dry-run first, open approvalUrl, then launch with `dryRunId`. Honest fee split 60/15/25 or 60/15/5/20 with referral (buyback not live yet).
+**OpenClaw / ClawHub skill:** [`skills/crewpay`](./skills/crewpay/SKILL.md) — `openclaw skills install @fxams/crewpay` — hire KOLs, dry-run first, open `approvalUrl`, then launch with `dryRunId`. Fee split 60/15/25 or 60/15/5/20 with a KOL referral.
 
 Legacy alias: [`skills/crewpay-crypto-agent`](./skills/crewpay-crypto-agent/SKILL.md)  
 Discovery runbook: [`DISCOVERY.md`](./DISCOVERY.md) · Framework plugins: [`packages/`](./packages/README.md)
@@ -33,8 +50,8 @@ clawhub login   # GitHub device login — you do this interactively
 clawhub skill publish ./skills/crewpay \
   --slug crewpay \
   --name "CrewPay" \
-  --version 1.1.1 \
-  --changelog "Fix crank path; pin MCP; honest fee map" \
+  --version 1.1.6 \
+  --changelog "Venues Pump.fun / Bags / Zora; current fee map" \
   --categories integrations,finance,agents \
   --topics "solana,pump-fun,kol,fee-share,mcp" \
   --dry-run
@@ -43,7 +60,28 @@ clawhub skill publish ./skills/crewpay \
 
 ### Official MCP Registry
 
-See [`docs/mcp-registry-publish.md`](./docs/mcp-registry-publish.md).
+See [`docs/mcp-registry-publish.md`](./docs/mcp-registry-publish.md). Live name: `io.github.fxams/crewpay-mcp` (`crewpay-mcp@1.2.8`).
+
+## x402
+
+Pay-per-call **x402 v2** on Base mainnet USDC (`eip155:8453`). Alternative to `x-crew-api-key`. Hosted MCP is **not** an x402 resource server.
+
+**Discovery**
+
+- [`https://api.crewpay.dev/openapi.json`](https://api.crewpay.dev/openapi.json)
+- [`https://api.crewpay.dev/.well-known/x402`](https://api.crewpay.dev/.well-known/x402)
+
+Listed on [x402scan](https://www.x402scan.com/).
+
+**Paid routes** (live prices)
+
+| Method | Path | Price |
+|--------|------|-------|
+| POST | `/api/agent/autohire` | $0.02 |
+| POST | `/api/agent/launch/unsigned` | $0.10 |
+| POST | `/api/agent/launch/submit` | $0.10 |
+| POST | `/api/agent/launch/dry-run` | $0.10 |
+| POST | `/api/agent/launch` | $0.10 |
 
 ## Desk (humans)
 
@@ -60,13 +98,13 @@ See [`agent/crew/DEPLOY.md`](./agent/crew/DEPLOY.md) · [`agent/crew/PRODUCT.md`
 | Path | Role |
 |------|------|
 | `agent/crew` | Vite desk UI |
-| `agent/crew-api` | Agent API + proof + buyback cron |
+| `agent/crew-api` | Agent API + proof |
 | `agent/crew-mcp` | MCP server (`crewpay-mcp`) |
 | `services/acp-provider` | Virtuals ACP v2 provider worker (no-op unless `ACP_ENABLED=1`) |
 
 ## Virtuals ACP (agents hire CrewPay)
 
-`GET https://api.crewpay.dev/api/platforms` reports `acp.enabled` (false unless `ACP_ENABLED=1`) and `x402.enabled` (false unless `X402_ENABLED=1`). Listener: set `ACP_INPROCESS=1` on **crewpay-api** (same process, no extra Render worker) or run [`services/acp-provider`](./services/acp-provider/README.md). Complete no-op until `ACP_ENABLED=1`. Paying agent wallet = identity. Fee map unchanged (60% to the KOL crew, 15% to the launching agent, 25% to the treasury). Launch jobs stay non-custodial (unsigned txs + `crew_submit_signed`). Hire UI: [app.virtuals.io/acp](https://app.virtuals.io/acp).
+Live: `GET https://api.crewpay.dev/api/platforms` reports `acp.enabled` and `x402.enabled`. Production ACP is **Base mainnet** (`chainId` **8453**). Listener: set `ACP_INPROCESS=1` on **crewpay-api** or run [`services/acp-provider`](./services/acp-provider/README.md). Paying agent wallet = identity. Fee map unchanged. Launch jobs stay non-custodial (unsigned txs + `crew_submit_signed`). Hire UI: [app.virtuals.io/acp](https://app.virtuals.io/acp).
 
 This repo does **not** register an ACP agent, generate keys, or move funds.
 
@@ -94,5 +132,4 @@ This repo does **not** register an ACP agent, generate keys, or move funds.
 1. Register a provider on [app.virtuals.io/acp/new](https://app.virtuals.io/acp/new).
 2. **Signers → + Add Signer.** Put the Privy P-256 authorization key in `ACP_SIGNER_KEY`, the wallet id in `ACP_WALLET_ID`, and the 0x agent wallet in `ACP_WALLET_ADDRESS` (never logs, never commit). The signer is not a 32-byte hex key and does not derive the wallet.
 3. Add the two offerings (full JSON in [`services/acp-provider/README.md`](./services/acp-provider/README.md)).
-4. `ACP_ENABLED=1` `ACP_CHAIN_ID=84532` and either `ACP_INPROCESS=1` on crewpay-api, or `npm start --prefix services/acp-provider`.
-
+4. `ACP_ENABLED=1` `ACP_CHAIN_ID=8453` and either `ACP_INPROCESS=1` on crewpay-api, or `npm start --prefix services/acp-provider`.

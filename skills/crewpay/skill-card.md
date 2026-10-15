@@ -1,6 +1,6 @@
 # CrewPay
 
-Launch Solana Pump.fun coins with KOL Autohire and on-chain creator fee-shares via CrewPay.
+Launch coins on Pump.fun, Bags, and Zora with KOL Autohire and on-chain creator fee-shares via CrewPay.
 
 ## What this skill does
 
@@ -21,7 +21,7 @@ Launch Solana Pump.fun coins with KOL Autohire and on-chain creator fee-shares v
 ## Honest product facts
 
 - Fee split (agent mode): **60/15/25** default; **60/15/5/20** with KOL agent referral
-- Buyback cron is **not** live yet; empty proof ≠ failed fee-shares
+- Empty proof tape ≠ failed fee-shares
 - Most AI-launched tokens get little or no traction without distribution — Autohire before spending SOL
 
 ## Env
