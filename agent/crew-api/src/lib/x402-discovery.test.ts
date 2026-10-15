@@ -25,7 +25,11 @@ describe('x402 bazaar + well-known discovery', () => {
     for (const route of routes) {
       expect(route.description).toContain(CREWPAY_USE_CASE)
       expect(route.description.toLowerCase()).not.toMatch(/guaranteed/)
-      expect(route.description.toLowerCase()).not.toMatch(/earnings promise and a partnership/)
+      expect(route.description.toLowerCase()).not.toMatch(/later, agents/)
+      expect(route.description.toLowerCase()).not.toMatch(/earnings promise/)
+      expect(route.description.toLowerCase()).not.toMatch(/partnership claim/)
+      expect(route.description.toLowerCase()).not.toMatch(/buyback cron/)
+      expect(route.description.toLowerCase()).not.toMatch(/fee desk/)
       const ext = bazaarExtensionFor(route)
       expect(ext.info.description).toBe(route.description)
       expect(ext.info.input).toMatchObject({ type: 'http', method: 'POST', bodyType: 'json' })
@@ -45,7 +49,10 @@ describe('x402 bazaar + well-known discovery', () => {
     })
     expect(doc.version).toBe(1)
     expect(doc.description).toBe(CREWPAY_USE_CASE)
+    expect(doc.contact.email).toBe('crewpay@mail.grokbot.com')
     expect(doc.instructions).toContain('eip155:8453')
+    expect(doc.instructions.toLowerCase()).not.toMatch(/later, agents/)
+    expect(doc.instructions.toLowerCase()).not.toMatch(/buyback cron/)
     expect(doc.instructions).toContain('not an x402 resource server')
     expect(doc.resources).toEqual([
       'https://api.crewpay.dev/api/agent/autohire',
@@ -59,11 +66,15 @@ describe('x402 bazaar + well-known discovery', () => {
 
   it('wires OpenAPI info.description, x-payment-info, and 402 on paid ops', () => {
     const spec = openApiSpec() as {
-      info: { description: string }
+      info: { description: string; contact: { email?: string } }
       'x-discovery': { x402: string }
       paths: Record<string, { post?: Record<string, unknown> }>
     }
-    expect(spec.info.description).toContain(CREWPAY_USE_CASE)
+    expect(spec.info.description).toBe(CREWPAY_USE_CASE)
+    expect(spec.info.contact.email).toBe('crewpay@mail.grokbot.com')
+    expect(spec.info.description.toLowerCase()).not.toMatch(/buyback cron/)
+    expect(spec.info.description.toLowerCase()).not.toMatch(/fee desk/)
+    expect(spec.info.description.toLowerCase()).not.toMatch(/later, agents/)
     expect(spec['x-discovery'].x402).toContain('/.well-known/x402')
     const autohire = spec.paths['/api/agent/autohire']?.post as {
       'x-payment-info': { protocols: string[]; price: { mode: string; currency: string; amount: string } }

@@ -22,15 +22,11 @@ export const X402_NETWORK_SOLANA = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'
 export const X402_SERVICE_NAME = 'CrewPay'
 export const X402_SERVICE_TAGS = ['kol', 'launch', 'crewpay', 'x402', 'agents'] as const
 export const X402_ICON_URL = `${SITE_PUBLIC_URL}/favicon.png`
+export const CREWPAY_CONTACT_EMAIL = 'crewpay@mail.grokbot.com'
 
-/**
- * Current product + general future direction. No dates, no earnings, no partners.
- */
+/** Short product blurb for OpenAPI / x402scan / Bazaar. */
 export const CREWPAY_USE_CASE =
-  'CrewPay lets AI agents launch coins on Pump.fun, Bags, and Zora and auto-hire a crew of real KOLs. Those KOLs are paid onchain from creator fees (60% crew / 15% launching agent / 25% treasury). CrewPay is non-custodial and never holds the launcher key. Later, agents will be able to hire humans for any task that needs a person, with jobs paid automatically on delivery, more chains, and KOL reputation. This is not an earnings promise and not a partnership claim.'
-
-export const CREWPAY_USE_CASE_SHORT =
-  'AI agents launch coins (Pump.fun, Bags, Zora) and auto-hire real KOLs paid onchain from creator fees (60% crew / 15% agent / 25% treasury), non-custodial. Later: hire humans for any task, jobs paid on delivery, more chains, KOL reputation — no earnings promises, no partnership claims.'
+  'AI agents launch coins on Pump.fun, Bags and Zora and auto-hire a crew of real KOLs, paid onchain from creator fees (60% crew / 15% agent / 25% treasury). Non-custodial.'
 
 export type PaidX402Route = {
   path: string
@@ -155,7 +151,7 @@ const unsignedOutputSchema = {
 } as const
 
 function withUseCase(routeWhat: string): string {
-  return `${CREWPAY_USE_CASE} This route: ${routeWhat}`
+  return `${CREWPAY_USE_CASE} ${routeWhat}`
 }
 
 export function paidX402Routes(): PaidX402Route[] {
@@ -166,7 +162,7 @@ export function paidX402Routes(): PaidX402Route[] {
       kind: 'autohire',
       summary: 'Preview a KOL crew for a coin (no on-chain tx)',
       description: withUseCase(
-        'POST Autohire returns a crew preview for an existing or planned coin. No launch, no custody, no payout in this call.',
+        'Preview a KOL crew for a coin. No launch, no custody, no payout in this call.',
       ),
       inputExample: { ...AGENT_EXAMPLES.autohire },
       inputSchema: autohireInputSchema,
@@ -193,7 +189,7 @@ export function paidX402Routes(): PaidX402Route[] {
       kind: 'launch',
       summary: 'Build unsigned launch transactions (non-custodial)',
       description: withUseCase(
-        'POST unsigned build returns unsigned Pump.fun / Bags / Zora transactions plus crew_submit_signed instructions. You sign locally. CrewPay never holds the launcher key.',
+        'Build unsigned Pump.fun / Bags / Zora transactions. Sign locally. CrewPay never holds the launcher key.',
       ),
       inputExample: {
         ...AGENT_EXAMPLES.launch,
@@ -216,7 +212,7 @@ export function paidX402Routes(): PaidX402Route[] {
       kind: 'launch',
       summary: 'Broadcast signed launch transactions',
       description: withUseCase(
-        'POST submit broadcasts transactions you already signed. CrewPay does not sign for you.',
+        'Broadcast transactions you already signed. CrewPay does not sign for you.',
       ),
       inputExample: {
         signed: ['<signed-tx-base64>'],
@@ -243,7 +239,7 @@ export function paidX402Routes(): PaidX402Route[] {
       kind: 'launch',
       summary: 'Validate a launch plan without spending',
       description: withUseCase(
-        'POST dry-run validates the launch body and image, returns a plan and dryRunId, and spends nothing.',
+        'Validate a launch plan and image. Returns dryRunId. Spends nothing.',
       ),
       inputExample: {
         ...AGENT_EXAMPLES.launch,
@@ -273,7 +269,7 @@ export function paidX402Routes(): PaidX402Route[] {
       kind: 'launch',
       summary: 'Launch a coin with KOL fee-shares (mainnet)',
       description: withUseCase(
-        'POST launch creates the coin and locks on-chain creator fee-shares. Send x-launcher-key from your backend or local MCP env — never as a body field.',
+        'Create the coin and lock on-chain creator fee-shares. Send x-launcher-key from your backend or local MCP env — never as a body field.',
       ),
       inputExample: { ...AGENT_EXAMPLES.launch },
       inputSchema: launchInputSchema,
@@ -421,6 +417,7 @@ export function wellKnownX402(opts?: {
   return {
     version: 1,
     description: CREWPAY_USE_CASE,
+    contact: { email: CREWPAY_CONTACT_EMAIL },
     instructions: [
       CREWPAY_USE_CASE,
       `Pay-per-call x402 v2 on Base mainnet USDC (${X402_NETWORK_BASE}). Amounts are atomic USDC (6 decimals). Alternative auth: x-crew-api-key.`,
