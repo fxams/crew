@@ -22,7 +22,9 @@ import {
   shortAddr,
   solflareBrowseUrl,
   walletConnectEnabled,
+  BASE_SEPOLIA_CHAIN_ID,
   EVM_LISTED_WALLETS,
+  ROBINHOOD_CHAIN_ID,
   SOLANA_LISTED_WALLETS,
   WALLETCONNECT_LISTED,
   type LaunchAction,
@@ -455,7 +457,12 @@ function ConnectModal() {
           <section className="crew-connect-group" aria-label="EVM wallets">
             <h3>Base</h3>
             <p className="crew-connect-caption">
-              Zora · Clanker (testnet){evmChainId === 4663 ? ' · Robinhood Chain' : ''}
+              Zora · Clanker —{' '}
+              {evmChainId === BASE_SEPOLIA_CHAIN_ID
+                ? 'Base Sepolia (testnet)'
+                : evmChainId === ROBINHOOD_CHAIN_ID
+                  ? 'Robinhood Chain'
+                  : 'Base'}
             </p>
             <ul>
               {evmRows.map((row) => (
