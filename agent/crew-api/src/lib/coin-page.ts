@@ -2,6 +2,14 @@ import { SITE_URL } from './agent/discovery.js'
 import { OnlinePumpSdk } from './agent/pump.js'
 import { assertSafeHttpUrl } from './agent/safe-url.js'
 import { getConnection } from './agent/send.js'
+import {
+  clankerNetwork,
+  explorerTokenUrl,
+  inferLaunchPlatformFromCoin,
+  tradeUrlForPlatform,
+  type LaunchPlatform,
+} from './agent/platforms.js'
+import { isEvmAddress } from './agent/evm-address.js'
 import type { ApiCoin } from './coins.js'
 import { getFxRates } from './fx.js'
 
@@ -22,6 +30,12 @@ export type PublicCoinMeta = {
 export type PublicCoinPage = ApiCoin &
   PublicCoinMeta & {
     pageUrl: string
+    /** Same as pageUrl — crewpay.dev/coin/<mint>. */
+    coinUrl: string
+    /** Where to trade (Pump, Zora, Clanker mainnet, etc.). */
+    tradeUrl: string
+    /** Block explorer token page (Solscan / Basescan). */
+    explorerUrl: string
     chain: 'solana' | 'base' | 'base-sepolia'
     launchpadLabel: string
   }
@@ -90,17 +104,48 @@ function normalizeTwitter(raw: unknown): string | undefined {
   return `https://x.com/${handle}`
 }
 
+function launchPlatform(coin: ApiCoin): LaunchPlatform {
+  return (
+    coin.platform ||
+    inferLaunchPlatformFromCoin({ pumpUrl: coin.pumpUrl, mint: coin.mint, platform: coin.platform })
+  )
+}
+
 function launchpadLabel(coin: ApiCoin): string {
-  if (coin.platform === 'bags') return 'Bags.fm'
-  if (coin.platform === 'zora') return 'Zora'
+  const platform = launchPlatform(coin)
+  if (platform === 'bags') return 'Bags.fm'
+  if (platform === 'zora') return 'Zora'
+  if (platform === 'clanker') return 'Clanker'
   return 'Pump.fun'
 }
 
 function chainFor(coin: ApiCoin): PublicCoinPage['chain'] {
-  if (coin.platform === 'zora') {
-    return /sepolia/i.test(coin.pumpUrl || '') ? 'base-sepolia' : 'base'
+  const platform = launchPlatform(coin)
+  const url = (coin.pumpUrl || '').toLowerCase()
+  if (platform === 'zora' || platform === 'clanker') {
+    if (url.includes('sepolia') || url.includes('base-sepolia')) return 'base-sepolia'
+    if (platform === 'clanker' && clankerNetwork() === 'base-sepolia' && isEvmAddress(coin.mint)) {
+      return 'base-sepolia'
+    }
+    return 'base'
   }
   return 'solana'
+}
+
+/** Public trade / explorer / crew page links for board + API consumers. */
+export function publicCoinLinks(coin: ApiCoin): {
+  coinUrl: string
+  tradeUrl: string
+  explorerUrl: string
+} {
+  const platform = launchPlatform(coin)
+  const coinUrl = coinPageUrl(coin.mint)
+  let tradeUrl = tradeUrlForPlatform(platform, coin.mint)
+  if (platform === 'clanker' && clankerNetwork() !== 'base') {
+    tradeUrl = coinUrl
+  }
+  const explorerUrl = explorerTokenUrl(platform, coin.mint)
+  return { coinUrl, tradeUrl, explorerUrl }
 }
 
 async function defaultFetchJson(url: string): Promise<unknown | null> {
@@ -523,10 +568,12 @@ export async function enrichPublicCoinMeta(coin: {
 }
 
 export function toPublicCoinPage(coin: ApiCoin, meta: PublicCoinMeta = {}): PublicCoinPage {
+  const links = publicCoinLinks(coin)
   return {
     ...coin,
     ...meta,
-    pageUrl: coinPageUrl(coin.mint),
+    pageUrl: links.coinUrl,
+    ...links,
     chain: chainFor(coin),
     launchpadLabel: launchpadLabel(coin),
   }

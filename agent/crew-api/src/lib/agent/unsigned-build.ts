@@ -1,4 +1,8 @@
-import { getAgentKeyReferral, getAgentReferralByOwnerWallet } from '../agent-referral.js'
+import {
+  getAgentKeyReferral,
+  getAgentReferralByOwnerWallet,
+  referrerPayoutWallet,
+} from '../agent-referral.js'
 import { query } from '../db.js'
 import { listRegisteredHireBoosts } from '../registered-hires.js'
 import { buildBagsUnsignedLaunch } from './bags.js'
@@ -136,7 +140,9 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
       ? await getAgentReferralByOwnerWallet(payerWallet)
       : null
 
-  const maxSeats = maxCrewSeats({ hasAgentReferrer: Boolean(boundRef), platform })
+  const chainForRef = isEvmLaunchPlatform(platform) ? 'evm' : 'solana'
+  const referralPayout = boundRef ? referrerPayoutWallet(boundRef.referrer, chainForRef) : null
+  const maxSeats = maxCrewSeats({ hasAgentReferrer: Boolean(referralPayout), platform })
   let crew = input.crew?.length ? input.crew : undefined
   const registered = await listRegisteredHireBoosts()
   if (!crew) {
@@ -166,11 +172,13 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
       ? buildCrewShareholders(crew, input.mode || 'agent', {
           deskWallet,
           platformWallet: isEvmLaunchPlatform(platform) ? getEvmTreasuryWallet() : undefined,
-          agentReferrer:
-            boundRef?.referrer &&
-            (!isEvmLaunchPlatform(platform) || isEvmAddress(boundRef.referrer.wallet))
-              ? { wallet: boundRef.referrer.wallet, handle: boundRef.referrer.handle, code: boundRef.referrer.code }
-              : null,
+          agentReferrer: referralPayout
+            ? {
+                wallet: referralPayout,
+                handle: boundRef?.referrer?.handle,
+                code: boundRef?.referrer?.code,
+              }
+            : null,
           treasuryBpsOverride: clampTreasuryBpsOverride(input.treasuryBps),
           chain,
           platform,
@@ -264,8 +272,16 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
         ? 'UNSIGNED Clanker EIP-1559 — sign clanker_deploy; POST /api/agent/launch/submit { platform:"clanker", signed:[hex…] }.'
         : 'UNSIGNED build — sign and submit locally (or POST /api/agent/launch/submit with the signed base64). Messages expire with the blockhash; rebuild when expired.'
 
+  const referralWarnings: string[] = []
+  if (boundRef && !referralPayout && isEvmLaunchPlatform(platform)) {
+    referralWarnings.push(
+      `Referral code ${boundRef.referrer.code} is bound, but the referrer has no Base (0x) payout wallet — on-chain map stays 60/15/25 (not 60/15/5/20). Add evm_wallet on the KOL profile.`,
+    )
+  }
+
   return {
     ...plan,
+    warnings: [...(plan.warnings || []), ...referralWarnings],
     platform,
     imageSha256,
     crew,
