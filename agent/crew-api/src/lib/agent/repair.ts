@@ -7,6 +7,12 @@ import { NATIVE_MINT, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { createRequire } from 'node:module'
 import { getCoin, upsertCoin, type ApiCoin } from '../coins.js'
 import { MODE_DESK_BPS, PUMP_COIN_URL, type DeskMode } from './constants.js'
+import { isEvmAddress, assertEvmAddress } from './evm-address.js'
+import {
+  inferLaunchPlatformFromCoin,
+  tradeUrlForPlatform,
+  type LaunchPlatform,
+} from './platforms.js'
 import { proposeHolderKolFromChain } from './holders.js'
 import { OnlinePumpSdk, PumpSdk } from './pump.js'
 import { getConnection, sendInstructions } from './send.js'
@@ -44,8 +50,42 @@ export type AgentStatus = {
   tip: string
 }
 
-export async function getAgentMintStatus(mintStr: string): Promise<AgentStatus> {
-  const mint = new PublicKey(mintStr.trim())
+export async function getAgentMintStatus(
+  mintStr: string,
+  opts?: { platform?: LaunchPlatform },
+): Promise<AgentStatus> {
+  const trimmed = mintStr.trim()
+  if (isEvmAddress(trimmed)) {
+    const mint = assertEvmAddress(trimmed)
+    const coin = await getCoin(mint)
+    const platform =
+      opts?.platform ||
+      (coin
+        ? inferLaunchPlatformFromCoin({
+            pumpUrl: coin.pumpUrl,
+            mint: coin.mint,
+            platform: coin.platform,
+          })
+        : 'clanker')
+    const feeShareLocked = Boolean(coin?.feeShareSignature) || platform === 'clanker'
+    const pumpUrl = coin?.pumpUrl || tradeUrlForPlatform(platform, mint)
+    return {
+      ok: true,
+      mint,
+      onBoard: Boolean(coin),
+      coin,
+      feeConfigExists: true,
+      feeShareEditable: false,
+      feeShareLocked,
+      holderKol: false,
+      pumpUrl,
+      tip: feeShareLocked
+        ? 'EVM launch — CrewPay fee map encoded as on-chain rewards at deploy. Use basescan to verify the token.'
+        : 'Token not on the CREW board yet — submit with mint/name/ticker/launcher to persist after deploy.',
+    }
+  }
+
+  const mint = new PublicKey(trimmed)
   const connection = getConnection()
   const pda = feeSharingConfigPda(mint)
   const info = await connection.getAccountInfo(pda)

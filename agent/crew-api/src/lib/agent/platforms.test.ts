@@ -2,6 +2,11 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   assertBagsEnabled,
   assertZoraEnabled,
+  clankerCoinUrl,
+  clankerNetwork,
+  clankerReady,
+  clankerRpcUrl,
+  clankerTreasuryConfigured,
   inferLaunchPlatformFromCoin,
   listLaunchVenues,
   parseLaunchPlatform,
@@ -21,6 +26,11 @@ afterEach(() => {
     'ZORA_ENABLED',
     'ZORA_CHAIN',
     'ZORA_TREASURY_ADDRESS',
+    'CLANKER_ENABLED',
+    'CLANKER_CHAIN',
+    'CLANKER_TREASURY_ADDRESS',
+    'CLANKER_RPC_URL',
+    'BASE_RPC_URL',
     'CREW_BUYBACK_WALLET_EVM',
     'ACP_ENABLED',
     'ACP_CHAIN_ID',
@@ -65,6 +75,52 @@ describe('launch platforms', () => {
     process.env.ZORA_TREASURY_ADDRESS = TREAS
     expect(zoraReady()).toBe(true)
     assertZoraEnabled()
+  })
+
+  it('defaults Clanker to Base Sepolia even when ZORA_CHAIN is base mainnet', () => {
+    process.env.ZORA_CHAIN = 'base'
+    delete process.env.CLANKER_CHAIN
+    expect(clankerNetwork()).toBe('base-sepolia')
+    process.env.CLANKER_CHAIN = 'base'
+    expect(clankerNetwork()).toBe('base')
+  })
+
+  it('uses Sepolia RPC for Clanker testnet and BASE_RPC_URL only on mainnet', () => {
+    delete process.env.CLANKER_CHAIN
+    delete process.env.CLANKER_RPC_URL
+    delete process.env.BASE_RPC_URL
+    expect(clankerRpcUrl()).toBe('https://sepolia.base.org')
+    process.env.BASE_RPC_URL = 'https://mainnet-custom.example'
+    expect(clankerRpcUrl()).toBe('https://sepolia.base.org')
+    process.env.CLANKER_CHAIN = 'base'
+    expect(clankerRpcUrl()).toBe('https://mainnet-custom.example')
+    process.env.CLANKER_RPC_URL = 'https://clanker-rpc.example'
+    expect(clankerRpcUrl()).toBe('https://clanker-rpc.example')
+  })
+
+  it('Clanker treasury check prefers CLANKER_TREASURY_ADDRESS', () => {
+    delete process.env.CLANKER_TREASURY_ADDRESS
+    delete process.env.ZORA_TREASURY_ADDRESS
+    delete process.env.CREW_BUYBACK_WALLET_EVM
+    expect(clankerTreasuryConfigured()).toBe(false)
+    process.env.CLANKER_ENABLED = '1'
+    expect(clankerReady()).toBe(false)
+    process.env.CLANKER_TREASURY_ADDRESS = TREAS
+    expect(clankerTreasuryConfigured()).toBe(true)
+    expect(clankerReady()).toBe(true)
+  })
+
+  it('Clanker coin links use basescan on Sepolia and clanker.world on mainnet', () => {
+    const addr = '0x52c3f4ac350f0ddfae43a9fda7798bb6262535e9'
+    expect(clankerCoinUrl(addr, 'base-sepolia')).toContain('sepolia.basescan.org')
+    expect(clankerCoinUrl(addr, 'base-sepolia')).toContain('#clanker')
+    expect(clankerCoinUrl(addr, 'base')).toBe(`https://clanker.world/clanker/${addr}`)
+    expect(
+      inferLaunchPlatformFromCoin({
+        pumpUrl: clankerCoinUrl(addr, 'base-sepolia'),
+        mint: addr,
+      }),
+    ).toBe('clanker')
   })
 
   it('defaults Zora to Base Sepolia and allows mainnet via config', () => {

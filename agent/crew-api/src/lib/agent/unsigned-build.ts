@@ -201,14 +201,17 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
     })
   } else if (platform === 'zora') {
     const { metadataUri } = await import('./ipfs.js').then((m) =>
-      m.uploadPumpMetadata({
-        name: input.name,
-        symbol: ticker,
-        description: vibe,
-        twitter: input.twitter?.trim() || undefined,
-        website: input.website?.trim() || undefined,
-        image,
-      }),
+      m.uploadPumpMetadataResilient(
+        {
+          name: input.name,
+          symbol: ticker,
+          description: vibe,
+          twitter: input.twitter?.trim() || undefined,
+          website: input.website?.trim() || undefined,
+          image,
+        },
+        { imageUrlFallback: input.imageUrl },
+      ),
     )
     plan = await buildZoraUnsignedLaunch({
       name: input.name,
@@ -219,16 +222,9 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
       initialBuySol: input.initialBuySol ?? 0,
     })
   } else if (platform === 'clanker') {
-    const { metadataUri } = await import('./ipfs.js').then((m) =>
-      m.uploadPumpMetadata({
-        name: input.name,
-        symbol: ticker,
-        description: vibe,
-        twitter: input.twitter?.trim() || undefined,
-        website: input.website?.trim() || undefined,
-        image,
-      }),
-    )
+    const metadataUri =
+      input.imageUrl?.trim() ||
+      `https://crewpay.dev/agent/launch-metadata?ticker=${encodeURIComponent(ticker)}`
     plan = await buildClankerUnsignedLaunch({
       name: input.name,
       ticker,
@@ -241,7 +237,7 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
     })
   } else {
     const { metadataUri } = await import('./ipfs.js').then((m) =>
-      m.uploadPumpMetadata({
+      m.uploadPumpMetadataResilient({
         name: input.name,
         symbol: ticker,
         description: vibe,

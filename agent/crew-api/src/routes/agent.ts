@@ -77,7 +77,7 @@ import { parseLauncherKey, resolveOpsPayer } from '../lib/agent/send.js'
 import { drawOpsBudget, ESTIMATED_OPS_CRANK_LAMPORTS } from '../lib/agent/ops-budget.js'
 import { canServerPayCrank, serverPaidCrankDeniedMessage } from '../lib/agent/crank-gate.js'
 import { solanaAddress } from '../lib/agent/solana-address.js'
-import { evmAddress } from '../lib/agent/evm-address.js'
+import { assertEvmAddress, evmAddress, isEvmAddress } from '../lib/agent/evm-address.js'
 import { draftMentionFromRemit } from '../lib/kol-mentions.js'
 import { emitWebhookEvent } from '../lib/webhooks.js'
 import {
@@ -85,7 +85,9 @@ import {
   evmLaunchRpcUrl,
   isEvmLaunchPlatform,
   parseLaunchPlatform,
+  tradeUrlForPlatform,
 } from '../lib/agent/platforms.js'
+import { launchBodySchema, parseAgentStatusMint, refineLaunchBody } from '../lib/agent/launch-body.js'
 
 export const agentRouter = Router()
 
@@ -164,6 +166,25 @@ const submitSignedSchema = z.object({
   /** Signed txs: Solana base64 (Pump/Bags) or EVM hex (Zora), in builder order. */
   signed: z.array(z.string().min(64)).min(1).max(8),
   platform: z.enum(['pumpfun', 'bags', 'zora', 'clanker']).optional().default('pumpfun'),
+  /** EVM token address (from unsigned build predicted mint) — persists to /api/coins when set. */
+  mint: z.string().min(42).max(64).optional(),
+  name: z.string().min(2).max(32).optional(),
+  ticker: z.string().min(2).max(13).optional(),
+  launcher: z.string().min(42).max(64).optional(),
+  vibe: z.string().max(500).optional(),
+  mode: z.enum(['split', 'buyback', 'raid', 'agent']).optional().default('agent'),
+  crew: z
+    .array(
+      z.object({
+        handle: z.string().min(1).max(32),
+        wallet: z.string().min(20).max(64),
+        share: z.number().int().min(1).max(100),
+        hireRole: z.enum(['caller', 'chart', 'raid', 'kol', 'dev']).optional(),
+      }),
+    )
+    .max(MAX_CREW)
+    .optional(),
+  dryRunId: z.string().min(16).max(64).optional(),
 })
 
 agentRouter.post('/agent/launch/submit', requireAgentApiKeyOrX402, async (req, res) => {
@@ -203,10 +224,29 @@ agentRouter.post('/agent/launch/submit', requireAgentApiKeyOrX402, async (req, r
         sigs.push(sig)
       }
     }
+
+    let persistedMint: string | undefined
+    if (isEvmLaunchPlatform(platform)) {
+      try {
+        persistedMint = await persistEvmCoinAfterSubmit({
+          platform,
+          body,
+          signatures: sigs,
+          agentKeyId: req.crewAgentAuth?.keyId,
+        })
+      } catch (persistErr) {
+        console.warn(
+          'evm submit persist failed',
+          persistErr instanceof Error ? persistErr.message : persistErr,
+        )
+      }
+    }
+
     res.status(201).json({
       ok: true,
       platform,
       signatures: sigs,
+      ...(persistedMint ? { mint: persistedMint, onBoard: true } : {}),
       tip: 'Submitted signed transactions. Always verify on chain and check feeShareLocked via /api/agent/status/:mint.',
     })
   } catch (err) {
@@ -214,116 +254,83 @@ agentRouter.post('/agent/launch/submit', requireAgentApiKeyOrX402, async (req, r
   }
 })
 
-function refineLaunchBody(
-  val: {
-    imageUrl?: string
-    imageBase64?: string
-    website?: string
-    holderKol?: boolean
-    crew?: { share: number }[]
-    autoHire?: unknown
-  },
-  ctx: z.RefinementCtx,
-) {
-  if (!val.imageUrl && !val.imageBase64) {
-    ctx.addIssue({
-      code: 'custom',
-      message: 'Provide imageUrl or imageBase64',
-      path: ['imageUrl'],
-    })
-  }
-  if (!val.holderKol && !val.crew?.length && !val.autoHire) {
-    ctx.addIssue({
-      code: 'custom',
-      message: 'Provide crew[] or autoHire (or holderKol: true)',
-      path: ['autoHire'],
-    })
-  }
-  if (val.crew?.length) {
-    const shareSum = val.crew.reduce((s, m) => s + Math.round(Number(m.share) || 0), 0)
-    if (shareSum !== 100) {
-      ctx.addIssue({
-        code: 'custom',
-        message: `Crew shares must total 100% (now ${shareSum}%). Shares are relative to the hired-KOL pool, not including the 25% platform buyback.`,
-        path: ['crew'],
-      })
+async function persistEvmCoinAfterSubmit(opts: {
+  platform: import('../lib/agent/platforms.js').LaunchPlatform
+  body: z.infer<typeof submitSignedSchema>
+  signatures: string[]
+  agentKeyId?: string
+}): Promise<string | undefined> {
+  const { platform, body, signatures, agentKeyId } = opts
+  let mint = body.mint?.trim()
+  let name = body.name?.trim()
+  let ticker = body.ticker?.trim()
+  let launcher = body.launcher?.trim()
+  let vibe = body.vibe?.trim() || ''
+  let mode = body.mode || 'agent'
+  let crew = body.crew
+
+  if (body.dryRunId) {
+    const rec = await getDryRun(body.dryRunId)
+    const plan = (rec?.plan || {}) as {
+      mint?: string
+      name?: string
+      ticker?: string
+      launcherPubkey?: string
+      vibe?: string
+      mode?: string
+      crew?: ApiCoin['crew']
+    }
+    mint = mint || plan.mint
+    name = name || plan.name
+    ticker = ticker || plan.ticker
+    launcher = launcher || plan.launcherPubkey
+    vibe = vibe || plan.vibe || ''
+    if (plan.mode && ['split', 'buyback', 'raid', 'agent'].includes(plan.mode)) {
+      mode = plan.mode as typeof mode
+    }
+    if (!crew?.length && plan.crew?.length) {
+      crew = plan.crew.map((m) => ({
+        handle: m.handle,
+        wallet: m.wallet,
+        share: m.share,
+        hireRole: m.hireRole as 'caller' | 'chart' | 'raid' | 'kol' | 'dev' | undefined,
+      }))
     }
   }
-  if (val.imageUrl) {
-    try {
-      assertSafeHttpUrl(val.imageUrl, 'imageUrl')
-    } catch (err) {
-      ctx.addIssue({
-        code: 'custom',
-        message: errorMessage(err, 'Invalid imageUrl'),
-        path: ['imageUrl'],
-      })
-    }
+
+  if (!mint || !isEvmAddress(mint) || !name || !ticker || !launcher || !isEvmAddress(launcher)) {
+    return undefined
   }
-  if (val.website) {
-    try {
-      assertSafeHttpUrl(val.website, 'website')
-    } catch (err) {
-      ctx.addIssue({
-        code: 'custom',
-        message: errorMessage(err, 'Invalid website'),
-        path: ['website'],
-      })
-    }
-  }
+
+  const mintNorm = assertEvmAddress(mint)
+  const launcherNorm = assertEvmAddress(launcher)
+  const deploySig = signatures[0] || ''
+  const pumpUrl = tradeUrlForPlatform(platform, mintNorm)
+
+  await upsertCoin({
+    id: mintNorm.slice(2, 12),
+    mint: mintNorm,
+    name,
+    ticker: ticker.replace(/^\$/, '').toUpperCase(),
+    vibe,
+    mode,
+    crew: (crew || []).map((m) => ({
+      handle: m.handle,
+      wallet: isEvmAddress(m.wallet) ? assertEvmAddress(m.wallet) : m.wallet,
+      share: m.share,
+      hireRole: m.hireRole,
+    })),
+    signature: deploySig,
+    feeShareSignature: deploySig || 'evm-rewards-at-launch',
+    launchedAt: Date.now(),
+    launcher: launcherNorm,
+    pumpUrl,
+    agentKeyId,
+    platform,
+  } as ApiCoin)
+
+  return mintNorm
 }
-
-/** Requested seats may exceed the fee-map cap; handler clamps + warns. */
-// moved earlier
-
-const launchBodySchema = z
-  .object({
-    name: z.string().min(2).max(32),
-    ticker: z
-      .string()
-      .min(2)
-      .max(13)
-      .regex(/^\$?[A-Za-z0-9]{2,13}$/, 'Ticker must be 2–13 letters/numbers'),
-    description: z.string().max(USER_DESCRIPTION_MAX).optional().default(''),
-    mode: z.enum(['split', 'buyback', 'raid', 'agent']).optional().default('agent'),
-    twitter: z.string().max(128).optional(),
-    website: z.string().max(256).optional(),
-    initialBuySol: z.number().min(0).max(MAX_INITIAL_BUY_SOL).optional().default(0),
-    imageUrl: z.string().url().optional(),
-    imageBase64: z.string().min(64).optional(),
-    imageContentType: z.string().max(64).optional(),
-    crew: z.array(crewMemberSchema).min(1).max(MAX_CREW).optional(),
-    autoHire: z.preprocess(
-      normalizeAutoHireInput,
-      z
-        .object({
-          seats: z.number().int().min(1).max(AUTOHIRE_SEATS_REQUEST_MAX).optional().default(5),
-        })
-        .optional(),
-    ),
-    agent: z
-      .object({
-        name: z.string().min(2).max(48),
-        objective: z.string().min(8).max(280),
-        model: z.string().max(48).optional(),
-      })
-      .optional(),
-    holderKol: z.boolean().optional().default(false),
-    /** Refuse sequential create→lock fallback (also settable via CREW_ATOMIC_REQUIRED=1). */
-    atomicRequired: z.boolean().optional().default(false),
-    /**
-     * Required on dry-run when the key has requireApproval=true.
-     * Must match the spend-time x-launcher-key pubkey. Cannot approve.
-     */
-    launcherPubkey: solanaAddress.optional(),
-    /**
-     * Optional unless the API key has requireApproval=true.
-     * From POST /api/agent/launch/dry-run (+ approval when required).
-     */
-    dryRunId: z.string().min(16).max(64).optional(),
-    platform: z.enum(['pumpfun', 'bags', 'zora', 'clanker']).optional().default('pumpfun'),
-  })
-  .superRefine(refineLaunchBody)
 
 const autohireBodySchema = z.object({
   name: z.string().max(32).optional().default(''),
@@ -999,8 +1006,12 @@ agentRouter.get('/agent/status/:mint', requireAgentApiKey, async (req, res) => {
   try {
     const fp = apiKeyFingerprint(req)
     if (!applyRateLimit(res, `status:key:${fp}`, 60, 60_000)) return
-    const mintParam = solanaAddress.parse(String(req.params.mint || ''))
-    const status = await getAgentMintStatus(mintParam)
+    const platformHint =
+      typeof req.query.platform === 'string' ? req.query.platform : undefined
+    const mintParam = parseAgentStatusMint(String(req.params.mint || ''), platformHint)
+    const status = await getAgentMintStatus(mintParam, {
+      platform: platformHint ? parseLaunchPlatform(platformHint) : undefined,
+    })
     res.json(status)
   } catch (err) {
     res.status(400).json({ ok: false, error: errorMessage(err, 'status failed') })
