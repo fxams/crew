@@ -7,7 +7,12 @@ import {
   openApiXPaymentInfo,
   wellKnownX402 as wellKnownX402Doc,
 } from '../x402-discovery.js'
-import { x402PriceAutohireUsd, x402PriceLaunchUsd, x402PublicDiscovery } from '../x402.js'
+import {
+  x402PayToSol,
+  x402PriceAutohireUsd,
+  x402PriceLaunchUsd,
+  x402PublicDiscovery,
+} from '../x402.js'
 
 /** Pinned npm package for local MCP. Bump with agent/crew-mcp/package.json. */
 export const MCP_PACKAGE_VERSION = '1.2.8'
@@ -394,6 +399,7 @@ export function wellKnownX402() {
     apiUrl: API_URL,
     launchUsd: x402PriceLaunchUsd(),
     autohireUsd: x402PriceAutohireUsd(),
+    solanaUsdc: Boolean(x402PayToSol()),
   })
 }
 

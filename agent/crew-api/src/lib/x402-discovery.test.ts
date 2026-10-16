@@ -46,11 +46,14 @@ describe('x402 bazaar + well-known discovery', () => {
       apiUrl: 'https://api.crewpay.dev',
       launchUsd: 0.1,
       autohireUsd: 0.02,
+      solanaUsdc: true,
     })
     expect(doc.version).toBe(1)
     expect(doc.description).toBe(CREWPAY_USE_CASE)
     expect(doc.contact.email).toBe('crewpay@mail.grokbot.com')
     expect(doc.instructions).toContain('eip155:8453')
+    expect(doc.instructions).toContain('X402_SOLANA_PAY_TO')
+    expect(doc.instructions).toContain('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp')
     expect(doc.instructions.toLowerCase()).not.toMatch(/later, agents/)
     expect(doc.instructions.toLowerCase()).not.toMatch(/buyback cron/)
     expect(doc.instructions).toContain('not an x402 resource server')
