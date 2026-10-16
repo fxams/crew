@@ -27,3 +27,18 @@ export async function resolveCoinMetadataObjectId(coinType, graphqlUrl = process
   if (!address) throw new Error(`No legacy CoinMetadata for ${coinType}`)
   return address
 }
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const coinType = process.argv[2]
+  if (!coinType) {
+    console.error('usage: node graphql-coin-metadata.mjs <coinType>')
+    process.exit(1)
+  }
+  resolveCoinMetadataObjectId(coinType).then(
+    (id) => console.log(id),
+    (e) => {
+      console.error(e)
+      process.exit(1)
+    },
+  )
+}

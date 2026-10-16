@@ -50,3 +50,21 @@ fun sqrt_price_monotonic() {
     let p2 = sqrt_price_x64_from_amounts(1_000_000_000, 4_000_000_000);
     assert!(p2 > p1);
 }
+
+#[test]
+fun coin_type_order_total_for_cetus() {
+    use sui::sui::SUI;
+    use crewpay_launchpad::test_coin::TEST_COIN;
+    let meme_before_sui = type_name_lt<TEST_COIN, SUI>();
+    let sui_before_meme = type_name_lt<SUI, TEST_COIN>();
+    assert!(meme_before_sui != sui_before_meme);
+}
+
+#[test]
+fun cetus_factory_agrees_test_coin_before_sui() {
+    use cetus_clmm::factory;
+    use sui::sui::SUI;
+    use crewpay_launchpad::test_coin::TEST_COIN;
+    assert!(factory::is_right_order<TEST_COIN, SUI>());
+    assert!(!factory::is_right_order<SUI, TEST_COIN>());
+}

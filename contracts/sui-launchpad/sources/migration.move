@@ -2,7 +2,7 @@
 module crewpay_launchpad::migration;
 
 use cetus_clmm::config::GlobalConfig;
-use cetus_clmm::factory::Pools;
+use cetus_clmm::factory::{Self, Pools};
 use cetus_clmm::pool_creator;
 use cetus_clmm::position::Position;
 use cetus_clmm::tick_math;
@@ -83,8 +83,8 @@ public(package) fun migrate_graduated_pool_to_cetus_with_refund<T>(
     let meme_amt = balance::value(&meme_bal);
     assert!(sui_amt > 0 && meme_amt > 0, EEmptyReserves);
 
-    if (migration_math::type_name_lt<T, SUI>()) {
-        migrate_ordered<T, SUI>(
+    if (factory::is_right_order<T, SUI>()) {
+        create_cetus_pool_and_lock<T, SUI>(
             bonding_pool_id,
             sui_amt,
             meme_amt,
@@ -98,7 +98,8 @@ public(package) fun migrate_graduated_pool_to_cetus_with_refund<T>(
             ctx,
         );
     } else {
-        migrate_ordered<SUI, T>(
+        assert!(factory::is_right_order<SUI, T>(), EEmptyReserves);
+        create_cetus_pool_and_lock<SUI, T>(
             bonding_pool_id,
             sui_amt,
             meme_amt,
@@ -114,7 +115,7 @@ public(package) fun migrate_graduated_pool_to_cetus_with_refund<T>(
     }
 }
 
-fun migrate_ordered<CoinTypeA, CoinTypeB>(
+fun create_cetus_pool_and_lock<CoinTypeA, CoinTypeB>(
     bonding_pool_id: ID,
     log_sui: u64,
     log_meme: u64,
@@ -127,6 +128,7 @@ fun migrate_ordered<CoinTypeA, CoinTypeB>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
+    assert!(factory::is_right_order<CoinTypeA, CoinTypeB>(), EEmptyReserves);
     let amount_a = balance::value(&bal_a);
     let amount_b = balance::value(&bal_b);
     let sqrt_price = migration_math::sqrt_price_x64_from_amounts(amount_a, amount_b);
