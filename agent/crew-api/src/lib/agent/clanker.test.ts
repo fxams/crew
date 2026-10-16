@@ -62,7 +62,8 @@ describe('Clanker unsigned launch', () => {
     expect(plan.steps[0]?.kind).toBe('clanker_deploy')
     expect(plan.steps[0]?.tx?.chainId).toBe(84532)
     expect(plan.mint.toLowerCase()).toBe(coin)
-    expect(plan.pumpUrl).toContain('clanker.world')
+    expect(plan.pumpUrl).toContain('sepolia.basescan.org')
+    expect(plan.pumpUrl).toContain('#clanker')
     const rewards = (captured as { rewards?: { recipients: Array<{ recipient: string; bps: number }> } })
       ?.rewards?.recipients
     expect(rewards?.find((r) => r.recipient.toLowerCase() === kol)?.bps).toBe(6000)

@@ -128,6 +128,37 @@ async function toBlob(image: AgentImageInput): Promise<{ blob: Blob; filename: s
   return { blob: new Blob([view], { type: contentType }), filename }
 }
 
+const PUMP_IPFS_RETRY_MS = 400
+
+/** Pump.fun IPFS with one retry; optional imageUrl fallback (Zora) when upload is down. */
+export async function uploadPumpMetadataResilient(
+  input: {
+    name: string
+    symbol: string
+    description: string
+    twitter?: string
+    website?: string
+    image: AgentImageInput
+  },
+  opts?: { imageUrlFallback?: string },
+): Promise<{ metadataUri: string }> {
+  let lastErr: unknown
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      return await uploadPumpMetadata(input)
+    } catch (err) {
+      lastErr = err
+      if (attempt === 0) {
+        await new Promise((r) => setTimeout(r, PUMP_IPFS_RETRY_MS))
+        continue
+      }
+    }
+  }
+  const fallback = opts?.imageUrlFallback?.trim()
+  if (fallback) return { metadataUri: fallback }
+  throw lastErr instanceof Error ? lastErr : new Error('Pump IPFS upload failed')
+}
+
 export async function uploadPumpMetadata(input: {
   name: string
   symbol: string
