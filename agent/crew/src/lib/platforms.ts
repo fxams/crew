@@ -4,7 +4,7 @@ import { CREW_AGENT_API_URL, CREW_PUBLIC_API_URL } from './config'
 import { FALLBACK_ACP, acpFromDoc, type AcpInfo } from './acp'
 import { FALLBACK_X402, x402FromDoc, type X402Info } from './x402'
 
-export const LAUNCH_PLATFORMS = ['pumpfun', 'bags', 'zora'] as const
+export const LAUNCH_PLATFORMS = ['pumpfun', 'bags', 'zora', 'clanker'] as const
 export type LaunchPlatform = (typeof LAUNCH_PLATFORMS)[number]
 
 export type LaunchVenueStatus = 'live' | 'testnet' | 'disabled'
@@ -64,10 +64,21 @@ export const FALLBACK_LAUNCH_VENUES: LaunchVenue[] = [
     explorer: 'basescan',
     note: 'Off unless the API sets ZORA_ENABLED and a 0x treasury. Base Sepolia default.',
   },
+  {
+    id: 'clanker',
+    name: 'Clanker',
+    chain: 'base-sepolia',
+    enabled: false,
+    status: 'disabled',
+    caption: 'soon',
+    tradeHost: 'clanker.world',
+    explorer: 'basescan',
+    note: 'Off unless the API sets CLANKER_ENABLED and a 0x treasury.',
+  },
 ]
 
 export function isLaunchPlatform(value: unknown): value is LaunchPlatform {
-  return value === 'pumpfun' || value === 'bags' || value === 'zora'
+  return value === 'pumpfun' || value === 'bags' || value === 'zora' || value === 'clanker'
 }
 
 export function parseLaunchPlatform(raw?: string | null): LaunchPlatform {
@@ -75,25 +86,33 @@ export function parseLaunchPlatform(raw?: string | null): LaunchPlatform {
   if (v === 'pump' || v === 'pump.fun' || v === 'pumpfun') return 'pumpfun'
   if (v === 'bags' || v === 'bags.fm' || v === 'bagsfm') return 'bags'
   if (v === 'zora' || v === 'zora-coins' || v === 'zoracoins') return 'zora'
+  if (v === 'clanker' || v === 'clanker.world') return 'clanker'
   return DEFAULT_LAUNCH_PLATFORM
 }
 
 export function platformDisplayName(platform: LaunchPlatform): string {
   if (platform === 'bags') return 'Bags.fm'
   if (platform === 'zora') return 'Zora'
+  if (platform === 'clanker') return 'Clanker'
   return 'Pump.fun'
 }
 
 export function platformShortName(platform: LaunchPlatform): string {
   if (platform === 'bags') return 'Bags'
   if (platform === 'zora') return 'Zora'
+  if (platform === 'clanker') return 'Clanker'
   return 'Pump'
 }
 
 export function platformMark(platform: LaunchPlatform): string {
   if (platform === 'bags') return 'B'
   if (platform === 'zora') return 'Z'
+  if (platform === 'clanker') return 'C'
   return 'P'
+}
+
+function isEvmLaunchPlatform(platform: LaunchPlatform): boolean {
+  return platform === 'zora' || platform === 'clanker'
 }
 
 const EVM_RE = /^0x[a-fA-F0-9]{40}$/
@@ -110,6 +129,7 @@ export function inferLaunchPlatform(opts: {
   const url = (opts.pumpUrl || '').toLowerCase()
   if (url.includes('bags.fm')) return 'bags'
   if (url.includes('zora.co') || url.includes('zora.energy')) return 'zora'
+  if (url.includes('clanker.world')) return 'clanker'
   const mint = (opts.mint || '').trim()
   if (EVM_RE.test(mint)) return 'zora'
   return 'pumpfun'
@@ -120,31 +140,33 @@ export function tradeUrl(platform: LaunchPlatform, mint: string): string {
   if (platform === 'zora') {
     return `https://zora.co/coin/base:${mint}`
   }
+  if (platform === 'clanker') return `https://clanker.world/clanker/${mint}`
   return `https://pump.fun/coin/${mint}`
 }
 
 export function tradeLabel(platform: LaunchPlatform): string {
   if (platform === 'bags') return 'bags.fm'
   if (platform === 'zora') return 'zora.co'
+  if (platform === 'clanker') return 'clanker.world'
   return 'pump.fun'
 }
 
 export function explorerTokenUrl(platform: LaunchPlatform, mint: string): string | null {
   if (!mint) return null
-  if (platform === 'zora') return `https://basescan.org/token/${mint}`
+  if (isEvmLaunchPlatform(platform)) return `https://basescan.org/token/${mint}`
   return `https://solscan.io/token/${mint}`
 }
 
 export function explorerTxUrl(platform: LaunchPlatform, signature: string): string | null {
   if (!signature || signature.startsWith('quest:')) return null
-  if (platform === 'zora') {
+  if (isEvmLaunchPlatform(platform)) {
     return `https://basescan.org/tx/${signature}`
   }
   return `https://solscan.io/tx/${signature}`
 }
 
 export function explorerLabel(platform: LaunchPlatform): string {
-  return platform === 'zora' ? 'Basescan' : 'Solscan'
+  return isEvmLaunchPlatform(platform) ? 'Basescan' : 'Solscan'
 }
 
 export function isAllowedTradeUrl(url: string): boolean {

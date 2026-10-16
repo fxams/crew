@@ -163,6 +163,7 @@ describe('agent discovery docs', () => {
       'pumpfun',
       'bags',
       'zora',
+      'clanker',
     ])
     expect(agentDiscoveryJson().platforms.list).toContain('/api/platforms')
     expect(agentDiscoveryJson().endpoints['GET /api/platforms']).toBeTruthy()

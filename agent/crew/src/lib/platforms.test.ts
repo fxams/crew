@@ -82,7 +82,7 @@ describe('launch platform helpers', () => {
         ],
       },
     })
-    expect(fromDisc?.map((v) => v.id)).toEqual(['pumpfun', 'bags', 'zora'])
+    expect(fromDisc?.map((v) => v.id)).toEqual(['pumpfun', 'bags', 'zora', 'clanker'])
     expect(fromDisc?.find((v) => v.id === 'bags')?.enabled).toBe(false)
     expect(fromDisc?.find((v) => v.id === 'zora')?.caption).toBe('soon')
     expect(fromDisc?.find((v) => v.id === 'zora')?.chain).toBe('base-sepolia')
@@ -108,11 +108,11 @@ describe('launch platform helpers', () => {
     const fromSpec = venuesFromOpenApi({
       components: {
         schemas: {
-          LaunchRequest: { properties: { platform: { enum: ['pumpfun', 'bags', 'zora'] } } },
+          LaunchRequest: { properties: { platform: { enum: ['pumpfun', 'bags', 'zora', 'clanker'] } } },
         },
       },
     })
-    expect(fromSpec?.map((v) => v.id)).toEqual(['pumpfun', 'bags', 'zora'])
+    expect(fromSpec?.map((v) => v.id)).toEqual(['pumpfun', 'bags', 'zora', 'clanker'])
     expect(fromSpec?.find((v) => v.id === 'zora')?.enabled).toBe(false)
     expect(fromSpec?.find((v) => v.id === 'zora')?.caption).toBe('soon')
   })
@@ -123,7 +123,7 @@ describe('launch platform helpers', () => {
     )
     expect(LAUNCH_FEE_MAP_COPY.toLowerCase()).not.toMatch(/launcher gets 60/)
     expect(LAUNCH_FEE_MAP_COPY).not.toMatch(/rest treasury/)
-    expect(FALLBACK_LAUNCH_VENUES).toHaveLength(3)
+    expect(FALLBACK_LAUNCH_VENUES).toHaveLength(4)
     expect(FALLBACK_LAUNCH_VENUES.find((v) => v.id === 'bags')?.caption).toBe('recommended')
     expect(DEFAULT_LAUNCH_PLATFORM).toBe('pumpfun')
     const curl = unsignedLaunchCurl({ platform: 'bags', name: 'Night Owl', ticker: 'HOOT' })

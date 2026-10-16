@@ -69,7 +69,7 @@ export function evmChainsFromEnv(env: WalletEnv = viteWalletEnv()): EvmChainSpec
 
 /** Pump.fun + Bags.fm sign on Solana. Zora signs on Base (EVM). */
 export function networkForLaunch(platform: LaunchAction | string | null | undefined): WalletNetwork {
-  return platform === 'zora' ? 'evm' : 'solana'
+  return platform === 'zora' || platform === 'clanker' ? 'evm' : 'solana'
 }
 
 export function evmChainIdForVenue(chain: string | null | undefined): number {

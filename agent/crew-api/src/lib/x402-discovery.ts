@@ -79,9 +79,9 @@ const launchInputSchema = {
     imageBase64: { type: 'string', description: 'Raw image bytes as base64 (alternative to imageUrl).' },
     platform: {
       type: 'string',
-      enum: ['pumpfun', 'bags', 'zora'],
+      enum: ['pumpfun', 'bags', 'zora', 'clanker'],
       default: 'pumpfun',
-      description: 'Launch venue. pumpfun and bags are Solana; zora is Base.',
+      description: 'Launch venue. pumpfun and bags are Solana; zora and clanker are Base.',
     },
     launcherPubkey: {
       type: 'string',
@@ -119,7 +119,7 @@ const submitInputSchema = {
     },
     platform: {
       type: 'string',
-      enum: ['pumpfun', 'bags', 'zora'],
+      enum: ['pumpfun', 'bags', 'zora', 'clanker'],
       default: 'pumpfun',
     },
   },
@@ -189,7 +189,7 @@ export function paidX402Routes(): PaidX402Route[] {
       kind: 'launch',
       summary: 'Build unsigned launch transactions (non-custodial)',
       description: withUseCase(
-        'Build unsigned Pump.fun / Bags / Zora transactions. Sign locally. CrewPay never holds the launcher key.',
+        'Build unsigned Pump.fun / Bags / Zora / Clanker transactions. Sign locally. CrewPay never holds the launcher key.',
       ),
       inputExample: {
         ...AGENT_EXAMPLES.launch,
