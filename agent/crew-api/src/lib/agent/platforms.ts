@@ -59,6 +59,18 @@ export function zoraEnabled(): boolean {
 
 export function evmTreasuryConfigured(): boolean {
   const w = (
+    process.env.CLANKER_TREASURY_ADDRESS ||
+    process.env.ZORA_TREASURY_ADDRESS ||
+    process.env.CREW_BUYBACK_WALLET_EVM ||
+    ''
+  ).trim()
+  return isEvmAddress(w)
+}
+
+/** Clanker readiness treasury — prefers CLANKER_TREASURY_ADDRESS, then Zora/buyback fallbacks. */
+export function clankerTreasuryConfigured(): boolean {
+  const w = (
+    process.env.CLANKER_TREASURY_ADDRESS ||
     process.env.ZORA_TREASURY_ADDRESS ||
     process.env.CREW_BUYBACK_WALLET_EVM ||
     ''
@@ -77,7 +89,7 @@ export function clankerEnabled(): boolean {
 }
 
 export function clankerReady(): boolean {
-  return clankerEnabled() && evmTreasuryConfigured()
+  return clankerEnabled() && clankerTreasuryConfigured()
 }
 
 export function assertClankerEnabled(): void {
@@ -86,7 +98,7 @@ export function assertClankerEnabled(): void {
       'Clanker launches are disabled — set CLANKER_ENABLED=1 to enable (Base Sepolia for tests, Base mainnet via CLANKER_CHAIN).',
     )
   }
-  if (!evmTreasuryConfigured()) {
+  if (!clankerTreasuryConfigured()) {
     throw new Error(
       'Clanker launches need CLANKER_TREASURY_ADDRESS, ZORA_TREASURY_ADDRESS, or CREW_BUYBACK_WALLET_EVM (0x… treasury in the fee map).',
     )
@@ -97,14 +109,8 @@ export type ClankerNetwork = ZoraNetwork
 
 export function clankerNetwork(): ClankerNetwork {
   const raw = (process.env.CLANKER_CHAIN || process.env.CLANKER_NETWORK || '').trim().toLowerCase()
-  if (!raw) {
-    try {
-      return zoraNetwork()
-    } catch {
-      return 'base-sepolia'
-    }
-  }
-  if (!raw || raw === 'base-sepolia' || raw === 'sepolia' || raw === '84532') return 'base-sepolia'
+  if (!raw) return 'base-sepolia'
+  if (raw === 'base-sepolia' || raw === 'sepolia' || raw === '84532') return 'base-sepolia'
   if (raw === 'base' || raw === 'base-mainnet' || raw === '8453') return 'base'
   throw new Error(`Unknown CLANKER_CHAIN "${raw}". Use base or base-sepolia.`)
 }
@@ -114,13 +120,22 @@ export function clankerChainId(): number {
 }
 
 export function clankerRpcUrl(): string {
-  const explicit = (process.env.CLANKER_RPC_URL || process.env.BASE_RPC_URL || '').trim()
-  if (explicit) return explicit
-  return clankerNetwork() === 'base' ? 'https://mainnet.base.org' : 'https://sepolia.base.org'
+  const clankerExplicit = (process.env.CLANKER_RPC_URL || '').trim()
+  if (clankerExplicit) return clankerExplicit
+  const net = clankerNetwork()
+  if (net === 'base') {
+    const baseRpc = (process.env.BASE_RPC_URL || '').trim()
+    return baseRpc || 'https://mainnet.base.org'
+  }
+  return 'https://sepolia.base.org'
 }
 
 export function clankerCoinUrl(address: string, network: ClankerNetwork = clankerNetwork()): string {
-  return `https://clanker.world/clanker/${assertEvmAddress(address)}`
+  const addr = assertEvmAddress(address)
+  if (network === 'base') {
+    return `https://clanker.world/clanker/${addr}`
+  }
+  return `https://sepolia.basescan.org/token/${addr}#clanker`
 }
 
 export function isEvmLaunchPlatform(platform: LaunchPlatform): boolean {
@@ -417,7 +432,7 @@ export function inferLaunchPlatformFromCoin(opts: {
   const url = (opts.pumpUrl || '').toLowerCase()
   if (url.includes('bags.fm')) return 'bags'
   if (url.includes('zora.co') || url.includes('zora.energy')) return 'zora'
-  if (url.includes('clanker.world')) return 'clanker'
+  if (url.includes('clanker.world') || url.includes('#clanker')) return 'clanker'
   const mint = (opts.mint || '').trim()
   if (isEvmAddress(mint)) return 'zora'
   return 'pumpfun'
