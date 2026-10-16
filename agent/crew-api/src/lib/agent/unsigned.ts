@@ -13,6 +13,7 @@ export type UnsignedStepKind =
   | 'fee_share_config'
   | 'split'
   | 'zora_create'
+  | 'clanker_deploy'
 
 export type UnsignedEncoding = 'message-v0' | 'solana-tx' | 'eip1559'
 

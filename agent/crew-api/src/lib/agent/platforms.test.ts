@@ -83,7 +83,7 @@ describe('launch platforms', () => {
     delete process.env.CREW_BUYBACK_WALLET_EVM
     delete process.env.ZORA_CHAIN
     const venues = listLaunchVenues()
-    expect(venues.map((v) => v.id)).toEqual(['pumpfun', 'bags', 'zora'])
+    expect(venues.map((v) => v.id)).toEqual(['pumpfun', 'bags', 'zora', 'clanker'])
     expect(venues.find((v) => v.id === 'pumpfun')?.enabled).toBe(true)
     expect(venues.find((v) => v.id === 'pumpfun')?.chain).toBe('solana')
     expect(venues.find((v) => v.id === 'bags')?.enabled).toBe(false)
