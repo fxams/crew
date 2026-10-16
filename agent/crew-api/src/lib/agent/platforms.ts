@@ -155,6 +155,13 @@ export function crewpayLaunchpadPackageId(): string {
   return assertSuiAddress(w, 'packageId')
 }
 
+/** Latest upgraded package id for PTB calls (`published-at` from Published.toml). Falls back to original package id. */
+export function crewpayLaunchpadPublishedAt(): string {
+  const w = (process.env.CREWPAY_LAUNCHPAD_PUBLISHED_AT || '').trim()
+  if (w) return assertSuiAddress(w, 'launchpadPublishedAt')
+  return crewpayLaunchpadPackageId()
+}
+
 export function crewpayLaunchpadConfigId(): string {
   const w = (process.env.CREWPAY_LAUNCHPAD_CONFIG_ID || '').trim()
   if (!isSuiAddress(w)) {
@@ -227,6 +234,8 @@ export function cetusTestnetPoolsId(): string {
 
 /** @cetusprotocol/cetus-sui-clmm-sdk testnet `clmm_pool` deployment (alternate from GitBook 0x5372…). */
 export function cetusSdkTestnetClmmPublishedAt(): string {
+  const w = (process.env.CETUS_CLMM_PUBLISHED_AT || '').trim()
+  if (w) return assertSuiAddress(w, 'cetusClmmPublishedAt')
   return assertSuiAddress(
     '0x85e61285a10efc6602ab00df70a0c06357c384ef4c5633ecf73016df1500c704',
     'cetusSdkClmmPublishedAt',

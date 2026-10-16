@@ -4,7 +4,7 @@ edition = "2024.beta"
 
 [dependencies]
 # Pin to the Cetus testnet deployment used by @cetusprotocol/cetus-sui-clmm-sdk (package origin 0x0c7ae833…, latest 0x85e612…).
-CetusClmm = { git = "https://github.com/CetusProtocol/cetus-contracts.git", subdir = "packages/cetus_clmm", rev = "0a90d59cef9fa86485d81b11cb07a651d76ed360", override = true }
+CetusClmm = { git = "https://github.com/CetusProtocol/cetus-contracts.git", subdir = "packages/cetus_clmm", rev = "0a90d59cef9fa86485d81b11cb07a651d76ed360", override = true, published-at = "0x0c7ae833c220aa73a3643a0d508afa4ac5d50d97312ea4584e35f9eb21b9df12" }
 
 [addresses]
 crewpay_launchpad = "0x0"

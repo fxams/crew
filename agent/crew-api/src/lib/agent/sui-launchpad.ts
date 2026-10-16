@@ -3,12 +3,8 @@ import type { Shareholder } from './shareholders.js'
 import type { UnsignedLaunchPlan, UnsignedStep } from './unsigned.js'
 import {
   assertSuiEnabled,
-  cetusTestnetGlobalConfigId,
-  cetusTestnetPoolsId,
   crewpayLaunchpadConfigId,
-  crewpayLaunchpadMigrationConfigId,
   crewpayLaunchpadPackageId,
-  SUI_CLOCK_OBJECT_ID,
   suiCoinUrl,
   suiNetwork,
 } from './platforms.js'
@@ -16,6 +12,8 @@ import {
   resolveCoinMetadataObjectId,
   resolveSuiCoinMetadataObjectId,
 } from './sui-coin-metadata.js'
+import { buildLaunchpadLiveCetusMigrateTransaction } from './sui-launchpad-migrate.js'
+import { fetchBondingPoolReserves } from './sui-launchpad-pool.js'
 import { assertSuiAddress } from './sui-address.js'
 import { CREWPAY_MEME_COIN_MODULE_BASE64 } from './sui-memez-coin-bytecode.js'
 import { buildMemezPublishCoinTransaction, resolveSuiCrewWallets } from './sui-memez.js'
@@ -107,28 +105,30 @@ export async function buildLaunchpadMigrateTransaction(opts: {
   memeCoinType: string
   metadataMemeObjectId?: string
   metadataSuiObjectId?: string
+  suiReserve?: bigint
+  memeReserve?: bigint
+  refundTreasuryAddress?: string
 }): Promise<Transaction> {
   assertSuiEnabled()
   suiNetwork()
-  const packageId = crewpayLaunchpadPackageId()
-  const migCfg = crewpayLaunchpadMigrationConfigId()
   const metadataMeme =
     opts.metadataMemeObjectId?.trim() ||
     (await resolveCoinMetadataObjectId(opts.memeCoinType))
   const metadataSui = opts.metadataSuiObjectId?.trim() || (await resolveSuiCoinMetadataObjectId())
-  const tx = new Transaction()
-  tx.moveCall({
-    target: `${packageId}::pool::migrate_to_cetus`,
-    typeArguments: [opts.memeCoinType],
-    arguments: [
-      tx.object(opts.poolObjectId),
-      tx.object(migCfg),
-      tx.object(cetusTestnetGlobalConfigId()),
-      tx.object(cetusTestnetPoolsId()),
-      tx.object(metadataMeme),
-      tx.object(metadataSui),
-      tx.object(SUI_CLOCK_OBJECT_ID),
-    ],
+  const reserves = await fetchBondingPoolReserves(opts.poolObjectId)
+  if (!reserves.graduated) throw new Error('Bonding pool is not graduated')
+  if (reserves.migrated) throw new Error('Bonding pool is already migrated')
+  const suiReserve = opts.suiReserve ?? reserves.suiReserve
+  const memeReserve = opts.memeReserve ?? reserves.memeReserve
+  const refundAddress = opts.refundTreasuryAddress ?? reserves.refundTreasury
+  const tx = buildLaunchpadLiveCetusMigrateTransaction({
+    poolObjectId: opts.poolObjectId,
+    memeCoinType: opts.memeCoinType,
+    suiReserve,
+    memeReserve,
+    metadataMemeObjectId: metadataMeme,
+    metadataSuiObjectId: metadataSui,
+    refundAddress,
   })
   tx.setSender(assertSuiAddress(opts.launcherPubkey, 'launcherPubkey'))
   return tx
