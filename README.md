@@ -1,6 +1,6 @@
 # CREW / CrewPay
 
-AI agents hire KOLs. Humans get paid. Launch coins on **Pump.fun**, **Bags**, and **Zora** with on-chain creator fee-shares (**60% crew / 15% agent / 25% treasury**, or **60/15/5/20** when the agent claimed a key with a KOL referral code).
+AI agents hire KOLs. Humans get paid. Launch coins on **Pump.fun**, **Bags.fm**, **Zora**, and **Clanker (Base)** with on-chain creator fee-shares (**60% KOL crew / 15% launching agent / 25% treasury**, or **60/15/5/20** when the agent claimed a key with a KOL referral code).
 
 **Live:** [crewpay.dev](https://crewpay.dev) · API [api.crewpay.dev](https://api.crewpay.dev) · MCP [mcp.crewpay.dev/mcp](https://mcp.crewpay.dev/mcp)
 
@@ -17,7 +17,7 @@ AI agents hire KOLs. Humans get paid. Launch coins on **Pump.fun**, **Bags**, an
 - REST API + [`llms.txt`](https://crewpay.dev/llms.txt)
 - OpenClaw skill: `openclaw skills install @fxams/crewpay`
 - [Official MCP Registry](https://registry.modelcontextprotocol.io) (`io.github.fxams/crewpay-mcp`) and [Glama](https://glama.ai/mcp/servers/fxams/crew)
-- x402 on Base — Autohire **$0.02**, launch family **$0.10** — listed on [x402scan](https://www.x402scan.com/)
+- x402 USDC on **Base** and **Solana** (when `X402_SOLANA_PAY_TO` is set) — Autohire **$0.02**, launch family **$0.10** — listed on [x402scan](https://www.x402scan.com/)
 - Virtuals ACP offerings on Base (`8453`): Autohire **$0.25**, launch with crew **$1.00**
 - Jobs + escrow: **testnet only** (`JOBS_ENABLED`; production templates API is off)
 
@@ -51,7 +51,7 @@ clawhub skill publish ./skills/crewpay \
   --slug crewpay \
   --name "CrewPay" \
   --version 1.1.6 \
-  --changelog "Venues Pump.fun / Bags / Zora; current fee map" \
+  --changelog "Venues Pump.fun / Bags / Zora / Clanker; x402 Base + Solana" \
   --categories integrations,finance,agents \
   --topics "solana,pump-fun,kol,fee-share,mcp" \
   --dry-run
@@ -64,7 +64,7 @@ See [`docs/mcp-registry-publish.md`](./docs/mcp-registry-publish.md). Live name:
 
 ## x402
 
-Pay-per-call **x402 v2** on Base mainnet USDC (`eip155:8453`). Alternative to `x-crew-api-key`. Hosted MCP is **not** an x402 resource server.
+Pay-per-call **x402 v2** on Base mainnet USDC (`eip155:8453`) and optional Solana mainnet USDC (`solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp` when `X402_SOLANA_PAY_TO` is set). Alternative to `x-crew-api-key`. Hosted MCP is **not** an x402 resource server.
 
 **Discovery**
 

@@ -843,7 +843,7 @@ export default function App() {
           `${venues.find((v) => v.id === launchPlatform)?.name || launchPlatform} launches via the Agent unsigned API — curl copied.`,
         );
       } catch {
-        setStatus("Bags.fm and Zora launch via POST /api/agent/launch/unsigned — see Agent API.");
+        setStatus("Bags.fm, Zora, and Clanker launch via POST /api/agent/launch/unsigned — see Agent API.");
       }
       return;
     }
@@ -1530,7 +1530,7 @@ export default function App() {
                 <span>gets paid.</span>
               </motion.h1>
               <p className="hero-copy">
-                Your AI agent launches a coin in three API calls — Pump.fun, Bags.fm, or Zora.
+                Your AI agent launches a coin in three API calls — Pump.fun, Bags.fm, Zora, or Clanker (Base).
                 CrewPay picks a KOL crew that fits the narrative and locks{" "}
                 <em>60% to the KOL crew</em>, <em>15% to the launching agent</em>, and{" "}
                 <em>25% to the treasury</em> on-chain (
@@ -1655,7 +1655,7 @@ export default function App() {
             <article className="step">
               <div className="step-num">01</div>
               <h3>Agent launches</h3>
-              <p>Pump.fun, Bags.fm, or Zora. Optional buy.</p>
+              <p>Pump.fun, Bags.fm, Zora, or Clanker (Base Sepolia testnet). Optional buy.</p>
             </article>
             <article className="step">
               <div className="step-num">02</div>
@@ -1678,7 +1678,7 @@ export default function App() {
           <h2 className="section-title">Agents hire. Launches print.</h2>
           <p className="section-sub">
             Claim a key, Autohire KOLs from your narrative, dry-run, then launch on Pump.fun,
-            Bags.fm, or Zora with fee-shares locked. MCP and HTTP — no Phantom on the agent side.
+            Bags.fm, Zora, or Clanker with fee-shares locked. Pay with x402 USDC on Base or Solana. MCP and HTTP — no Phantom on the agent side.
           </p>
           <div className="agents-x402-row">
             <X402Chip x402={x402} />
@@ -2220,7 +2220,7 @@ export default function App() {
         <section className="section section-tight section-ahead" id="ahead" aria-label="Where we're headed">
           <p className="section-label">Where we&apos;re headed</p>
           <p className="section-sub ahead-copy">
-            Pump.fun, Bags.fm, and Zora launches are just the start. We&apos;re building toward a world where AI agents hire people for
+            Pump.fun, Bags.fm, Zora, and Clanker launches are supported today. We&apos;re building toward a world where AI agents hire people for
             all kinds of work, and both get paid onchain automatically.
           </p>
         </section>
@@ -2241,7 +2241,7 @@ export default function App() {
             <h1 className="section-title">Hire crew. Launch.</h1>
             <p className="section-sub">
               Name the token, Autohire 1–{MAX_CREW} KOLs from the narrative, lock fee-shares, then
-              launch. Pump.fun signs in your Solana wallet. Bags.fm and Zora use the Agent unsigned API.
+              launch. Pump.fun signs in your Solana wallet. Bags.fm, Zora, and Clanker use the Agent unsigned API (EVM for Zora / Clanker).
             </p>
           </div>
 

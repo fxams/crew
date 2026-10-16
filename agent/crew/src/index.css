@@ -4984,6 +4984,17 @@ a.plat-badge:focus-visible {
   color: var(--acid-ink);
 }
 
+.plat-clanker .plat-mark {
+  background: #0052ff;
+  color: #f2f6ef;
+}
+
+.plat-option.plat-clanker .plat-option-mark,
+.plat-option[title*='Clanker'] .plat-option-mark {
+  background: #0052ff;
+  color: #f2f6ef;
+}
+
 .plat-x402 .plat-mark {
   background: var(--ok);
   color: var(--acid-ink);
@@ -5264,7 +5275,14 @@ a.plat-badge:focus-visible {
     font-size: 0.72rem;
   }
 
-  .plat-hero-row .plat-mark-svg {
+  .plat-x402 .plat-x402-net {
+  display: block;
+  font-size: 0.5rem;
+  color: var(--muted);
+  margin-top: -0.05rem;
+}
+
+.plat-hero-row .plat-mark-svg {
     width: 0.72rem;
     height: 0.72rem;
   }

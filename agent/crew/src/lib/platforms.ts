@@ -70,10 +70,10 @@ export const FALLBACK_LAUNCH_VENUES: LaunchVenue[] = [
     chain: 'base-sepolia',
     enabled: false,
     status: 'disabled',
-    caption: 'soon',
+    caption: 'Base Sepolia (testnet)',
     tradeHost: 'clanker.world',
     explorer: 'basescan',
-    note: 'Off unless the API sets CLANKER_ENABLED and a 0x treasury.',
+    note: 'Clanker v4 on Base Sepolia (testnet). Off unless CLANKER_ENABLED and a 0x treasury are set.',
   },
 ]
 
@@ -180,7 +180,9 @@ export function isAllowedTradeUrl(url: string): boolean {
       host === 'bags.fm' ||
       host === 'www.bags.fm' ||
       host === 'zora.co' ||
-      host === 'www.zora.co'
+      host === 'www.zora.co' ||
+      host === 'clanker.world' ||
+      host === 'www.clanker.world'
     )
   } catch {
     return false
@@ -216,13 +218,19 @@ export function parseVenueChain(raw: unknown, id: LaunchPlatform): LaunchChain {
   if (raw === 'base-sepolia' || raw === 'sepolia') return 'base-sepolia'
   if (raw === 'base') return 'base'
   if (raw === 'solana') return 'solana'
-  return id === 'zora' ? 'base-sepolia' : 'solana'
+  if (id === 'zora' || id === 'clanker') return 'base-sepolia'
+  return 'solana'
 }
 
 /** Zora chip copy: Base (mainnet), testnet (Sepolia), soon (off). */
 export function zoraCaption(enabled: boolean, chain: LaunchChain): string {
   if (!enabled) return 'soon'
   return chain === 'base' ? 'Base' : 'testnet'
+}
+
+/** Clanker is Base Sepolia (testnet) until mainnet is enabled. */
+export function clankerCaption(_enabled?: boolean, _chain?: LaunchChain): string {
+  return 'Base Sepolia (testnet)'
 }
 
 function normalizeVenue(raw: Partial<LaunchVenue> & { id?: string; chain?: string }): LaunchVenue | null {
@@ -244,7 +252,13 @@ function normalizeVenue(raw: Partial<LaunchVenue> & { id?: string; chain?: strin
       : raw.caption
   const caption =
     rawCaption ||
-    (raw.id === 'zora' ? zoraCaption(enabled, chain) : !enabled ? 'soon' : fallback.caption)
+    (raw.id === 'zora'
+      ? zoraCaption(enabled, chain)
+      : raw.id === 'clanker'
+        ? clankerCaption(enabled, chain)
+        : !enabled
+          ? 'soon'
+          : fallback.caption)
   return {
     id: raw.id,
     name: raw.name || fallback.name,

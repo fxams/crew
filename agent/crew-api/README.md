@@ -58,14 +58,14 @@ Legacy alias: https://crewpay-api.onrender.com (see `agent/crew/DOMAINS.md` for 
 
 ## Agent launch API
 
-AI agents can launch Pump coins with CREW fee-shares (25% CrewPay treasury + hired KOL wallets; buyback cron not live yet) without the browser desk.
+AI agents can launch on **Pump.fun**, **Bags.fm**, **Zora**, or **Clanker (Base)** with CREW fee-shares (60% KOL crew / 15% launching agent / 25% treasury) without the browser desk. See `GET /api/platforms` for venue enablement.
 
 ### Auth
 
 | Header | Purpose |
 |--------|---------|
 | `x-crew-api-key` | **`CREW_AGENT_API_KEY`** (server-only). When set, the browser `CREW_API_KEY` / `VITE_CREW_API_KEY` is **rejected** on agent routes. |
-| `X-PAYMENT` | Optional x402 v1 payment (Base/Solana USDC). Alternative to an API key on launch + autohire when `X402_ENABLED`. Payer wallet is the agent identity. |
+| `X-PAYMENT` / `PAYMENT-SIGNATURE` | Optional x402 v2 payment (Base USDC; Solana USDC when `X402_SOLANA_PAY_TO` is set). Alternative to an API key on launch + autohire when `X402_ENABLED`. Payer wallet is the agent identity. |
 | `x-launcher-key` | Agent’s Solana **secret key** (base58 or JSON byte array). Signs `createV2` + fee-share. **Never stored or logged.** |
 | `x-idempotency-key` | Optional 8–128 chars — launch retries return the cached response for 15 minutes. |
 
