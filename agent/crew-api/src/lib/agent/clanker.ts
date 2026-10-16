@@ -167,8 +167,8 @@ async function defaultDeployCall(token: Record<string, unknown>) {
   const data = viem.encodeFunctionData({
     abi: deployInput.abi as readonly [],
     functionName: deployInput.functionName,
-    args: deployInput.args,
-  })
+    args: deployInput.args as unknown[],
+  } as never)
   return {
     address: String(deployInput.address),
     abi: deployInput.abi,
