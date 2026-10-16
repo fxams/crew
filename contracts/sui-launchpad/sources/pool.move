@@ -11,12 +11,19 @@ use crewpay_launchpad::curve;
 use crewpay_launchpad::fees::{Self, FeeRecipients};
 use crewpay_launchpad::math;
 use crewpay_launchpad::migration;
+use crewpay_launchpad::migration_config::CetusMigrationConfig;
+use cetus_clmm::config::GlobalConfig;
+use cetus_clmm::factory::Pools;
+use sui::clock::Clock;
+use sui::coin::CoinMetadata;
 
 const BPS: u64 = 10000;
 const EGraduated: u64 = 1;
 const ESlippage: u64 = 2;
 const EBadSupply: u64 = 3;
 const EZero: u64 = 4;
+const ENotGraduated: u64 = 5;
+const EAlreadyMigrated: u64 = 6;
 
 public struct Pool<phantom T> has key {
     id: UID,
@@ -28,6 +35,7 @@ public struct Pool<phantom T> has key {
     virtual_meme: u64,
     target_sui: u64,
     graduated: bool,
+    migrated: bool,
     recipients: FeeRecipients,
     launcher: address,
     meme_type: TypeName,
@@ -122,9 +130,10 @@ public fun create_pool<T>(
         virtual_meme,
         target_sui,
         graduated: false,
+        migrated: false,
         recipients,
         launcher: ctx.sender(),
-        meme_type: type_name::get<T>(),
+        meme_type: type_name::with_defining_ids<T>(),
     };
     let pool_id = object::id(&pool);
     event::emit(Launched {
@@ -225,14 +234,46 @@ fun maybe_graduate<T>(pool: &mut Pool<T>) {
         sui_liquidity: sui_liq,
         meme_liquidity: meme_liq,
     });
-    migration::graduate_to_cetus_stub(
-        object::id(pool),
-        type_name::into_string(pool.meme_type),
-        sui_liq,
-        meme_liq,
+}
+
+/// After graduation (same or follow-up tx), migrate reserves to Cetus CLMM and lock LP.
+public fun migrate_to_cetus<T>(
+    pool: &mut Pool<T>,
+    mig_cfg: &CetusMigrationConfig,
+    cetus_cfg: &GlobalConfig,
+    cetus_pools: &mut Pools,
+    metadata_t: &CoinMetadata<T>,
+    metadata_sui: &CoinMetadata<SUI>,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    assert!(pool.graduated, ENotGraduated);
+    assert!(!pool.migrated, EAlreadyMigrated);
+    let sui_amt = balance::value(&pool.sui);
+    let meme_amt = balance::value(&pool.meme);
+    assert!(sui_amt > 0 && meme_amt > 0, EZero);
+    let sui_bal = balance::split(&mut pool.sui, sui_amt);
+    let meme_bal = balance::split(&mut pool.meme, meme_amt);
+    let pool_id = object::id(pool);
+    migration::migrate_graduated_pool_to_cetus<T>(
+        pool_id,
+        sui_bal,
+        meme_bal,
+        mig_cfg,
+        cetus_cfg,
+        cetus_pools,
+        metadata_t,
+        metadata_sui,
+        clock,
+        ctx,
     );
+    pool.migrated = true;
 }
 
 public fun is_graduated<T>(pool: &Pool<T>): bool {
     pool.graduated
+}
+
+public fun is_migrated<T>(pool: &Pool<T>): bool {
+    pool.migrated
 }
