@@ -1,28 +1,52 @@
 {
   "network": "testnet",
-  "launchpadPackageId": "0x37cf5eccf86586fb10866c4a703e2098e2462aa437cb48100c04ba5ca57e3f64",
-  "launchpadPackageVersion": 10,
-  "upgradeDigest": "DfjKgKNrnPUAS75jrt65MqHfhD3FGpPLV93R2hQ2deBo",
-  "graduatedPoolId": "0xdfff986f6a12c29e5fba0fe60bae7bc9c65ca0f94de0a0a43bf54cb83cba85bd",
-  "graduatedPoolMemeType": "0xf3cffe2511cf84941cea65514a87860385c9fd2feef0b48b411bb650e87da91e::meme::MEME",
-  "graduationBuyDigest": "kKj5zvSKcgrsWpk9Sc3Bc82xd5BHZB2tcEZagjiVyma",
-  "graduationReserves": {
-    "sui_liquidity": "790400000",
-    "meme_liquidity": "180989223542415031"
+  "launchpadPackageOriginalId": "0x37cf5eccf86586fb10866c4a703e2098e2462aa437cb48100c04ba5ca57e3f64",
+  "launchpadPackagePublishedAtV13": "0x27353b5519bc5f3c9a6d543e717a2bce7f1dd66b903f727381b3d8121f431e4c",
+  "cetusDeployments": {
+    "legacyLinkedInFirstPublish": {
+      "packageId": "0x6bbdf09f9fa0baa1524080a5b8991042e95061c4e1206217279aec51ba08edf7",
+      "note": "migrate_to_cetus still dispatches here; factory::new_pool_key abort 6 vs live GlobalConfig types."
+    },
+    "moveLockBuild": {
+      "packageOrigin": "0x5372d555ac734e272659136c2a0cd3227f9b92de67c80dc11250307268af2db8",
+      "globalConfig": "0xc6273f844b4bc258952c4e477697aa12c918c8e08106fac6b934811298c9820a",
+      "pools": "0x20a086e6fa0741b3ca77d033a65faf0871349b986ddbdde6fa1d85d78a5f4222",
+      "poolCreator": "On-chain package v1: create_pool_v2 only (no create_pool_v3 entry)."
+    },
+    "cetusSuiClmmSdkTestnet": {
+      "clmmPublishedAt": "0x85e61285a10efc6602ab00df70a0c06357c384ef4c5633ecf73016df1500c704",
+      "typeOrigin": "0x0c7ae833c220aa73a3643a0d508afa4ac5d50d97312ea4584e35f9eb21b9df12",
+      "globalConfig": "0x9774e359588ead122af1c7e7f64e14ade261cfeecdb5d0eb4a5b3b4c8ab8bd3e",
+      "pools": "0x50eb61dd5928cec5ea04711a2e9b72e5237e79e9fbcd2ce3d5469dc8708e0ee2",
+      "poolCreator": "create_pool_v2 (create_pool_v3 not exposed on published-at 0x85e612…); fix_amount_a must be false for meme/SUI full-range deposit."
+    }
   },
+  "graduatedPoolId": "0xdfff986f6a12c29e5fba0fe60bae7bc9c65ca0f94de0a0a43bf54cb83cba85bd",
+  "memeCoinType": "0xf3cffe2511cf84941cea65514a87860385c9fd2feef0b48b411bb650e87da91e::meme::MEME",
   "migrationAttempts": [
     {
-      "digest": "su3omh7nAu4S8ocLoc6px53mfYNDiUVSzjU5xH7tBQn",
-      "error": "cetus factory::new_pool_key abort 6 (EInvalidCoinTypeSequence)"
+      "digest": "4cQHQoKBU1LgSDYcPqZHFKbpc1VyogTkrfRYdcEVRwzm",
+      "path": "pool::migrate_to_cetus",
+      "error": "0x6bbd…::factory::new_pool_key abort 6 (EInvalidCoinTypeSequence)"
     },
     {
-      "digest": "Cje3nBcb9JABhSBNS2e3L6VSGSfVZRnmEfmhGNn6bo15",
-      "error": "cetus factory::new_pool_key abort 6"
+      "path": "PTB + 0x5372::pool_creator::create_pool_v3",
+      "error": "create_pool_v3 not in on-chain 0x5372 module (CLI suggests create_pool_v2)"
     },
     {
-      "digest": "BjKhbBGdDaUzJMv4toxx7TfPD3yjN5KfZJnZfgh8Rt5y",
-      "error": "cetus factory::new_pool_key abort 6"
+      "path": "PTB + 0x85e612::create_pool_v2 (early CLI tuple wiring)",
+      "error": "Unresolved PTB assigns before tick/fix_amount fixes"
     }
   ],
-  "migrationBlocker": "After package v10 (factory::is_right_order routing + pre-create assert), migrate_to_cetus still aborts in Cetus factory::new_pool_key with code 6 on graduated pools with positive meme/sui reserves. Needs follow-up against live Cetus testnet package 0x6bbdf09f9fa0baa1524080a5b8991042e95061c4e1206217279aec51ba08edf7 (dependency rev testnet-v0.0.2)."
+  "successfulPtbMigration": {
+    "digest": "DVQySDd4FnGEVB9SkDg5RjacTa8SXyue2bBYn3gCRh7j",
+    "suiscan": "https://suiscan.xyz/testnet/tx/DVQySDd4FnGEVB9SkDg5RjacTa8SXyue2bBYn3gCRh7j",
+    "path": "begin_cetus_ptb_migration → 0x85e612::pool_creator::create_pool_v2 (SDK GlobalConfig/Pools) → position::pool_id → finish_cetus_ptb_migration",
+    "cetusPoolId": "0x7168f0379253871d7d09a3b6830d9f80ddc7af63a21c56b909e70bff7fd58cd1",
+    "cetusPositionId": "0x3107ce688c0f038659ef3c26619a9954a9f6a453a4340f6fff0d604f4d8d605f",
+    "lockedClmmPositionRefId": "0x47e02ad5a2bf69cf27e277a6b45ffaeaedaecd5026855b3d54fe88635db54567",
+    "launchpadPublishedAtUsed": "0x27353b5519bc5f3c9a6d543e717a2bce7f1dd66b903f727381b3d8121f431e4c"
+  },
+  "cetusPoolId": "0x7168f0379253871d7d09a3b6830d9f80ddc7af63a21c56b909e70bff7fd58cd1",
+  "notes": "On-chain migrate_to_cetus remains broken on testnet due to 0x6bbd Cetus linkage; use scripts/migrate-live-ptb-testnet.sh for live SDK Cetus."
 }

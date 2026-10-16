@@ -26,7 +26,7 @@ Example testnet deploy (see `contracts/sui-launchpad/scripts/e2e-testnet-results
 1. **`sui_launchpad_publish_coin`** — publish embedded `crewpay_meme_coin` module; read `TreasuryCap` and **package id** from effects.
 2. **`sui_launchpad_open_pool`** — `pool::create_pool_with_recipients` with crew vectors, agent, treasury, optional referrer.
 3. **Trading** — `pool::buy` / `pool::sell` until real SUI in the pool ≥ `target_sui` (`graduated = true`).
-4. **`pool::migrate_to_cetus`** — same or follow-up PTB after graduation: reserves → Cetus CLMM `create_pool_v3` (full range), LP NFT stored in shared `LockedClmmPosition` (no withdraw entrypoints).
+4. **Cetus migration** — after graduation, prefer the **live PTB path** (`begin_cetus_ptb_migration` → Cetus SDK `pool_creator::create_pool_v2` on published-at **`0x85e612…`** → `finish_cetus_ptb_migration`). See `scripts/migrate-live-ptb-testnet.sh`. Legacy **`pool::migrate_to_cetus`** still targets the first-publish Cetus package (`0x6bbd…`) and aborts on testnet.
 
 Rebuild `POST /api/agent/launch/unsigned` with `treasuryCapObjectId` and `publishedPackageId` after step 1. Submit via `POST /api/agent/launch/submit` with `platform: "sui"`.
 
@@ -34,7 +34,9 @@ Rebuild `POST /api/agent/launch/unsigned` with `treasuryCapObjectId` and `publis
 
 | Item | Value |
 | --- | --- |
-| Move dependency | [CetusProtocol/cetus-contracts](https://github.com/CetusProtocol/cetus-contracts) git tag **`testnet-v0.0.2`** (`packages/cetus_clmm`) |
+| Move dependency | [CetusProtocol/cetus-contracts](https://github.com/CetusProtocol/cetus-contracts) rev **`0a90d59…`** (testnet package origin **`0x5372…`**) |
+| SDK reference | `@cetusprotocol/cetus-sui-clmm-sdk` testnet `clmm_pool.published_at` **`0x85e612…`** + `GlobalConfig` **`0x9774…`** / `Pools` **`0x50eb…`** |
+| Legacy pitfall | First launchpad publish linked **`0x6bbd…`** Cetus; `migrate_to_cetus` still calls that factory (`new_pool_key` abort 6). Use **`begin_cetus_ptb_migration` / `finish_cetus_ptb_migration`** + SDK **`create_pool_v2`** (`fix_amount_a = false`, full-range ticks from `full_range_tick_range(60)`). Script: `scripts/migrate-live-ptb-testnet.sh`. |
 | On-chain package (GlobalConfig type) | `0x5372d555ac734e272659136c2a0cd3227f9b92de67c80dc11250307268af2db8` |
 | `GlobalConfig` shared object | `0xc6273f844b4bc258952c4e477697aa12c918c8e08106fac6b934811298c9820a` |
 | `Pools` shared object | `0x20a086e6fa0741b3ca77d033a65faf0871349b986ddbdde6fa1d85d78a5f4222` |

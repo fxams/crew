@@ -206,7 +206,7 @@ export function crewpayLaunchpadMigrationConfigId(): string {
   return assertSuiAddress(w, 'migrationConfigId')
 }
 
-/** Cetus CLMM shared objects on Sui testnet (see contracts/sui-launchpad/scripts/e2e-testnet-results.json). */
+/** Cetus CLMM shared objects on Sui testnet (Move.lock → package origin 0x5372…). */
 export function cetusTestnetGlobalConfigId(): string {
   const w = (process.env.CETUS_GLOBAL_CONFIG_ID || '').trim()
   if (w) return assertSuiAddress(w, 'cetusGlobalConfig')
@@ -222,6 +222,32 @@ export function cetusTestnetPoolsId(): string {
   return assertSuiAddress(
     '0x20a086e6fa0741b3ca77d033a65faf0871349b986ddbdde6fa1d85d78a5f4222',
     'cetusPools',
+  )
+}
+
+/** @cetusprotocol/cetus-sui-clmm-sdk testnet `clmm_pool` deployment (alternate from GitBook 0x5372…). */
+export function cetusSdkTestnetClmmPublishedAt(): string {
+  return assertSuiAddress(
+    '0x85e61285a10efc6602ab00df70a0c06357c384ef4c5633ecf73016df1500c704',
+    'cetusSdkClmmPublishedAt',
+  )
+}
+
+export function cetusSdkTestnetGlobalConfigId(): string {
+  const w = (process.env.CETUS_SDK_GLOBAL_CONFIG_ID || '').trim()
+  if (w) return assertSuiAddress(w, 'cetusSdkGlobalConfig')
+  return assertSuiAddress(
+    '0x9774e359588ead122af1c7e7f64e14ade261cfeecdb5d0eb4a5b3b4c8ab8bd3e',
+    'cetusSdkGlobalConfig',
+  )
+}
+
+export function cetusSdkTestnetPoolsId(): string {
+  const w = (process.env.CETUS_SDK_POOLS_ID || '').trim()
+  if (w) return assertSuiAddress(w, 'cetusSdkPools')
+  return assertSuiAddress(
+    '0x50eb61dd5928cec5ea04711a2e9b72e5237e79e9fbcd2ce3d5469dc8708e0ee2',
+    'cetusSdkPools',
   )
 }
 
