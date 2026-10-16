@@ -222,10 +222,12 @@ agentRouter.post('/agent/launch/submit', requireAgentApiKeyOrX402, async (req, r
       const { SuiClient } = await import('@mysten/sui/client')
       const { suiRpcUrl } = await import('../lib/agent/platforms.js')
       const client = new SuiClient({ url: suiRpcUrl() })
+      const { parseSuiSignedSubmitPayload } = await import('../lib/agent/sui-tx.js')
       for (const b64 of body.signed) {
-        const bytes = Buffer.from(b64, 'base64')
+        const { transactionBlock, signature } = parseSuiSignedSubmitPayload(b64)
         const result = await client.executeTransactionBlock({
-          transactionBlock: bytes,
+          transactionBlock,
+          signature,
           options: { showEffects: true },
         })
         if (!result.digest) throw new Error('sui submit missing digest')

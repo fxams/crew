@@ -1,9 +1,9 @@
 import { SuiClient } from '@mysten/sui/client'
+import { Network } from '@interest-protocol/sui-core-sdk'
 import {
   CONFIG_KEYS,
   MIGRATOR_WITNESSES,
   MemezPumpSDK,
-  Network,
   PACKAGES,
   SHARED_OBJECTS,
 } from '@interest-protocol/memez-fun-sdk'
@@ -36,7 +36,8 @@ export function createMemezPumpSdk(): MemezPumpSdk {
   sdk.packages = PACKAGES[Network.TESTNET]
   sdk.sharedObjects = SHARED_OBJECTS[Network.TESTNET]
   sdk.rpcUrl = fullNodeUrl
-  sdk.client = new SuiClient({ url: fullNodeUrl })
+  // Memez SDK types pin CJS @mysten/sui client; runtime client is compatible.
+  sdk.client = new SuiClient({ url: fullNodeUrl }) as unknown as MemezPumpSdk['client']
   sdk.memezOTW = `${PACKAGES[Network.TESTNET].MEMEZ.original}::memez::MEMEZ`
   return sdk
 }
