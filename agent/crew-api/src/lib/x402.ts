@@ -112,7 +112,7 @@ export function x402PayToEvm(): string | null {
 }
 
 export function x402PayToSol(): string | null {
-  const w = (process.env.X402_PAY_TO_SOL || '').trim()
+  const w = (process.env.X402_SOLANA_PAY_TO || process.env.X402_PAY_TO_SOL || '').trim()
   return w.length >= 32 ? w : null
 }
 
@@ -222,8 +222,14 @@ export function x402PublicDiscovery() {
     docs: 'https://crewpay.dev/llms.txt',
     integration: 'https://github.com/fxams/crew/blob/main/docs/integrations/x402.md',
     note: enabled
-      ? 'Pay per call with USDC on Base mainnet (eip155:8453). Send PAYMENT-SIGNATURE (or legacy X-PAYMENT). No API key required. Existing x-crew-api-key still works.'
-      : 'Off unless X402_ENABLED is set (plus X402_PAY_TO_EVM and/or X402_PAY_TO_SOL). Base payTo is env-driven (X402_PAY_TO_EVM, else ZORA_TREASURY_ADDRESS, else CREW_BUYBACK_WALLET_EVM).',
+      ? [
+          networks.includes('base') ? `USDC on Base (${X402_NETWORK_BASE})` : null,
+          networks.includes('solana') ? `USDC on Solana (${X402_NETWORK_SOLANA})` : null,
+        ]
+          .filter(Boolean)
+          .join(' · ') +
+        '. Send PAYMENT-SIGNATURE (or legacy X-PAYMENT). Verify+settle via configured facilitator (CDP supports Solana exact). No API key required; x-crew-api-key still works.'
+      : 'Off unless X402_ENABLED is set (plus X402_PAY_TO_EVM and/or X402_SOLANA_PAY_TO). Base payTo is env-driven (X402_PAY_TO_EVM, else ZORA_TREASURY_ADDRESS, else CREW_BUYBACK_WALLET_EVM). Omit X402_SOLANA_PAY_TO to advertise Base only.',
     headers: {
       request: PAYMENT_SIGNATURE_HEADER,
       response: PAYMENT_RESPONSE_HEADER,

@@ -33,6 +33,7 @@ function resetEnv() {
     'X402_FACILITATOR_URL',
     'X402_PAY_TO_EVM',
     'X402_PAY_TO_SOL',
+    'X402_SOLANA_PAY_TO',
     'X402_PRICE_LAUNCH_USD',
     'X402_PRICE_AUTOHIRE_USD',
     'ZORA_TREASURY_ADDRESS',
@@ -77,6 +78,25 @@ describe('x402 config', () => {
     expect(x402FacilitatorUrl()).toBe('https://x402.org/facilitator')
   })
 
+  it('reads Solana payTo from X402_SOLANA_PAY_TO (legacy X402_PAY_TO_SOL still works)', () => {
+    process.env.X402_ENABLED = '1'
+    delete process.env.X402_PAY_TO_SOL
+    process.env.X402_SOLANA_PAY_TO = SOL
+    process.env.X402_PAY_TO_EVM = EVM
+    const reqs = paymentRequirementsFor({
+      resource: 'https://api.crewpay.dev/api/agent/launch/unsigned',
+      kind: 'launch',
+    })
+    expect(reqs.find((r) => r.network === X402_NETWORK_SOLANA)?.payTo).toBe(SOL)
+    process.env.X402_PAY_TO_SOL = 'other-address-should-not-win-if-solana-set'
+    expect(
+      paymentRequirementsFor({
+        resource: 'https://api.crewpay.dev/api/agent/launch/unsigned',
+        kind: 'launch',
+      }).find((r) => r.network === X402_NETWORK_SOLANA)?.payTo,
+    ).toBe(SOL)
+  })
+
   it('builds Base + Solana USDC requirements from env prices', () => {
     process.env.X402_ENABLED = '1'
     process.env.X402_PAY_TO_EVM = EVM
@@ -104,6 +124,8 @@ describe('x402 config', () => {
     })
     expect(formatUsdPrice(0.1)).toBe('$0.10')
     expect(x402PublicDiscovery().protocol).toBe('x402 v2')
+    expect(x402PublicDiscovery().networks).toEqual(['base', 'solana'])
+    expect(x402PublicDiscovery().note).toContain('Solana')
     expect(X402_VERSION).toBe(2)
   })
 })
