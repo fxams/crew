@@ -38,6 +38,7 @@ import { FooterSocials, NavSocialLinks } from "./components/SocialIcons";
 import { useLaunchDiscovery } from "./lib/use-launch-venues";
 import { x402PayLabel } from "./lib/x402";
 import {
+  clankerLaunchLabel,
   inferLaunchPlatform,
   unsignedLaunchCurl,
   unsignedVenueHint,
@@ -1655,7 +1656,10 @@ export default function App() {
             <article className="step">
               <div className="step-num">01</div>
               <h3>Agent launches</h3>
-              <p>Pump.fun, Bags.fm, Zora, or Clanker (Base Sepolia testnet). Optional buy.</p>
+              <p>
+                Pump.fun, Bags.fm, Zora, or {clankerLaunchLabel(venues)}. Optional buy. Clanker crews
+                need a Base (0x) payout wallet on each KOL&apos;s CrewPay profile.
+              </p>
             </article>
             <article className="step">
               <div className="step-num">02</div>

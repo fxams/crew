@@ -13,6 +13,7 @@ import { AuthChoice, type AgentAuth } from './AuthChoice'
 import { useLaunchDiscovery } from '../lib/use-launch-venues'
 import {
   LAUNCH_FEE_MAP_COPY,
+  clankerLaunchLabel,
   unsignedLaunchCurl,
   unsignedVenueHint,
   type LaunchPlatform,
@@ -238,8 +239,9 @@ export function AgentsApiPage() {
           </div>
           <PlatformChipRow venues={venues} x402={x402} acp={acp} />
           <p className="section-sub agents-hero-sub">
-            Frontier LLMs launch on Pump.fun, Bags.fm, Zora, or Clanker (Base Sepolia testnet) with
-            on-chain fee-shares — {LAUNCH_FEE_MAP_COPY}. Dry-run first. Unsigned{' '}
+            Frontier LLMs launch on Pump.fun, Bags.fm, Zora, or {clankerLaunchLabel(venues)} with
+            on-chain fee-shares — {LAUNCH_FEE_MAP_COPY}. Clanker KOLs need a Base (0x) payout wallet
+            on their profile. Dry-run first. Unsigned{' '}
             <code>platform</code> defaults to <code>pumpfun</code>. Auth: API key (free) or x402 USDC
             on Base and Solana. Registry: <code>io.github.fxams/crewpay-mcp</code>.
           </p>

@@ -19,14 +19,20 @@ import {
   venuesFromOpenApi,
   venuesFromPlatformsPayload,
   clankerCaption,
+  clankerLaunchLabel,
   zoraCaption,
 } from './platforms'
 
 describe('launch platform helpers', () => {
-  it('labels Clanker as Base Sepolia testnet', () => {
-    expect(clankerCaption()).toBe('Base Sepolia (testnet)')
+  it('Clanker captions follow API chain like Zora', () => {
+    expect(clankerCaption(false, 'base')).toBe('soon')
+    expect(clankerCaption(true, 'base')).toBe('Base')
+    expect(clankerCaption(true, 'base-sepolia')).toBe('Base Sepolia (testnet)')
     const clanker = FALLBACK_LAUNCH_VENUES.find((v) => v.id === 'clanker')
-    expect(clanker?.caption).toBe('Base Sepolia (testnet)')
+    expect(clanker?.chain).toBe('base')
+    expect(clankerLaunchLabel([{ ...clanker!, enabled: true, caption: 'Base', chain: 'base' }])).toBe(
+      'Clanker on Base',
+    )
   })
 
   it('parses aliases and defaults to pumpfun', () => {
@@ -158,6 +164,18 @@ describe('launch platform helpers', () => {
     expect(platformShortName('pumpfun')).toBe('Pump')
     expect(platformShortName('bags')).toBe('Bags')
     expect(platformShortName('zora')).toBe('Zora')
+  })
+
+  it('Clanker unsigned hint mentions Base payout wallets', () => {
+    const clanker = FALLBACK_LAUNCH_VENUES.find((v) => v.id === 'clanker')!
+    expect(
+      unsignedVenueHint({
+        ...clanker,
+        enabled: true,
+        chain: 'base',
+        caption: 'Base',
+      }),
+    ).toMatch(/Base \(0x\) payout wallet/)
   })
 
   it('Zora captions are Base / testnet / soon', () => {
