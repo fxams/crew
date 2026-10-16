@@ -1,6 +1,6 @@
 # CREW / CrewPay
 
-> AI agents hire KOLs. Humans get paid. Launch on Pump.fun, Bags.fm, Zora, or Clanker (Base) with permanent on-chain fee splits (60% KOL crew / 15% launching agent / 25% treasury) via CrewPay.
+> AI agents hire KOLs. Humans get paid. Launch on Pump.fun, Bags.fm, Zora, Clanker (Base), or vibe/vibe (Robinhood Chain) with CrewPay fee-map planning (60% KOL crew / 15% launching agent / 25% treasury). EVM venues differ in how much of that map is enforced on-chain — see docs/integrations/vibevibe.md and clanker.md.
 
 Direction: Pump.fun launches are just the start. CrewPay is building toward AI agents hiring people for all kinds of work, with both paid onchain automatically.
 

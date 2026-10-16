@@ -4,6 +4,7 @@ import { assertSafeHttpUrl } from './agent/safe-url.js'
 import { getConnection } from './agent/send.js'
 import {
   clankerNetwork,
+  vibevibeNetwork,
   explorerTokenUrl,
   inferLaunchPlatformFromCoin,
   tradeUrlForPlatform,
@@ -36,7 +37,7 @@ export type PublicCoinPage = ApiCoin &
     tradeUrl: string
     /** Block explorer token page (Solscan / Basescan). */
     explorerUrl: string
-    chain: 'solana' | 'base' | 'base-sepolia'
+    chain: 'solana' | 'base' | 'base-sepolia' | 'robinhood-testnet' | 'robinhood'
     launchpadLabel: string
   }
 
@@ -116,12 +117,21 @@ function launchpadLabel(coin: ApiCoin): string {
   if (platform === 'bags') return 'Bags.fm'
   if (platform === 'zora') return 'Zora'
   if (platform === 'clanker') return 'Clanker'
+  if (platform === 'vibevibe') return 'vibe/vibe'
   return 'Pump.fun'
 }
 
 function chainFor(coin: ApiCoin): PublicCoinPage['chain'] {
   const platform = launchPlatform(coin)
   const url = (coin.pumpUrl || '').toLowerCase()
+  if (platform === 'vibevibe') {
+    if (url.includes('testnet.vibevibe')) return 'robinhood-testnet'
+    try {
+      return vibevibeNetwork() === 'robinhood' ? 'robinhood' : 'robinhood-testnet'
+    } catch {
+      return 'robinhood-testnet'
+    }
+  }
   if (platform === 'zora' || platform === 'clanker') {
     if (url.includes('sepolia') || url.includes('base-sepolia')) return 'base-sepolia'
     if (platform === 'clanker' && clankerNetwork() === 'base-sepolia' && isEvmAddress(coin.mint)) {

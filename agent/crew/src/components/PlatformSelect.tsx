@@ -30,7 +30,7 @@ export function PlatformSelect({ venues, value, onChange, hint }: Props) {
               aria-checked={active}
               aria-disabled={disabled}
               disabled={disabled}
-              className={`mode-option plat-option${active ? ' active' : ''}${disabled ? ' is-disabled' : ''}`}
+              className={`mode-option plat-option plat-${venue.id}${active ? ' active' : ''}${disabled ? ' is-disabled' : ''}`}
               onClick={() => {
                 if (!disabled) onChange(venue.id)
               }}

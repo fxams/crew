@@ -4997,6 +4997,17 @@ a.plat-badge:focus-visible {
   color: #f2f6ef;
 }
 
+.plat-vibevibe .plat-mark {
+  background: #0d3d2e;
+  color: #b8f5dc;
+}
+
+.plat-option.plat-vibevibe .plat-option-mark,
+.plat-option[title*='vibe'] .plat-option-mark {
+  background: #0d3d2e;
+  color: #b8f5dc;
+}
+
 .plat-x402 .plat-mark {
   background: var(--ok);
   color: var(--acid-ink);

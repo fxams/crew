@@ -7,6 +7,10 @@ import {
   clankerReady,
   clankerRpcUrl,
   clankerTreasuryConfigured,
+  vibevibeCoinUrl,
+  vibevibeNetwork,
+  vibevibeReady,
+  vibevibeTreasuryConfigured,
   inferLaunchPlatformFromCoin,
   listLaunchVenues,
   parseLaunchPlatform,
@@ -30,6 +34,10 @@ afterEach(() => {
     'CLANKER_CHAIN',
     'CLANKER_TREASURY_ADDRESS',
     'CLANKER_RPC_URL',
+    'VIBEVIBE_ENABLED',
+    'VIBEVIBE_CHAIN',
+    'VIBEVIBE_TREASURY_ADDRESS',
+    'VIBEVIBE_RPC_URL',
     'BASE_RPC_URL',
     'CREW_BUYBACK_WALLET_EVM',
     'ACP_ENABLED',
@@ -52,6 +60,7 @@ describe('launch platforms', () => {
     expect(parseLaunchPlatform('pump.fun')).toBe('pumpfun')
     expect(parseLaunchPlatform('bags.fm')).toBe('bags')
     expect(parseLaunchPlatform('zora-coins')).toBe('zora')
+    expect(parseLaunchPlatform('vibe')).toBe('vibevibe')
     expect(() => parseLaunchPlatform('raydium')).toThrow(/Unknown launch platform/)
   })
 
@@ -139,7 +148,7 @@ describe('launch platforms', () => {
     delete process.env.CREW_BUYBACK_WALLET_EVM
     delete process.env.ZORA_CHAIN
     const venues = listLaunchVenues()
-    expect(venues.map((v) => v.id)).toEqual(['pumpfun', 'bags', 'zora', 'clanker'])
+    expect(venues.map((v) => v.id)).toEqual(['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe'])
     expect(venues.find((v) => v.id === 'pumpfun')?.enabled).toBe(true)
     expect(venues.find((v) => v.id === 'pumpfun')?.chain).toBe('solana')
     expect(venues.find((v) => v.id === 'bags')?.enabled).toBe(false)
@@ -211,6 +220,22 @@ describe('launch platforms', () => {
     expect(zora?.chain).toBe('base-sepolia')
     expect(zora?.status).toBe('testnet')
     expect(zora?.caption).toBe('testnet')
+  })
+
+  it('vibevibe defaults to Robinhood testnet and treasury fallbacks', () => {
+    delete process.env.VIBEVIBE_TREASURY_ADDRESS
+    delete process.env.CLANKER_TREASURY_ADDRESS
+    expect(vibevibeNetwork()).toBe('robinhood-testnet')
+    expect(vibevibeTreasuryConfigured()).toBe(false)
+    process.env.VIBEVIBE_ENABLED = '1'
+    expect(vibevibeReady()).toBe(false)
+    process.env.CLANKER_TREASURY_ADDRESS = TREAS
+    expect(vibevibeReady()).toBe(true)
+    const addr = '0x52c3f4ac350f0ddfae43a9fda7798bb6262535e9'
+    expect(vibevibeCoinUrl(addr)).toContain('testnet.vibevibe.fun')
+    expect(
+      inferLaunchPlatformFromCoin({ pumpUrl: vibevibeCoinUrl(addr), mint: addr }),
+    ).toBe('vibevibe')
   })
 
   it('infers platform from trade URL or EVM mint', () => {

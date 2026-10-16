@@ -67,8 +67,13 @@ export async function getAgentMintStatus(
             platform: coin.platform,
           })
         : 'clanker')
-    const feeShareLocked = Boolean(coin?.feeShareSignature) || platform === 'clanker'
+    const feeShareLocked =
+      Boolean(coin?.feeShareSignature) || platform === 'clanker' || platform === 'vibevibe'
     const pumpUrl = coin?.pumpUrl || tradeUrlForPlatform(platform, mint)
+    const evmTip =
+      platform === 'vibevibe'
+        ? 'vibe/vibe run15 — single creatorFeeRecipient at deploy; CrewPay 60/15/25 is planning unless VIBEVIBE_FEE_SPLITTER_ADDRESS is set. See docs/integrations/vibevibe.md.'
+        : 'EVM launch — CrewPay fee map encoded as on-chain rewards at deploy. Use basescan to verify the token.'
     return {
       ok: true,
       mint,
@@ -80,7 +85,7 @@ export async function getAgentMintStatus(
       holderKol: false,
       pumpUrl,
       tip: feeShareLocked
-        ? 'EVM launch — CrewPay fee map encoded as on-chain rewards at deploy. Use basescan to verify the token.'
+        ? evmTip
         : 'Token not on the CREW board yet — submit with mint/name/ticker/launcher to persist after deploy.',
     }
   }

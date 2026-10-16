@@ -4,11 +4,11 @@ import { CREW_AGENT_API_URL, CREW_PUBLIC_API_URL } from './config'
 import { FALLBACK_ACP, acpFromDoc, type AcpInfo } from './acp'
 import { FALLBACK_X402, x402FromDoc, type X402Info } from './x402'
 
-export const LAUNCH_PLATFORMS = ['pumpfun', 'bags', 'zora', 'clanker'] as const
+export const LAUNCH_PLATFORMS = ['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe'] as const
 export type LaunchPlatform = (typeof LAUNCH_PLATFORMS)[number]
 
 export type LaunchVenueStatus = 'live' | 'testnet' | 'disabled'
-export type LaunchChain = 'solana' | 'base' | 'base-sepolia'
+export type LaunchChain = 'solana' | 'base' | 'base-sepolia' | 'robinhood-testnet' | 'robinhood'
 
 export type LaunchVenue = {
   id: LaunchPlatform
@@ -20,7 +20,7 @@ export type LaunchVenue = {
   /** Hint only — desk default stays pumpfun. */
   recommended?: boolean
   tradeHost: string
-  explorer: 'solscan' | 'basescan'
+  explorer: 'solscan' | 'basescan' | 'robinhood'
   note: string
 }
 
@@ -75,10 +75,27 @@ export const FALLBACK_LAUNCH_VENUES: LaunchVenue[] = [
     explorer: 'basescan',
     note: 'Clanker v4 on Base Sepolia (testnet). Off unless CLANKER_ENABLED and a 0x treasury are set.',
   },
+  {
+    id: 'vibevibe',
+    name: 'vibe/vibe',
+    chain: 'robinhood-testnet',
+    enabled: false,
+    status: 'disabled',
+    caption: 'Robinhood Chain testnet',
+    tradeHost: 'testnet.vibevibe.fun',
+    explorer: 'robinhood',
+    note: 'vibe/vibe on Robinhood Chain testnet. Off unless VIBEVIBE_ENABLED and a 0x treasury are set.',
+  },
 ]
 
 export function isLaunchPlatform(value: unknown): value is LaunchPlatform {
-  return value === 'pumpfun' || value === 'bags' || value === 'zora' || value === 'clanker'
+  return (
+    value === 'pumpfun' ||
+    value === 'bags' ||
+    value === 'zora' ||
+    value === 'clanker' ||
+    value === 'vibevibe'
+  )
 }
 
 export function parseLaunchPlatform(raw?: string | null): LaunchPlatform {
@@ -87,6 +104,7 @@ export function parseLaunchPlatform(raw?: string | null): LaunchPlatform {
   if (v === 'bags' || v === 'bags.fm' || v === 'bagsfm') return 'bags'
   if (v === 'zora' || v === 'zora-coins' || v === 'zoracoins') return 'zora'
   if (v === 'clanker' || v === 'clanker.world') return 'clanker'
+  if (v === 'vibevibe' || v === 'vibe' || v === 'vibe-vibe' || v === 'vibevibe.fun') return 'vibevibe'
   return DEFAULT_LAUNCH_PLATFORM
 }
 
@@ -94,6 +112,7 @@ export function platformDisplayName(platform: LaunchPlatform): string {
   if (platform === 'bags') return 'Bags.fm'
   if (platform === 'zora') return 'Zora'
   if (platform === 'clanker') return 'Clanker'
+  if (platform === 'vibevibe') return 'vibe/vibe'
   return 'Pump.fun'
 }
 
@@ -101,6 +120,7 @@ export function platformShortName(platform: LaunchPlatform): string {
   if (platform === 'bags') return 'Bags'
   if (platform === 'zora') return 'Zora'
   if (platform === 'clanker') return 'Clanker'
+  if (platform === 'vibevibe') return 'vibe'
   return 'Pump'
 }
 
@@ -108,11 +128,12 @@ export function platformMark(platform: LaunchPlatform): string {
   if (platform === 'bags') return 'B'
   if (platform === 'zora') return 'Z'
   if (platform === 'clanker') return 'C'
+  if (platform === 'vibevibe') return 'V'
   return 'P'
 }
 
 function isEvmLaunchPlatform(platform: LaunchPlatform): boolean {
-  return platform === 'zora' || platform === 'clanker'
+  return platform === 'zora' || platform === 'clanker' || platform === 'vibevibe'
 }
 
 const EVM_RE = /^0x[a-fA-F0-9]{40}$/
@@ -130,6 +151,7 @@ export function inferLaunchPlatform(opts: {
   if (url.includes('bags.fm')) return 'bags'
   if (url.includes('zora.co') || url.includes('zora.energy')) return 'zora'
   if (url.includes('clanker.world')) return 'clanker'
+  if (url.includes('vibevibe.fun')) return 'vibevibe'
   const mint = (opts.mint || '').trim()
   if (EVM_RE.test(mint)) return 'zora'
   return 'pumpfun'
@@ -141,6 +163,7 @@ export function tradeUrl(platform: LaunchPlatform, mint: string): string {
     return `https://zora.co/coin/base:${mint}`
   }
   if (platform === 'clanker') return `https://clanker.world/clanker/${mint}`
+  if (platform === 'vibevibe') return `https://testnet.vibevibe.fun/token/${mint}`
   return `https://pump.fun/coin/${mint}`
 }
 
@@ -148,17 +171,24 @@ export function tradeLabel(platform: LaunchPlatform): string {
   if (platform === 'bags') return 'bags.fm'
   if (platform === 'zora') return 'zora.co'
   if (platform === 'clanker') return 'clanker.world'
+  if (platform === 'vibevibe') return 'testnet.vibevibe.fun'
   return 'pump.fun'
 }
 
 export function explorerTokenUrl(platform: LaunchPlatform, mint: string): string | null {
   if (!mint) return null
+  if (platform === 'vibevibe') {
+    return `https://explorer.testnet.chain.robinhood.com/token/${mint}`
+  }
   if (isEvmLaunchPlatform(platform)) return `https://basescan.org/token/${mint}`
   return `https://solscan.io/token/${mint}`
 }
 
 export function explorerTxUrl(platform: LaunchPlatform, signature: string): string | null {
   if (!signature || signature.startsWith('quest:')) return null
+  if (platform === 'vibevibe') {
+    return `https://explorer.testnet.chain.robinhood.com/tx/${signature}`
+  }
   if (isEvmLaunchPlatform(platform)) {
     return `https://basescan.org/tx/${signature}`
   }
@@ -166,6 +196,7 @@ export function explorerTxUrl(platform: LaunchPlatform, signature: string): stri
 }
 
 export function explorerLabel(platform: LaunchPlatform): string {
+  if (platform === 'vibevibe') return 'Robinhood explorer'
   return isEvmLaunchPlatform(platform) ? 'Basescan' : 'Solscan'
 }
 
@@ -182,7 +213,10 @@ export function isAllowedTradeUrl(url: string): boolean {
       host === 'zora.co' ||
       host === 'www.zora.co' ||
       host === 'clanker.world' ||
-      host === 'www.clanker.world'
+      host === 'www.clanker.world' ||
+      host === 'testnet.vibevibe.fun' ||
+      host === 'vibevibe.fun' ||
+      host === 'www.vibevibe.fun'
     )
   } catch {
     return false
@@ -218,6 +252,8 @@ export function parseVenueChain(raw: unknown, id: LaunchPlatform): LaunchChain {
   if (raw === 'base-sepolia' || raw === 'sepolia') return 'base-sepolia'
   if (raw === 'base') return 'base'
   if (raw === 'solana') return 'solana'
+  if (raw === 'robinhood-testnet' || raw === 'robinhood') return raw
+  if (id === 'vibevibe') return 'robinhood-testnet'
   if (id === 'zora' || id === 'clanker') return 'base-sepolia'
   return 'solana'
 }
@@ -231,6 +267,10 @@ export function zoraCaption(enabled: boolean, chain: LaunchChain): string {
 /** Clanker is Base Sepolia (testnet) until mainnet is enabled. */
 export function clankerCaption(_enabled?: boolean, _chain?: LaunchChain): string {
   return 'Base Sepolia (testnet)'
+}
+
+export function vibevibeCaption(_enabled?: boolean, chain?: LaunchChain): string {
+  return chain === 'robinhood' ? 'Robinhood Chain' : 'Robinhood Chain testnet'
 }
 
 function normalizeVenue(raw: Partial<LaunchVenue> & { id?: string; chain?: string }): LaunchVenue | null {
@@ -256,7 +296,9 @@ function normalizeVenue(raw: Partial<LaunchVenue> & { id?: string; chain?: strin
       ? zoraCaption(enabled, chain)
       : raw.id === 'clanker'
         ? clankerCaption(enabled, chain)
-        : !enabled
+        : raw.id === 'vibevibe'
+          ? vibevibeCaption(enabled, chain)
+          : !enabled
           ? 'soon'
           : fallback.caption)
   return {
@@ -268,7 +310,8 @@ function normalizeVenue(raw: Partial<LaunchVenue> & { id?: string; chain?: strin
     caption,
     recommended: raw.recommended ?? fallback.recommended,
     tradeHost: raw.tradeHost || fallback.tradeHost,
-    explorer: raw.explorer === 'basescan' ? 'basescan' : fallback.explorer,
+    explorer:
+      raw.explorer === 'basescan' || raw.explorer === 'robinhood' ? raw.explorer : fallback.explorer,
     note: raw.note || fallback.note,
   }
 }
@@ -320,6 +363,12 @@ export function venuesFromOpenApi(doc: unknown): LaunchVenue[] | null {
 }
 
 export function unsignedVenueHint(venue: LaunchVenue): string {
+  if (venue.id === 'vibevibe') {
+    if (!venue.enabled) {
+      return 'vibe/vibe is soon unless the API enables it. Unsigned EIP-1559 — crew wallets must be 0x.'
+    }
+    return 'vibe/vibe on Robinhood Chain. Unsigned EIP-1559 — crew wallets must be 0x. See fee-split docs.'
+  }
   if (venue.id === 'zora') {
     if (!venue.enabled) {
       return 'Zora is soon unless the API enables it. Unsigned EIP-1559 — crew wallets must be 0x.'
@@ -421,7 +470,10 @@ export function unsignedLaunchCurl(opts: {
     opts.auth === 'x402'
       ? `-H "${opts.paymentHeader || 'X-PAYMENT'}: $X402_PAYMENT" \\`
       : `-H "x-crew-api-key: $CREW_AGENT_API_KEY" \\`
-  const fallback = opts.platform === 'zora' ? '0xYOUR_EVM_PUBKEY' : 'YOUR_SOLANA_PUBKEY'
+  const fallback =
+    opts.platform === 'zora' || opts.platform === 'clanker' || opts.platform === 'vibevibe'
+      ? '0xYOUR_EVM_PUBKEY'
+      : 'YOUR_SOLANA_PUBKEY'
   const launcher = (opts.launcherPubkey || '').trim() || fallback
   return `curl -sS ${CREW_PUBLIC_API_URL}/api/agent/launch/unsigned \\
   -H "content-type: application/json" \\
