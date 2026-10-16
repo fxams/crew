@@ -11,6 +11,7 @@
     "dist",
     "README.md",
     "mcp.json",
+    "server.json",
     "smithery.yaml"
   ],
   "repository": {
