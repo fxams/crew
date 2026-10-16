@@ -138,6 +138,7 @@ const unsignedLaunchSchema = z
     launcherPubkey: z.string().min(20).max(64),
     mintPubkey: z.string().min(20).max(64).optional(),
     treasuryCapObjectId: z.string().min(42).max(90).optional(),
+    publishedPackageId: z.string().min(42).max(90).optional(),
   })
   .superRefine(refineLaunchBody)
 

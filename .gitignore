@@ -1,4 +1,5 @@
 node_modules/
+contracts/sui-launchpad/build/
 # Local Musebook / directory credentials (api_key returned once)
 .config/musebook/
 **/musebook/credentials.json

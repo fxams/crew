@@ -18,12 +18,14 @@ import {
   isSuiLaunchPlatform,
   parseLaunchPlatform,
   platformDisplayName,
+  suiLaunchpad,
   type LaunchPlatform,
 } from './platforms.js'
 import { buildCrewShareholders, maxCrewSeats } from './shareholders.js'
 import { buildUnsignedLaunchTransactions, type UnsignedLaunchPlan } from './unsigned.js'
 import { buildClankerUnsignedLaunch, resolveClankerCrewWallets } from './clanker.js'
 import { buildVibevibeUnsignedLaunch, resolveVibevibeCrewWallets } from './vibevibe.js'
+import { buildSuiLaunchpadUnsignedLaunch } from './sui-launchpad.js'
 import { buildSuiMemezUnsignedLaunch, resolveSuiCrewWallets } from './sui-memez.js'
 import { isSuiAddress } from './sui-address.js'
 import { applyRegisteredEvmWallets, buildZoraUnsignedLaunch, resolveZoraCrewWallets } from './zora.js'
@@ -46,8 +48,10 @@ export type UnsignedLaunchInput = {
   platform?: string
   launcherPubkey: string
   mintPubkey?: string
-  /** Sui Memez step 2 — TreasuryCap object id from step 1 publish effects. */
+  /** Sui step 2 — TreasuryCap object id from step 1 publish effects. */
   treasuryCapObjectId?: string
+  /** Sui CrewPay launchpad step 2 — package id from step 1 publish (derives meme coin type). */
+  publishedPackageId?: string
   keyId?: string
   /**
    * Paying agent wallet (ACP / x402 identity). Used as launcherPubkey for Zora
@@ -299,16 +303,27 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
     const metadataUri =
       input.imageUrl?.trim() ||
       `https://crewpay.dev/agent/launch-metadata?ticker=${encodeURIComponent(ticker)}`
-    plan = await buildSuiMemezUnsignedLaunch({
-      name: input.name,
-      ticker,
-      metadataUri,
-      launcherPubkey,
-      shareholders: shareholders || [],
-      treasuryCapObjectId: input.treasuryCapObjectId?.trim() || input.mintPubkey?.trim(),
-      twitter: input.twitter?.trim() || undefined,
-      website: input.website?.trim() || undefined,
-    })
+    if (suiLaunchpad() === 'crewpay') {
+      plan = await buildSuiLaunchpadUnsignedLaunch({
+        name: input.name,
+        ticker,
+        launcherPubkey,
+        shareholders: shareholders || [],
+        treasuryCapObjectId: input.treasuryCapObjectId?.trim() || input.mintPubkey?.trim(),
+        publishedPackageId: input.publishedPackageId?.trim(),
+      })
+    } else {
+      plan = await buildSuiMemezUnsignedLaunch({
+        name: input.name,
+        ticker,
+        metadataUri,
+        launcherPubkey,
+        shareholders: shareholders || [],
+        treasuryCapObjectId: input.treasuryCapObjectId?.trim() || input.mintPubkey?.trim(),
+        twitter: input.twitter?.trim() || undefined,
+        website: input.website?.trim() || undefined,
+      })
+    }
   } else {
     const { metadataUri } = await import('./ipfs.js').then((m) =>
       m.uploadPumpMetadataResilient({
@@ -339,7 +354,9 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
         : platform === 'vibevibe'
           ? 'UNSIGNED vibe/vibe EIP-1559 — sign vibevibe_deploy; POST /api/agent/launch/submit { platform:"vibevibe", signed:[hex…] }.'
           : platform === 'sui'
-            ? 'UNSIGNED Sui Memez — sign sui_memez_publish_coin then sui_memez_create_pool (rebuild with treasuryCapObjectId after step 1); POST /api/agent/launch/submit { platform:"sui", signed:[base64…] }.'
+            ? suiLaunchpad() === 'crewpay'
+              ? 'UNSIGNED CrewPay Sui launchpad — sign sui_launchpad_publish_coin then sui_launchpad_open_pool (rebuild with treasuryCapObjectId + publishedPackageId after step 1); POST /api/agent/launch/submit { platform:"sui", signed:[base64…] }.'
+              : 'UNSIGNED Sui Memez — sign sui_memez_publish_coin then sui_memez_create_pool (rebuild with treasuryCapObjectId after step 1); POST /api/agent/launch/submit { platform:"sui", signed:[base64…] }.'
             : 'UNSIGNED build — sign and submit locally (or POST /api/agent/launch/submit with the signed base64). Messages expire with the blockhash; rebuild when expired.'
 
   const referralWarnings: string[] = []
