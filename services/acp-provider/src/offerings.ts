@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { OFFERING_AUTOHIRE, OFFERING_LAUNCH } from './config.js'
 
-const LAUNCH_PLATFORMS = ['pumpfun', 'bags', 'zora'] as const
+const LAUNCH_PLATFORMS = ['pumpfun', 'bags', 'zora', 'clanker'] as const
 
 export const autohireRequirementSchema = z.object({
   mint: z.string().min(20).max(80),
@@ -63,7 +63,7 @@ export const launchRequirementSchema = z
         path: ['imageUrl'],
       })
     }
-    if (val.platform !== 'zora' && !val.launcherPubkey) {
+    if (val.platform !== 'zora' && val.platform !== 'clanker' && !val.launcherPubkey) {
       ctx.addIssue({
         code: 'custom',
         message: 'launcherPubkey is required for Pump.fun / Bags.fm (the address that will sign).',

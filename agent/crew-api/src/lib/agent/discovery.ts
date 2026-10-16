@@ -7,7 +7,12 @@ import {
   openApiXPaymentInfo,
   wellKnownX402 as wellKnownX402Doc,
 } from '../x402-discovery.js'
-import { x402PriceAutohireUsd, x402PriceLaunchUsd, x402PublicDiscovery } from '../x402.js'
+import {
+  x402PayToSol,
+  x402PriceAutohireUsd,
+  x402PriceLaunchUsd,
+  x402PublicDiscovery,
+} from '../x402.js'
 
 /** Pinned npm package for local MCP. Bump with agent/crew-mcp/package.json. */
 export const MCP_PACKAGE_VERSION = '1.2.8'
@@ -346,13 +351,13 @@ export function agentDiscoveryJson() {
       'POST /api/webhooks': 'Register agent webhook (auth)',
       'POST /api/agent/launch/unsigned': {
         auth: 'x-crew-api-key or X-PAYMENT (x402, when enabled)',
-        body: 'Same crew/image fields as launch + launcherPubkey + optional platform=pumpfun|bags|zora (default pumpfun), treasuryBps, optInOnly',
+        body: 'Same crew/image fields as launch + launcherPubkey + optional platform=pumpfun|bags|zora|clanker (default pumpfun), treasuryBps, optInOnly',
         returns:
           'UNSIGNED steps (Pump v0 messages; Bags partially-signed Solana txs; Zora EIP-1559 split + create). No secrets.',
       },
       'POST /api/agent/launch/submit': {
         auth: 'x-crew-api-key or X-PAYMENT (x402, when enabled)',
-        body: { signed: 'base64 Solana or 0x EVM hex', platform: 'pumpfun|bags|zora' },
+        body: { signed: 'base64 Solana or 0x EVM hex', platform: 'pumpfun|bags|zora|clanker' },
         returns: 'Broadcast signatures / tx hashes',
       },
     },
@@ -394,6 +399,7 @@ export function wellKnownX402() {
     apiUrl: API_URL,
     launchUsd: x402PriceLaunchUsd(),
     autohireUsd: x402PriceAutohireUsd(),
+    solanaUsdc: Boolean(x402PayToSol()),
   })
 }
 
@@ -683,7 +689,7 @@ export function openApiSpec() {
                   required: ['signed'],
                   properties: {
                     signed: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 8 },
-                    platform: { type: 'string', enum: ['pumpfun', 'bags', 'zora'], default: 'pumpfun' },
+                    platform: { type: 'string', enum: ['pumpfun', 'bags', 'zora', 'clanker'], default: 'pumpfun' },
                   },
                 },
               },
@@ -1193,7 +1199,7 @@ export function openApiSpec() {
           type: 'object',
           required: ['id', 'name', 'chain', 'enabled', 'status'],
           properties: {
-            id: { type: 'string', enum: ['pumpfun', 'bags', 'zora'] },
+            id: { type: 'string', enum: ['pumpfun', 'bags', 'zora', 'clanker'] },
             name: { type: 'string' },
             chain: { type: 'string', enum: ['solana', 'base', 'base-sepolia'] },
             enabled: { type: 'boolean' },
@@ -1323,7 +1329,7 @@ export function openApiSpec() {
             },
             platform: {
               type: 'string',
-              enum: ['pumpfun', 'bags', 'zora'],
+              enum: ['pumpfun', 'bags', 'zora', 'clanker'],
               default: 'pumpfun',
               description:
                 'Launch venue. pumpfun (default) = Pump.fun Solana. bags = Bags.fm Solana (BAGS_API_KEY). zora = Zora coins on Base (ZORA_ENABLED). Existing clients omit this.',

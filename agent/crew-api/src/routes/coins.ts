@@ -232,7 +232,7 @@ coinsRouter.put('/coins', walletOnly, async (req, res) => {
         const u = assertSafeHttpUrl(parsed.pumpUrl, 'pumpUrl')
         host = u.hostname.toLowerCase()
         if (!isAllowedTradeHost(host)) {
-          throw new Error('pumpUrl must be on pump.fun, bags.fm, or zora.co')
+          throw new Error('pumpUrl must be on pump.fun, bags.fm, zora.co, or clanker.world')
         }
       } catch (err) {
         res.status(400).json({ error: err instanceof Error ? err.message : 'Invalid pumpUrl' })

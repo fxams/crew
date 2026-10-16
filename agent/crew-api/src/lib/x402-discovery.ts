@@ -79,9 +79,9 @@ const launchInputSchema = {
     imageBase64: { type: 'string', description: 'Raw image bytes as base64 (alternative to imageUrl).' },
     platform: {
       type: 'string',
-      enum: ['pumpfun', 'bags', 'zora'],
+      enum: ['pumpfun', 'bags', 'zora', 'clanker'],
       default: 'pumpfun',
-      description: 'Launch venue. pumpfun and bags are Solana; zora is Base.',
+      description: 'Launch venue. pumpfun and bags are Solana; zora and clanker are Base.',
     },
     launcherPubkey: {
       type: 'string',
@@ -119,7 +119,7 @@ const submitInputSchema = {
     },
     platform: {
       type: 'string',
-      enum: ['pumpfun', 'bags', 'zora'],
+      enum: ['pumpfun', 'bags', 'zora', 'clanker'],
       default: 'pumpfun',
     },
   },
@@ -189,7 +189,7 @@ export function paidX402Routes(): PaidX402Route[] {
       kind: 'launch',
       summary: 'Build unsigned launch transactions (non-custodial)',
       description: withUseCase(
-        'Build unsigned Pump.fun / Bags / Zora transactions. Sign locally. CrewPay never holds the launcher key.',
+        'Build unsigned Pump.fun / Bags / Zora / Clanker transactions. Sign locally. CrewPay never holds the launcher key.',
       ),
       inputExample: {
         ...AGENT_EXAMPLES.launch,
@@ -405,6 +405,8 @@ export function wellKnownX402(opts?: {
   apiUrl?: string
   launchUsd?: number
   autohireUsd?: number
+  /** When true, instructions mention Solana USDC (X402_SOLANA_PAY_TO). */
+  solanaUsdc?: boolean
 }) {
   const api = (opts?.apiUrl || API_PUBLIC_URL).replace(/\/$/, '')
   const routes = paidX402Routes()
@@ -414,13 +416,21 @@ export function wellKnownX402(opts?: {
     launchUsd != null && autohireUsd != null
       ? `Prices: Autohire ${formatUsd(autohireUsd)} · launch family ${formatUsd(launchUsd)} (env-overridable, unchanged fee map).`
       : 'Prices stay the configured x402 launch/autohire amounts (env-overridable, unchanged fee map).'
+  const solanaUsdc = Boolean(opts?.solanaUsdc)
+  const networkNote = [
+    `Pay-per-call x402 v2 USDC on Base (${X402_NETWORK_BASE}).`,
+    solanaUsdc ? `Also accepts Solana mainnet USDC (${X402_NETWORK_SOLANA}) when X402_SOLANA_PAY_TO is set.` : null,
+    'Amounts are atomic USDC (6 decimals). Use a facilitator that supports Solana (e.g. Coinbase CDP). Alternative auth: x-crew-api-key.',
+  ]
+    .filter(Boolean)
+    .join(' ')
   return {
     version: 1,
     description: CREWPAY_USE_CASE,
     contact: { email: CREWPAY_CONTACT_EMAIL },
     instructions: [
       CREWPAY_USE_CASE,
-      `Pay-per-call x402 v2 on Base mainnet USDC (${X402_NETWORK_BASE}). Amounts are atomic USDC (6 decimals). Alternative auth: x-crew-api-key.`,
+      networkNote,
       'Probe a listed resource with POST (no API key, no body required) to read the 402 PAYMENT-REQUIRED challenge.',
       'Hosted MCP (mcp.crewpay.dev) is not an x402 resource server — it uses API keys. Local crewpay-mcp can pay the REST routes below.',
       priceNote,
