@@ -76,7 +76,7 @@ See `scripts/deploy-testnet.sh`. Record ids from publish effects (`LaunchpadConf
 cd contracts/sui-launchpad && sui move test
 ```
 
-**17** unit tests (fees, curve edges, pool slippage/graduation/pause, migration math).
+**21** unit tests (fees, curve edges, pool slippage/graduation/reserve, migration math + Cetus coin order).
 
 ## Testnet e2e (manual)
 
@@ -99,5 +99,6 @@ cd contracts/sui-launchpad && sui move test
 
 - Cetus package revision on-chain (`0x5372…`) vs git pin (`testnet-v0.0.2`) must be validated under audit.
 - Migration PTB needs live `CoinMetadata<SUI>` object id (indexer/gRPC); default public RPC may not expose `suix_getCoinMetadata`.
-- Virtual curve quotes can exceed inventory; `buy` caps meme out to real reserve.
-- Leftover Cetus pool creation coins are refunded to the migration sender (not treasury).
+- Virtual curve quotes can exceed inventory; `buy` caps meme out to tradable inventory (supply minus **20%** migration LP reserve).
+- Graduation requires real SUI ≥ `target_sui` and meme balance ≥ migration reserve.
+- Leftover Cetus `create_pool_v3` dust refunds to the pool treasury address (see `migrate_to_cetus`).

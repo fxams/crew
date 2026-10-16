@@ -18,6 +18,8 @@ use sui::clock::Clock;
 use sui::coin::CoinMetadata;
 
 const BPS: u64 = 10000;
+/// Real meme balance that must remain in the pool for Cetus migration LP (curve sells only the rest).
+const MIGRATION_MEME_RESERVE_BPS: u64 = 2000;
 const EGraduated: u64 = 1;
 const ESlippage: u64 = 2;
 const EBadSupply: u64 = 3;
@@ -73,6 +75,19 @@ public struct FeesPaid has copy, drop {
     total_fee: u64,
 }
 
+fun migration_meme_reserve<T>(pool: &Pool<T>): u64 {
+    let supply = coin::total_supply(&pool.treasury_cap);
+    math::mul_div_floor(supply, MIGRATION_MEME_RESERVE_BPS, BPS)
+}
+
+fun max_tradable_meme(real_meme: u64, migration_reserve: u64): u64 {
+    if (real_meme <= migration_reserve) {
+        0
+    } else {
+        math::sub_u64(real_meme, migration_reserve)
+    }
+}
+
 fun take_trade_fee(amount: u64, fee_bps: u64): (u64, u64) {
     let fee = math::mul_div_floor(amount, fee_bps, BPS);
     let net = math::sub_u64(amount, fee);
@@ -120,6 +135,8 @@ public fun create_pool<T>(
 ): ID {
     config::assert_new_launches_allowed(cfg);
     assert!(supply > 0, EBadSupply);
+    let migration_reserve = math::mul_div_floor(supply, MIGRATION_MEME_RESERVE_BPS, BPS);
+    assert!(migration_reserve > 0 && migration_reserve < supply, EBadSupply);
     let meme_bal = coin::into_balance(coin::mint(&mut treasury, supply, ctx));
     let pool = Pool<T> {
         id: object::new(ctx),
@@ -159,9 +176,11 @@ public fun buy<T>(
     let (sui_net, fee_sui) = take_trade_fee(sui_in, config::trade_fee_bps(cfg));
     let real_sui = balance::value(&pool.sui);
     let real_meme = balance::value(&pool.meme);
+    let migration_reserve = migration_meme_reserve(pool);
+    let max_sell = max_tradable_meme(real_meme, migration_reserve);
     let mut meme_out = curve::quote_buy(sui_net, real_sui, real_meme, pool.virtual_sui, pool.virtual_meme);
-    if (meme_out > real_meme) {
-        meme_out = real_meme;
+    if (meme_out > max_sell) {
+        meme_out = max_sell;
     };
     assert!(meme_out >= min_meme_out, ESlippage);
 
@@ -228,8 +247,8 @@ fun maybe_graduate<T>(pool: &mut Pool<T>) {
     let sui_liq = balance::value(&pool.sui);
     if (sui_liq < pool.target_sui) return;
     let meme_liq = balance::value(&pool.meme);
-    // Cetus migration needs both reserves; do not graduate on SUI target alone.
-    if (meme_liq == 0) return;
+    let migration_reserve = migration_meme_reserve(pool);
+    if (meme_liq < migration_reserve) return;
     pool.graduated = true;
     event::emit(Graduated {
         pool_id: object::id(pool),
@@ -280,4 +299,19 @@ public fun is_graduated<T>(pool: &Pool<T>): bool {
 
 public fun is_migrated<T>(pool: &Pool<T>): bool {
     pool.migrated
+}
+
+#[test_only]
+public fun migration_meme_reserve_bps_for_testing(): u64 {
+    MIGRATION_MEME_RESERVE_BPS
+}
+
+#[test_only]
+public fun migration_meme_reserve_amount_for_testing<T>(pool: &Pool<T>): u64 {
+    migration_meme_reserve(pool)
+}
+
+#[test_only]
+public fun pool_liquidity_for_testing<T>(pool: &Pool<T>): (u64, u64) {
+    (balance::value(&pool.sui), balance::value(&pool.meme))
 }
