@@ -6951,6 +6951,10 @@ ol.coin-timeline.coin-panel {
   padding-bottom: 0.5rem;
 }
 
+.sui-page-top-badge {
+  padding: 0.75rem 0 0;
+}
+
 .sui-testnet-badge {
   display: inline-flex;
   align-items: center;

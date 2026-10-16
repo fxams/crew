@@ -1,4 +1,13 @@
-import { CREW_AGENT_API_URL } from './config'
+import { CREW_AGENT_API_URL, CREW_PUBLIC_API_URL } from './config'
+
+/** Resolved API base used for Sui launchpad fetches (documented for ops). */
+export function suiLaunchpadApiBase(): string {
+  return CREW_AGENT_API_URL
+}
+
+export function suiLaunchpadApiBasePublic(): string {
+  return CREW_PUBLIC_API_URL
+}
 
 export type SuiLaunchpadConfig = {
   enabled: boolean
@@ -56,22 +65,54 @@ export type UnsignedSuiStep = {
   note?: string
 }
 
-async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${CREW_AGENT_API_URL}${path}`)
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}))
-    throw new Error((body as { error?: string }).error || res.statusText)
-  }
-  return res.json() as Promise<T>
+const CONFIG_TIMEOUT_MS = 12_000
+
+export const DISABLED_SUI_LAUNCHPAD_CONFIG: SuiLaunchpadConfig = {
+  enabled: false,
+  network: 'testnet',
+  launchpadBackend: null,
+  packageId: null,
+  publishedAt: null,
+  configId: null,
+  graphqlUrl: null,
+  explorer: 'suiscan',
+  tradeFeeBps: 120,
+  nearGraduationProgressBps: 7000,
 }
 
+async function fetchWithTimeout(path: string, init?: RequestInit): Promise<Response> {
+  const url = `${CREW_AGENT_API_URL}${path}`
+  return fetch(url, {
+    ...init,
+    signal: AbortSignal.timeout(CONFIG_TIMEOUT_MS),
+  })
+}
+
+/** Treat 404/5xx/network errors as disabled launchpad (Coming soon). */
 export async function fetchSuiLaunchpadConfig(): Promise<SuiLaunchpadConfig> {
-  return apiGet('/api/sui/launchpad/config')
+  try {
+    const res = await fetchWithTimeout('/api/sui/launchpad/config')
+    if (!res.ok) return { ...DISABLED_SUI_LAUNCHPAD_CONFIG }
+    const json = (await res.json()) as SuiLaunchpadConfig
+    return {
+      ...DISABLED_SUI_LAUNCHPAD_CONFIG,
+      ...json,
+      network: json.network ?? 'testnet',
+    }
+  } catch {
+    return { ...DISABLED_SUI_LAUNCHPAD_CONFIG }
+  }
 }
 
 export async function fetchSuiPools(): Promise<SuiPoolSummary[]> {
-  const data = await apiGet<{ ok: boolean; pools: SuiPoolSummary[] }>('/api/sui/launchpad/pools')
-  return data.pools
+  try {
+    const res = await fetchWithTimeout('/api/sui/launchpad/pools')
+    if (!res.ok) return []
+    const data = (await res.json()) as { ok: boolean; pools: SuiPoolSummary[] }
+    return data.pools ?? []
+  } catch {
+    return []
+  }
 }
 
 export async function fetchSuiPoolDetail(poolId: string): Promise<{
@@ -79,7 +120,16 @@ export async function fetchSuiPoolDetail(poolId: string): Promise<{
   trades: SuiTradeRow[]
   recipients: SuiFeeRecipients
 }> {
-  return apiGet(`/api/sui/launchpad/pools/${encodeURIComponent(poolId)}`)
+  const res = await fetchWithTimeout(`/api/sui/launchpad/pools/${encodeURIComponent(poolId)}`)
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new Error((body as { error?: string }).error || res.statusText)
+  }
+  return res.json() as Promise<{
+    pool: SuiPoolSummary
+    trades: SuiTradeRow[]
+    recipients: SuiFeeRecipients
+  }>
 }
 
 export async function fetchSuiTradeUnsigned(body: {
@@ -91,7 +141,7 @@ export async function fetchSuiTradeUnsigned(body: {
   slippageBps: number
   memeCoinObjectId?: string
 }): Promise<UnsignedSuiStep> {
-  const res = await fetch(`${CREW_AGENT_API_URL}/api/sui/launchpad/trade/unsigned`, {
+  const res = await fetchWithTimeout('/api/sui/launchpad/trade/unsigned', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

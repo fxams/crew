@@ -3,15 +3,16 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { CREW_VERSION } from '../../lib/config'
 import {
+  DISABLED_SUI_LAUNCHPAD_CONFIG,
   fetchSuiLaunchpadConfig,
   fetchSuiPools,
   suiscanObjectUrl,
   type SuiPoolSummary,
 } from '../../lib/sui-api'
 import { formatSui, poolDisplayName, stageLabel } from '../../lib/sui-format'
-import { SuiTestnetBadge } from './SuiTestnetBadge'
 import { SuiWalletButton } from './SuiWalletButton'
 import { SuiLaunchForm } from './SuiLaunchForm'
+import { SuiPageShell } from './SuiPageShell'
 
 function PoolCard({ pool, network }: { pool: SuiPoolSummary; network: string | null }) {
   const name = poolDisplayName(pool)
@@ -69,11 +70,21 @@ function PoolSection({
 }
 
 export function SuiLaunchpadPage() {
-  const configQ = useQuery({ queryKey: ['sui-config'], queryFn: fetchSuiLaunchpadConfig })
+  const configQ = useQuery({
+    queryKey: ['sui-config'],
+    queryFn: fetchSuiLaunchpadConfig,
+    retry: 1,
+    staleTime: 30_000,
+  })
+  const cfg = configQ.data ?? DISABLED_SUI_LAUNCHPAD_CONFIG
+  const network = cfg.network ?? 'testnet'
+
   const poolsQ = useQuery({
     queryKey: ['sui-pools'],
     queryFn: fetchSuiPools,
-    enabled: Boolean(configQ.data?.enabled),
+    enabled: cfg.enabled,
+    retry: 1,
+    staleTime: 30_000,
   })
 
   const grouped = useMemo(() => {
@@ -86,34 +97,39 @@ export function SuiLaunchpadPage() {
     }
   }, [poolsQ.data])
 
-  const cfg = configQ.data
-  const network = cfg?.network ?? 'testnet'
+  const loadingConfig = configQ.isPending && !configQ.data
 
-  if (configQ.isLoading) {
-    return <div className="app-shell page-sui"><p className="section-sub">Loading Sui launchpad…</p></div>
+  if (loadingConfig) {
+    return (
+      <SuiPageShell network="testnet">
+        <p className="section-sub">Loading Sui launchpad…</p>
+      </SuiPageShell>
+    )
   }
 
-  if (!cfg?.enabled) {
+  if (!cfg.enabled) {
     return (
-      <div className="app-shell page-sui">
+      <SuiPageShell network={network}>
         <section className="section">
           <h1 className="sui-hero-title">Sui launchpad</h1>
-          <p className="section-sub">Coming soon — CrewPay Sui testnet rail is not enabled on this deployment.</p>
+          <p className="section-sub">
+            Coming soon — CrewPay Sui testnet is not enabled on the API yet (check{' '}
+            <code>api.crewpay.dev/api/sui/launchpad/config</code>).
+          </p>
           <Link className="btn btn-secondary" to="/coins">← Coins</Link>
         </section>
-      </div>
+      </SuiPageShell>
     )
   }
 
   return (
-    <div className="app-shell page-sui">
+    <SuiPageShell network={network}>
       <section className="section section-sui-hero">
         <div className="launch-page-head-row">
           <Link className="launch-back" to="/coins">← Coins</Link>
           <p className="section-label">Sui launchpad · v{CREW_VERSION}</p>
         </div>
         <div className="sui-hero-badges">
-          <SuiTestnetBadge network={network} />
           <SuiWalletButton />
         </div>
         <h1 className="sui-hero-title">Launch on Sui testnet</h1>
@@ -133,11 +149,13 @@ export function SuiLaunchpadPage() {
       <PoolSection title="Graduated" pools={grouped.graduated} network={network} />
       <PoolSection title="Migrated to Cetus" pools={grouped.migrated} network={network} />
 
-      {!poolsQ.isLoading && !poolsQ.data?.length ? (
+      {poolsQ.isPending ? <p className="section-sub">Loading pools…</p> : null}
+
+      {!poolsQ.isPending && !poolsQ.data?.length ? (
         <p className="section-sub">No pools indexed yet. Be the first to launch below.</p>
       ) : null}
 
       <SuiLaunchForm network={network} />
-    </div>
+    </SuiPageShell>
   )
 }
