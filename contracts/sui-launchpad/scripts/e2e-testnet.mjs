@@ -8,6 +8,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client'
+import { resolveCoinMetadataObjectId } from './graphql-coin-metadata.mjs'
 import { Transaction } from '@mysten/sui/transactions'
 import { fromBase64 } from '@mysten/sui/utils'
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519'
@@ -112,8 +113,8 @@ async function main() {
   )?.objectId
   results.poolId = poolId
 
-  const metadataSui = (await client.getCoinMetadata({ coinType: '0x2::sui::SUI' })).id
-  const metadataMeme = (await client.getCoinMetadata({ coinType: memeType })).id
+  const metadataSui = await resolveCoinMetadataObjectId('0x2::sui::SUI')
+  const metadataMeme = await resolveCoinMetadataObjectId(memeType)
 
   // 3) Buy
   tx = new Transaction()

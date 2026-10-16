@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  buildLaunchpadMigrateTransaction,
   buildLaunchpadOpenPoolTransaction,
   buildSuiLaunchpadUnsignedLaunch,
   predictMemeCoinType,
 } from './sui-launchpad.js'
+import { setSuiGraphqlClientForTests } from './sui-coin-metadata.js'
 import { setSuiClientForTests } from './sui-tx.js'
 
 const launcher = '0x3adc8110d0a00a4d270238e49819fed76e6c9eaaf690c5331a8af1947089d473'
@@ -12,16 +14,22 @@ const treas = '0x333333333333333333333333333333333333333333333333333333333333333
 const treasuryCap = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 const packageId = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
 const configId = '0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
+const migrationConfigId = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+const poolId = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
 const publishedPkg = '0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd'
+const metadataSui = '0x587c29de216efd4219573e08a1f6964d4fa7cb714518c2c8a0f29abfa264327d'
+const metadataMeme = '0x7c63cfc49923418778725e471e0e3003d2361109c76c9dbb1a238b19a8bb56b4'
 
 afterEach(() => {
   setSuiClientForTests(null)
+  setSuiGraphqlClientForTests(null)
   delete process.env.SUI_ENABLED
   delete process.env.SUI_TREASURY_ADDRESS
   delete process.env.SUI_NETWORK
   delete process.env.SUI_LAUNCHPAD
   delete process.env.CREWPAY_LAUNCHPAD_PACKAGE_ID
   delete process.env.CREWPAY_LAUNCHPAD_CONFIG_ID
+  delete process.env.CREWPAY_LAUNCHPAD_MIGRATION_CONFIG_ID
 })
 
 function mockSuiClient() {
@@ -87,6 +95,34 @@ describe('sui launchpad unsigned launch', () => {
     expect(openCall?.MoveCall?.module).toBe('pool')
     expect(openCall?.MoveCall?.function).toBe('create_pool_with_recipients')
     expect(openCall?.MoveCall?.typeArguments?.[0]).toBe(memeType)
+  })
+
+  it('migrate tx resolves metadata via GraphQL and calls migrate_to_cetus', async () => {
+    process.env.SUI_ENABLED = '1'
+    process.env.SUI_TREASURY_ADDRESS = treas
+    process.env.SUI_LAUNCHPAD = 'crewpay'
+    process.env.CREWPAY_LAUNCHPAD_PACKAGE_ID = packageId
+    process.env.CREWPAY_LAUNCHPAD_CONFIG_ID = configId
+    process.env.CREWPAY_LAUNCHPAD_MIGRATION_CONFIG_ID = migrationConfigId
+    setSuiGraphqlClientForTests({
+      query: vi.fn().mockImplementation(({ variables }) => {
+        const structType = variables?.structType as string
+        if (structType?.includes('0x2::sui::SUI')) {
+          return Promise.resolve({ data: { objects: { nodes: [{ address: metadataSui }] } } })
+        }
+        return Promise.resolve({ data: { objects: { nodes: [{ address: metadataMeme }] } } })
+      }),
+    } as never)
+
+    const memeType = predictMemeCoinType(publishedPkg)
+    const migrateTx = await buildLaunchpadMigrateTransaction({
+      launcherPubkey: launcher,
+      poolObjectId: poolId,
+      memeCoinType: memeType,
+    })
+    const call = migrateTx.getData().commands.find((c) => c.$kind === 'MoveCall')
+    expect(call?.MoveCall?.function).toBe('migrate_to_cetus')
+    expect(call?.MoveCall?.typeArguments?.[0]).toBe(memeType)
   })
 
   it('rejects when crewpay package env is missing', async () => {

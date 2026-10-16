@@ -3,11 +3,19 @@ import type { Shareholder } from './shareholders.js'
 import type { UnsignedLaunchPlan, UnsignedStep } from './unsigned.js'
 import {
   assertSuiEnabled,
+  cetusTestnetGlobalConfigId,
+  cetusTestnetPoolsId,
   crewpayLaunchpadConfigId,
+  crewpayLaunchpadMigrationConfigId,
   crewpayLaunchpadPackageId,
+  SUI_CLOCK_OBJECT_ID,
   suiCoinUrl,
   suiNetwork,
 } from './platforms.js'
+import {
+  resolveCoinMetadataObjectId,
+  resolveSuiCoinMetadataObjectId,
+} from './sui-coin-metadata.js'
 import { assertSuiAddress } from './sui-address.js'
 import { CREWPAY_MEME_COIN_MODULE_BASE64 } from './sui-memez-coin-bytecode.js'
 import { buildMemezPublishCoinTransaction, resolveSuiCrewWallets } from './sui-memez.js'
@@ -20,6 +28,9 @@ export const SUI_LAUNCHPAD_PUBLISH_NOTE =
 
 export const SUI_LAUNCHPAD_OPEN_NOTE =
   'Step 2 — CrewPay launchpad create_pool_with_recipients. On-chain trade fees enforce 60/15/25 (or 60/15/5/20 with referrer).'
+
+export const SUI_LAUNCHPAD_MIGRATE_NOTE =
+  'Graduated pool — migrate reserves to Cetus CLMM; LP locked on-chain. Cetus create_pool_v3 dust refunds go to the pool treasury address.'
 
 const DEFAULT_SUPPLY = 1_000_000_000_000_000_000n
 const DEFAULT_VIRTUAL_SUI = 5_000_000_000n
@@ -84,6 +95,39 @@ export function buildLaunchpadOpenPoolTransaction(opts: {
       tx.pure.address(agent),
       tx.pure.address(treasury),
       tx.pure.option('address', referrer),
+    ],
+  })
+  tx.setSender(assertSuiAddress(opts.launcherPubkey, 'launcherPubkey'))
+  return tx
+}
+
+export async function buildLaunchpadMigrateTransaction(opts: {
+  launcherPubkey: string
+  poolObjectId: string
+  memeCoinType: string
+  metadataMemeObjectId?: string
+  metadataSuiObjectId?: string
+}): Promise<Transaction> {
+  assertSuiEnabled()
+  suiNetwork()
+  const packageId = crewpayLaunchpadPackageId()
+  const migCfg = crewpayLaunchpadMigrationConfigId()
+  const metadataMeme =
+    opts.metadataMemeObjectId?.trim() ||
+    (await resolveCoinMetadataObjectId(opts.memeCoinType))
+  const metadataSui = opts.metadataSuiObjectId?.trim() || (await resolveSuiCoinMetadataObjectId())
+  const tx = new Transaction()
+  tx.moveCall({
+    target: `${packageId}::pool::migrate_to_cetus`,
+    typeArguments: [opts.memeCoinType],
+    arguments: [
+      tx.object(opts.poolObjectId),
+      tx.object(migCfg),
+      tx.object(cetusTestnetGlobalConfigId()),
+      tx.object(cetusTestnetPoolsId()),
+      tx.object(metadataMeme),
+      tx.object(metadataSui),
+      tx.object(SUI_CLOCK_OBJECT_ID),
     ],
   })
   tx.setSender(assertSuiAddress(opts.launcherPubkey, 'launcherPubkey'))
