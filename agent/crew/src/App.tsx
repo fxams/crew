@@ -90,7 +90,9 @@ import { launchCrew } from "./lib/launch";
 import { useOwnRegisteredHandle } from "./lib/registered-kol";
 import { NO_CRYPTO_NEEDED } from "./lib/kol-onboarding";
 import { headerKolLinks, mobileStickyCta } from "./lib/nav";
-import { isAdminFarcasterPath, isAdminKickoffPath, isAdminOpsPath, isAgentsPath, isApprovePath, isClaimPath, isCoinPath, isCoinsPath, isHomePath, isKolsPath, isLaunchPath, isOnepagerPath, isProofPath, isReferralPath, isRegisterPath, isTasksPath, kolHandleFromPath, referralCodeFromPath } from "./lib/routes";
+import { isAdminFarcasterPath, isAdminKickoffPath, isAdminOpsPath, isAgentsPath, isApprovePath, isClaimPath, isCoinPath, isCoinsPath, isHomePath, isKolsPath, isLaunchPath, isOnepagerPath, isProofPath, isReferralPath, isRegisterPath, isSuiLaunchpadPath, isSuiPoolDetailPath, isTasksPath, kolHandleFromPath, referralCodeFromPath } from "./lib/routes";
+import { SuiLaunchpadPage } from "./components/sui/SuiLaunchpadPage";
+import { SuiPoolDetailPage } from "./components/sui/SuiPoolDetailPage";
 import { ApprovePage } from "./components/ApprovePage";
 import { CoinPage } from "./components/CoinPage";
 import { CoinsPage } from "./components/CoinsPage";
@@ -203,6 +205,8 @@ export default function App() {
   const isApprovePage = isApprovePath(path);
   const isCoinPage = isCoinPath(path);
   const isCoinsPage = isCoinsPath(path);
+  const isSuiPage = isSuiLaunchpadPath(path);
+  const isSuiPoolPage = isSuiPoolDetailPath(path);
   const isTasksPage = isTasksPath(path);
   const isAdminKickoffPage = isAdminKickoffPath(path);
   const isAdminFarcasterPage = isAdminFarcasterPath(path);
@@ -1402,6 +1406,8 @@ export default function App() {
       isOnepagerPage ||
       isCoinPage ||
       isCoinsPage ||
+      isSuiPage ||
+      isSuiPoolPage ||
       isTasksPage ||
       isAdminKickoffPage ||
       isAdminFarcasterPage ||
@@ -1463,6 +1469,12 @@ export default function App() {
             >
               Coins
             </Link>
+            <Link
+              className={isSuiPage ? "is-active-nav-text" : undefined}
+              to="/sui"
+            >
+              Sui
+            </Link>
             <Link className={isTasksPage ? "is-active-nav-text" : undefined} to="/tasks">
               Tasks
             </Link>
@@ -1506,12 +1518,14 @@ export default function App() {
       {isApprovePage ? <ApprovePage /> : null}
       {isCoinPage ? <CoinPage /> : null}
       {isCoinsPage ? <CoinsPage /> : null}
+      {isSuiPage && !isSuiPoolPage ? <SuiLaunchpadPage /> : null}
+      {isSuiPoolPage ? <SuiPoolDetailPage /> : null}
       {isTasksPage ? <TasksPage /> : null}
       {isAdminKickoffPage ? <AdminKickoffPage /> : null}
       {isAdminFarcasterPage ? <AdminFarcasterPage /> : null}
       {isAdminOpsPage ? <AdminOpsPage /> : null}
 
-      {!isLaunchPage && !isKolsPage && !isRegisterPage && !isKolProfilePage && !isClaimPage && !isAgentsPage && !isProofPage && !isOnepagerPage && !isApprovePage && !isCoinPage && !isCoinsPage && !isTasksPage && !isAdminKickoffPage && !isAdminFarcasterPage && !isAdminOpsPage ? (
+      {!isLaunchPage && !isKolsPage && !isRegisterPage && !isKolProfilePage && !isClaimPage && !isAgentsPage && !isProofPage && !isOnepagerPage && !isApprovePage && !isCoinPage && !isCoinsPage && !isSuiPage && !isTasksPage && !isAdminKickoffPage && !isAdminFarcasterPage && !isAdminOpsPage ? (
         <>
       <div className="app-shell">
         <main id="top">
