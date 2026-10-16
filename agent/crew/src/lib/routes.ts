@@ -121,6 +121,26 @@ export function isCoinsPath(pathname: string): boolean {
   return path === '/coins' || path.endsWith('/coins')
 }
 
+/** CrewPay Sui bonding-curve launchpad (testnet). */
+export function isSuiLaunchpadPath(pathname: string): boolean {
+  const path = normalizePath(pathname)
+  return path === '/sui' || path.endsWith('/sui') || path.includes('/sui/pool/')
+}
+
+export function suiPoolIdFromPath(pathname: string): string | null {
+  const path = normalizePath(pathname)
+  const match = path.match(/(?:^|\/)sui\/pool\/(0x[a-fA-F0-9]{64})$/)
+  return match?.[1] ?? null
+}
+
+export function isSuiPoolDetailPath(pathname: string): boolean {
+  return Boolean(suiPoolIdFromPath(pathname))
+}
+
+export function suiPoolDetailPath(poolId: string): string {
+  return `/sui/pool/${poolId}`
+}
+
 /** Open tasks board (jobs + escrow). */
 export function isTasksPath(pathname: string): boolean {
   const path = normalizePath(pathname)

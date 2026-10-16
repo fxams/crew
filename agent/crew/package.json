@@ -16,6 +16,8 @@
   "dependencies": {
     "@irys/web-upload": "^0.0.15",
     "@irys/web-upload-solana": "^0.1.8",
+    "@mysten/dapp-kit": "^0.16.14",
+    "@mysten/sui": "^1.37.1",
     "@privy-io/react-auth": "^3.48.1",
     "@pump-fun/pump-sdk": "^2.0.0",
     "@solana-mobile/wallet-adapter-mobile": "^3.0.0",

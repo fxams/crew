@@ -6945,3 +6945,251 @@ ol.coin-timeline.coin-panel {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* —— Sui launchpad (testnet) —— */
+.page-sui .section-sui-hero {
+  padding-bottom: 0.5rem;
+}
+
+.sui-testnet-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  background: rgba(255, 184, 77, 0.18);
+  color: var(--amber);
+  border: 1px solid rgba(255, 184, 77, 0.35);
+}
+
+.sui-hero-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.sui-hero-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 5vw, 2.35rem);
+  margin: 0 0 0.65rem;
+}
+
+.sui-hero-copy {
+  max-width: 42rem;
+}
+
+.sui-wallet-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.sui-wallet-addr {
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
+.btn-sui-connect {
+  font-size: 0.8rem;
+  padding: 0.35rem 0.75rem;
+}
+
+.sui-section-title {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  margin: 0 0 0.65rem;
+}
+
+.sui-pool-section {
+  margin: 1.5rem 0;
+}
+
+.sui-pool-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .sui-pool-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.sui-pool-card {
+  display: block;
+  padding: 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  transition: border-color 0.15s ease;
+}
+
+.sui-pool-card:hover {
+  border-color: rgba(200, 255, 61, 0.35);
+}
+
+.sui-pool-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.sui-stage {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.4rem;
+  border-radius: 6px;
+  background: var(--acid-soft);
+  color: var(--acid);
+}
+
+.sui-stage-migrated {
+  background: rgba(125, 255, 154, 0.12);
+  color: var(--ok);
+}
+
+.sui-pool-meta {
+  font-size: 0.8rem;
+  margin: 0 0 0.5rem;
+  opacity: 0.9;
+}
+
+.sui-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.sui-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--acid), #9fff3d);
+  border-radius: inherit;
+}
+
+.sui-pool-foot {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  opacity: 0.85;
+  margin: 0;
+}
+
+.sui-link {
+  color: var(--acid);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.sui-detail-grid {
+  display: grid;
+  gap: 1rem;
+  margin: 1.25rem 0;
+}
+
+@media (min-width: 720px) {
+  .sui-detail-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.sui-panel {
+  padding: 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  margin-bottom: 1rem;
+}
+
+.sui-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  margin-bottom: 0.65rem;
+}
+
+.sui-field input {
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--ink);
+}
+
+.sui-trade-tabs {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.sui-trade-tabs button {
+  flex: 1;
+  padding: 0.45rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.sui-trade-tabs button.is-active {
+  border-color: var(--acid);
+  background: var(--acid-soft);
+}
+
+.sui-status {
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  word-break: break-all;
+}
+
+.sui-fee-list,
+.sui-trades {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+}
+
+.sui-trades li {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.35rem;
+}
+
+.sui-form-grid {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 640px) {
+  .sui-form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.sui-small {
+  font-size: 0.7rem;
+  opacity: 0.75;
+  word-break: break-all;
+}
+
+.sui-error {
+  color: var(--danger);
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
