@@ -19,6 +19,8 @@ export type UnsignedStepKind =
   | 'sui_memez_create_pool'
   | 'sui_launchpad_publish_coin'
   | 'sui_launchpad_open_pool'
+  | 'sui_launchpad_buy'
+  | 'sui_launchpad_sell'
 
 export type UnsignedEncoding = 'message-v0' | 'solana-tx' | 'eip1559' | 'sui-tx'
 
@@ -60,6 +62,21 @@ export type UnsignedLaunchPlan = {
   encoding?: UnsignedEncoding
   warnings?: string[]
   splitAddress?: string
+  launchpad?: {
+    backend: 'crewpay'
+    network: string
+    packageId: string
+    configId: string
+    customConfigEnforced: boolean
+  }
+  memez?: {
+    network: string
+    configurationKey: string
+    customConfigEnforced: boolean
+    migratorWitness: string
+    quoteCoinType: string
+  }
+  followUp?: Record<string, unknown>
 }
 
 export async function buildUnsignedLaunchTransactions(opts: {

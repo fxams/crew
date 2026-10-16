@@ -5,6 +5,7 @@ import type { UnsignedLaunchPlan, UnsignedStep } from './unsigned.js'
 import { assertSuiEnabled, memezCustomConfigActive, suiCoinUrl, suiNetwork } from './platforms.js'
 import { assertSuiAddress, isSuiAddress } from './sui-address.js'
 import { CREWPAY_MEME_COIN_MODULE_BASE64 } from './sui-memez-coin-bytecode.js'
+import type { ConfigKey } from '@interest-protocol/memez-fun-sdk'
 import {
   createMemezPumpSdk,
   defaultMemezConfigurationKey,
@@ -72,7 +73,7 @@ async function suiTxStep(
 
 export function buildMemezPublishCoinTransaction(launcher: string): Transaction {
   const tx = new Transaction()
-  const moduleBytes = Buffer.from(CREWPAY_MEME_COIN_MODULE_BASE64, 'base64')
+  const moduleBytes = [...Buffer.from(CREWPAY_MEME_COIN_MODULE_BASE64, 'base64')]
   tx.publish({
     modules: [moduleBytes],
     dependencies: [],
@@ -105,20 +106,21 @@ export async function buildSuiMemezCreatePoolTransaction(opts: {
 
   const stakeHolders = opts.customConfigEnforced ? shareholdersToStakeHolders(opts.shareholders) : []
 
+  const configurationKey = opts.configurationKey as ConfigKey
   const pumpData = await opts.pumpSdk.getPumpData({
-    configurationKey: opts.configurationKey,
+    configurationKey,
     totalSupply: opts.pumpSdk.defaultSupply,
     quoteCoinType: SUI_TYPE_ARG,
   })
 
   const tx = new Transaction()
   const { metadataCap, tx: tx2 } = await opts.pumpSdk.newPool({
-    tx,
+    tx: tx as unknown as Parameters<MemezPumpSdk['newPool']>[0]['tx'],
     memeCoinTreasuryCap: treasuryCap,
     totalSupply: opts.pumpSdk.defaultSupply,
     developer: launcher,
     metadata,
-    configurationKey: opts.configurationKey,
+    configurationKey,
     migrationWitness: defaultTestnetMigratorWitness(),
     stakeHolders,
     quoteCoinType: SUI_TYPE_ARG,
@@ -129,7 +131,7 @@ export async function buildSuiMemezCreatePoolTransaction(opts: {
     isProtected: false,
   })
   tx2.transferObjects([metadataCap], tx2.pure.address(launcher))
-  return tx2
+  return tx2 as unknown as Transaction
 }
 
 export async function buildSuiMemezUnsignedLaunch(opts: {
