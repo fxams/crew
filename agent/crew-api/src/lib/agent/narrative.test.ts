@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { detectNarratives, planNarrativeHires, KOL_DB } from './narrative.js'
 import { buildCrewShareholders, normalizeCrew } from './shareholders.js'
 
+const SOL_WALLET = 'So11111111111111111111111111111111111111112'
+const EVM_WALLET = '0x2222222222222222222222222222222222222222'
+
 describe('agent narrative autohire', () => {
   it('loads kol db', () => {
     expect(KOL_DB.length).toBeGreaterThanOrEqual(1500)
@@ -318,5 +321,35 @@ describe('shareholders', () => {
     expect(shares.find((s) => s.wallet === kolWallet)?.bps).toBe(6000)
     expect(shares.find((s) => s.wallet === platform)?.bps).toBe(2000)
     expect(shares.reduce((s, r) => s + r.bps, 0)).toBe(10_000)
+  })
+})
+
+describe('planNarrativeHires requireEvmPayout', () => {
+  const INPUT = { name: 'Pepe AI', ticker: 'PEPEAI', vibe: 'meme degen frog agent' }
+
+  it('skips Solana-only registered KOLs and hires those with evm_wallet', () => {
+    const plan = planNarrativeHires(INPUT, {
+      limit: 3,
+      onlyRegistered: true,
+      requireEvmPayout: true,
+      registered: [
+        { handle: 'blknoiz06', wallet: SOL_WALLET, followers: 500_000 },
+        { handle: 'evmcrewtest99', wallet: SOL_WALLET, evmWallet: EVM_WALLET, followers: 5_000 },
+      ],
+    })
+    expect(plan.crew.length).toBeGreaterThan(0)
+    expect(plan.crew.every((c) => c.wallet.startsWith('0x'))).toBe(true)
+    expect(plan.crew.some((c) => c.handle.toLowerCase().includes('blknoiz'))).toBe(false)
+    expect(plan.crew.some((c) => c.handle.toLowerCase().includes('evmcrewtest99'))).toBe(true)
+  })
+
+  it('returns no crew when no registered KOL has evm_wallet', () => {
+    const plan = planNarrativeHires(INPUT, {
+      limit: 3,
+      onlyRegistered: true,
+      requireEvmPayout: true,
+      registered: [{ handle: 'blknoiz06', wallet: SOL_WALLET, followers: 500_000 }],
+    })
+    expect(plan.crew).toEqual([])
   })
 })

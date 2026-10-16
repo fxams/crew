@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { applyTelegramReachBoost, type TelegramReachInput } from '../telegram-reach.js'
 import { equalShares, MAX_CREW, type HireRole } from './constants.js'
+import { assertEvmAddress, isEvmAddress } from './evm-address.js'
 import { autohireOptOuts, isOptedOut } from './optout.js'
 
 export type NarrativeTag =
@@ -242,10 +243,13 @@ export function planNarrativeHires(
     optOut?: Set<string>
     /** If true, fill seats only from registered KOLs. Defaults to false (registered-first). */
     onlyRegistered?: boolean
+    /** Zora / Clanker: only hire KOLs with a registered evm_wallet (or 0x wallet). */
+    requireEvmPayout?: boolean
   },
 ): NarrativeHirePlan {
   const optOut = opts?.optOut ?? autohireOptOuts()
   const registeredFirst =
+    Boolean(opts?.requireEvmPayout) ||
     (process.env.AUTOHIRE_REGISTERED_FIRST || 'true').toLowerCase() === 'true'
   const limit = Math.max(1, Math.min(MAX_CREW, opts?.limit ?? 5))
   const minFollowers = opts?.minFollowers ?? 5_000
@@ -256,8 +260,19 @@ export function planNarrativeHires(
   const ticker = (input.ticker || '').toUpperCase()
   const registeredByHandle = new Map(
     (opts?.registered || [])
-      .filter((r) => r.handle && r.wallet.length >= 32)
-      .map((r) => [r.handle.replace(/^@+/, '').toLowerCase(), r.wallet] as const),
+      .filter((r) => {
+        if (!r.handle || r.wallet.length < 32) return false
+        if (!opts?.requireEvmPayout) return true
+        return Boolean(r.evmWallet && isEvmAddress(r.evmWallet))
+      })
+      .map((r) => {
+        const h = r.handle.replace(/^@+/, '').toLowerCase()
+        const wallet =
+          opts?.requireEvmPayout && r.evmWallet && isEvmAddress(r.evmWallet)
+            ? assertEvmAddress(r.evmWallet)
+            : r.wallet
+        return [h, wallet] as const
+      }),
   )
   const preferRegistered = registeredByHandle.size >= 1
 
@@ -362,6 +377,7 @@ export function planNarrativeHires(
       }
     })
     .filter((s) => s.narrativeHits > 0 || s.score >= 12 || s.registered)
+    .filter((s) => !opts?.requireEvmPayout || isEvmAddress(s.kol.wallet))
 
   scored.sort(
     (a, b) =>
@@ -456,6 +472,11 @@ export function planNarrativeHires(
     if (!handle || knownHandles.has(handle)) continue
     if (isOptedOut([handle], optOut)) continue
     if (!r.wallet || r.wallet.length < 32) continue // Add a wallet to get hired and paid. KOLs without a wallet are skipped for crews.
+    if (opts?.requireEvmPayout && (!r.evmWallet || !isEvmAddress(r.evmWallet))) continue
+    const payoutWallet =
+      opts?.requireEvmPayout && r.evmWallet && isEvmAddress(r.evmWallet)
+        ? assertEvmAddress(r.evmWallet)
+        : r.wallet
     const id = `reg:${handle}`
     const kol: KolRecord = {
       id,
@@ -463,7 +484,7 @@ export function planNarrativeHires(
       pump: handle,
       x: handle,
       followers: Math.max(0, Number(r.followers || 0)),
-      wallet: r.wallet,
+      wallet: payoutWallet,
       aliases: [],
       narratives: (r.narratives && r.narratives.length ? r.narratives : (['general'] as NarrativeTag[])),
       correlated: [],

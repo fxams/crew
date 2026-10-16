@@ -36,7 +36,16 @@ describe('Zora unsigned launch', () => {
       resolveZoraCrewWallets([
         { handle: '@bob', wallet: 'So11111111111111111111111111111111111111112', share: 100, hireRole: 'kol' },
       ]),
-    ).toThrow(/EVM crew wallets/)
+    ).toThrow(/Zora \(Base\) launches need EVM/)
+    const skipped = resolveZoraCrewWallets(
+      [
+        { handle: '@bob', wallet: 'So11111111111111111111111111111111111111112', share: 50, hireRole: 'kol' },
+        { handle: '@alice', wallet: kol, share: 50, hireRole: 'kol' },
+      ],
+      { strict: false },
+    )
+    expect(skipped).toHaveLength(1)
+    expect(skipped[0]?.wallet.toLowerCase()).toBe(kol)
   })
 
   it('returns EIP-1559 split + create with 60/15/25 payout and CrewPay referrer', async () => {
