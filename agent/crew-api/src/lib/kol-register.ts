@@ -11,6 +11,7 @@ import { KOL_DB } from './agent/narrative.js'
 import { assertEvmAddress, isEvmAddress } from './agent/evm-address.js'
 import { isPayoutWallet } from './agent/shareholders.js'
 import { query } from './db.js'
+import { tierForWallet } from './kol-reputation.js'
 import { normalizeRegisterSrc } from './register-src.js'
 import { verifyWalletSignature } from './wallet-auth.js'
 import {
@@ -143,6 +144,7 @@ export type KolRegistration = {
   tgChannelVerified?: boolean
   tgReach?: number | null
   telegramOnly?: boolean
+  reputation?: KolReputationView
 }
 
 export function normalizeReferralCode(raw: string): string {
@@ -1085,7 +1087,10 @@ export async function listRegistered(limit = 50): Promise<{
       return mapReg(row, Number(row.board_rank || 0))
     })
     .filter((r) => !isHouseHandle(r.xUsername, house))
-    .map((r, i) => ({ ...r, rank: i + 1 }))
+    .map((r, i) => {
+      const { tier, score } = tierForWallet(r.wallet)
+      return { ...r, rank: i + 1, reputation: { tier, score } }
+    })
   const tapeOut = tape
     .map((raw) => {
       const row = raw as Record<string, unknown>
@@ -1138,9 +1143,15 @@ export type KolPerformance = {
   remits: KolDeskRemit[]
 }
 
+export type KolReputationView = {
+  tier: 'bronze' | 'silver' | 'gold'
+  score: number
+}
+
 export type KolProfile = {
   profile: KolRegistration
   performance: KolPerformance
+  reputation?: KolReputationView
 }
 
 const X_HANDLE = /^[A-Za-z0-9_]{1,15}$/
@@ -1266,7 +1277,8 @@ async function profileFromUsername(username: string): Promise<KolProfile | null>
   const performance = await loadPerformance(
     walletsForRow(profile.wallet, profile.priorWallets),
   )
-  return { profile, performance }
+  const { tier, score } = tierForWallet(profile.wallet)
+  return { profile, performance, reputation: { tier, score } }
 }
 
 export type ClaimPitch = {

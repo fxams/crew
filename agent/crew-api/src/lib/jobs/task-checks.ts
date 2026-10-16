@@ -6,6 +6,7 @@ export type TaskProofInput = {
   text?: string
   files?: { name: string; url?: string; mime?: string; size?: number }[]
   kolHandle?: string
+  submittedAtMs?: number
 }
 
 export type UrlReachabilityChecker = (url: string) => Promise<boolean>
@@ -110,6 +111,30 @@ export async function runTaskAutoChecks(
     }
   }
 
+  if (cfg.minEngagement != null && cfg.minEngagement > 0) {
+    const m = /engagement[:\s=]+(\d+)/i.exec(text)
+    const engagement = m ? Number(m[1]) : 0
+    if (!Number.isFinite(engagement) || engagement < cfg.minEngagement) {
+      return {
+        ok: false,
+        reason: `Engagement below minimum (${cfg.minEngagement})`,
+        details: { engagement, minEngagement: cfg.minEngagement },
+      }
+    }
+  }
+
+  if (cfg.postedWithinHours != null && cfg.launchAtMs) {
+    const submittedAt = Number(proof.submittedAtMs) || Date.now()
+    const windowMs = cfg.postedWithinHours * 60 * 60_000
+    if (submittedAt > cfg.launchAtMs + windowMs) {
+      return {
+        ok: false,
+        reason: `Post submitted outside promo window (${cfg.postedWithinHours}h)`,
+        details: { submittedAt, launchAtMs: cfg.launchAtMs },
+      }
+    }
+  }
+
   if (cfg.xPost) {
     const vi = await defaultVerifier('x-post').verify({
       platform: 'x',
@@ -120,6 +145,20 @@ export async function runTaskAutoChecks(
       minUrls: cfg.minUrls,
     })
     if (!vi.ok) return vi
+    if (cfg.stillLiveAfterHours != null && cfg.stillLiveAfterHours > 0 && urls.length) {
+      const reach = opts?.reachability ?? defaultReachability
+      const live: string[] = []
+      for (const u of urls) {
+        if (await reach(u)) live.push(u)
+      }
+      if (!live.length) {
+        return {
+          ok: false,
+          reason: `Post not reachable (still-live check after ${cfg.stillLiveAfterHours}h)`,
+          details: { stillLiveAfterHours: cfg.stillLiveAfterHours },
+        }
+      }
+    }
     return { ok: true, acceptedUrls: vi.acceptedUrls, details: { ...(vi.details || {}), xPost: true } }
   }
 

@@ -88,6 +88,7 @@ type DeskRemit = {
 }
 
 type Desk = {
+  reputation?: { tier: 'bronze' | 'silver' | 'gold'; score: number }
   profile: Profile
   performance: {
     coinsHired: number
@@ -111,6 +112,10 @@ type ReferralEarnings = {
 function shortAddr(addr: string) {
   if (!addr || addr.length < 10) return addr || '—'
   return `${addr.slice(0, 4)}…${addr.slice(-4)}`
+}
+
+function tierLabel(tier: 'bronze' | 'silver' | 'gold') {
+  return tier.charAt(0).toUpperCase() + tier.slice(1)
 }
 
 function formatCount(n: number) {
@@ -762,6 +767,11 @@ export function KolProfilePage() {
                 <span>{desk.performance.coinsLaunched} launched</span>
                 <span>{desk.performance.remitCount} payments</span>
                 <span className="kol-verified">✓ registered</span>
+                {desk.reputation ? (
+                  <span className={`kol-tier kol-tier-${desk.reputation.tier}`} title="Reputation tier">
+                    {tierLabel(desk.reputation.tier)} · {desk.reputation.score}
+                  </span>
+                ) : null}
               </div>
             </section>
 

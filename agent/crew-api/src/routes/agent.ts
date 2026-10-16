@@ -958,6 +958,21 @@ agentRouter.post('/agent/launch', requireAgentApiKeyOrX402, async (req, res) => 
         ticker: result.coin.ticker,
         crew: result.crew,
       }).catch(() => {})
+      try {
+        const { provisionDeliveryLedgerForLaunch } = await import('../lib/delivery-gated-payouts.js')
+        await provisionDeliveryLedgerForLaunch({
+          mint: result.mint,
+          ticker: result.coin.ticker,
+          crew: result.crew,
+          createdBy: req.crewAgentAuth?.keyId || req.crewAgentAuth?.fingerprint || 'launch',
+          launchedAt: result.coin.launchedAt,
+        })
+      } catch (ledgerErr) {
+        console.warn(
+          'delivery-gated ledger provision failed',
+          ledgerErr instanceof Error ? ledgerErr.message : ledgerErr,
+        )
+      }
     }
 
     void emitWebhookEvent('launch.created', {

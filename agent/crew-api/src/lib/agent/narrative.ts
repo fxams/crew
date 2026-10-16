@@ -2,6 +2,9 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { applyTelegramReachBoost, type TelegramReachInput } from '../telegram-reach.js'
+import { deliveryGatedPayoutsEnabled } from '../delivery-gated-config.js'
+import { assessKolQuality } from '../kol-quality.js'
+import { reputationWeightedShares } from '../kol-reputation.js'
 import { equalShares, MAX_CREW, type HireRole } from './constants.js'
 import { autohireOptOuts, isOptedOut } from './optout.js'
 
@@ -247,6 +250,15 @@ export function planNarrativeHires(
   const optOut = opts?.optOut ?? autohireOptOuts()
   const registeredFirst =
     (process.env.AUTOHIRE_REGISTERED_FIRST || 'true').toLowerCase() === 'true'
+  function sharesForPicked(
+    picked: Array<{ kol: KolRecord }>,
+  ): number[] {
+    if (!deliveryGatedPayoutsEnabled()) return equalShares(picked.length)
+    return reputationWeightedShares(
+      picked.map((p) => ({ wallet: p.kol.wallet })),
+      100,
+    )
+  }
   const limit = Math.max(1, Math.min(MAX_CREW, opts?.limit ?? 5))
   const minFollowers = opts?.minFollowers ?? 5_000
   const match = detectNarratives(input)
@@ -350,6 +362,23 @@ export function planNarrativeHires(
         }
       }
 
+      const quality = assessKolQuality({
+        handle: kol.x || kol.pump,
+        followers: kol.followers,
+        accountAgeDays:
+          regRegisteredAtMs != null && Number.isFinite(regRegisteredAtMs)
+            ? (Date.now() - regRegisteredAtMs) / 86_400_000
+            : null,
+        dbRank: kol.rank,
+      })
+      if (quality.excluded) {
+        score = -10_000
+        reasons.push('quality: excluded from autohire')
+      } else if (quality.autohirePenalty > 0) {
+        score -= quality.autohirePenalty
+        for (const f of quality.flags.slice(0, 2)) reasons.push(`quality: ${f}`)
+      }
+
       return {
         kol: registered && hireWallet !== kol.wallet ? { ...kol, wallet: hireWallet } : kol,
         score,
@@ -361,7 +390,7 @@ export function planNarrativeHires(
         regRegisteredAtMs,
       }
     })
-    .filter((s) => s.narrativeHits > 0 || s.score >= 12 || s.registered)
+    .filter((s) => s.score > -9_000 && (s.narrativeHits > 0 || s.score >= 12 || s.registered))
 
   scored.sort(
     (a, b) =>
@@ -419,7 +448,7 @@ export function planNarrativeHires(
     const usedWallets = new Set<string>()
     const picked = greedyPick(scored, limit, usedWallets)
     const finalRoles = new Set<HireRole>()
-    const shares = equalShares(picked.length)
+    const shares = sharesForPicked(picked)
     const hires: HiredKol[] = picked.map((p, i) => ({
       kol: p.kol,
       score: p.score,
@@ -537,7 +566,7 @@ export function planNarrativeHires(
     picked = [...pickedReg, ...pickedNorm]
   }
   const finalRoles = new Set<HireRole>()
-  const shares = equalShares(picked.length)
+  const shares = sharesForPicked(picked)
   const hires: HiredKol[] = picked.map((p, i) => ({
     kol: p.kol,
     score: p.score,

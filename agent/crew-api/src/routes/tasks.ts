@@ -51,6 +51,10 @@ const autoChecksSchema = z
     fileExtensions: z.array(z.string().max(16)).max(16).optional(),
     minFiles: z.number().int().min(0).max(32).optional(),
     maxFiles: z.number().int().min(0).max(64).optional(),
+    postedWithinHours: z.number().int().min(1).max(336).optional(),
+    stillLiveAfterHours: z.number().int().min(0).max(72).optional(),
+    minEngagement: z.number().int().min(0).max(10_000).optional(),
+    launchAtMs: z.number().int().positive().optional(),
   })
   .optional()
 

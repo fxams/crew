@@ -29,6 +29,7 @@ function xUrl(kol: KolRecord) {
 export function TopKolsPage() {
   const top = topKolRecords(20)
   const [registered, setRegistered] = useState<Set<string>>(new Set())
+  const [tiers, setTiers] = useState<Record<string, { tier: string; score: number }>>({})
 
   useEffect(() => {
     let cancelled = false
@@ -37,9 +38,17 @@ export function TopKolsPage() {
         const res = await fetch(`${API}/api/kols/registered?limit=100`)
         if (!res.ok) return
         const data = (await res.json()) as {
-          leaderboard?: { xUsername?: string }[]
+          leaderboard?: { xUsername?: string; reputation?: { tier: string; score: number } }[]
         }
         if (cancelled) return
+        const tierMap: Record<string, { tier: string; score: number }> = {}
+        for (const r of data.leaderboard || []) {
+          const h = String(r.xUsername || '')
+            .replace(/^@+/, '')
+            .toLowerCase()
+          if (r.reputation) tierMap[h] = r.reputation
+        }
+        setTiers(tierMap)
         setRegistered(
           new Set(
             (data.leaderboard || []).map((r) =>
@@ -96,6 +105,7 @@ export function TopKolsPage() {
             const handle = `@${bare}`
             const link = xUrl(kol)
             const isRegistered = registered.has(bare.toLowerCase())
+            const rep = tiers[bare.toLowerCase()]
             return (
               <div className="kols-row" role="row" key={kol.id}>
                 <span className="kols-rank" role="cell">
@@ -109,6 +119,12 @@ export function TopKolsPage() {
                         {' '}
                         ✓ verified
                       </span>
+                      {rep ? (
+                        <span className={`kol-tier kol-tier-${rep.tier}`} title="Reputation tier">
+                          {' '}
+                          · {rep.tier} ({rep.score})
+                        </span>
+                      ) : null}
                     </Link>
                   ) : link ? (
                     <a href={link} target="_blank" rel="noreferrer">

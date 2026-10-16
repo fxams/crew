@@ -3885,6 +3885,27 @@ a {
   white-space: nowrap;
 }
 
+.kol-tier {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  margin-left: 0.35rem;
+}
+
+.kol-tier-bronze {
+  color: #c9a66b;
+}
+
+.kol-tier-silver {
+  color: #b8c4d4;
+}
+
+.kol-tier-gold {
+  color: #f5d76e;
+}
+
 .claim-card,
 .desk-share-card {
   display: grid;
