@@ -15,6 +15,7 @@ use crewpay_launchpad::migration;
 use crewpay_launchpad::migration_config::CetusMigrationConfig;
 use cetus_clmm::config::GlobalConfig;
 use cetus_clmm::factory::Pools;
+use cetus_clmm::position::Position;
 use sui::clock::Clock;
 use sui::coin::CoinMetadata;
 
@@ -315,7 +316,7 @@ public fun begin_cetus_ptb_migration<T>(
     (sui, meme)
 }
 
-/// PTB step 3 — record Cetus pool/position ids (`LockedClmmPositionRef`). Position NFT is transferred in the PTB separately.
+/// PTB step 3 (legacy) — metadata-only lock record. Do not use: pass the Position into `finish_cetus_ptb_migration_with_position`.
 public fun finish_cetus_ptb_migration<T>(
     pool: &mut Pool<T>,
     cetus_position_id: ID,
@@ -333,6 +334,109 @@ public fun finish_cetus_ptb_migration<T>(
         object::id(pool),
         cetus_position_id,
         cetus_pool_id,
+        sqrt_price_x64,
+        sui_amount,
+        meme_amount,
+        ctx,
+    );
+}
+
+/// Compatibility alias (v16 PTB).
+public fun prepare_cetus_lock_vault<T>(pool: &Pool<T>, ctx: &mut TxContext): migration::LockedClmmVault {
+    abort ECetusPtbPending
+}
+
+/// Deprecated (v17 returned `ID`); use `create_cetus_lock_vault_for_ptb`.
+public fun create_cetus_lock_vault<T>(_pool: &Pool<T>, _ctx: &mut TxContext): ID {
+    abort ECetusPtbPending
+}
+
+/// PTB step 2 — owned vault (shared in finish); transfer Position to `cetus_lock_vault_receive_address`.
+public fun create_cetus_lock_vault_for_ptb<T>(pool: &Pool<T>, ctx: &mut TxContext): migration::LockedClmmVault {
+    assert!(df::exists(&pool.id, CetusWithdrawnMark {}), ECetusPtbNotPending);
+    assert!(!pool.migrated, EAlreadyMigrated);
+    migration::new_cetus_lock_vault(object::id(pool), ctx)
+}
+
+public fun cetus_lock_vault_receive_address(vault: &migration::LockedClmmVault): address {
+    migration::vault_receive_address(vault)
+}
+
+/// Deprecated — direct `Position` argument fails cross-package type check on testnet.
+public fun finish_cetus_ptb_migration_with_position<T>(
+    _pool: &mut Pool<T>,
+    _position: Position,
+    _sqrt_price_x64: u128,
+    _sui_amount: u64,
+    _meme_amount: u64,
+    _ctx: &mut TxContext,
+) {
+    abort ECetusPtbPending
+}
+
+/// Deprecated — use `finish_cetus_ptb_migration_locked`.
+public fun finish_cetus_ptb_migration_with_receipt<T>(
+    _pool: &mut Pool<T>,
+    _vault: migration::LockedClmmVault,
+    _receipt: sui::transfer::Receiving<Position>,
+    _sqrt_price_x64: u128,
+    _sui_amount: u64,
+    _meme_amount: u64,
+    _ctx: &mut TxContext,
+) {
+    abort ECetusPtbPending
+}
+
+/// Deprecated signature (v17); use `finish_cetus_ptb_migration_locked` with owned vault.
+public fun finish_cetus_ptb_migration_locked<T>(
+    _pool: &mut Pool<T>,
+    _vault: &mut migration::LockedClmmVault,
+    _cetus_position_id: ID,
+    _sqrt_price_x64: u128,
+    _sui_amount: u64,
+    _meme_amount: u64,
+    _ctx: &mut TxContext,
+) {
+    abort ECetusPtbPending
+}
+
+/// PTB step 4 — record position id after transferring the NFT to the vault object's address (not an EOA).
+public fun finish_cetus_ptb_migration_locked_owned<T>(
+    pool: &mut Pool<T>,
+    vault: migration::LockedClmmVault,
+    cetus_position_id: ID,
+    sqrt_price_x64: u128,
+    sui_amount: u64,
+    meme_amount: u64,
+    _ctx: &mut TxContext,
+) {
+    assert!(df::exists(&pool.id, CetusWithdrawnMark {}), ECetusPtbNotPending);
+    assert!(!pool.migrated, EAlreadyMigrated);
+    let _mark: bool = df::remove(&mut pool.id, CetusWithdrawnMark {});
+    pool.migrated = true;
+    migration::seal_cetus_lock_vault_with_position_id(
+        vault,
+        cetus_position_id,
+        sqrt_price_x64,
+        sui_amount,
+        meme_amount,
+    );
+}
+
+/// Alias for PTB scripts.
+public fun finish_cetus_ptb_migration_locked_v2<T>(
+    pool: &mut Pool<T>,
+    vault: migration::LockedClmmVault,
+    cetus_position_id: ID,
+    sqrt_price_x64: u128,
+    sui_amount: u64,
+    meme_amount: u64,
+    ctx: &mut TxContext,
+) {
+    finish_cetus_ptb_migration_locked_owned(
+        pool,
+        vault,
+        cetus_position_id,
         sqrt_price_x64,
         sui_amount,
         meme_amount,

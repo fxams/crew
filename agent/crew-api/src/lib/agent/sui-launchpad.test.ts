@@ -97,15 +97,37 @@ describe('sui launchpad unsigned launch', () => {
     expect(openCall?.MoveCall?.typeArguments?.[0]).toBe(memeType)
   })
 
-  it('migrate tx resolves metadata via GraphQL and calls migrate_to_cetus', async () => {
+  it('migrate tx builds live Cetus PTB (begin / create_pool_v2 / finish)', async () => {
     process.env.SUI_ENABLED = '1'
     process.env.SUI_TREASURY_ADDRESS = treas
     process.env.SUI_LAUNCHPAD = 'crewpay'
     process.env.CREWPAY_LAUNCHPAD_PACKAGE_ID = packageId
+    process.env.CREWPAY_LAUNCHPAD_PUBLISHED_AT =
+      '0x27353b5519bc5f3c9a6d543e717a2bce7f1dd66b903f727381b3d8121f431e4c'
     process.env.CREWPAY_LAUNCHPAD_CONFIG_ID = configId
     process.env.CREWPAY_LAUNCHPAD_MIGRATION_CONFIG_ID = migrationConfigId
     setSuiGraphqlClientForTests({
-      query: vi.fn().mockImplementation(({ variables }) => {
+      query: vi.fn().mockImplementation(({ query, variables }) => {
+        const q = String(query)
+        if (q.includes('BondingPoolReserves')) {
+          return Promise.resolve({
+            data: {
+              object: {
+                asMoveObject: {
+                  contents: {
+                    json: {
+                      sui: '790400000',
+                      meme: '180989223542415031',
+                      graduated: true,
+                      migrated: false,
+                      recipients: { treasury: treas },
+                    },
+                  },
+                },
+              },
+            },
+          })
+        }
         const structType = variables?.structType as string
         if (structType?.includes('0x2::sui::SUI')) {
           return Promise.resolve({ data: { objects: { nodes: [{ address: metadataSui }] } } })
@@ -120,9 +142,11 @@ describe('sui launchpad unsigned launch', () => {
       poolObjectId: poolId,
       memeCoinType: memeType,
     })
-    const call = migrateTx.getData().commands.find((c) => c.$kind === 'MoveCall')
-    expect(call?.MoveCall?.function).toBe('migrate_to_cetus')
-    expect(call?.MoveCall?.typeArguments?.[0]).toBe(memeType)
+    const calls = migrateTx.getData().commands.filter((c) => c.$kind === 'MoveCall')
+    expect(calls.map((c) => c.MoveCall?.function)).toContain(
+      'finish_cetus_ptb_migration_locked_owned',
+    )
+    expect(calls.map((c) => c.MoveCall?.function)).toContain('create_cetus_lock_vault_for_ptb')
   })
 
   it('rejects when crewpay package env is missing', async () => {
