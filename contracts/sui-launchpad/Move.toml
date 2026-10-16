@@ -3,7 +3,8 @@ name = "crewpay_launchpad"
 edition = "2024.beta"
 
 [dependencies]
-CetusClmm = { git = "https://github.com/CetusProtocol/cetus-contracts.git", subdir = "packages/cetus_clmm", rev = "testnet-v0.0.2", override = true }
+# Pin to the Cetus testnet deployment used by @cetusprotocol/cetus-sui-clmm-sdk (package origin 0x0c7ae833…, latest 0x85e612…).
+CetusClmm = { git = "https://github.com/CetusProtocol/cetus-contracts.git", subdir = "packages/cetus_clmm", rev = "0a90d59cef9fa86485d81b11cb07a651d76ed360", override = true }
 
 [addresses]
 crewpay_launchpad = "0x0"
