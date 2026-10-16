@@ -1,0 +1,20 @@
+{
+  "network": "testnet",
+  "crewpay_launchpad_package_id": "0x37cf5eccf86586fb10866c4a703e2098e2462aa437cb48100c04ba5ca57e3f64",
+  "launchpad_config_id": "0x3360244e91cdfbd66c4e7086b1f8e57659c923eb610637f0541733246282895a",
+  "cetus_migration_config_id": "0xb34df4d72ce61698ac17d81804c9af4a8d5a36c623775dc31b59209f3464b3cd",
+  "meme_coin_package_id": "0x4e73475e860ed2aeefaed7bece56b8719868b9fa725b19fefe559ef6471a0d84",
+  "bonding_pool_id": "0x1a96381020d00e711316e79ef8df637859c70614d86160bc023356d3d76d7de0",
+  "suiscan_base": "https://suiscan.xyz/testnet/tx",
+  "transactions": {
+    "launchpad_publish": "B21CyGCxZRWB3d3THfM63p4bFLPr3CeZUnjyCqrpzGB",
+    "launchpad_upgrade_cetus": "Abnd8ccdVF4Ft2v22bKqZP417h2VqQRXhwxzw35MMqQ4",
+    "launchpad_upgrade_v3": "37iD5A3g7ZcBgiFx34bUbVPY3C9kfnM9hDMJveTEQt3j",
+    "meme_coin_publish": "6KzbeLTVk3ciUdLvrErsg7Sa8fCixXMLBxs7nJ6Sxax7",
+    "open_pool": "6VJ7s4iWH5QAi76ZnqXemCJ9j31iFVjyAyU3CFMoVLBp",
+    "buy_1": "Et1q2bMYae5LSgPPTYYdcEAqpzmBykTUbBocriP9yZ8c",
+    "buy_graduate": "6u82GpMvEnhSzAG8UBopKsLqEeRNpAanB35ZeaGYvih9",
+    "migrate_cetus_attempt": "5YGtrWbVXNzoJNM9yYrusKdNKAaMdjvHfNTr2jkhZdsm"
+  },
+  "notes": "Pool reached graduated=true on-chain. migrate_to_cetus failed on metadata_sui type mismatch until SUI CoinMetadata object id is supplied (public JSON-RPC metadata queries are deprecated on default fullnodes)."
+}

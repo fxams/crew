@@ -1,29 +1,157 @@
-/// Graduation hook — Cetus testnet wiring is isolated here (TODO).
+/// Graduation → Cetus CLMM (Sui testnet) with LP locked in a shared vault (no withdraw entrypoints).
 module crewpay_launchpad::migration;
 
+use cetus_clmm::config::GlobalConfig;
+use cetus_clmm::factory::Pools;
+use cetus_clmm::pool_creator;
+use cetus_clmm::position::Position;
+use cetus_clmm::tick_math;
+use crewpay_launchpad::migration_config::{Self, CetusMigrationConfig};
+use sui::object;
+use crewpay_launchpad::migration_math;
+use std::string;
+use sui::balance::{Self, Balance};
+use sui::clock::Clock;
+use sui::coin::{Self, Coin, CoinMetadata};
 use sui::event;
+use sui::sui::SUI;
+use sui::transfer;
 
-public struct CetusMigrationPending has copy, drop {
-    pool_id: ID,
-    meme_type: std::ascii::String,
-    sui_liquidity: u64,
-    meme_liquidity: u64,
-    note: vector<u8>,
+const ENotGraduated: u64 = 1;
+const EAlreadyMigrated: u64 = 2;
+const EEmptyReserves: u64 = 3;
+
+/// Cetus CLMM position NFT held permanently — liquidity cannot be removed via this package.
+public struct LockedClmmPosition has key {
+    id: UID,
+    bonding_pool_id: ID,
+    position: Position,
 }
 
-/// Called when a pool hits its SUI graduation target.
-/// Production: swap reserves into Cetus CLMM and burn LP position.
-public fun graduate_to_cetus_stub(
-    pool_id: ID,
-    meme_type: std::ascii::String,
-    _sui_liquidity: u64,
-    _meme_liquidity: u64,
+public struct MigratedToCetus has copy, drop {
+    bonding_pool_id: ID,
+    locked_position_id: ID,
+    sqrt_price_x64: u128,
+    sui_amount: u64,
+    meme_amount: u64,
+}
+
+/// Drain graduated bonding-curve reserves into a new Cetus CLMM pool (full range) and lock the LP NFT.
+public fun migrate_graduated_pool_to_cetus<T>(
+    bonding_pool_id: ID,
+    sui_bal: Balance<SUI>,
+    meme_bal: Balance<T>,
+    mig_cfg: &CetusMigrationConfig,
+    cetus_cfg: &GlobalConfig,
+    cetus_pools: &mut Pools,
+    _metadata_t: &CoinMetadata<T>,
+    _metadata_sui: &CoinMetadata<SUI>,
+    clock: &Clock,
+    ctx: &mut TxContext,
 ) {
-    event::emit(CetusMigrationPending {
-        pool_id,
-        meme_type,
-        sui_liquidity: _sui_liquidity,
-        meme_liquidity: _meme_liquidity,
-        note: b"TODO: wire Cetus testnet pool creation + LP burn/lock",
+    let sui_amt = balance::value(&sui_bal);
+    let meme_amt = balance::value(&meme_bal);
+    assert!(sui_amt > 0 && meme_amt > 0, EEmptyReserves);
+
+    if (migration_math::type_name_lt<T, SUI>()) {
+        migrate_ordered<T, SUI>(
+            bonding_pool_id,
+            sui_amt,
+            meme_amt,
+            meme_bal,
+            sui_bal,
+            mig_cfg,
+            cetus_cfg,
+            cetus_pools,
+            clock,
+            ctx,
+        );
+    } else {
+        migrate_ordered<SUI, T>(
+            bonding_pool_id,
+            sui_amt,
+            meme_amt,
+            sui_bal,
+            meme_bal,
+            mig_cfg,
+            cetus_cfg,
+            cetus_pools,
+            clock,
+            ctx,
+        );
+    }
+}
+
+fun migrate_ordered<CoinTypeA, CoinTypeB>(
+    bonding_pool_id: ID,
+    log_sui: u64,
+    log_meme: u64,
+    mut bal_a: Balance<CoinTypeA>,
+    mut bal_b: Balance<CoinTypeB>,
+    mig_cfg: &CetusMigrationConfig,
+    cetus_cfg: &GlobalConfig,
+    cetus_pools: &mut Pools,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    let amount_a = balance::value(&bal_a);
+    let amount_b = balance::value(&bal_b);
+    let sqrt_price = migration_math::sqrt_price_x64_from_amounts(amount_a, amount_b);
+    assert!(
+        sqrt_price > tick_math::min_sqrt_price() && sqrt_price < tick_math::max_sqrt_price(),
+        EEmptyReserves,
+    );
+
+    let tick_spacing = migration_config::tick_spacing(mig_cfg);
+    let (tick_lower, tick_upper) = pool_creator::full_range_tick_range(tick_spacing);
+    let url = string::utf8(b"https://crewpay.dev/sui-launchpad");
+
+    let coin_a = coin::from_balance(bal_a, ctx);
+    let coin_b = coin::from_balance(bal_b, ctx);
+
+    let (position, leftover_a, leftover_b) = pool_creator::create_pool_v3<CoinTypeA, CoinTypeB>(
+        cetus_cfg,
+        cetus_pools,
+        tick_spacing,
+        sqrt_price,
+        url,
+        tick_lower,
+        tick_upper,
+        coin_a,
+        coin_b,
+        true,
+        clock,
+        ctx,
+    );
+
+    refund_leftover(leftover_a, ctx);
+    refund_leftover(leftover_b, ctx);
+
+    let locked = LockedClmmPosition {
+        id: object::new(ctx),
+        bonding_pool_id,
+        position,
+    };
+    let locked_id = object::id(&locked);
+    transfer::share_object(locked);
+
+    event::emit(MigratedToCetus {
+        bonding_pool_id,
+        locked_position_id: locked_id,
+        sqrt_price_x64: sqrt_price,
+        sui_amount: log_sui,
+        meme_amount: log_meme,
     });
+}
+
+fun refund_leftover<CoinType>(mut coin: Coin<CoinType>, ctx: &mut TxContext) {
+    if (coin::value(&coin) == 0) {
+        coin::destroy_zero(coin);
+    } else {
+        transfer::public_transfer(coin, ctx.sender());
+    }
+}
+
+public fun locked_bonding_pool_id(lock: &LockedClmmPosition): ID {
+    lock.bonding_pool_id
 }
