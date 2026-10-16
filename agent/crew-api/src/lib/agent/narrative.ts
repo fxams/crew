@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { applyTelegramReachBoost, type TelegramReachInput } from '../telegram-reach.js'
 import { equalShares, MAX_CREW, type HireRole } from './constants.js'
 import { assertEvmAddress, isEvmAddress } from './evm-address.js'
+import { isSuiAddress } from './sui-address.js'
 import { autohireOptOuts, isOptedOut } from './optout.js'
 
 export type NarrativeTag =
@@ -245,11 +246,14 @@ export function planNarrativeHires(
     onlyRegistered?: boolean
     /** Zora / Clanker: only hire KOLs with a registered evm_wallet (or 0x wallet). */
     requireEvmPayout?: boolean
+    /** Sui Memez: only hire KOLs whose registered Solana wallet field is a Sui address. */
+    requireSuiPayout?: boolean
   },
 ): NarrativeHirePlan {
   const optOut = opts?.optOut ?? autohireOptOuts()
   const registeredFirst =
     Boolean(opts?.requireEvmPayout) ||
+    Boolean(opts?.requireSuiPayout) ||
     (process.env.AUTOHIRE_REGISTERED_FIRST || 'true').toLowerCase() === 'true'
   const limit = Math.max(1, Math.min(MAX_CREW, opts?.limit ?? 5))
   const minFollowers = opts?.minFollowers ?? 5_000
@@ -262,15 +266,19 @@ export function planNarrativeHires(
     (opts?.registered || [])
       .filter((r) => {
         if (!r.handle || r.wallet.length < 32) return false
-        if (!opts?.requireEvmPayout) return true
-        return Boolean(r.evmWallet && isEvmAddress(r.evmWallet))
+        if (!opts?.requireEvmPayout && !opts?.requireSuiPayout) return true
+        if (opts?.requireEvmPayout) return Boolean(r.evmWallet && isEvmAddress(r.evmWallet))
+        if (opts?.requireSuiPayout) return isSuiAddress(r.wallet)
+        return true
       })
       .map((r) => {
         const h = r.handle.replace(/^@+/, '').toLowerCase()
         const wallet =
           opts?.requireEvmPayout && r.evmWallet && isEvmAddress(r.evmWallet)
             ? assertEvmAddress(r.evmWallet)
-            : r.wallet
+            : opts?.requireSuiPayout && isSuiAddress(r.wallet)
+              ? r.wallet.trim()
+              : r.wallet
         return [h, wallet] as const
       }),
   )

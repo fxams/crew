@@ -4,7 +4,8 @@ import { MAX_CREW, MAX_INITIAL_BUY_SOL, USER_DESCRIPTION_MAX } from './constants
 import { errorMessage, normalizeAutoHireInput } from './errors.js'
 import { assertSafeHttpUrl } from './safe-url.js'
 import { isEvmAddress } from './evm-address.js'
-import { isEvmLaunchPlatform, parseLaunchPlatform } from './platforms.js'
+import { isEvmLaunchPlatform, isSuiLaunchPlatform, parseLaunchPlatform } from './platforms.js'
+import { isSuiAddress } from './sui-address.js'
 import { solanaAddress } from './solana-address.js'
 
 export const crewMemberSchemaFlexible = z.object({
@@ -76,9 +77,18 @@ export function refineLaunchBody(
 
   const platform = parseLaunchPlatform(val.platform)
   const evm = isEvmLaunchPlatform(platform)
+  const sui = isSuiLaunchPlatform(platform)
   if (val.launcherPubkey?.trim()) {
     const lp = val.launcherPubkey.trim()
-    if (evm) {
+    if (sui) {
+      if (!isSuiAddress(lp)) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'launcherPubkey must be a Sui address (0x…) when platform is sui.',
+          path: ['launcherPubkey'],
+        })
+      }
+    } else if (evm) {
       if (!isEvmAddress(lp)) {
         ctx.addIssue({
           code: 'custom',
@@ -100,7 +110,15 @@ export function refineLaunchBody(
   if (val.crew?.length) {
     val.crew.forEach((m, i) => {
       const w = m.wallet.trim()
-      if (evm) {
+      if (sui) {
+        if (!isSuiAddress(w)) {
+          ctx.addIssue({
+            code: 'custom',
+            message: 'Crew wallet must be a Sui address (0x…) when platform is sui.',
+            path: ['crew', i, 'wallet'],
+          })
+        }
+      } else if (evm) {
         if (!isEvmAddress(w)) {
           ctx.addIssue({
             code: 'custom',
@@ -159,7 +177,8 @@ export const launchBodySchema = z
     atomicRequired: z.boolean().optional().default(false),
     launcherPubkey: z.string().min(20).max(64).optional(),
     dryRunId: z.string().min(16).max(64).optional(),
-    platform: z.enum(['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe']).optional().default('pumpfun'),
+    platform: z.enum(['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe', 'sui']).optional().default('pumpfun'),
+    treasuryCapObjectId: z.string().min(42).max(90).optional(),
   })
   .superRefine(refineLaunchBody)
 

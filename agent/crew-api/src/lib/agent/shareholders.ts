@@ -10,6 +10,7 @@ import {
   type DeskMode,
 } from './constants.js'
 import { assertEvmAddress } from './evm-address.js'
+import { assertSuiAddress, isSuiAddress } from './sui-address.js'
 import {
   BAGS_MAX_CLAIMERS,
   type LaunchPlatform,
@@ -40,10 +41,11 @@ export function normalizeShareholderRole(role?: string | null): string {
   return r || 'crew'
 }
 
-export type AddressChain = 'solana' | 'evm'
+export type AddressChain = 'solana' | 'evm' | 'sui'
 
 export function assertWallet(value: string, chain: AddressChain = 'solana'): string {
   const w = value.trim()
+  if (chain === 'sui') return assertSuiAddress(w, 'wallet')
   if (chain === 'evm') return assertEvmAddress(w, 'wallet')
   try {
     return new PublicKey(w).toBase58()
@@ -55,6 +57,7 @@ export function assertWallet(value: string, chain: AddressChain = 'solana'): str
 /** True when an address can receive an on-chain payout (never treat empty as a destination). */
 export function isPayoutWallet(value: string | null | undefined, chain: AddressChain = 'solana'): boolean {
   const w = (value || '').trim()
+  if (chain === 'sui') return isSuiAddress(w)
   if (chain === 'evm') {
     try {
       assertEvmAddress(w, 'wallet')
@@ -257,8 +260,8 @@ export function buildCrewShareholders(
   const cap =
     opts.maxShareholders ??
     maxClaimersForPlatform(opts.platform || (chain === 'evm' ? 'zora' : 'pumpfun'))
-  if (chain === 'evm' && !opts.platformWallet) {
-    throw new Error('EVM fee-share requires platformWallet (Zora treasury / 0xSplits recipient).')
+  if ((chain === 'evm' || chain === 'sui') && !opts.platformWallet) {
+    throw new Error('Fee-share requires platformWallet (treasury recipient).')
   }
   const deskWallet = assertWallet(opts.deskWallet, chain)
   const platformWallet = assertWallet(

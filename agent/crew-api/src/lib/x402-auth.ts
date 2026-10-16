@@ -6,6 +6,7 @@
 import type { Request, Response, NextFunction } from 'express'
 import { PublicKey } from '@solana/web3.js'
 import { isEvmAddress } from './agent/evm-address.js'
+import { isSuiAddress } from './agent/sui-address.js'
 import { getAgentKeyReferral, getAgentReferralByOwnerWallet } from './agent-referral.js'
 import { readAgentKeyHeader, requireAgentApiKey, type AgentAuthContext } from './auth.js'
 import {
@@ -203,10 +204,13 @@ export function x402AuthContext(payer: string, selected: PaymentRequirements): A
 export function deskWalletFromAuth(
   auth: AgentAuthContext | undefined,
   fallback: string,
-  chain: 'solana' | 'evm',
+  chain: 'solana' | 'evm' | 'sui',
 ): string {
   const payer = auth?.payerWallet?.trim()
   if (auth?.source !== 'x402' || !payer) return fallback
+  if (chain === 'sui') {
+    return isSuiAddress(payer) ? payer : fallback
+  }
   if (chain === 'evm') {
     return isEvmAddress(payer) ? payer : fallback
   }
