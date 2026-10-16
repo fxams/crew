@@ -27,6 +27,10 @@ public struct FeeRecipients has copy, drop, store {
     referrer: Option<address>,
 }
 
+public fun treasury_addr(recipients: &FeeRecipients): address {
+    recipients.treasury
+}
+
 public fun new_recipients(
     crew: vector<address>,
     crew_weight_bps: vector<u64>,
