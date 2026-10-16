@@ -2,7 +2,7 @@ import { assertEvmAddress, isEvmAddress } from './evm-address.js'
 import { PUMP_MAX_SHAREHOLDERS } from './constants.js'
 import { x402PublicDiscovery } from '../x402.js'
 
-export const LAUNCH_PLATFORMS = ['pumpfun', 'bags', 'zora'] as const
+export const LAUNCH_PLATFORMS = ['pumpfun', 'bags', 'zora', 'clanker'] as const
 export type LaunchPlatform = (typeof LAUNCH_PLATFORMS)[number]
 
 export const DEFAULT_LAUNCH_PLATFORM: LaunchPlatform = 'pumpfun'
@@ -30,7 +30,8 @@ export function parseLaunchPlatform(raw?: string | null): LaunchPlatform {
   if (v === 'pump' || v === 'pump.fun' || v === 'pumpfun') return 'pumpfun'
   if (v === 'bags' || v === 'bags.fm' || v === 'bagsfm') return 'bags'
   if (v === 'zora' || v === 'zora-coins' || v === 'zoracoins') return 'zora'
-  throw new Error(`Unknown launch platform "${raw}". Use pumpfun (default), bags, or zora.`)
+  if (v === 'clanker' || v === 'clanker.world') return 'clanker'
+  throw new Error(`Unknown launch platform "${raw}". Use pumpfun (default), bags, zora, or clanker.`)
 }
 
 export function bagsApiKey(): string {
@@ -70,6 +71,67 @@ export function zoraReady(): boolean {
   return zoraEnabled() && evmTreasuryConfigured()
 }
 
+export function clankerEnabled(): boolean {
+  const v = (process.env.CLANKER_ENABLED || '').trim().toLowerCase()
+  return v === '1' || v === 'true' || v === 'yes' || v === 'on'
+}
+
+export function clankerReady(): boolean {
+  return clankerEnabled() && evmTreasuryConfigured()
+}
+
+export function assertClankerEnabled(): void {
+  if (!clankerEnabled()) {
+    throw new Error(
+      'Clanker launches are disabled — set CLANKER_ENABLED=1 to enable (Base Sepolia for tests, Base mainnet via CLANKER_CHAIN).',
+    )
+  }
+  if (!evmTreasuryConfigured()) {
+    throw new Error(
+      'Clanker launches need CLANKER_TREASURY_ADDRESS, ZORA_TREASURY_ADDRESS, or CREW_BUYBACK_WALLET_EVM (0x… treasury in the fee map).',
+    )
+  }
+}
+
+export type ClankerNetwork = ZoraNetwork
+
+export function clankerNetwork(): ClankerNetwork {
+  const raw = (process.env.CLANKER_CHAIN || process.env.CLANKER_NETWORK || '').trim().toLowerCase()
+  if (!raw) {
+    try {
+      return zoraNetwork()
+    } catch {
+      return 'base-sepolia'
+    }
+  }
+  if (!raw || raw === 'base-sepolia' || raw === 'sepolia' || raw === '84532') return 'base-sepolia'
+  if (raw === 'base' || raw === 'base-mainnet' || raw === '8453') return 'base'
+  throw new Error(`Unknown CLANKER_CHAIN "${raw}". Use base or base-sepolia.`)
+}
+
+export function clankerChainId(): number {
+  return ZORA_CHAIN_IDS[clankerNetwork()]
+}
+
+export function clankerRpcUrl(): string {
+  const explicit = (process.env.CLANKER_RPC_URL || process.env.BASE_RPC_URL || '').trim()
+  if (explicit) return explicit
+  return clankerNetwork() === 'base' ? 'https://mainnet.base.org' : 'https://sepolia.base.org'
+}
+
+export function clankerCoinUrl(address: string, network: ClankerNetwork = clankerNetwork()): string {
+  return `https://clanker.world/clanker/${assertEvmAddress(address)}`
+}
+
+export function isEvmLaunchPlatform(platform: LaunchPlatform): boolean {
+  return platform === 'zora' || platform === 'clanker'
+}
+
+export function evmLaunchRpcUrl(platform: LaunchPlatform): string {
+  if (platform === 'clanker') return clankerRpcUrl()
+  return zoraRpcUrl()
+}
+
 export function assertZoraEnabled(): void {
   if (!zoraEnabled()) {
     throw new Error(
@@ -107,6 +169,7 @@ export function zoraCoinUrl(address: string, network: ZoraNetwork = zoraNetwork(
 
 export function getEvmTreasuryWallet(): string {
   const w = (
+    process.env.CLANKER_TREASURY_ADDRESS ||
     process.env.ZORA_TREASURY_ADDRESS ||
     process.env.CREW_BUYBACK_WALLET_EVM ||
     ''
@@ -134,18 +197,20 @@ export function getSplitsFactory(): string {
 
 export function maxClaimersForPlatform(platform: LaunchPlatform): number {
   if (platform === 'bags') return BAGS_MAX_CLAIMERS
-  if (platform === 'zora') return 100
+  if (platform === 'zora' || platform === 'clanker') return 100
   return PUMP_MAX_SHAREHOLDERS
 }
 
 export function assertPlatformReady(platform: LaunchPlatform): void {
   if (platform === 'bags') assertBagsEnabled()
   if (platform === 'zora') assertZoraEnabled()
+  if (platform === 'clanker') assertClankerEnabled()
 }
 
 export function platformDisplayName(platform: LaunchPlatform): string {
   if (platform === 'bags') return 'Bags.fm'
   if (platform === 'zora') return 'Zora'
+  if (platform === 'clanker') return 'Clanker'
   return 'Pump.fun'
 }
 
@@ -220,6 +285,37 @@ export function listLaunchVenues(): LaunchVenue[] {
         : zoraEnabled()
           ? 'ZORA_ENABLED is on but treasury address is missing (ZORA_TREASURY_ADDRESS or CREW_BUYBACK_WALLET_EVM).'
           : 'Off unless ZORA_ENABLED and a 0x treasury are set. Base Sepolia default. Crew wallets must be EVM (0x…).',
+    },
+    {
+      id: 'clanker',
+      name: 'Clanker',
+      chain: (() => {
+        try {
+          return clankerNetwork()
+        } catch {
+          return 'base-sepolia' as LaunchChain
+        }
+      })(),
+      enabled: clankerReady(),
+      status: clankerReady()
+        ? clankerNetwork() === 'base'
+          ? 'live'
+          : 'testnet'
+        : 'disabled',
+      caption: zoraCaption(clankerReady(), (() => {
+        try {
+          return clankerNetwork()
+        } catch {
+          return 'base-sepolia' as LaunchChain
+        }
+      })()),
+      tradeHost: 'clanker.world',
+      explorer: 'basescan',
+      note: clankerReady()
+        ? `Clanker v4 on ${clankerNetwork() === 'base' ? 'Base' : 'Base Sepolia'}. Crew fee map encoded as reward recipients at launch. See docs/integrations/clanker.md for the protocol-fee gap.`
+        : clankerEnabled()
+          ? 'CLANKER_ENABLED is on but treasury address is missing (CLANKER_TREASURY_ADDRESS, ZORA_TREASURY_ADDRESS, or CREW_BUYBACK_WALLET_EVM).'
+          : 'Off unless CLANKER_ENABLED=1 and a 0x treasury are set. Base Sepolia default for tests.',
     },
   ]
 }
@@ -320,6 +416,7 @@ export function inferLaunchPlatformFromCoin(opts: {
   const url = (opts.pumpUrl || '').toLowerCase()
   if (url.includes('bags.fm')) return 'bags'
   if (url.includes('zora.co') || url.includes('zora.energy')) return 'zora'
+  if (url.includes('clanker.world')) return 'clanker'
   const mint = (opts.mint || '').trim()
   if (isEvmAddress(mint)) return 'zora'
   return 'pumpfun'
@@ -328,14 +425,15 @@ export function inferLaunchPlatformFromCoin(opts: {
 export function tradeUrlForPlatform(platform: LaunchPlatform, mint: string): string {
   if (platform === 'bags') return BAGS_COIN_URL(mint)
   if (platform === 'zora') return zoraCoinUrl(mint)
+  if (platform === 'clanker') return clankerCoinUrl(mint)
   return `https://pump.fun/coin/${mint}`
 }
 
 export function explorerTokenUrl(platform: LaunchPlatform, mint: string): string {
-  if (platform === 'zora') {
+  if (platform === 'zora' || platform === 'clanker') {
     const net = (() => {
       try {
-        return zoraNetwork()
+        return platform === 'clanker' ? clankerNetwork() : zoraNetwork()
       } catch {
         return 'base-sepolia' as ZoraNetwork
       }
@@ -347,10 +445,10 @@ export function explorerTokenUrl(platform: LaunchPlatform, mint: string): string
 }
 
 export function explorerTxUrl(platform: LaunchPlatform, signature: string): string {
-  if (platform === 'zora') {
+  if (platform === 'zora' || platform === 'clanker') {
     const net = (() => {
       try {
-        return zoraNetwork()
+        return platform === 'clanker' ? clankerNetwork() : zoraNetwork()
       } catch {
         return 'base-sepolia' as ZoraNetwork
       }
@@ -368,6 +466,7 @@ const TRADE_HOSTS: Record<LaunchPlatform, string[]> = {
   pumpfun: ['pump.fun', 'www.pump.fun'],
   bags: ['bags.fm', 'www.bags.fm'],
   zora: ['zora.co', 'www.zora.co'],
+  clanker: ['clanker.world', 'www.clanker.world'],
 }
 
 export function isAllowedTradeHost(hostname: string, platform?: LaunchPlatform): boolean {

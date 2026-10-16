@@ -43,7 +43,9 @@ export function toUnsignedInput(req: LaunchRequirement, ctx: FulfillContext) {
     ticker: req.ticker,
     description: req.description,
     platform: req.platform,
-    launcherPubkey: req.launcherPubkey || (req.platform === 'zora' ? ctx.payerWallet || '' : ''),
+    launcherPubkey:
+      req.launcherPubkey ||
+      (req.platform === 'zora' || req.platform === 'clanker' ? ctx.payerWallet || '' : ''),
     imageUrl: req.imageUrl,
     imageBase64: req.imageBase64,
     imageContentType: req.imageContentType,
