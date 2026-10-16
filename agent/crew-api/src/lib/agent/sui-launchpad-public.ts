@@ -13,6 +13,12 @@ import {
 } from './platforms.js'
 import { getSuiGraphqlClient } from './sui-coin-metadata.js'
 import { assertSuiAddress } from './sui-address.js'
+import {
+  launchedPoolIdsFromEventNodes,
+  queryMoveEvents,
+  SUI_GRAPHQL_MAX_EVENTS_PAGE,
+  tradeEventNodesForPool,
+} from './sui-graphql-events.js'
 
 export type LaunchpadPoolStage = 'new' | 'near_graduation' | 'graduated' | 'migrated'
 
@@ -211,36 +217,8 @@ export function suiscanTxUrl(network: string, digest: string): string {
 const POOL_OBJECT_QUERY = `
 query PoolObject($id: SuiAddress!) {
   object(address: $id) {
-    address
     asMoveObject {
       contents { json }
-    }
-  }
-}
-`
-
-const LAUNCHED_EVENTS_QUERY = `
-query LaunchedEvents($type: String!, $limit: Int!) {
-  events(first: $limit, filter: { moveEventType: $type }) {
-    nodes {
-      timestamp
-      transaction { digest }
-      contents { json type { repr } }
-    }
-  }
-}
-`
-
-const POOL_EVENTS_QUERY = `
-query PoolTradeEvents($type: String!, $poolId: String!, $limit: Int!) {
-  events(
-    first: $limit
-    filter: { moveEventType: $type, json: { pool_id: $poolId } }
-  ) {
-    nodes {
-      timestamp
-      transaction { digest }
-      contents { json type { repr } }
     }
   }
 }
@@ -263,30 +241,12 @@ export async function fetchLaunchpadPools(limit = 40): Promise<LaunchpadPoolSumm
   const pkg = crewpayLaunchpadPackageId()
   const launchedType = `${pkg}::pool::Launched`
   const client = getSuiGraphqlClient()
-  const { data, errors } = await client.query<{
-    events?: {
-      nodes?: Array<{
-        timestamp?: string
-        transaction?: { digest?: string }
-        contents?: { json?: Record<string, unknown> }
-      } | null>
-    } | null
-  }>({
-    query: LAUNCHED_EVENTS_QUERY,
-    variables: { type: launchedType, limit },
-  })
-  if (errors?.length) {
-    throw new Error(errors.map((e) => e.message).join('; '))
-  }
-  const nodes = data?.events?.nodes ?? []
-  const byId = new Map<string, { launchedAtMs?: number }>()
-  for (const node of nodes) {
-    const json = node?.contents?.json
-    const poolId = String(json?.pool_id ?? '').trim()
-    if (!poolId.startsWith('0x')) continue
-    const ts = node?.timestamp ? Date.parse(node.timestamp) : undefined
-    if (!byId.has(poolId)) byId.set(poolId, { launchedAtMs: ts })
-  }
+  const nodes = await queryMoveEvents(
+    client,
+    launchedType,
+    Math.min(limit, SUI_GRAPHQL_MAX_EVENTS_PAGE),
+  )
+  const byId = launchedPoolIdsFromEventNodes(nodes)
   const poolIds = [...byId.keys()].slice(0, limit)
   const summaries: LaunchpadPoolSummary[] = []
   for (const poolId of poolIds) {
@@ -347,23 +307,16 @@ export async function fetchPoolTrades(
   const client = getSuiGraphqlClient()
   const types = [`${pkg}::pool::Bought`, `${pkg}::pool::Sold`]
   const rows: LaunchpadTradeRow[] = []
+  const eventLimit = Math.min(Math.max(limit * 4, limit), SUI_GRAPHQL_MAX_EVENTS_PAGE)
   for (const type of types) {
-    const { data, errors } = await client.query<{
-      events?: {
-        nodes?: Array<{
-          timestamp?: string
-          transaction?: { digest?: string }
-          contents?: { json?: Record<string, unknown>; type?: { repr?: string } }
-        }>
-      }
-    }>({
-      query: POOL_EVENTS_QUERY,
-      variables: { type, poolId: id, limit },
-    })
-    if (errors?.length) continue
-    for (const node of data?.events?.nodes ?? []) {
-      const repr = node.contents?.type?.repr ?? type
-      const parsed = parseTradeEvent(repr, node.contents?.json ?? {})
+    let nodes: Awaited<ReturnType<typeof queryMoveEvents>>
+    try {
+      nodes = await queryMoveEvents(client, type, eventLimit)
+    } catch {
+      continue
+    }
+    for (const node of tradeEventNodesForPool(nodes, id)) {
+      const parsed = parseTradeEvent(type, node.contents?.json ?? {})
       if (!parsed) continue
       rows.push({
         ...parsed,
