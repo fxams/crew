@@ -4,6 +4,7 @@ module crewpay_launchpad::config;
 use sui::event;
 use sui::transfer;
 use crewpay_launchpad::math;
+use crewpay_launchpad::migration_config;
 
 const MAX_TRADE_FEE_BPS: u64 = 1000; // 10% hard cap
 const EFeeTooHigh: u64 = 1;
@@ -36,6 +37,8 @@ fun init_launchpad(ctx: &mut TxContext) {
     };
     transfer::share_object(cfg);
     transfer::transfer(cap, ctx.sender());
+    let mig = migration_config::new_cetus_migration_config(60, ctx);
+    migration_config::share_cetus_migration_config(mig);
     event::emit(ConfigCreated { trade_fee_bps: 120 });
 }
 

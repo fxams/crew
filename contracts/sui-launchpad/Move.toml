@@ -3,7 +3,7 @@ name = "crewpay_launchpad"
 edition = "2024.beta"
 
 [dependencies]
-Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/testnet" }
+CetusClmm = { git = "https://github.com/CetusProtocol/cetus-contracts.git", subdir = "packages/cetus_clmm", rev = "testnet-v0.0.2", override = true }
 
 [addresses]
 crewpay_launchpad = "0x0"

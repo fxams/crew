@@ -1,5 +1,6 @@
 node_modules/
 contracts/sui-launchpad/build/
+contracts/sui-launchpad/.secrets/
 # Local Musebook / directory credentials (api_key returned once)
 .config/musebook/
 **/musebook/credentials.json
@@ -11,3 +12,4 @@ services/acp-provider/dist/
 # Local signing keys / secrets (e.g. Technocore did:key seeds)
 secrets/
 *.seed
+*.key
