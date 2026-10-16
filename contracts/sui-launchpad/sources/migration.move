@@ -16,6 +16,7 @@ use sui::coin::{Self, Coin, CoinMetadata};
 use sui::event;
 use sui::sui::SUI;
 use sui::transfer;
+use sui::dynamic_field as df;
 const ENotGraduated: u64 = 1;
 const EAlreadyMigrated: u64 = 2;
 const EEmptyReserves: u64 = 3;
@@ -27,7 +28,18 @@ public struct LockedClmmPosition has key {
     position: Position,
 }
 
-/// LP lock record when Cetus `create_pool_v3` runs in a PTB against the live 0x5372… package (position NFT held by vault address).
+/// PTB vault: receives a Cetus `Position` via `transfer::public_receive` (cross-package `store` type).
+public struct LockedClmmVault has key {
+    id: UID,
+    bonding_pool_id: ID,
+}
+
+public struct CetusPositionIdDfKey has copy, drop, store {}
+
+/// Deprecated name (v16); kept for package compatibility.
+public struct CetusPositionDfKey has copy, drop, store {}
+
+/// Deprecated — PTB v1 only recorded ids; position NFT was left transferable. Kept for package compatibility.
 public struct LockedClmmPositionRef has key {
     id: UID,
     bonding_pool_id: ID,
@@ -212,6 +224,90 @@ public(package) fun share_locked_clmm_position_ref(
         bonding_pool_id,
         cetus_position_id,
         cetus_pool_id,
+    };
+    let locked_id = object::id(&locked);
+    transfer::share_object(locked);
+    event::emit(MigratedToCetus {
+        bonding_pool_id,
+        locked_position_id: locked_id,
+        sqrt_price_x64,
+        sui_amount,
+        meme_amount,
+    });
+    locked_id
+}
+
+/// Wrap a Cetus `Position` NFT in a shared vault (PTB path — position created by live `pool_creator` in the same transaction).
+#[allow(unused_function)]
+public(package) fun prepare_cetus_lock_vault(bonding_pool_id: ID, ctx: &mut TxContext): LockedClmmVault {
+    LockedClmmVault {
+        id: object::new(ctx),
+        bonding_pool_id,
+    }
+}
+
+#[allow(unused_function)]
+public(package) fun seal_cetus_lock_vault(
+    _vault: LockedClmmVault,
+    _receipt: sui::transfer::Receiving<Position>,
+    _sqrt_price_x64: u128,
+    _sui_amount: u64,
+    _meme_amount: u64,
+): ID {
+    abort 0
+}
+
+public(package) fun create_shared_cetus_lock_vault(bonding_pool_id: ID, ctx: &mut TxContext): ID {
+    let vault = new_cetus_lock_vault(bonding_pool_id, ctx);
+    let vault_id = object::id(&vault);
+    transfer::share_object(vault);
+    vault_id
+}
+
+public(package) fun new_cetus_lock_vault(bonding_pool_id: ID, ctx: &mut TxContext): LockedClmmVault {
+    LockedClmmVault {
+        id: object::new(ctx),
+        bonding_pool_id,
+    }
+}
+
+public(package) fun seal_cetus_lock_vault_with_position_id(
+    vault: LockedClmmVault,
+    cetus_position_id: ID,
+    sqrt_price_x64: u128,
+    sui_amount: u64,
+    meme_amount: u64,
+) {
+    let bonding_pool_id = vault.bonding_pool_id;
+    let mut vault = vault;
+    df::add(&mut vault.id, CetusPositionIdDfKey {}, cetus_position_id);
+    let vault_id = object::id(&vault);
+    transfer::share_object(vault);
+    event::emit(MigratedToCetus {
+        bonding_pool_id,
+        locked_position_id: vault_id,
+        sqrt_price_x64,
+        sui_amount,
+        meme_amount,
+    });
+}
+
+public fun vault_receive_address(vault: &LockedClmmVault): address {
+    object::id_address(vault)
+}
+
+public(package) fun lock_cetus_position(
+    bonding_pool_id: ID,
+    position: Position,
+    sqrt_price_x64: u128,
+    sui_amount: u64,
+    meme_amount: u64,
+    ctx: &mut TxContext,
+): ID {
+    let locked = LockedClmmPosition {
+        id: object::new(ctx),
+        bonding_pool_id,
+        position,
     };
     let locked_id = object::id(&locked);
     transfer::share_object(locked);

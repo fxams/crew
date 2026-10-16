@@ -18,7 +18,7 @@
       "typeOrigin": "0x0c7ae833c220aa73a3643a0d508afa4ac5d50d97312ea4584e35f9eb21b9df12",
       "globalConfig": "0x9774e359588ead122af1c7e7f64e14ade261cfeecdb5d0eb4a5b3b4c8ab8bd3e",
       "pools": "0x50eb61dd5928cec5ea04711a2e9b72e5237e79e9fbcd2ce3d5469dc8708e0ee2",
-      "poolCreator": "create_pool_v2 (create_pool_v3 not exposed on published-at 0x85e612…); fix_amount_a must be false for meme/SUI full-range deposit."
+      "poolCreator": "create_pool_v2 (create_pool_v3 not exposed on published-at 0x85e612…); use full_range_tick_range(60) + fix_amount_a true for PTB deposits."
     }
   },
   "graduatedPoolId": "0xdfff986f6a12c29e5fba0fe60bae7bc9c65ca0f94de0a0a43bf54cb83cba85bd",
@@ -48,5 +48,20 @@
     "launchpadPublishedAtUsed": "0x27353b5519bc5f3c9a6d543e717a2bce7f1dd66b903f727381b3d8121f431e4c"
   },
   "cetusPoolId": "0x7168f0379253871d7d09a3b6830d9f80ddc7af63a21c56b909e70bff7fd58cd1",
-  "notes": "On-chain migrate_to_cetus remains broken on testnet due to 0x6bbd Cetus linkage; use scripts/migrate-live-ptb-testnet.sh for live SDK Cetus."
+  "lockedLpPtbMigration": {
+    "digest": "DrK8DKeDN3FX2dqeHzgGAx1RGxC663RiWWQosoYETjyQ",
+    "suiscan": "https://suiscan.xyz/testnet/tx/DrK8DKeDN3FX2dqeHzgGAx1RGxC663RiWWQosoYETjyQ",
+    "path": "full_range_tick_range → begin → create_cetus_lock_vault_for_ptb → create_pool_v2 → transfer Position to vault address → finish_cetus_ptb_migration_locked_owned",
+    "bondingPoolId": "0x268c853247f5f4b2314a4488930826746769413592310e46af0f4c783bd11020",
+    "memeCoinType": "0x6ff444416ce0443d3e1dadd82d8c32d425c2fe82420c6d0c9cac2bb638e9f219::meme::MEME",
+    "lockedClmmVaultId": "0x43d6714f7816864e5cb8adb8369261b267b13b7e6a76cf539a432fb0f43b55e3",
+    "cetusPositionId": "0xb8274e768ffd877d54843984ff01f2ee45aec5fbe237dd24b71b0519d7eb48c3",
+    "positionOwner": {
+      "kind": "AddressOwner",
+      "address": "0x43d6714f7816864e5cb8adb8369261b267b13b7e6a76cf539a432fb0f43b55e3",
+      "note": "Vault object address (not treasury EOA 0x3333…); LP NFT is not withdrawable by treasury keyholders."
+    },
+    "launchpadPublishedAtUsed": "0x07f1fd3d2ea689e79dfad1b950554a630086f343e9e6f75d0780c28372ad266a"
+  },
+  "notes": "On-chain migrate_to_cetus remains broken on testnet due to 0x6bbd Cetus linkage; use scripts/migrate-live-ptb-testnet.sh (vault lock) for live SDK Cetus."
 }
