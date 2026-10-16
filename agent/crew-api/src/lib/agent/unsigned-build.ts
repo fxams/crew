@@ -15,6 +15,7 @@ import {
   assertPlatformReady,
   getTreasuryWalletForPlatform,
   isEvmLaunchPlatform,
+  isSuiLaunchPlatform,
   parseLaunchPlatform,
   platformDisplayName,
   type LaunchPlatform,
@@ -23,6 +24,8 @@ import { buildCrewShareholders, maxCrewSeats } from './shareholders.js'
 import { buildUnsignedLaunchTransactions, type UnsignedLaunchPlan } from './unsigned.js'
 import { buildClankerUnsignedLaunch, resolveClankerCrewWallets } from './clanker.js'
 import { buildVibevibeUnsignedLaunch, resolveVibevibeCrewWallets } from './vibevibe.js'
+import { buildSuiMemezUnsignedLaunch, resolveSuiCrewWallets } from './sui-memez.js'
+import { isSuiAddress } from './sui-address.js'
 import { applyRegisteredEvmWallets, buildZoraUnsignedLaunch, resolveZoraCrewWallets } from './zora.js'
 
 export type UnsignedLaunchInput = {
@@ -43,6 +46,8 @@ export type UnsignedLaunchInput = {
   platform?: string
   launcherPubkey: string
   mintPubkey?: string
+  /** Sui Memez step 2 — TreasuryCap object id from step 1 publish effects. */
+  treasuryCapObjectId?: string
   keyId?: string
   /**
    * Paying agent wallet (ACP / x402 identity). Used as launcherPubkey for Zora
@@ -127,7 +132,10 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
       `${platformDisplayName(platform)} launches require an EVM launcherPubkey (0x…).`,
     )
   }
-  if (!isEvmLaunchPlatform(platform)) {
+  if (isSuiLaunchPlatform(platform) && !isSuiAddress(launcherPubkey)) {
+    throw new Error(`${platformDisplayName(platform)} launches require a Sui launcherPubkey (0x… 32-byte).`)
+  }
+  if (!isEvmLaunchPlatform(platform) && !isSuiLaunchPlatform(platform)) {
     try {
       // eslint-disable-next-line no-new
       new (await import('@solana/web3.js')).PublicKey(launcherPubkey)
@@ -143,7 +151,11 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
       ? await getAgentReferralByOwnerWallet(payerWallet)
       : null
 
-  const chainForRef = isEvmLaunchPlatform(platform) ? 'evm' : 'solana'
+  const chainForRef = isEvmLaunchPlatform(platform)
+    ? 'evm'
+    : isSuiLaunchPlatform(platform)
+      ? 'sui'
+      : 'solana'
   const referralPayout = boundRef ? referrerPayoutWallet(boundRef.referrer, chainForRef) : null
   const maxSeats = maxCrewSeats({ hasAgentReferrer: Boolean(referralPayout), platform })
   let crew = input.crew?.length ? input.crew : undefined
@@ -158,6 +170,7 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
         registered,
         onlyRegistered: Boolean(input.optInOnly),
         requireEvmPayout: isEvmLaunchPlatform(platform),
+        requireSuiPayout: isSuiLaunchPlatform(platform),
       },
     )
     crew = plan.crew
@@ -178,18 +191,28 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
       strict: strictEvmCrew,
     })
   }
+  if (platform === 'sui') {
+    crew = resolveSuiCrewWallets(crew || [], { strict: Boolean(input.crew?.length) })
+  }
 
   if (input.optInOnly && crew && crew.length) {
     await assertOptedInCrew(crew)
   }
 
-  const chain = isEvmLaunchPlatform(platform) ? 'evm' : 'solana'
+  const chain = isEvmLaunchPlatform(platform)
+    ? 'evm'
+    : isSuiLaunchPlatform(platform)
+      ? 'sui'
+      : 'solana'
   const deskWallet = (input.deskWallet || '').trim() || launcherPubkey
   const shareholders =
     crew && crew.length
       ? buildCrewShareholders(crew, input.mode || 'agent', {
           deskWallet,
-          platformWallet: isEvmLaunchPlatform(platform) ? getTreasuryWalletForPlatform(platform) : undefined,
+          platformWallet:
+            isEvmLaunchPlatform(platform) || isSuiLaunchPlatform(platform)
+              ? getTreasuryWalletForPlatform(platform)
+              : undefined,
           agentReferrer: referralPayout
             ? {
                 wallet: referralPayout,
@@ -272,6 +295,20 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
       launcherPubkey,
       shareholders: shareholders || [],
     })
+  } else if (platform === 'sui') {
+    const metadataUri =
+      input.imageUrl?.trim() ||
+      `https://crewpay.dev/agent/launch-metadata?ticker=${encodeURIComponent(ticker)}`
+    plan = await buildSuiMemezUnsignedLaunch({
+      name: input.name,
+      ticker,
+      metadataUri,
+      launcherPubkey,
+      shareholders: shareholders || [],
+      treasuryCapObjectId: input.treasuryCapObjectId?.trim() || input.mintPubkey?.trim(),
+      twitter: input.twitter?.trim() || undefined,
+      website: input.website?.trim() || undefined,
+    })
   } else {
     const { metadataUri } = await import('./ipfs.js').then((m) =>
       m.uploadPumpMetadataResilient({
@@ -301,10 +338,12 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
         ? 'UNSIGNED Clanker EIP-1559 — sign clanker_deploy; POST /api/agent/launch/submit { platform:"clanker", signed:[hex…] }.'
         : platform === 'vibevibe'
           ? 'UNSIGNED vibe/vibe EIP-1559 — sign vibevibe_deploy; POST /api/agent/launch/submit { platform:"vibevibe", signed:[hex…] }.'
-          : 'UNSIGNED build — sign and submit locally (or POST /api/agent/launch/submit with the signed base64). Messages expire with the blockhash; rebuild when expired.'
+          : platform === 'sui'
+            ? 'UNSIGNED Sui Memez — sign sui_memez_publish_coin then sui_memez_create_pool (rebuild with treasuryCapObjectId after step 1); POST /api/agent/launch/submit { platform:"sui", signed:[base64…] }.'
+            : 'UNSIGNED build — sign and submit locally (or POST /api/agent/launch/submit with the signed base64). Messages expire with the blockhash; rebuild when expired.'
 
   const referralWarnings: string[] = []
-  if (boundRef && !referralPayout && isEvmLaunchPlatform(platform)) {
+  if (boundRef && !referralPayout && (isEvmLaunchPlatform(platform) || isSuiLaunchPlatform(platform))) {
     referralWarnings.push(
       `Referral code ${boundRef.referrer.code} is bound, but the referrer has no Base (0x) payout wallet — on-chain map stays 60/15/25 (not 60/15/5/20). Add evm_wallet on the KOL profile.`,
     )

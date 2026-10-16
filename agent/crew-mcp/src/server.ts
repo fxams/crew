@@ -84,7 +84,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Build UNSIGNED launch transactions',
       description:
-        'Create UNSIGNED launch transactions. platform defaults to pumpfun (Solana v0 messages). bags = Bags.fm Solana fee-claimers (needs BAGS_API_KEY). zora = Zora content coins on Base (EIP-1559; needs ZORA_ENABLED). clanker = Clanker v4 on Base (EIP-1559; needs CLANKER_ENABLED). vibevibe = vibe/vibe on Robinhood Chain (EIP-1559; needs VIBEVIBE_ENABLED). Prefer explicit crew[] from crew_list_kols; Autohire is fallback. optInOnly default off. Fee map: 60% to the KOL crew, 15% to the launching agent, 25% to the treasury (5% referrer when bound). Optional treasuryBps 2000–3000.',
+        'Create UNSIGNED launch transactions. platform defaults to pumpfun (Solana v0 messages). bags = Bags.fm Solana fee-claimers (needs BAGS_API_KEY). zora = Zora content coins on Base (EIP-1559; needs ZORA_ENABLED). clanker = Clanker v4 on Base (EIP-1559; needs CLANKER_ENABLED). vibevibe = vibe/vibe on Robinhood Chain (EIP-1559; needs VIBEVIBE_ENABLED). sui = Memez.gg / Blast.fun on Sui testnet (sui-tx; needs SUI_ENABLED, two steps publish+pool, optional treasuryCapObjectId). Prefer explicit crew[] from crew_list_kols; Autohire is fallback. optInOnly default off. Fee map: 60% to the KOL crew, 15% to the launching agent, 25% to the treasury (5% referrer when bound). Optional treasuryBps 2000–3000.',
       inputSchema: {
         name: z.string().min(2).max(32),
         ticker: z.string().min(2).max(13),
@@ -101,7 +101,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         optInOnly: z.boolean().optional(),
         treasuryBps: z.number().int().min(2000).max(3000).optional(),
         platform: z
-          .enum(['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe'])
+          .enum(['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe', 'sui'])
           .optional()
           .describe('Launch venue. Default pumpfun. bags=Bags.fm (Solana). zora=Zora coins (Base).'),
         crew: z.array(crewMemberSchema).min(1).max(100).optional(),
@@ -150,7 +150,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         'Submit signed transactions from crew_build_unsigned. Pump.fun/Bags: Solana base64 (create then lock / fee-share then create). Zora: EIP-1559 hex (0xSplits then coin create). Pass platform to match the builder.',
       inputSchema: {
         signed: z.array(z.string().min(64)).min(1).max(8),
-        platform: z.enum(['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe']).optional(),
+        platform: z.enum(['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe', 'sui']).optional(),
       },
       annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: true },
     },
@@ -766,7 +766,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         agentObjective: z.string().min(8).max(280).optional(),
         agentModel: z.string().max(48).optional(),
         crew: z.array(crewMemberSchema).min(1).max(100).optional(),
-        platform: z.enum(['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe']).optional(),
+        platform: z.enum(['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe', 'sui']).optional(),
         ...forbiddenSecretFields,
       },
       annotations: { readOnlyHint: true, openWorldHint: true },

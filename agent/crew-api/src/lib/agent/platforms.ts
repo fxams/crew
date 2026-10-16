@@ -1,8 +1,9 @@
 import { assertEvmAddress, isEvmAddress } from './evm-address.js'
+import { assertSuiAddress, isSuiAddress } from './sui-address.js'
 import { PUMP_MAX_SHAREHOLDERS } from './constants.js'
 import { x402PublicDiscovery } from '../x402.js'
 
-export const LAUNCH_PLATFORMS = ['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe'] as const
+export const LAUNCH_PLATFORMS = ['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe', 'sui'] as const
 export type LaunchPlatform = (typeof LAUNCH_PLATFORMS)[number]
 
 export const DEFAULT_LAUNCH_PLATFORM: LaunchPlatform = 'pumpfun'
@@ -32,7 +33,10 @@ export function parseLaunchPlatform(raw?: string | null): LaunchPlatform {
   if (v === 'zora' || v === 'zora-coins' || v === 'zoracoins') return 'zora'
   if (v === 'clanker' || v === 'clanker.world') return 'clanker'
   if (v === 'vibevibe' || v === 'vibe' || v === 'vibe-vibe' || v === 'vibevibe.fun') return 'vibevibe'
-  throw new Error(`Unknown launch platform "${raw}". Use pumpfun (default), bags, zora, clanker, or vibevibe.`)
+  if (v === 'sui' || v === 'memez' || v === 'memez.gg' || v === 'blast' || v === 'blast.fun') return 'sui'
+  throw new Error(
+    `Unknown launch platform "${raw}". Use pumpfun (default), bags, zora, clanker, vibevibe, or sui.`,
+  )
 }
 
 export function bagsApiKey(): string {
@@ -111,6 +115,62 @@ export function vibevibeEnabled(): boolean {
 
 export function vibevibeReady(): boolean {
   return vibevibeEnabled() && vibevibeTreasuryConfigured()
+}
+
+export function suiEnabled(): boolean {
+  const v = (process.env.SUI_ENABLED || '').trim().toLowerCase()
+  return v === '1' || v === 'true' || v === 'yes' || v === 'on'
+}
+
+export function suiTreasuryConfigured(): boolean {
+  const w = (process.env.SUI_TREASURY_ADDRESS || '').trim()
+  return isSuiAddress(w)
+}
+
+export function suiReady(): boolean {
+  return suiEnabled() && suiTreasuryConfigured()
+}
+
+export type SuiNetwork = 'testnet'
+
+/** Testnet-only for this rail — never defaults to mainnet. */
+export function suiNetwork(): SuiNetwork {
+  const raw = (process.env.SUI_NETWORK || 'testnet').trim().toLowerCase()
+  if (!raw || raw === 'testnet') return 'testnet'
+  if (raw === 'mainnet') {
+    throw new Error('Sui Memez launch rail is testnet-only — SUI_NETWORK=mainnet is not supported yet.')
+  }
+  throw new Error(`Unknown SUI_NETWORK "${raw}". Use testnet (default).`)
+}
+
+export function suiRpcUrl(): string {
+  const explicit = (process.env.SUI_RPC_URL || '').trim()
+  if (explicit) return explicit
+  return 'https://fullnode.testnet.sui.io:443'
+}
+
+export function memezCustomConfigActive(): boolean {
+  return Boolean((process.env.MEMEZ_CONFIG_KEY || '').trim())
+}
+
+export function getSuiTreasuryWallet(): string {
+  const w = (process.env.SUI_TREASURY_ADDRESS || '').trim()
+  if (!isSuiAddress(w)) {
+    throw new Error('Set SUI_TREASURY_ADDRESS (0x… Sui treasury in the Memez fee map).')
+  }
+  return assertSuiAddress(w, 'treasury')
+}
+
+export function assertSuiEnabled(): void {
+  if (!suiEnabled()) {
+    throw new Error(
+      'Sui Memez launches are disabled — set SUI_ENABLED=1 (Sui testnet / Memez.gg by default).',
+    )
+  }
+  suiNetwork()
+  if (!suiTreasuryConfigured()) {
+    throw new Error('Sui Memez launches need SUI_TREASURY_ADDRESS (0x… treasury in the fee map).')
+  }
 }
 
 export function assertVibevibeEnabled(): void {
@@ -219,6 +279,10 @@ export function isEvmLaunchPlatform(platform: LaunchPlatform): boolean {
   return platform === 'zora' || platform === 'clanker' || platform === 'vibevibe'
 }
 
+export function isSuiLaunchPlatform(platform: LaunchPlatform): boolean {
+  return platform === 'sui'
+}
+
 export function evmLaunchRpcUrl(platform: LaunchPlatform): string {
   if (platform === 'clanker') return clankerRpcUrl()
   if (platform === 'vibevibe') return vibevibeRpcUrl()
@@ -277,6 +341,9 @@ export function getEvmTreasuryWallet(): string {
 
 /** Treasury seat in the CrewPay fee map — platform-specific env fallbacks. */
 export function getTreasuryWalletForPlatform(platform: LaunchPlatform): string {
+  if (platform === 'sui') {
+    return getSuiTreasuryWallet()
+  }
   if (platform === 'vibevibe') {
     const w = (
       process.env.VIBEVIBE_TREASURY_ADDRESS ||
@@ -310,7 +377,9 @@ export function getSplitsFactory(): string {
 
 export function maxClaimersForPlatform(platform: LaunchPlatform): number {
   if (platform === 'bags') return BAGS_MAX_CLAIMERS
-  if (platform === 'zora' || platform === 'clanker' || platform === 'vibevibe') return 100
+  if (platform === 'zora' || platform === 'clanker' || platform === 'vibevibe' || platform === 'sui') {
+    return 100
+  }
   return PUMP_MAX_SHAREHOLDERS
 }
 
@@ -319,6 +388,7 @@ export function assertPlatformReady(platform: LaunchPlatform): void {
   if (platform === 'zora') assertZoraEnabled()
   if (platform === 'clanker') assertClankerEnabled()
   if (platform === 'vibevibe') assertVibevibeEnabled()
+  if (platform === 'sui') assertSuiEnabled()
 }
 
 export function platformDisplayName(platform: LaunchPlatform): string {
@@ -326,11 +396,18 @@ export function platformDisplayName(platform: LaunchPlatform): string {
   if (platform === 'zora') return 'Zora'
   if (platform === 'clanker') return 'Clanker'
   if (platform === 'vibevibe') return 'vibe/vibe'
+  if (platform === 'sui') return 'Memez.gg'
   return 'Pump.fun'
 }
 
 export type LaunchVenueStatus = 'live' | 'testnet' | 'disabled'
-export type LaunchChain = 'solana' | 'base' | 'base-sepolia' | 'robinhood-testnet' | 'robinhood'
+export type LaunchChain =
+  | 'solana'
+  | 'base'
+  | 'base-sepolia'
+  | 'robinhood-testnet'
+  | 'robinhood'
+  | 'sui-testnet'
 
 /** Public discovery row — no secrets. UI reads this instead of hardcoding venues. */
 export type LaunchVenue = {
@@ -344,7 +421,7 @@ export type LaunchVenue = {
   /** Hint only — does not change \`platforms.default\` (still pumpfun). */
   recommended?: boolean
   tradeHost: string
-  explorer: 'solscan' | 'basescan' | 'robinhood'
+  explorer: 'solscan' | 'basescan' | 'robinhood' | 'suiscan'
   note: string
 }
 
@@ -355,6 +432,8 @@ export function zoraCaption(enabled: boolean, chain: LaunchChain): string {
 
 export function listLaunchVenues(): LaunchVenue[] {
   const bagsOn = Boolean(bagsApiKey())
+  const suiFlag = suiEnabled()
+  const suiOn = suiReady()
   const zoraOn = zoraReady()
   let zoraNet: ZoraNetwork = 'base-sepolia'
   try {
@@ -464,6 +543,23 @@ export function listLaunchVenues(): LaunchVenue[] {
           ? 'VIBEVIBE_ENABLED is on but treasury address is missing (VIBEVIBE_TREASURY_ADDRESS or CLANKER_TREASURY_ADDRESS).'
           : 'Off unless VIBEVIBE_ENABLED=1 and a 0x treasury are set. Robinhood Chain testnet default.',
     },
+    ...(suiFlag
+      ? [
+          {
+            id: 'sui' as const,
+            name: 'Memez.gg',
+            chain: 'sui-testnet' as LaunchChain,
+            enabled: suiOn,
+            status: (suiOn ? 'testnet' : 'disabled') as LaunchVenueStatus,
+            caption: 'Sui testnet',
+            tradeHost: 'testnet.blast.fun',
+            explorer: 'suiscan' as const,
+            note: suiOn
+              ? 'Memez.gg / Blast.fun pump launches on Sui testnet. Two unsigned steps: publish coin, then create pool. Set MEMEZ_CONFIG_KEY when Interest Protocol registers CrewPay integrator fees.'
+              : 'SUI_ENABLED is on but SUI_TREASURY_ADDRESS is missing (0x… treasury in the fee map).',
+          },
+        ]
+      : []),
   ]
 }
 
@@ -565,6 +661,7 @@ export function inferLaunchPlatformFromCoin(opts: {
   if (url.includes('zora.co') || url.includes('zora.energy')) return 'zora'
   if (url.includes('clanker.world') || url.includes('#clanker')) return 'clanker'
   if (url.includes('vibevibe.fun')) return 'vibevibe'
+  if (url.includes('blast.fun') || url.includes('memez.gg')) return 'sui'
   const mint = (opts.mint || '').trim()
   if (isEvmAddress(mint)) return 'zora'
   return 'pumpfun'
@@ -575,10 +672,20 @@ export function tradeUrlForPlatform(platform: LaunchPlatform, mint: string): str
   if (platform === 'zora') return zoraCoinUrl(mint)
   if (platform === 'clanker') return clankerCoinUrl(mint)
   if (platform === 'vibevibe') return vibevibeCoinUrl(mint)
+  if (platform === 'sui') return suiCoinUrl(mint)
   return `https://pump.fun/coin/${mint}`
 }
 
+export function suiCoinUrl(objectOrCoin: string): string {
+  const id = (objectOrCoin || '').trim()
+  if (!id) return 'https://testnet.blast.fun'
+  return `https://testnet.blast.fun/coin/${id}`
+}
+
 export function explorerTokenUrl(platform: LaunchPlatform, mint: string): string {
+  if (platform === 'sui') {
+    return `https://suiscan.xyz/testnet/object/${assertSuiAddress(mint, 'mint')}`
+  }
   if (platform === 'vibevibe') {
     const base = vibevibeExplorerBase()
     return `${base}/token/${assertEvmAddress(mint)}`
@@ -598,6 +705,9 @@ export function explorerTokenUrl(platform: LaunchPlatform, mint: string): string
 }
 
 export function explorerTxUrl(platform: LaunchPlatform, signature: string): string {
+  if (platform === 'sui') {
+    return `https://suiscan.xyz/testnet/tx/${signature}`
+  }
   if (platform === 'vibevibe') {
     return `${vibevibeExplorerBase()}/tx/${signature}`
   }
@@ -624,6 +734,7 @@ const TRADE_HOSTS: Record<LaunchPlatform, string[]> = {
   zora: ['zora.co', 'www.zora.co'],
   clanker: ['clanker.world', 'www.clanker.world'],
   vibevibe: ['testnet.vibevibe.fun', 'vibevibe.fun', 'www.vibevibe.fun'],
+  sui: ['blast.fun', 'www.blast.fun', 'testnet.blast.fun', 'memez.gg', 'www.memez.gg'],
 }
 
 export function isAllowedTradeHost(hostname: string, platform?: LaunchPlatform): boolean {

@@ -8,6 +8,7 @@ import { PublicKey } from '@solana/web3.js'
 import { randomBytes } from 'node:crypto'
 import { AGENT_REFERRAL_BPS, REFERRAL_CLAIM_DAILY_CAP } from './agent/constants.js'
 import { assertEvmAddress, isEvmAddress } from './agent/evm-address.js'
+import { assertSuiAddress, isSuiAddress } from './agent/sui-address.js'
 import { normalizeShareholderRole, type AddressChain } from './agent/shareholders.js'
 import { query } from './db.js'
 import { normalizeReferralCode, siteUrl } from './kol-register.js'
@@ -30,6 +31,10 @@ export function referrerPayoutWallet(
   if (chain === 'evm') {
     const w = (referrer.evmWallet || '').trim()
     return isEvmAddress(w) ? assertEvmAddress(w) : null
+  }
+  if (chain === 'sui') {
+    const w = (referrer.evmWallet || referrer.wallet || '').trim()
+    return isSuiAddress(w) ? assertSuiAddress(w) : null
   }
   try {
     return new PublicKey(referrer.wallet.trim()).toBase58()
