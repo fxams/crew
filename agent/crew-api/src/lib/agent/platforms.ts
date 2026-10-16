@@ -302,13 +302,14 @@ export function listLaunchVenues(): LaunchVenue[] {
           ? 'live'
           : 'testnet'
         : 'disabled',
-      caption: zoraCaption(clankerReady(), (() => {
-        try {
-          return clankerNetwork()
-        } catch {
-          return 'base-sepolia' as LaunchChain
-        }
-      })()),
+      caption:
+        (() => {
+          try {
+            return clankerNetwork() === 'base' ? 'Base' : 'Base Sepolia (testnet)'
+          } catch {
+            return 'Base Sepolia (testnet)'
+          }
+        })(),
       tradeHost: 'clanker.world',
       explorer: 'basescan',
       note: clankerReady()

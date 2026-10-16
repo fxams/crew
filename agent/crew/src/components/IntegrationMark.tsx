@@ -1,6 +1,6 @@
 type Kind = 'x402' | 'acp'
 
-/** Compact SVG marks that sit in the same circle as Pump / Bags / Zora letters. */
+/** Compact SVG marks that sit in the same circle as Pump / Bags / Zora / Clanker letters. */
 export function IntegrationMark({ kind }: { kind: Kind }) {
   if (kind === 'acp') {
     return (

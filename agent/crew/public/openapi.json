@@ -462,7 +462,8 @@
                     "enum": [
                       "pumpfun",
                       "bags",
-                      "zora"
+                      "zora",
+                      "clanker"
                     ],
                     "default": "pumpfun"
                   }
@@ -1496,7 +1497,8 @@
             "enum": [
               "pumpfun",
               "bags",
-              "zora"
+              "zora",
+              "clanker"
             ]
           },
           "name": {
@@ -1782,7 +1784,8 @@
             "enum": [
               "pumpfun",
               "bags",
-              "zora"
+              "zora",
+              "clanker"
             ],
             "default": "pumpfun",
             "description": "Launch venue. pumpfun (default) = Pump.fun Solana. bags = Bags.fm Solana (BAGS_API_KEY). zora = Zora coins on Base (ZORA_ENABLED). Existing clients omit this."

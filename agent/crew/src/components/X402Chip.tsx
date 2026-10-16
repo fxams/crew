@@ -1,4 +1,4 @@
-import { X402_HREF, x402PayLabel, type X402Info } from '../lib/x402'
+import { X402_HREF, formatX402Networks, x402PayLabel, type X402Info } from '../lib/x402'
 import { IntegrationMark } from './IntegrationMark'
 
 type Props = {
@@ -21,7 +21,12 @@ export function X402Chip({ x402, compact }: Props) {
       <span className="plat-mark" aria-hidden>
         <IntegrationMark kind="x402" />
       </span>
-      {compact ? null : <span className="plat-name">x402</span>}
+      {compact ? null : (
+        <>
+          <span className="plat-name">x402</span>
+          <span className="plat-caption plat-x402-net">{formatX402Networks(x402.networks)}</span>
+        </>
+      )}
     </a>
   )
 }

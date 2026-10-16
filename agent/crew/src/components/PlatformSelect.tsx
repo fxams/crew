@@ -14,7 +14,11 @@ export function PlatformSelect({ venues, value, onChange, hint }: Props) {
   return (
     <div className="field">
       <label>Launch on</label>
-      <div className="mode-grid mode-grid-3 plat-select" role="radiogroup" aria-label="Launch platform">
+      <div
+        className={`mode-grid ${venues.length >= 4 ? 'mode-grid-4' : 'mode-grid-3'} plat-select`}
+        role="radiogroup"
+        aria-label="Launch platform"
+      >
         {venues.map((venue) => {
           const disabled = !venue.enabled
           const active = value === venue.id

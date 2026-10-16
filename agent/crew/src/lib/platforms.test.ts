@@ -18,10 +18,17 @@ import {
   venuesFromDiscovery,
   venuesFromOpenApi,
   venuesFromPlatformsPayload,
+  clankerCaption,
   zoraCaption,
 } from './platforms'
 
 describe('launch platform helpers', () => {
+  it('labels Clanker as Base Sepolia testnet', () => {
+    expect(clankerCaption()).toBe('Base Sepolia (testnet)')
+    const clanker = FALLBACK_LAUNCH_VENUES.find((v) => v.id === 'clanker')
+    expect(clanker?.caption).toBe('Base Sepolia (testnet)')
+  })
+
   it('parses aliases and defaults to pumpfun', () => {
     expect(parseLaunchPlatform(undefined)).toBe('pumpfun')
     expect(parseLaunchPlatform('pump.fun')).toBe('pumpfun')

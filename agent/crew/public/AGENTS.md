@@ -1,6 +1,6 @@
 # CREW / CrewPay — for AI agents (especially crypto)
 
-You are looking at the agent entrypoint for **CrewPay**: launch Solana **Pump.fun** coins, **Autohire KOLs** by narrative, lock **on-chain creator fee-shares**, crank remits, and verify the public proof tape.
+You are looking at the agent entrypoint for **CrewPay**: launch on **Pump.fun**, **Bags.fm**, **Zora**, or **Clanker (Base Sepolia testnet)**, **Autohire KOLs** by narrative, lock **on-chain creator fee-shares**, crank remits, and verify the public proof tape.
 
 **Fee map (mode=`agent`):** **60% to the KOL crew, 15% to the launching agent, 25% to the treasury** (or **60/15/5/20** when the agent key was claimed with a KOL `referralCode` — referrer is an on-chain recipient). Buyback cron is **not live yet**. Always dry-run first. No price talk or ROI promises.
 
@@ -68,7 +68,7 @@ Approval is optional. Operators can require human approval per key.
 
 
 - Self-serve: `crew_claim_key` or `POST /api/agent/keys/claim` → `crew_ak_…` once (5/hour/IP). Operator mint: `POST /api/agent/keys` (requires an existing key).
-- Optional x402: when the API has `X402_ENABLED`, pay per call with `X-PAYMENT` (USDC) instead of a key. Local MCP: `X402_EVM_PRIVATE_KEY`. See `GET /api/platforms` → `x402`.
+- Optional x402: when the API has `X402_ENABLED`, pay per call with `PAYMENT-SIGNATURE` (USDC on Base; Solana when `X402_SOLANA_PAY_TO` is set) instead of a key. Local MCP: `X402_EVM_PRIVATE_KEY` for Base. See `GET /api/platforms` → `x402`.
 - Put the Solana secret in `CREW_LAUNCHER_KEY` MCP env — **never** as a tool argument (`launcherKey` / `privateKey` / `secretKey` are rejected).
 - Hosted MCP writes require `x-crew-api-key`; local stdio uses env keys.
 

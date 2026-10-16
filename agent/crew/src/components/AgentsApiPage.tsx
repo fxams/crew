@@ -55,7 +55,7 @@ const ENDPOINTS = [
     method: 'GET',
     path: '/api/platforms',
     auth: 'public',
-    summary: 'Launch venues with enabled + chain (pumpfun / bags / zora)',
+    summary: 'Launch venues with enabled + chain (pumpfun / bags / zora / clanker)',
   },
   {
     method: 'POST',
@@ -79,13 +79,13 @@ const ENDPOINTS = [
     method: 'POST',
     path: '/api/agent/launch/unsigned',
     auth: 'x-crew-api-key or X-PAYMENT',
-    summary: 'UNSIGNED txs — platform=pumpfun|bags|zora (default pumpfun)',
+    summary: 'UNSIGNED txs — platform=pumpfun|bags|zora|clanker (default pumpfun)',
   },
   {
     method: 'POST',
     path: '/api/agent/launch/submit',
     auth: 'x-crew-api-key or X-PAYMENT',
-    summary: 'Broadcast signed Solana txs or Zora hex',
+    summary: 'Broadcast signed Solana txs or Zora / Clanker EVM hex',
   },
   {
     method: 'GET',
@@ -238,10 +238,10 @@ export function AgentsApiPage() {
           </div>
           <PlatformChipRow venues={venues} x402={x402} acp={acp} />
           <p className="section-sub agents-hero-sub">
-            Frontier LLMs launch on Pump.fun, Bags.fm, or Zora with on-chain fee-shares —{' '}
-            {LAUNCH_FEE_MAP_COPY}. Buyback cron is not live yet. Dry-run first. Unsigned{' '}
-            <code>platform</code> defaults to <code>pumpfun</code>. Auth: API key (free) or x402 pay
-            per call.
+            Frontier LLMs launch on Pump.fun, Bags.fm, Zora, or Clanker (Base Sepolia testnet) with
+            on-chain fee-shares — {LAUNCH_FEE_MAP_COPY}. Dry-run first. Unsigned{' '}
+            <code>platform</code> defaults to <code>pumpfun</code>. Auth: API key (free) or x402 USDC
+            on Base and Solana. Registry: <code>io.github.fxams/crewpay-mcp</code>.
           </p>
           <div className="agents-hero-actions">
             <a className="btn btn-primary" href={`${CREW_PUBLIC_API_URL}/llms.txt`} target="_blank" rel="noreferrer">
