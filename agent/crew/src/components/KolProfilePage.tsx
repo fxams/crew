@@ -15,7 +15,14 @@ import { formatSol } from '../lib/format-sol'
 import { useOwnRegisteredHandle } from '../lib/registered-kol'
 import { kolHandleFromPath, referralInvitePath } from '../lib/routes'
 import { PrivyPayoutWallet } from './PrivyPayoutWallet'
-import { ADD_WALLET_TO_RECEIVE, NO_CRYPTO_NEEDED } from '../lib/kol-onboarding'
+import {
+  ADD_BASE_WALLET_BANNER,
+  ADD_WALLET_TO_RECEIVE,
+  BASE_WALLET_REGISTER_HINT,
+  NO_CRYPTO_NEEDED,
+} from '../lib/kol-onboarding'
+import { evmAddressFieldError, isEvmAddress } from '../lib/evm-address'
+import { registerKolEvmWallet } from '../lib/kol-evm-wallet'
 import { isPayoutWallet } from '../lib/payout-wallet'
 import { resolvePrivyAppId } from '../lib/privy-app'
 import { useConnectModal } from './ConnectModal'
@@ -231,6 +238,8 @@ export function KolProfilePage() {
 
   const connected = wallet.publicKey?.toBase58() || ''
   const hasPayoutWallet = isPayoutWallet(desk?.profile.wallet)
+  const hasBaseWallet = isEvmAddress(desk?.profile.evmWallet)
+  const evmFieldError = evmAddressFieldError(evmInput)
   const isWalletOwner = Boolean(desk && connected && hasPayoutWallet && desk.profile.wallet === connected)
   const isOwner = Boolean(desk && (isWalletOwner || viewingOwnDesk))
 
@@ -350,41 +359,45 @@ export function KolProfilePage() {
 
 
   async function saveEvmWallet() {
-    if (!wallet.publicKey || !wallet.signMessage || !desk) return
+    if (!desk) return
+    const evm = evmInput.trim()
+    const fieldErr = evm ? evmAddressFieldError(evm) : null
+    if (fieldErr) {
+      setEvmMsg(fieldErr)
+      return
+    }
+    if (!evm) {
+      setEvmMsg('Enter a Base wallet (0x…) or keep your saved address.')
+      return
+    }
+    if (!wallet.publicKey || !wallet.signMessage) {
+      openConnect({ preferred: 'solana' })
+      setEvmMsg('Connect the Solana wallet on your desk to link Base payouts.')
+      return
+    }
     setEvmBusy(true)
     setEvmMsg(null)
     try {
-      const ts = Date.now()
-      const w = wallet.publicKey.toBase58()
-      const evm = evmInput.trim()
-      const message = `crew-kol-evm:${w}:${evm}:${ts}`
-      const sig = await wallet.signMessage(new TextEncoder().encode(message))
-      const res = await fetch(`${API}/api/kols/register/evm`, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-crew-wallet': w,
-          'x-crew-timestamp': String(ts),
-          'x-crew-signature': bs58.encode(sig),
-        },
-        body: JSON.stringify({ evmWallet: evm }),
+      const profile = await registerKolEvmWallet({
+        apiBase: API,
+        solanaWallet: wallet.publicKey.toBase58(),
+        signMessage: wallet.signMessage,
+        evmWallet: evm,
       })
-      const body = (await res.json()) as Desk & { error?: string }
-      if (!res.ok) throw new Error(body.error || 'Could not save EVM wallet.')
       setDesk((prev) =>
         prev
           ? {
               ...prev,
               profile: {
                 ...prev.profile,
-                evmWallet: body.profile?.evmWallet ?? (evm || null),
+                evmWallet: profile.evmWallet ?? evm,
               },
             }
           : prev,
       )
-      setEvmMsg(evm ? 'Saved. Needed for Zora / Base payouts.' : 'Cleared EVM wallet.')
+      setEvmMsg('Base wallet saved.')
     } catch (err) {
-      setEvmMsg(err instanceof Error ? err.message : 'Could not save EVM wallet.')
+      setEvmMsg(err instanceof Error ? err.message : 'Could not save Base wallet.')
     } finally {
       setEvmBusy(false)
     }
@@ -572,6 +585,28 @@ export function KolProfilePage() {
                     ? desk.profile.telegramUsername
                     : desk.profile.xUsername}
                 </a>
+                <div className="desk-chain-eligibility" data-testid="desk-chain-eligibility">
+                  <span
+                    className={`desk-chain-chip${hasPayoutWallet ? ' is-on' : ' is-off'}`}
+                    title={
+                      hasPayoutWallet
+                        ? 'Eligible for Pump.fun and Bags.fm crews'
+                        : 'Add a Solana payout wallet for Pump.fun and Bags.fm'
+                    }
+                  >
+                    Solana
+                  </span>
+                  <span
+                    className={`desk-chain-chip${hasBaseWallet ? ' is-on' : ' is-off'}`}
+                    title={
+                      hasBaseWallet
+                        ? 'Eligible for Clanker and Zora crews on Base'
+                        : 'Add a Base (0x) wallet for Clanker and Zora crews'
+                    }
+                  >
+                    Base
+                  </span>
+                </div>
                 <div className="desk-wallet-row">
                   {hasPayoutWallet ? (
                     <>
@@ -591,14 +626,14 @@ export function KolProfilePage() {
                   ) : (
                     <p className="desk-wallet-missing">{ADD_WALLET_TO_RECEIVE}</p>
                   )}
-                  {desk.profile.evmWallet ? (
+                  {hasBaseWallet && desk.profile.evmWallet ? (
                     <a
                       className="btn btn-ghost btn-sm"
                       href={`https://basescan.org/address/${desk.profile.evmWallet}`}
                       target="_blank"
                       rel="noreferrer"
                     >
-                      Base
+                      Base · {shortAddr(desk.profile.evmWallet)}
                     </a>
                   ) : null}
                   {desk.profile.telegramOnly ? (
@@ -625,9 +660,6 @@ export function KolProfilePage() {
                     </a>
                   )}
                 </div>
-                {!(isOwner || viewingOwnDesk) && desk.profile.evmWallet ? (
-                  <p className="desk-evm-hint">Base · {shortAddr(desk.profile.evmWallet)}</p>
-                ) : null}
               </div>
               <div className="desk-rank" aria-label="Follower rank">
                 <span>Rank</span>
@@ -695,31 +727,56 @@ export function KolProfilePage() {
                 />
               ) : null}
               {isOwner || viewingOwnDesk ? (
-                <div className="desk-evm-row">
+                <div
+                  className={`desk-base-card${hasBaseWallet ? '' : ' desk-base-card-missing'}`}
+                  data-testid="desk-base-wallet"
+                >
+                  {!hasBaseWallet ? (
+                    <p className="desk-wallet-banner desk-base-banner">{ADD_BASE_WALLET_BANNER}</p>
+                  ) : (
+                    <p className="desk-pnl-sub">
+                      Base payout ·{' '}
+                      <a
+                        href={`https://basescan.org/address/${desk.profile.evmWallet}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {shortAddr(desk.profile.evmWallet!)}
+                      </a>
+                    </p>
+                  )}
                   <label className="register-ref register-evm">
-                    <span>EVM wallet (optional)</span>
+                    <span>{hasBaseWallet ? 'Update Base wallet (0x…)' : 'Base wallet (0x…)'}</span>
                     <input
                       type="text"
                       value={evmInput}
                       onChange={(e) => setEvmInput(e.target.value)}
-                      placeholder="0x… Base address"
+                      placeholder="0x…"
                       autoComplete="off"
                       spellCheck={false}
                       maxLength={42}
+                      inputMode="text"
+                      aria-invalid={evmFieldError ? true : undefined}
                     />
-                    <em className="desk-evm-hint">
-                      Needed to be paid on Zora / Base launches. Pump.fun and Bags.fm still use
-                      Solana.
-                    </em>
+                    <em className="desk-evm-hint">{BASE_WALLET_REGISTER_HINT}</em>
+                    {evmFieldError ? (
+                      <p className="register-err register-evm-err">{evmFieldError}</p>
+                    ) : null}
                   </label>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    disabled={evmBusy || !wallet.signMessage}
-                    onClick={() => void saveEvmWallet()}
-                  >
-                    {evmBusy ? 'Signing…' : 'Save EVM wallet'}
-                  </button>
+                  <div className="register-actions">
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      disabled={evmBusy || Boolean(evmFieldError)}
+                      onClick={() => void saveEvmWallet()}
+                    >
+                      {evmBusy
+                        ? 'Signing…'
+                        : hasBaseWallet
+                          ? 'Save Base wallet'
+                          : 'Add Base wallet'}
+                    </button>
+                  </div>
                   {evmMsg ? <p className="hint">{evmMsg}</p> : null}
                 </div>
               ) : null}

@@ -12,6 +12,7 @@ export type PendingRegistration = {
   wallet: string
   startedAt: number
   sid?: string
+  evmWallet?: string
 }
 
 export function isRecoverableXOauthError(
@@ -58,10 +59,12 @@ export function humanizeRegisterError(error: string | null | undefined): string 
 }
 
 export function serializePendingRegistration(pending: PendingRegistration): string {
+  const evm = typeof pending.evmWallet === 'string' ? pending.evmWallet.trim() : ''
   return JSON.stringify({
     wallet: pending.wallet.trim(),
     startedAt: pending.startedAt,
     ...(pending.sid ? { sid: pending.sid } : {}),
+    ...(evm ? { evmWallet: evm } : {}),
   })
 }
 
@@ -83,7 +86,10 @@ export function parsePendingRegistration(
     if ((wallet && wallet.length < 32) || !Number.isFinite(startedAt)) return null
     if (now - startedAt > PENDING_REG_TTL_MS) return null
     const sid = normalizeSid(parsed.sid)
-    return sid ? { wallet, startedAt, sid } : { wallet, startedAt }
+    const evmWallet =
+      typeof parsed.evmWallet === 'string' && parsed.evmWallet.trim() ? parsed.evmWallet.trim() : undefined
+    const base = sid ? { wallet, startedAt, sid } : { wallet, startedAt }
+    return evmWallet ? { ...base, evmWallet } : base
   } catch {
     return null
   }
@@ -111,12 +117,17 @@ function defaultStores(): Storage[] {
 export function savePendingRegistration(
   wallet: string,
   startedAt = Date.now(),
-  opts?: { sid?: string; storage?: Pick<Storage, 'setItem'> | null },
+  opts?: { sid?: string; evmWallet?: string; storage?: Pick<Storage, 'setItem'> | null },
 ): PendingRegistration | null {
   const sid = normalizeSid(opts?.sid)
-  const pending: PendingRegistration = sid
-    ? { wallet: wallet.trim(), startedAt, sid }
-    : { wallet: wallet.trim(), startedAt }
+  const evmWallet =
+    typeof opts?.evmWallet === 'string' && opts.evmWallet.trim() ? opts.evmWallet.trim() : undefined
+  const pending: PendingRegistration = {
+    wallet: wallet.trim(),
+    startedAt,
+    ...(sid ? { sid } : {}),
+    ...(evmWallet ? { evmWallet } : {}),
+  }
   if (pending.wallet && pending.wallet.length < 32) return null
   const stores =
     opts && 'storage' in opts ? (opts.storage ? [opts.storage] : []) : defaultStores()

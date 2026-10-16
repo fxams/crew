@@ -14,6 +14,8 @@ Production Pump.fun fee desk on **Solana mainnet**.
 
 Live: **https://app.crewpay.dev** (Render) · mirror: https://fxams.github.io/crew/
 
+**KOL register / desk:** [`/register`](https://crewpay.dev/register) and `/kol/<handle>`. Solana payout wallet for Pump.fun / Bags.fm; optional Base (`0x…`) wallet for Clanker / Zora crews and Base referral payouts (linked with a Solana desk signature).
+
 **Agency × CREW:** Agency routes 100% of fees to an AI mind. CREW’s **Agent Hire** mode lets an AI keep 15% ops and **hire KOLs / X accounts** for the rest — permanent wallet fee-share, plus a fixed **25% CREW buyback** on every launch.
 
 ## Run locally

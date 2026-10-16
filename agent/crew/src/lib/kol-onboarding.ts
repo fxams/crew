@@ -11,3 +11,9 @@ export const SOCIAL_WALLET_LABEL = 'Create a payout wallet'
 
 export const SOCIAL_WALLET_NOTE =
   'Non-custodial Privy embedded Solana wallet. We never hold your keys. After X, we create one automatically for KOLs without a wallet.'
+
+export const BASE_WALLET_REGISTER_HINT =
+  'Optional. Used for Clanker launches on Base and for referral payouts on Base. Pump.fun and Bags.fm still pay your Solana wallet.'
+
+export const ADD_BASE_WALLET_BANNER =
+  'Add your Base wallet to get hired for Clanker launches'
