@@ -463,7 +463,9 @@
                       "pumpfun",
                       "bags",
                       "zora",
-                      "clanker"
+                      "clanker",
+              "vibevibe",
+                      "vibevibe"
                     ],
                     "default": "pumpfun"
                   }
@@ -1498,7 +1500,8 @@
               "pumpfun",
               "bags",
               "zora",
-              "clanker"
+              "clanker",
+              "vibevibe"
             ]
           },
           "name": {
@@ -1785,7 +1788,8 @@
               "pumpfun",
               "bags",
               "zora",
-              "clanker"
+              "clanker",
+              "vibevibe"
             ],
             "default": "pumpfun",
             "description": "Launch venue. pumpfun (default) = Pump.fun Solana. bags = Bags.fm Solana (BAGS_API_KEY). zora = Zora coins on Base (ZORA_ENABLED). Existing clients omit this."

@@ -55,7 +55,7 @@ const ENDPOINTS = [
     method: 'GET',
     path: '/api/platforms',
     auth: 'public',
-    summary: 'Launch venues with enabled + chain (pumpfun / bags / zora / clanker)',
+    summary: 'Launch venues with enabled + chain (pumpfun / bags / zora / clanker / vibevibe)',
   },
   {
     method: 'POST',
@@ -79,7 +79,7 @@ const ENDPOINTS = [
     method: 'POST',
     path: '/api/agent/launch/unsigned',
     auth: 'x-crew-api-key or X-PAYMENT',
-    summary: 'UNSIGNED txs — platform=pumpfun|bags|zora|clanker (default pumpfun)',
+    summary: 'UNSIGNED txs — platform=pumpfun|bags|zora|clanker|vibevibe (default pumpfun)',
   },
   {
     method: 'POST',

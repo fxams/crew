@@ -351,7 +351,7 @@ export function agentDiscoveryJson() {
       'POST /api/webhooks': 'Register agent webhook (auth)',
       'POST /api/agent/launch/unsigned': {
         auth: 'x-crew-api-key or X-PAYMENT (x402, when enabled)',
-        body: 'Same crew/image fields as launch + launcherPubkey + optional platform=pumpfun|bags|zora|clanker (default pumpfun), treasuryBps, optInOnly',
+        body: 'Same crew/image fields as launch + launcherPubkey + optional platform=pumpfun|bags|zora|clanker|vibevibe (default pumpfun), treasuryBps, optInOnly',
         returns:
           'UNSIGNED steps (Pump v0 messages; Bags partially-signed Solana txs; Zora EIP-1559 split + create). No secrets.',
       },
@@ -689,7 +689,7 @@ export function openApiSpec() {
                   required: ['signed'],
                   properties: {
                     signed: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 8 },
-                    platform: { type: 'string', enum: ['pumpfun', 'bags', 'zora', 'clanker'], default: 'pumpfun' },
+                    platform: { type: 'string', enum: ['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe'], default: 'pumpfun' },
                   },
                 },
               },
@@ -1199,9 +1199,12 @@ export function openApiSpec() {
           type: 'object',
           required: ['id', 'name', 'chain', 'enabled', 'status'],
           properties: {
-            id: { type: 'string', enum: ['pumpfun', 'bags', 'zora', 'clanker'] },
+            id: { type: 'string', enum: ['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe'] },
             name: { type: 'string' },
-            chain: { type: 'string', enum: ['solana', 'base', 'base-sepolia'] },
+            chain: {
+              type: 'string',
+              enum: ['solana', 'base', 'base-sepolia', 'robinhood-testnet', 'robinhood'],
+            },
             enabled: { type: 'boolean' },
             status: { type: 'string', enum: ['live', 'testnet', 'disabled'] },
             caption: {
@@ -1329,7 +1332,7 @@ export function openApiSpec() {
             },
             platform: {
               type: 'string',
-              enum: ['pumpfun', 'bags', 'zora', 'clanker'],
+              enum: ['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe'],
               default: 'pumpfun',
               description:
                 'Launch venue. pumpfun (default) = Pump.fun Solana. bags = Bags.fm Solana (BAGS_API_KEY). zora = Zora coins on Base (ZORA_ENABLED). Existing clients omit this.',
@@ -1613,6 +1616,7 @@ Canonical site is **https://crewpay.dev** (\`app.crewpay.dev\` has no DNS).
 - \`bags\` — Bags.fm is **recommended** when \`BAGS_API_KEY\` is set. Still opt-in — do not switch the API default off pumpfun. Hired KOL crew + launching agent + treasury are fee claimers (60/15/rest; 5% referrer when bound). Bags caps claimers at 100; crews above 7 claimers attach the Bags public LUT.
 - \`zora\` — Zora content coins on Base. Off unless \`ZORA_ENABLED\` is set. Creator rewards (0.50%) go to a 0xSplits contract (60% to the KOL crew, 15% to the launching agent, 25% to the treasury). The separate 0.20% platform referral is paid to \`ZORA_PLATFORM_REFERRER\` (defaults to the treasury 0x address today — it does **not** flow through 0xSplits). Routing it into the 60/15/25 split would mean passing the predicted split as \`platformReferrer\` at create; CrewPay does **not** change on-chain addresses. Base Sepolia by default; \`ZORA_CHAIN=base\` for mainnet. Returns unsigned EIP-1559 txs (split, then create).
 - \`clanker\` — Clanker v4 on Base Sepolia (testnet) by default. Off unless \`CLANKER_ENABLED=1\` and a 0x treasury are set. CrewPay maps 60/15/25 (or 60/15/5/20 with referral) to Clanker \`rewardBps\` at launch (unsigned EIP-1559 deploy). Clanker’s separate protocol swap fee is **not** in the CrewPay map — see docs/integrations/clanker.md.
+- \`vibevibe\` — vibe/vibe bonding-curve launches on Robinhood Chain testnet by default (\`VIBEVIBE_CHAIN=robinhood-testnet\`). Off unless \`VIBEVIBE_ENABLED=1\` and \`VIBEVIBE_TREASURY_ADDRESS\` or \`CLANKER_TREASURY_ADDRESS\`. Unsigned factory create (selector \`0x24e615b3\`) with a **single** \`creatorFeeRecipient\` — CrewPay 60/15/25 is planning/dry-run unless \`VIBEVIBE_FEE_SPLITTER_ADDRESS\` is set. See docs/integrations/vibevibe.md.
 - Same KOL order on every platform: explicit \`crew[]\` first, Autohire second. \`optInOnly\` optional and off by default.
 - Sign locally, then \`POST /api/agent/launch/submit\` / \`crew_submit_signed\` (pass the same \`platform\`).
 

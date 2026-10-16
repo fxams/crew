@@ -2,7 +2,7 @@ import { assertEvmAddress, isEvmAddress } from './evm-address.js'
 import { PUMP_MAX_SHAREHOLDERS } from './constants.js'
 import { x402PublicDiscovery } from '../x402.js'
 
-export const LAUNCH_PLATFORMS = ['pumpfun', 'bags', 'zora', 'clanker'] as const
+export const LAUNCH_PLATFORMS = ['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe'] as const
 export type LaunchPlatform = (typeof LAUNCH_PLATFORMS)[number]
 
 export const DEFAULT_LAUNCH_PLATFORM: LaunchPlatform = 'pumpfun'
@@ -31,7 +31,8 @@ export function parseLaunchPlatform(raw?: string | null): LaunchPlatform {
   if (v === 'bags' || v === 'bags.fm' || v === 'bagsfm') return 'bags'
   if (v === 'zora' || v === 'zora-coins' || v === 'zoracoins') return 'zora'
   if (v === 'clanker' || v === 'clanker.world') return 'clanker'
-  throw new Error(`Unknown launch platform "${raw}". Use pumpfun (default), bags, zora, or clanker.`)
+  if (v === 'vibevibe' || v === 'vibe' || v === 'vibe-vibe' || v === 'vibevibe.fun') return 'vibevibe'
+  throw new Error(`Unknown launch platform "${raw}". Use pumpfun (default), bags, zora, clanker, or vibevibe.`)
 }
 
 export function bagsApiKey(): string {
@@ -78,6 +79,17 @@ export function clankerTreasuryConfigured(): boolean {
   return isEvmAddress(w)
 }
 
+export function vibevibeTreasuryConfigured(): boolean {
+  const w = (
+    process.env.VIBEVIBE_TREASURY_ADDRESS ||
+    process.env.CLANKER_TREASURY_ADDRESS ||
+    process.env.ZORA_TREASURY_ADDRESS ||
+    process.env.CREW_BUYBACK_WALLET_EVM ||
+    ''
+  ).trim()
+  return isEvmAddress(w)
+}
+
 /** Live for discovery/UI: flag on and a 0x treasury address configured. */
 export function zoraReady(): boolean {
   return zoraEnabled() && evmTreasuryConfigured()
@@ -90,6 +102,28 @@ export function clankerEnabled(): boolean {
 
 export function clankerReady(): boolean {
   return clankerEnabled() && clankerTreasuryConfigured()
+}
+
+export function vibevibeEnabled(): boolean {
+  const v = (process.env.VIBEVIBE_ENABLED || '').trim().toLowerCase()
+  return v === '1' || v === 'true' || v === 'yes' || v === 'on'
+}
+
+export function vibevibeReady(): boolean {
+  return vibevibeEnabled() && vibevibeTreasuryConfigured()
+}
+
+export function assertVibevibeEnabled(): void {
+  if (!vibevibeEnabled()) {
+    throw new Error(
+      'vibe/vibe launches are disabled — set VIBEVIBE_ENABLED=1 (Robinhood Chain testnet by default).',
+    )
+  }
+  if (!vibevibeTreasuryConfigured()) {
+    throw new Error(
+      'vibe/vibe launches need VIBEVIBE_TREASURY_ADDRESS or CLANKER_TREASURY_ADDRESS (0x… treasury in the fee map).',
+    )
+  }
 }
 
 export function assertClankerEnabled(): void {
@@ -138,12 +172,56 @@ export function clankerCoinUrl(address: string, network: ClankerNetwork = clanke
   return `https://sepolia.basescan.org/token/${addr}#clanker`
 }
 
+export const VIBEVIBE_CHAIN_IDS = { 'robinhood-testnet': 46630, robinhood: 46630 } as const
+export type VibevibeNetwork = keyof typeof VIBEVIBE_CHAIN_IDS
+
+export function vibevibeNetwork(): VibevibeNetwork {
+  const raw = (process.env.VIBEVIBE_CHAIN || process.env.VIBEVIBE_NETWORK || '').trim().toLowerCase()
+  if (!raw || raw === 'robinhood-testnet' || raw === 'testnet' || raw === '46630') {
+    return 'robinhood-testnet'
+  }
+  if (raw === 'robinhood' || raw === 'mainnet') {
+    return 'robinhood'
+  }
+  throw new Error(`Unknown VIBEVIBE_CHAIN "${raw}". Use robinhood-testnet (default) or robinhood.`)
+}
+
+export function vibevibeChainId(): number {
+  return VIBEVIBE_CHAIN_IDS[vibevibeNetwork()]
+}
+
+export function vibevibeRpcUrl(): string {
+  const explicit = (process.env.VIBEVIBE_RPC_URL || '').trim()
+  if (explicit) return explicit
+  return 'https://rpc.testnet.chain.robinhood.com/rpc'
+}
+
+const VIBEVIBE_FACTORY_DEFAULT = '0xe794217880011f9cA6961340eD5c16EC9559Fea0'
+
+export function vibevibeFactoryAddress(): string {
+  const w = (process.env.VIBEVIBE_FACTORY_ADDRESS || VIBEVIBE_FACTORY_DEFAULT).trim()
+  return assertEvmAddress(w, 'factory')
+}
+
+export function vibevibeCoinUrl(address: string, network: VibevibeNetwork = vibevibeNetwork()): string {
+  const addr = assertEvmAddress(address)
+  if (network === 'robinhood') {
+    return `https://vibevibe.fun/token/${addr}`
+  }
+  return `https://testnet.vibevibe.fun/token/${addr}`
+}
+
+export function vibevibeExplorerBase(network: VibevibeNetwork = vibevibeNetwork()): string {
+  return 'https://explorer.testnet.chain.robinhood.com'
+}
+
 export function isEvmLaunchPlatform(platform: LaunchPlatform): boolean {
-  return platform === 'zora' || platform === 'clanker'
+  return platform === 'zora' || platform === 'clanker' || platform === 'vibevibe'
 }
 
 export function evmLaunchRpcUrl(platform: LaunchPlatform): string {
   if (platform === 'clanker') return clankerRpcUrl()
+  if (platform === 'vibevibe') return vibevibeRpcUrl()
   return zoraRpcUrl()
 }
 
@@ -197,6 +275,26 @@ export function getEvmTreasuryWallet(): string {
   return assertEvmAddress(w, 'treasury')
 }
 
+/** Treasury seat in the CrewPay fee map — platform-specific env fallbacks. */
+export function getTreasuryWalletForPlatform(platform: LaunchPlatform): string {
+  if (platform === 'vibevibe') {
+    const w = (
+      process.env.VIBEVIBE_TREASURY_ADDRESS ||
+      process.env.CLANKER_TREASURY_ADDRESS ||
+      process.env.ZORA_TREASURY_ADDRESS ||
+      process.env.CREW_BUYBACK_WALLET_EVM ||
+      ''
+    ).trim()
+    if (!isEvmAddress(w)) {
+      throw new Error(
+        'Set VIBEVIBE_TREASURY_ADDRESS or CLANKER_TREASURY_ADDRESS (0x… treasury in the vibe/vibe fee map).',
+      )
+    }
+    return assertEvmAddress(w, 'treasury')
+  }
+  return getEvmTreasuryWallet()
+}
+
 /** CrewPay as Zora platform referrer (20% of protocol trade fees — separate from creator split). */
 export function getZoraPlatformReferrer(): string {
   const w = (process.env.ZORA_PLATFORM_REFERRER || '').trim()
@@ -212,7 +310,7 @@ export function getSplitsFactory(): string {
 
 export function maxClaimersForPlatform(platform: LaunchPlatform): number {
   if (platform === 'bags') return BAGS_MAX_CLAIMERS
-  if (platform === 'zora' || platform === 'clanker') return 100
+  if (platform === 'zora' || platform === 'clanker' || platform === 'vibevibe') return 100
   return PUMP_MAX_SHAREHOLDERS
 }
 
@@ -220,17 +318,19 @@ export function assertPlatformReady(platform: LaunchPlatform): void {
   if (platform === 'bags') assertBagsEnabled()
   if (platform === 'zora') assertZoraEnabled()
   if (platform === 'clanker') assertClankerEnabled()
+  if (platform === 'vibevibe') assertVibevibeEnabled()
 }
 
 export function platformDisplayName(platform: LaunchPlatform): string {
   if (platform === 'bags') return 'Bags.fm'
   if (platform === 'zora') return 'Zora'
   if (platform === 'clanker') return 'Clanker'
+  if (platform === 'vibevibe') return 'vibe/vibe'
   return 'Pump.fun'
 }
 
 export type LaunchVenueStatus = 'live' | 'testnet' | 'disabled'
-export type LaunchChain = 'solana' | 'base' | 'base-sepolia'
+export type LaunchChain = 'solana' | 'base' | 'base-sepolia' | 'robinhood-testnet' | 'robinhood'
 
 /** Public discovery row — no secrets. UI reads this instead of hardcoding venues. */
 export type LaunchVenue = {
@@ -244,7 +344,7 @@ export type LaunchVenue = {
   /** Hint only — does not change \`platforms.default\` (still pumpfun). */
   recommended?: boolean
   tradeHost: string
-  explorer: 'solscan' | 'basescan'
+  explorer: 'solscan' | 'basescan' | 'robinhood'
   note: string
 }
 
@@ -332,6 +432,37 @@ export function listLaunchVenues(): LaunchVenue[] {
         : clankerEnabled()
           ? 'CLANKER_ENABLED is on but treasury address is missing (CLANKER_TREASURY_ADDRESS, ZORA_TREASURY_ADDRESS, or CREW_BUYBACK_WALLET_EVM).'
           : 'Off unless CLANKER_ENABLED=1 and a 0x treasury are set. Base Sepolia default for tests.',
+    },
+    {
+      id: 'vibevibe',
+      name: 'vibe/vibe',
+      chain: (() => {
+        try {
+          return vibevibeNetwork()
+        } catch {
+          return 'robinhood-testnet' as LaunchChain
+        }
+      })(),
+      enabled: vibevibeReady(),
+      status: vibevibeReady()
+        ? vibevibeNetwork() === 'robinhood'
+          ? 'live'
+          : 'testnet'
+        : 'disabled',
+      caption: (() => {
+        try {
+          return vibevibeNetwork() === 'robinhood' ? 'Robinhood Chain' : 'Robinhood Chain testnet'
+        } catch {
+          return 'Robinhood Chain testnet'
+        }
+      })(),
+      tradeHost: 'testnet.vibevibe.fun',
+      explorer: 'robinhood',
+      note: vibevibeReady()
+        ? `vibe/vibe bonding-curve launches on ${vibevibeNetwork() === 'robinhood' ? 'Robinhood Chain' : 'Robinhood Chain testnet'}. Crew wallets must be EVM (0x…). See docs/integrations/vibevibe.md for the on-chain fee gap.`
+        : vibevibeEnabled()
+          ? 'VIBEVIBE_ENABLED is on but treasury address is missing (VIBEVIBE_TREASURY_ADDRESS or CLANKER_TREASURY_ADDRESS).'
+          : 'Off unless VIBEVIBE_ENABLED=1 and a 0x treasury are set. Robinhood Chain testnet default.',
     },
   ]
 }
@@ -433,6 +564,7 @@ export function inferLaunchPlatformFromCoin(opts: {
   if (url.includes('bags.fm')) return 'bags'
   if (url.includes('zora.co') || url.includes('zora.energy')) return 'zora'
   if (url.includes('clanker.world') || url.includes('#clanker')) return 'clanker'
+  if (url.includes('vibevibe.fun')) return 'vibevibe'
   const mint = (opts.mint || '').trim()
   if (isEvmAddress(mint)) return 'zora'
   return 'pumpfun'
@@ -442,10 +574,15 @@ export function tradeUrlForPlatform(platform: LaunchPlatform, mint: string): str
   if (platform === 'bags') return BAGS_COIN_URL(mint)
   if (platform === 'zora') return zoraCoinUrl(mint)
   if (platform === 'clanker') return clankerCoinUrl(mint)
+  if (platform === 'vibevibe') return vibevibeCoinUrl(mint)
   return `https://pump.fun/coin/${mint}`
 }
 
 export function explorerTokenUrl(platform: LaunchPlatform, mint: string): string {
+  if (platform === 'vibevibe') {
+    const base = vibevibeExplorerBase()
+    return `${base}/token/${assertEvmAddress(mint)}`
+  }
   if (platform === 'zora' || platform === 'clanker') {
     const net = (() => {
       try {
@@ -461,6 +598,9 @@ export function explorerTokenUrl(platform: LaunchPlatform, mint: string): string
 }
 
 export function explorerTxUrl(platform: LaunchPlatform, signature: string): string {
+  if (platform === 'vibevibe') {
+    return `${vibevibeExplorerBase()}/tx/${signature}`
+  }
   if (platform === 'zora' || platform === 'clanker') {
     const net = (() => {
       try {
@@ -483,6 +623,7 @@ const TRADE_HOSTS: Record<LaunchPlatform, string[]> = {
   bags: ['bags.fm', 'www.bags.fm'],
   zora: ['zora.co', 'www.zora.co'],
   clanker: ['clanker.world', 'www.clanker.world'],
+  vibevibe: ['testnet.vibevibe.fun', 'vibevibe.fun', 'www.vibevibe.fun'],
 }
 
 export function isAllowedTradeHost(hostname: string, platform?: LaunchPlatform): boolean {

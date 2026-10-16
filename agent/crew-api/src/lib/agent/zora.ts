@@ -262,8 +262,10 @@ function eip1559Step(kind: UnsignedStep['kind'], tx: Eip1559Tx, signer: string, 
   }
 }
 
-export function evmLaunchPlatformLabel(platform: 'zora' | 'clanker'): string {
-  return platform === 'clanker' ? 'Clanker (Base)' : 'Zora (Base)'
+export function evmLaunchPlatformLabel(platform: 'zora' | 'clanker' | 'vibevibe'): string {
+  if (platform === 'clanker') return 'Clanker (Base)'
+  if (platform === 'vibevibe') return 'vibe/vibe (Robinhood Chain)'
+  return 'Zora (Base)'
 }
 
 /**
@@ -272,7 +274,7 @@ export function evmLaunchPlatformLabel(platform: 'zora' | 'clanker'): string {
  */
 export function resolveEvmLaunchCrewWallets(
   crew: CrewMember[],
-  platform: 'zora' | 'clanker',
+  platform: 'zora' | 'clanker' | 'vibevibe',
   opts?: { strict?: boolean },
 ): CrewMember[] {
   const strict = opts?.strict !== false
@@ -303,6 +305,10 @@ export function resolveZoraCrewWallets(crew: CrewMember[], opts?: { strict?: boo
 
 export function resolveClankerCrewWallets(crew: CrewMember[], opts?: { strict?: boolean }): CrewMember[] {
   return resolveEvmLaunchCrewWallets(crew, 'clanker', opts)
+}
+
+export function resolveVibevibeCrewWallets(crew: CrewMember[], opts?: { strict?: boolean }): CrewMember[] {
+  return resolveEvmLaunchCrewWallets(crew, 'vibevibe', opts)
 }
 
 export function applyRegisteredEvmWallets(

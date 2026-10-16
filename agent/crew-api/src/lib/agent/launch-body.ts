@@ -82,7 +82,7 @@ export function refineLaunchBody(
       if (!isEvmAddress(lp)) {
         ctx.addIssue({
           code: 'custom',
-          message: 'launcherPubkey must be a 0x EVM address when platform is zora or clanker.',
+          message: 'launcherPubkey must be a 0x EVM address when platform is zora, clanker, or vibevibe.',
           path: ['launcherPubkey'],
         })
       }
@@ -104,7 +104,7 @@ export function refineLaunchBody(
         if (!isEvmAddress(w)) {
           ctx.addIssue({
             code: 'custom',
-            message: 'Crew wallet must be a 0x EVM address when platform is zora or clanker.',
+            message: 'Crew wallet must be a 0x EVM address when platform is zora, clanker, or vibevibe.',
             path: ['crew', i, 'wallet'],
           })
         }
@@ -159,7 +159,7 @@ export const launchBodySchema = z
     atomicRequired: z.boolean().optional().default(false),
     launcherPubkey: z.string().min(20).max(64).optional(),
     dryRunId: z.string().min(16).max(64).optional(),
-    platform: z.enum(['pumpfun', 'bags', 'zora', 'clanker']).optional().default('pumpfun'),
+    platform: z.enum(['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe']).optional().default('pumpfun'),
   })
   .superRefine(refineLaunchBody)
 

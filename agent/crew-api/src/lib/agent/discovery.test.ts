@@ -164,6 +164,7 @@ describe('agent discovery docs', () => {
       'bags',
       'zora',
       'clanker',
+      'vibevibe',
     ])
     expect(agentDiscoveryJson().platforms.list).toContain('/api/platforms')
     expect(agentDiscoveryJson().endpoints['GET /api/platforms']).toBeTruthy()
@@ -172,6 +173,8 @@ describe('agent discovery docs', () => {
       'solana',
       'base',
       'base-sepolia',
+      'robinhood-testnet',
+      'robinhood',
     ])
     expect(agentDiscoveryJson().platforms.feeMap).toMatch(/60% to the KOL crew/)
     expect(agentDiscoveryJson().platforms.feeMap).toMatch(/25% to the treasury/)

@@ -46,14 +46,16 @@ import { allowSequentialFeeLock, atomicRetryableError } from './atomic-policy.js
 import { isEvmAddress, assertEvmAddress } from './evm-address.js'
 import {
   clankerNetwork,
-  getEvmTreasuryWallet,
+  getTreasuryWalletForPlatform,
   isEvmLaunchPlatform,
+  vibevibeNetwork,
   zoraNetwork,
   type LaunchPlatform,
 } from './platforms.js'
 import {
   applyRegisteredEvmWallets,
   resolveClankerCrewWallets,
+  resolveVibevibeCrewWallets,
   resolveZoraCrewWallets,
 } from './zora.js'
 import type { AddressChain } from './shareholders.js'
@@ -153,12 +155,16 @@ function mapCrewForEvmPlatform(
   const withEvm = applyRegisteredEvmWallets(crew, registered)
   if (platform === 'zora') return resolveZoraCrewWallets(withEvm, { strict })
   if (platform === 'clanker') return resolveClankerCrewWallets(withEvm, { strict })
+  if (platform === 'vibevibe') return resolveVibevibeCrewWallets(withEvm, { strict })
   return withEvm
 }
 
 function autohireNoCrewMessage(platform: LaunchPlatform): string {
   if (platform === 'clanker') {
     return 'Autohire found no Clanker crew with Base (0x) payout wallets — register evm_wallet on KOL profiles or pass explicit crew[].'
+  }
+  if (platform === 'vibevibe') {
+    return 'Autohire found no vibe/vibe crew with EVM (0x) payout wallets — register evm_wallet on KOL profiles or pass explicit crew[].'
   }
   if (platform === 'zora') {
     return 'Autohire found no Zora crew with Base (0x) payout wallets — register evm_wallet on KOL profiles or pass explicit crew[].'
@@ -243,7 +249,7 @@ export async function resolveCrew(
 export type AgentDryRunResult = {
   ok: true
   dryRun: true
-  cluster: 'mainnet-beta' | 'base' | 'base-sepolia'
+  cluster: 'mainnet-beta' | 'base' | 'base-sepolia' | 'robinhood-testnet' | 'robinhood'
   name: string
   ticker: string
   mode: DeskMode
@@ -369,10 +375,14 @@ export async function dryRunLaunchForAgent(
   const referrerBps = separateReferrer ? AGENT_REFERRAL_BPS : 0
   const crewPoolBps = 10_000 - platformBps - referrerBps - deskBps
   const needSol = initialBuySol + MIN_LAUNCH_FEE_SOL
+  const evmLabel =
+    platform === 'clanker' ? 'Clanker' : platform === 'vibevibe' ? 'vibe/vibe' : 'Zora'
   const warnings: string[] = isEvmLaunchPlatform(platform)
     ? [
-        `${platform === 'clanker' ? 'Clanker' : 'Zora'} dry-run — no on-chain deploy; unsigned build + local signing only.`,
-        'Crew wallets must be Base (0x…) addresses. Autohire maps registered evm_wallet when present.',
+        `${evmLabel} dry-run — no on-chain deploy; unsigned build + local signing only.`,
+        platform === 'vibevibe'
+          ? 'Crew wallets must be EVM (0x…) addresses. Autohire maps registered evm_wallet when present.'
+          : 'Crew wallets must be Base (0x…) addresses. Autohire maps registered evm_wallet when present.',
         `Description will include attribution: "${CREW_LAUNCH_ATTRIBUTION}" (appended if missing).`,
       ]
     : [
@@ -420,7 +430,7 @@ export async function dryRunLaunchForAgent(
         : new PublicKey(deskWallet).toBase58()
     shareholders = buildCrewShareholders(crew, mode, {
       deskWallet: deskNormalized,
-      platformWallet: chain === 'evm' ? getEvmTreasuryWallet() : undefined,
+      platformWallet: chain === 'evm' ? getTreasuryWalletForPlatform(platform) : undefined,
       agentReferrer: agentRef.referrerPayoutWallet
         ? {
             wallet: agentRef.referrerPayoutWallet,
@@ -438,7 +448,11 @@ export async function dryRunLaunchForAgent(
     if (chain === 'evm') {
       const launcher = assertEvmAddress(launcherPreview)
       balance = { launcher, sol: 0, sufficient: true }
-      warnings.push('EVM dry-run — fund the launcher with Base ETH for deploy gas (not checked here).')
+      warnings.push(
+        platform === 'vibevibe'
+          ? 'EVM dry-run — fund the launcher with Robinhood Chain ETH for deploy gas (not checked here).'
+          : 'EVM dry-run — fund the launcher with Base ETH for deploy gas (not checked here).',
+      )
     } else {
       const launcher = new PublicKey(launcherPreview).toBase58()
       const lamports = await getConnection().getBalance(new PublicKey(launcher), 'confirmed')
@@ -485,7 +499,11 @@ export async function dryRunLaunchForAgent(
     ok: true,
     dryRun: true,
     cluster: isEvmLaunchPlatform(platform)
-      ? (platform === 'clanker' ? clankerNetwork() : zoraNetwork())
+      ? platform === 'clanker'
+        ? clankerNetwork()
+        : platform === 'vibevibe'
+          ? vibevibeNetwork()
+          : zoraNetwork()
       : 'mainnet-beta',
     name,
     ticker,

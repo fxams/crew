@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { OFFERING_AUTOHIRE, OFFERING_LAUNCH } from './config.js'
 
-const LAUNCH_PLATFORMS = ['pumpfun', 'bags', 'zora', 'clanker'] as const
+const LAUNCH_PLATFORMS = ['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe'] as const
 
 export const autohireRequirementSchema = z.object({
   mint: z.string().min(20).max(80),
