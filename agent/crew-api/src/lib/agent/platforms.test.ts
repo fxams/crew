@@ -7,6 +7,8 @@ import {
   clankerReady,
   clankerRpcUrl,
   clankerTreasuryConfigured,
+  suiReady,
+  suiNetwork,
   vibevibeCoinUrl,
   vibevibeNetwork,
   vibevibeReady,
@@ -23,6 +25,7 @@ import {
 
 const saved = { ...process.env }
 const TREAS = '0x1111111111111111111111111111111111111111'
+const SUI_TREAS = '0x3333333333333333333333333333333333333333333333333333333333333333'
 
 afterEach(() => {
   for (const key of [
@@ -38,6 +41,10 @@ afterEach(() => {
     'VIBEVIBE_CHAIN',
     'VIBEVIBE_TREASURY_ADDRESS',
     'VIBEVIBE_RPC_URL',
+    'SUI_ENABLED',
+    'SUI_TREASURY_ADDRESS',
+    'SUI_NETWORK',
+    'MEMEZ_CONFIG_KEY',
     'BASE_RPC_URL',
     'CREW_BUYBACK_WALLET_EVM',
     'ACP_ENABLED',
@@ -61,6 +68,7 @@ describe('launch platforms', () => {
     expect(parseLaunchPlatform('bags.fm')).toBe('bags')
     expect(parseLaunchPlatform('zora-coins')).toBe('zora')
     expect(parseLaunchPlatform('vibe')).toBe('vibevibe')
+    expect(parseLaunchPlatform('memez.gg')).toBe('sui')
     expect(() => parseLaunchPlatform('raydium')).toThrow(/Unknown launch platform/)
   })
 
@@ -236,6 +244,20 @@ describe('launch platforms', () => {
     expect(
       inferLaunchPlatformFromCoin({ pumpUrl: vibevibeCoinUrl(addr), mint: addr }),
     ).toBe('vibevibe')
+  })
+
+  it('lists sui only when SUI_ENABLED=1', () => {
+    delete process.env.SUI_ENABLED
+    expect(listLaunchVenues().some((v) => v.id === 'sui')).toBe(false)
+    process.env.SUI_ENABLED = '1'
+    const row = listLaunchVenues().find((v) => v.id === 'sui')
+    expect(row?.enabled).toBe(false)
+    process.env.SUI_TREASURY_ADDRESS = SUI_TREAS
+    expect(suiReady()).toBe(true)
+    expect(suiNetwork()).toBe('testnet')
+    expect(listLaunchVenues().find((v) => v.id === 'sui')?.enabled).toBe(true)
+    process.env.SUI_NETWORK = 'mainnet'
+    expect(() => suiNetwork()).toThrow(/testnet-only/)
   })
 
   it('infers platform from trade URL or EVM mint', () => {

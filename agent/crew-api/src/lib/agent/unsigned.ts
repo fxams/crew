@@ -15,8 +15,10 @@ export type UnsignedStepKind =
   | 'zora_create'
   | 'clanker_deploy'
   | 'vibevibe_deploy'
+  | 'sui_memez_publish_coin'
+  | 'sui_memez_create_pool'
 
-export type UnsignedEncoding = 'message-v0' | 'solana-tx' | 'eip1559'
+export type UnsignedEncoding = 'message-v0' | 'solana-tx' | 'eip1559' | 'sui-tx'
 
 export type Eip1559Tx = {
   type: 2

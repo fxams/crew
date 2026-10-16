@@ -351,7 +351,7 @@ export function agentDiscoveryJson() {
       'POST /api/webhooks': 'Register agent webhook (auth)',
       'POST /api/agent/launch/unsigned': {
         auth: 'x-crew-api-key or X-PAYMENT (x402, when enabled)',
-        body: 'Same crew/image fields as launch + launcherPubkey + optional platform=pumpfun|bags|zora|clanker|vibevibe (default pumpfun), treasuryBps, optInOnly',
+        body: 'Same crew/image fields as launch + launcherPubkey + optional platform=pumpfun|bags|zora|clanker|vibevibe|sui (default pumpfun), treasuryCapObjectId for Sui step 2, treasuryBps, optInOnly',
         returns:
           'UNSIGNED steps (Pump v0 messages; Bags partially-signed Solana txs; Zora EIP-1559 split + create). No secrets.',
       },
@@ -689,7 +689,7 @@ export function openApiSpec() {
                   required: ['signed'],
                   properties: {
                     signed: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 8 },
-                    platform: { type: 'string', enum: ['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe'], default: 'pumpfun' },
+                    platform: { type: 'string', enum: ['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe', 'sui'], default: 'pumpfun' },
                   },
                 },
               },
@@ -1199,7 +1199,7 @@ export function openApiSpec() {
           type: 'object',
           required: ['id', 'name', 'chain', 'enabled', 'status'],
           properties: {
-            id: { type: 'string', enum: ['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe'] },
+            id: { type: 'string', enum: ['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe', 'sui'] },
             name: { type: 'string' },
             chain: {
               type: 'string',
@@ -1332,7 +1332,7 @@ export function openApiSpec() {
             },
             platform: {
               type: 'string',
-              enum: ['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe'],
+              enum: ['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe', 'sui'],
               default: 'pumpfun',
               description:
                 'Launch venue. pumpfun (default) = Pump.fun Solana. bags = Bags.fm Solana (BAGS_API_KEY). zora = Zora coins on Base (ZORA_ENABLED). Existing clients omit this.',
@@ -1617,6 +1617,7 @@ Canonical site is **https://crewpay.dev** (\`app.crewpay.dev\` has no DNS).
 - \`zora\` — Zora content coins on Base. Off unless \`ZORA_ENABLED\` is set. Creator rewards (0.50%) go to a 0xSplits contract (60% to the KOL crew, 15% to the launching agent, 25% to the treasury). The separate 0.20% platform referral is paid to \`ZORA_PLATFORM_REFERRER\` (defaults to the treasury 0x address today — it does **not** flow through 0xSplits). Routing it into the 60/15/25 split would mean passing the predicted split as \`platformReferrer\` at create; CrewPay does **not** change on-chain addresses. Base Sepolia by default; \`ZORA_CHAIN=base\` for mainnet. Returns unsigned EIP-1559 txs (split, then create).
 - \`clanker\` — Clanker v4 on Base Sepolia (testnet) by default. Off unless \`CLANKER_ENABLED=1\` and a 0x treasury are set. CrewPay maps 60/15/25 (or 60/15/5/20 with referral) to Clanker \`rewardBps\` at launch (unsigned EIP-1559 deploy). Clanker’s separate protocol swap fee is **not** in the CrewPay map — see docs/integrations/clanker.md.
 - \`vibevibe\` — vibe/vibe bonding-curve launches on Robinhood Chain testnet by default (\`VIBEVIBE_CHAIN=robinhood-testnet\`). Off unless \`VIBEVIBE_ENABLED=1\` and \`VIBEVIBE_TREASURY_ADDRESS\` or \`CLANKER_TREASURY_ADDRESS\`. Unsigned factory create (selector \`0x24e615b3\`) with a **single** \`creatorFeeRecipient\` — CrewPay 60/15/25 is planning/dry-run unless \`VIBEVIBE_FEE_SPLITTER_ADDRESS\` is set. See docs/integrations/vibevibe.md.
+- \`sui\` — Memez.gg / Blast.fun pump on **Sui testnet** only. Listed when \`SUI_ENABLED=1\`; launches need \`SUI_TREASURY_ADDRESS\`. Two unsigned steps: publish coin, then create pool (\`treasuryCapObjectId\` after step 1). Custom fee map needs \`MEMEZ_CONFIG_KEY\` from Interest Protocol. See docs/integrations/sui-memez.md.
 - Same KOL order on every platform: explicit \`crew[]\` first, Autohire second. \`optInOnly\` optional and off by default.
 - Sign locally, then \`POST /api/agent/launch/submit\` / \`crew_submit_signed\` (pass the same \`platform\`).
 

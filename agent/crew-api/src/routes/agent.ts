@@ -134,9 +134,10 @@ const unsignedLaunchSchema = z
       .optional(),
     optInOnly: z.boolean().optional().default(false),
     treasuryBps: z.number().int().min(2000).max(3000).optional(),
-    platform: z.enum(['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe']).optional().default('pumpfun'),
+    platform: z.enum(['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe', 'sui']).optional().default('pumpfun'),
     launcherPubkey: z.string().min(20).max(64),
     mintPubkey: z.string().min(20).max(64).optional(),
+    treasuryCapObjectId: z.string().min(42).max(90).optional(),
   })
   .superRefine(refineLaunchBody)
 
@@ -149,7 +150,11 @@ agentRouter.post('/agent/launch/unsigned', requireAgentApiKeyOrX402, async (req,
 
     const body = unsignedLaunchSchema.parse(req.body)
     const platform = parseLaunchPlatform(body.platform)
-    const chain = isEvmLaunchPlatform(platform) ? 'evm' : 'solana'
+    const chain = isEvmLaunchPlatform(platform)
+      ? 'evm'
+      : platform === 'sui'
+        ? 'sui'
+        : 'solana'
     const result = await runUnsignedLaunch({
       ...body,
       keyId: req.crewAgentAuth?.keyId,
@@ -165,7 +170,7 @@ agentRouter.post('/agent/launch/unsigned', requireAgentApiKeyOrX402, async (req,
 const submitSignedSchema = z.object({
   /** Signed txs: Solana base64 (Pump/Bags) or EVM hex (Zora), in builder order. */
   signed: z.array(z.string().min(64)).min(1).max(8),
-  platform: z.enum(['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe']).optional().default('pumpfun'),
+  platform: z.enum(['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe', 'sui']).optional().default('pumpfun'),
   /** EVM token address (from unsigned build predicted mint) — persists to /api/coins when set. */
   mint: z.string().min(42).max(64).optional(),
   name: z.string().min(2).max(32).optional(),
@@ -210,6 +215,20 @@ agentRouter.post('/agent/launch/submit', requireAgentApiKeyOrX402, async (req, r
         if (json.error?.message) throw new Error(json.error.message)
         if (!json.result) throw new Error(`${platform} submit missing tx hash`)
         sigs.push(json.result)
+      }
+    } else if (platform === 'sui') {
+      assertPlatformReady('sui')
+      const { SuiClient } = await import('@mysten/sui/client')
+      const { suiRpcUrl } = await import('../lib/agent/platforms.js')
+      const client = new SuiClient({ url: suiRpcUrl() })
+      for (const b64 of body.signed) {
+        const bytes = Buffer.from(b64, 'base64')
+        const result = await client.executeTransactionBlock({
+          transactionBlock: bytes,
+          options: { showEffects: true },
+        })
+        if (!result.digest) throw new Error('sui submit missing digest')
+        sigs.push(result.digest)
       }
     } else {
       if (platform === 'bags') assertPlatformReady('bags')
