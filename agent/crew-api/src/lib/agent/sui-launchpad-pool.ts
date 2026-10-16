@@ -16,6 +16,9 @@ query BondingPoolReserves($poolId: SuiAddress!) {
 export type BondingPoolReserves = {
   suiReserve: bigint
   memeReserve: bigint
+  virtualSui: bigint
+  virtualMeme: bigint
+  targetSui: bigint
   refundTreasury: string
   graduated: boolean
   migrated: boolean
@@ -45,6 +48,9 @@ export async function fetchBondingPoolReserves(poolObjectId: string): Promise<Bo
   return {
     suiReserve: sui,
     memeReserve: meme,
+    virtualSui: BigInt(String(json.virtual_sui ?? '0')),
+    virtualMeme: BigInt(String(json.virtual_meme ?? '0')),
+    targetSui: BigInt(String(json.target_sui ?? '0')),
     refundTreasury: assertSuiAddress(treasury, 'refundTreasury'),
     graduated: Boolean(json.graduated),
     migrated: Boolean(json.migrated),

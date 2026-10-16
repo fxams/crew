@@ -17,6 +17,7 @@ import { tasksRouter } from './routes/tasks.js'
 import { postLaunchRouter } from './routes/post-launch.js'
 import { farcasterRouter } from './routes/farcaster.js'
 import { adminOpsRouter } from './routes/admin-ops.js'
+import { suiLaunchpadRouter } from './routes/sui-launchpad.js'
 import { maybeStartAcpInProcess } from './lib/acp-inprocess.js'
 import { configureTrustProxy } from './lib/client-ip.js'
 import { probeJitoEngines } from './lib/agent/jito.js'
@@ -70,6 +71,7 @@ async function main() {
   app.use('/api', postLaunchRouter)
   app.use('/api', farcasterRouter)
   app.use('/api', adminOpsRouter)
+  app.use('/api', suiLaunchpadRouter)
   app.use('/api', coinsRouter)
   app.use('/api', kolsRouter)
   app.use('/api', kolRegisterRouter)
