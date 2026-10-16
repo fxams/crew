@@ -36,10 +36,13 @@ import {
 import { kolProfilePath } from '../lib/routes'
 import {
   ADD_WALLET_TO_RECEIVE,
+  BASE_WALLET_REGISTER_HINT,
   NO_CRYPTO_NEEDED,
   SOCIAL_WALLET_NOTE,
   WALLET_OPTIONAL_HINT,
 } from '../lib/kol-onboarding'
+import { evmAddressFieldError, isEvmAddress } from '../lib/evm-address'
+import { registerKolEvmWallet } from '../lib/kol-evm-wallet'
 import { isPayoutWallet } from '../lib/payout-wallet'
 import { resolvePrivyAppId } from '../lib/privy-app'
 import { TelegramLogin } from './TelegramLogin'
@@ -305,7 +308,9 @@ export function KolRegisterPage() {
           tg: autoTgLogin,
         })}`
   const showAgentSnippets = !alreadyRegistered && referralCode.length >= 2
-  const optionalsFilled = referralCode.length >= 2 || Boolean(evmWallet.trim())
+  const optionalsFilled = referralCode.length >= 2
+  const evmFieldError = evmAddressFieldError(evmWallet)
+  const baseWalletReady = isEvmAddress(evmWallet)
 
   const claimKeySnippet = `curl -sS -X POST https://api.crewpay.dev/api/agent/keys/claim \\
   -H 'content-type: application/json' \\
@@ -384,11 +389,29 @@ export function KolRegisterPage() {
 
   useEffect(() => {
     const stored = loadPendingRegistration()
-    if (stored) setAwaitingX(true)
+    if (stored) {
+      setAwaitingX(true)
+      if (stored.evmWallet && !evmWallet.trim()) setEvmWallet(stored.evmWallet)
+    }
   }, [])
 
   const finishOnDesk = useCallback(
-    (handle: string) => {
+    async (handle: string) => {
+      const pending = loadPendingRegistration()
+      const pubkey = (wallet.publicKey?.toBase58() || pending?.wallet || '').trim()
+      const evmTarget = (evmWallet.trim() || pending?.evmWallet || '').trim()
+      if (isPayoutWallet(pubkey) && wallet.signMessage && isEvmAddress(evmTarget)) {
+        try {
+          await registerKolEvmWallet({
+            apiBase: API,
+            solanaWallet: pubkey,
+            signMessage: wallet.signMessage,
+            evmWallet: evmTarget,
+          })
+        } catch {
+          /* desk banner lets them retry */
+        }
+      }
       clearPendingRegistration()
       clearStuckXOauth()
       setAwaitingX(false)
@@ -396,7 +419,7 @@ export function KolRegisterPage() {
       setRefreshTick((n) => n + 1)
       navigate(kolProfilePath(handle))
     },
-    [navigate],
+    [evmWallet, navigate, wallet.publicKey, wallet.signMessage],
   )
 
   const onCheck = useCallback(
@@ -488,13 +511,19 @@ export function KolRegisterPage() {
     }
     registerInFlightRef.current = true
     setError(null)
+    const evmTrim = evmWallet.trim()
+    const evmErr = evmAddressFieldError(evmWallet)
+    if (evmErr) {
+      setError(evmErr)
+      registerInFlightRef.current = false
+      return
+    }
     const pubkey = (wallet.publicKey?.toBase58() || '').trim()
     const canSign = Boolean(wallet.publicKey && wallet.signMessage)
     setBusy(true)
     try {
       const startBodyPayload: Record<string, string> = {
         ...(referralCode.length >= 2 ? { referralCode } : {}),
-        ...(evmWallet.trim() ? { evmWallet: evmWallet.trim() } : {}),
         ...(registerSrc.length >= 2 ? { registerSrc } : {}),
       }
       if (isPayoutWallet(pubkey) && canSign) {
@@ -529,6 +558,7 @@ export function KolRegisterPage() {
       }
       savePendingRegistration(isPayoutWallet(pubkey) ? pubkey : '', Date.now(), {
         sid: startBody.sid,
+        ...(evmTrim ? { evmWallet: evmTrim } : {}),
       })
       clearStuckXOauth()
       setStuckOauth(null)
@@ -743,15 +773,42 @@ export function KolRegisterPage() {
                       : 'Optional'}
                 </span>
               </li>
+              <li className={baseWalletReady ? 'is-done' : ''}>
+                <strong>4. Base</strong>
+                <span>{baseWalletReady ? shortAddr(evmWallet.trim()) : 'Optional'}</span>
+              </li>
             </ol>
             <p className="register-no-crypto register-no-crypto-cta">{NO_CRYPTO_NEEDED}</p>
+
+            <div className="register-base-card" data-testid="register-base-wallet">
+              <label className="register-ref register-evm">
+                <span>Base wallet (0x…)</span>
+                <input
+                  type="text"
+                  value={evmWallet}
+                  onChange={(e) => setEvmWallet(e.target.value)}
+                  placeholder="0x…"
+                  autoComplete="off"
+                  spellCheck={false}
+                  maxLength={42}
+                  inputMode="text"
+                  aria-invalid={evmFieldError ? true : undefined}
+                />
+                <em>{BASE_WALLET_REGISTER_HINT}</em>
+                {evmFieldError ? <p className="register-err register-evm-err">{evmFieldError}</p> : null}
+              </label>
+              <p className="hint register-base-skip">
+                Skippable — add or change it anytime on your KOL desk. Linking on desk requires signing
+                with your Solana payout wallet.
+              </p>
+            </div>
 
             <details
               className="register-more"
               open={moreOpen || optionalsFilled}
               onToggle={(e) => setMoreOpen((e.target as HTMLDetailsElement).open)}
             >
-              <summary>Referral & EVM wallet (optional)</summary>
+              <summary>Referral code (optional)</summary>
               <label className="register-ref">
                 <span>Referral code</span>
                 <input
@@ -764,22 +821,6 @@ export function KolRegisterPage() {
                   maxLength={24}
                 />
                 <em>Who referred you as a KOL (points). You get your own code after you register.</em>
-              </label>
-              <label className="register-ref register-evm">
-                <span>EVM wallet</span>
-                <input
-                  type="text"
-                  value={evmWallet}
-                  onChange={(e) => setEvmWallet(e.target.value)}
-                  placeholder="0x… Base address"
-                  autoComplete="off"
-                  spellCheck={false}
-                  maxLength={42}
-                />
-                <em>
-                  Base (0x) payouts for Zora, Clanker, and the 5% agent-referral slice on EVM launches.
-                  Pump.fun and Bags.fm still pay Solana.
-                </em>
               </label>
             </details>
 

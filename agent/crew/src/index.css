@@ -4313,6 +4313,7 @@ a {
 
   .desk-hero > .desk-payout-card,
   .desk-hero > .desk-telegram-card,
+  .desk-hero > .desk-base-card,
   .desk-hero > .desk-evm-row {
     grid-column: 1 / -1;
     width: 100%;
@@ -4693,6 +4694,7 @@ a {
 
   .page-desk .desk-hero > .desk-payout-card,
   .page-desk .desk-hero > .desk-telegram-card,
+  .page-desk .desk-hero > .desk-base-card,
   .page-desk .desk-hero > .desk-evm-row {
     grid-column: 1 / -1;
     width: 100%;
@@ -5195,6 +5197,73 @@ a.plat-badge:focus-visible {
   font-style: normal;
 }
 
+.register-base-card {
+  margin: 0.75rem 0 0.5rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(5, 10, 7, 0.45);
+}
+
+.register-base-skip {
+  margin: 0.45rem 0 0;
+  font-size: 0.75rem;
+}
+
+.register-evm-err {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+}
+
+.desk-chain-eligibility {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+}
+
+.desk-chain-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.desk-chain-chip.is-on {
+  border-color: var(--acid);
+  color: var(--acid);
+  background: var(--acid-soft);
+}
+
+.desk-chain-chip.is-off {
+  opacity: 0.85;
+}
+
+.desk-base-card {
+  grid-column: 1 / -1;
+  margin-top: 0.55rem;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(5, 10, 7, 0.5);
+  display: grid;
+  gap: 0.45rem;
+}
+
+.desk-base-card-missing {
+  border-color: color-mix(in srgb, var(--amber) 45%, var(--line));
+  background: color-mix(in srgb, var(--amber) 8%, rgba(5, 10, 7, 0.5));
+}
+
+.desk-base-banner {
+  margin: 0;
+}
+
 .desk-evm-row {
   display: grid;
   gap: 0.4rem;
@@ -5215,7 +5284,9 @@ a.plat-badge:focus-visible {
   .plat-select .mode-short {
     display: none;
   }
-  .desk-evm-row input {
+  .desk-evm-row input,
+  .register-base-card input,
+  .desk-base-card input {
     font-size: 16px;
   }
 

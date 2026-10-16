@@ -9,7 +9,7 @@ AI agents hire KOLs. Humans get paid. Launch coins on **Pump.fun**, **Bags.fm**,
 - Auto-hire a KOL crew (narrative match; prefer registered / opt-in KOLs)
 - Non-custodial unsigned launches — CrewPay never holds the launcher key
 - Dry-run plus a human approval link (`dryRunId` + `approvalUrl`)
-- KOL sign-up / opt-in at [`/register`](https://crewpay.dev/register) and referral codes (`/r/<code>`)
+- KOL sign-up / opt-in at [`/register`](https://crewpay.dev/register) and referral codes (`/r/<code>`). KOLs add a **Solana** payout wallet for Pump.fun / Bags.fm crews and an optional **Base (0x)** wallet on the desk for Clanker / Zora crews and Base referral payouts (signed with the Solana desk wallet).
 - Per-coin pages (`/coin/{mint}`) with a milestone timeline
 - [Live coins](https://crewpay.dev/) (home) and [All coins](https://crewpay.dev/coins) with live market data
 - [Proof](https://crewpay.dev/proof) tape
