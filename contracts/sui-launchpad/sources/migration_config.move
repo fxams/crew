@@ -3,6 +3,7 @@ module crewpay_launchpad::migration_config;
 
 use sui::object;
 use sui::transfer;
+use cetus_clmm::pool_creator;
 
 /// Shared migration tuning — tick spacing for new meme/SUI CLMM pools.
 public struct CetusMigrationConfig has key {
@@ -12,6 +13,11 @@ public struct CetusMigrationConfig has key {
 
 public fun tick_spacing(cfg: &CetusMigrationConfig): u32 {
     cfg.tick_spacing
+}
+
+/// Full-range tick indices for Cetus `create_pool_v3` (PTB helpers).
+public fun full_range_tick_indices(cfg: &CetusMigrationConfig): (u32, u32) {
+    pool_creator::full_range_tick_range(cfg.tick_spacing)
 }
 
 public(package) fun new_cetus_migration_config(tick_spacing: u32, ctx: &mut TxContext): CetusMigrationConfig {

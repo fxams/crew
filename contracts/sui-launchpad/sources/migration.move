@@ -16,7 +16,6 @@ use sui::coin::{Self, Coin, CoinMetadata};
 use sui::event;
 use sui::sui::SUI;
 use sui::transfer;
-
 const ENotGraduated: u64 = 1;
 const EAlreadyMigrated: u64 = 2;
 const EEmptyReserves: u64 = 3;
@@ -26,6 +25,14 @@ public struct LockedClmmPosition has key {
     id: UID,
     bonding_pool_id: ID,
     position: Position,
+}
+
+/// LP lock record when Cetus `create_pool_v3` runs in a PTB against the live 0x5372… package (position NFT held by vault address).
+public struct LockedClmmPositionRef has key {
+    id: UID,
+    bonding_pool_id: ID,
+    cetus_position_id: ID,
+    cetus_pool_id: ID,
 }
 
 public struct MigratedToCetus has copy, drop {
@@ -189,4 +196,31 @@ fun refund_leftover<CoinType>(mut coin: Coin<CoinType>, refund_treasury: address
 
 public fun locked_bonding_pool_id(lock: &LockedClmmPosition): ID {
     lock.bonding_pool_id
+}
+
+public(package) fun share_locked_clmm_position_ref(
+    bonding_pool_id: ID,
+    cetus_position_id: ID,
+    cetus_pool_id: ID,
+    sqrt_price_x64: u128,
+    sui_amount: u64,
+    meme_amount: u64,
+    ctx: &mut TxContext,
+): ID {
+    let locked = LockedClmmPositionRef {
+        id: object::new(ctx),
+        bonding_pool_id,
+        cetus_position_id,
+        cetus_pool_id,
+    };
+    let locked_id = object::id(&locked);
+    transfer::share_object(locked);
+    event::emit(MigratedToCetus {
+        bonding_pool_id,
+        locked_position_id: locked_id,
+        sqrt_price_x64,
+        sui_amount,
+        meme_amount,
+    });
+    locked_id
 }

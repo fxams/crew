@@ -37,5 +37,5 @@ deps = { MoveStdlib = "MoveStdlib" }
 [pinned.testnet.crewpay_launchpad]
 source = { root = true }
 use_environment = "testnet"
-manifest_digest = "5D883BED37A839849FBCCBFCAFFE2FDC6E96F94A9443733997B7C43DA377BF46"
+manifest_digest = "70A65CE19C25B2FF1DCDB366F109E12DD931A6E439B6CC519D1E4188A2122F23"
 deps = { CetusClmm = "CetusClmm", std = "MoveStdlib", sui = "Sui" }

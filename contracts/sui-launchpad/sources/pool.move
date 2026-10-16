@@ -5,6 +5,7 @@ use sui::coin::{Self, Coin, TreasuryCap};
 use sui::event;
 use sui::sui::SUI;
 use sui::transfer;
+use sui::dynamic_field as df;
 use std::type_name::{Self, TypeName};
 use crewpay_launchpad::config::{Self, LaunchpadConfig};
 use crewpay_launchpad::curve;
@@ -26,6 +27,10 @@ const EBadSupply: u64 = 3;
 const EZero: u64 = 4;
 const ENotGraduated: u64 = 5;
 const EAlreadyMigrated: u64 = 6;
+const ECetusPtbPending: u64 = 7;
+const ECetusPtbNotPending: u64 = 8;
+
+public struct CetusWithdrawnMark has copy, drop, store {}
 
 public struct Pool<phantom T> has key {
     id: UID,
@@ -291,6 +296,48 @@ public fun migrate_to_cetus<T>(
         ctx,
     );
     pool.migrated = true;
+}
+
+/// PTB step 1 — withdraw graduated reserves for an off-package Cetus `pool_creator` call (live SDK published-at `0x85e612…`, typically `create_pool_v2` on testnet).
+public fun begin_cetus_ptb_migration<T>(
+    pool: &mut Pool<T>,
+    ctx: &mut TxContext,
+): (Coin<SUI>, Coin<T>) {
+    assert!(pool.graduated, ENotGraduated);
+    assert!(!pool.migrated, EAlreadyMigrated);
+    assert!(!df::exists(&pool.id, CetusWithdrawnMark {}), EAlreadyMigrated);
+    let sui_amt = balance::value(&pool.sui);
+    let meme_amt = balance::value(&pool.meme);
+    assert!(sui_amt > 0 && meme_amt > 0, EZero);
+    df::add(&mut pool.id, CetusWithdrawnMark {}, true);
+    let sui = coin::from_balance(balance::split(&mut pool.sui, sui_amt), ctx);
+    let meme = coin::from_balance(balance::split(&mut pool.meme, meme_amt), ctx);
+    (sui, meme)
+}
+
+/// PTB step 3 — record Cetus pool/position ids (`LockedClmmPositionRef`). Position NFT is transferred in the PTB separately.
+public fun finish_cetus_ptb_migration<T>(
+    pool: &mut Pool<T>,
+    cetus_position_id: ID,
+    cetus_pool_id: ID,
+    sqrt_price_x64: u128,
+    sui_amount: u64,
+    meme_amount: u64,
+    ctx: &mut TxContext,
+) {
+    assert!(df::exists(&pool.id, CetusWithdrawnMark {}), ECetusPtbNotPending);
+    assert!(!pool.migrated, EAlreadyMigrated);
+    let _mark: bool = df::remove(&mut pool.id, CetusWithdrawnMark {});
+    pool.migrated = true;
+    migration::share_locked_clmm_position_ref(
+        object::id(pool),
+        cetus_position_id,
+        cetus_pool_id,
+        sqrt_price_x64,
+        sui_amount,
+        meme_amount,
+        ctx,
+    );
 }
 
 public fun is_graduated<T>(pool: &Pool<T>): bool {
