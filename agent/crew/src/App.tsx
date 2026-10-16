@@ -3037,7 +3037,7 @@ export default function App() {
           </div>
         </footer>
       </div>
-      ) : isAgentsPage || isKolsPage || isRegisterPage || isKolProfilePage || isClaimPage || isProofPage || isOnepagerPage || isApprovePage || isCoinPage || isCoinsPage || isTasksPage || isAdminKickoffPage || isAdminFarcasterPage || isAdminOpsPage ? null : (
+      ) : isAgentsPage || isKolsPage || isRegisterPage || isKolProfilePage || isClaimPage || isProofPage || isOnepagerPage || isApprovePage || isCoinPage || isCoinsPage || isSuiPage || isSuiPoolPage || isTasksPage || isAdminKickoffPage || isAdminFarcasterPage || isAdminOpsPage ? null : (
       <div className="app-shell">
         <section className="section" id="brand">
           <p className="section-label">Assets</p>

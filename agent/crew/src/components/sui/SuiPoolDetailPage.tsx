@@ -10,14 +10,19 @@ import {
   suiscanTxUrl,
 } from '../../lib/sui-api'
 import { formatSui, parseSuiInput, poolDisplayName, shortAddress, stageLabel } from '../../lib/sui-format'
-import { SuiTestnetBadge } from './SuiTestnetBadge'
+import { DISABLED_SUI_LAUNCHPAD_CONFIG } from '../../lib/sui-api'
 import { SuiWalletButton } from './SuiWalletButton'
+import { SuiPageShell } from './SuiPageShell'
 
 export function SuiPoolDetailPage() {
   const { poolId = '' } = useParams()
   const account = useCurrentAccount()
   const { mutateAsync: signExec, isPending } = useSignAndExecuteTransaction()
-  const configQ = useQuery({ queryKey: ['sui-config'], queryFn: fetchSuiLaunchpadConfig })
+  const configQ = useQuery({
+    queryKey: ['sui-config'],
+    queryFn: fetchSuiLaunchpadConfig,
+    retry: 1,
+  })
   const detailQ = useQuery({
     queryKey: ['sui-pool', poolId],
     queryFn: () => fetchSuiPoolDetail(poolId),
@@ -30,18 +35,18 @@ export function SuiPoolDetailPage() {
   const [memeCoinId, setMemeCoinId] = useState('')
   const [status, setStatus] = useState<string | null>(null)
 
-  const cfg = configQ.data
-  const network = cfg?.network ?? 'testnet'
+  const cfg = configQ.data ?? DISABLED_SUI_LAUNCHPAD_CONFIG
+  const network = cfg.network ?? 'testnet'
   const pool = detailQ.data?.pool
   const trades = detailQ.data?.trades ?? []
   const recipients = detailQ.data?.recipients
 
-  if (!cfg?.enabled) {
+  if (!cfg.enabled) {
     return (
-      <div className="app-shell page-sui">
+      <SuiPageShell network={network}>
         <p className="section-sub">Sui launchpad is not available.</p>
         <Link to="/sui">← Back</Link>
-      </div>
+      </SuiPageShell>
     )
   }
 
@@ -70,11 +75,10 @@ export function SuiPoolDetailPage() {
   const pct = pool ? Math.min(100, Math.round(pool.progressBps / 100)) : 0
 
   return (
-    <div className="app-shell page-sui">
+    <SuiPageShell network={network}>
       <section className="section">
         <div className="launch-page-head-row">
           <Link className="launch-back" to="/sui">← Sui launchpad</Link>
-          <SuiTestnetBadge network={network} />
         </div>
         <div className="sui-hero-badges">
           <SuiWalletButton />
@@ -191,6 +195,6 @@ export function SuiPoolDetailPage() {
           </>
         ) : null}
       </section>
-    </div>
+    </SuiPageShell>
   )
 }
