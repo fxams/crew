@@ -7,6 +7,8 @@ import {
   clankerReady,
   clankerRpcUrl,
   clankerTreasuryConfigured,
+  crewpayLaunchpadConfigured,
+  suiLaunchpad,
   suiReady,
   suiNetwork,
   vibevibeCoinUrl,
@@ -45,6 +47,9 @@ afterEach(() => {
     'SUI_TREASURY_ADDRESS',
     'SUI_NETWORK',
     'MEMEZ_CONFIG_KEY',
+    'SUI_LAUNCHPAD',
+    'CREWPAY_LAUNCHPAD_PACKAGE_ID',
+    'CREWPAY_LAUNCHPAD_CONFIG_ID',
     'BASE_RPC_URL',
     'CREW_BUYBACK_WALLET_EVM',
     'ACP_ENABLED',
@@ -258,6 +263,20 @@ describe('launch platforms', () => {
     expect(listLaunchVenues().find((v) => v.id === 'sui')?.enabled).toBe(true)
     process.env.SUI_NETWORK = 'mainnet'
     expect(() => suiNetwork()).toThrow(/testnet-only/)
+  })
+
+  it('crewpay launchpad requires package and config ids', () => {
+    process.env.SUI_ENABLED = '1'
+    process.env.SUI_TREASURY_ADDRESS = SUI_TREAS
+    expect(suiLaunchpad()).toBe('memez')
+    process.env.SUI_LAUNCHPAD = 'crewpay'
+    expect(suiLaunchpad()).toBe('crewpay')
+    expect(crewpayLaunchpadConfigured()).toBe(false)
+    expect(suiReady()).toBe(false)
+    process.env.CREWPAY_LAUNCHPAD_PACKAGE_ID = SUI_TREAS
+    process.env.CREWPAY_LAUNCHPAD_CONFIG_ID = SUI_TREAS
+    expect(crewpayLaunchpadConfigured()).toBe(true)
+    expect(suiReady()).toBe(true)
   })
 
   it('infers platform from trade URL or EVM mint', () => {

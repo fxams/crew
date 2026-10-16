@@ -179,6 +179,7 @@ export const launchBodySchema = z
     dryRunId: z.string().min(16).max(64).optional(),
     platform: z.enum(['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe', 'sui']).optional().default('pumpfun'),
     treasuryCapObjectId: z.string().min(42).max(90).optional(),
+    publishedPackageId: z.string().min(42).max(90).optional(),
   })
   .superRefine(refineLaunchBody)
 

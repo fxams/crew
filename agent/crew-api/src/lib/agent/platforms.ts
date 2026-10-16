@@ -127,8 +127,48 @@ export function suiTreasuryConfigured(): boolean {
   return isSuiAddress(w)
 }
 
+export type SuiLaunchpadBackend = 'memez' | 'crewpay'
+
+/** Which Sui launch rail backs `platform: sui` when SUI_ENABLED (default memez). */
+export function suiLaunchpad(): SuiLaunchpadBackend {
+  const raw = (process.env.SUI_LAUNCHPAD || 'memez').trim().toLowerCase()
+  if (!raw || raw === 'memez' || raw === 'memez.gg' || raw === 'blast') return 'memez'
+  if (raw === 'crewpay' || raw === 'crew' || raw === 'crewpay_launchpad' || raw === 'launchpad') {
+    return 'crewpay'
+  }
+  throw new Error(`Unknown SUI_LAUNCHPAD "${raw}". Use memez (default) or crewpay.`)
+}
+
+export function crewpayLaunchpadConfigured(): boolean {
+  const pkg = (process.env.CREWPAY_LAUNCHPAD_PACKAGE_ID || '').trim()
+  const cfg = (process.env.CREWPAY_LAUNCHPAD_CONFIG_ID || '').trim()
+  return isSuiAddress(pkg) && isSuiAddress(cfg)
+}
+
+export function crewpayLaunchpadPackageId(): string {
+  const w = (process.env.CREWPAY_LAUNCHPAD_PACKAGE_ID || '').trim()
+  if (!isSuiAddress(w)) {
+    throw new Error(
+      'Set CREWPAY_LAUNCHPAD_PACKAGE_ID (0x… published crewpay_launchpad package on Sui testnet).',
+    )
+  }
+  return assertSuiAddress(w, 'packageId')
+}
+
+export function crewpayLaunchpadConfigId(): string {
+  const w = (process.env.CREWPAY_LAUNCHPAD_CONFIG_ID || '').trim()
+  if (!isSuiAddress(w)) {
+    throw new Error(
+      'Set CREWPAY_LAUNCHPAD_CONFIG_ID (0x… shared LaunchpadConfig object id from deploy).',
+    )
+  }
+  return assertSuiAddress(w, 'configId')
+}
+
 export function suiReady(): boolean {
-  return suiEnabled() && suiTreasuryConfigured()
+  if (!suiEnabled() || !suiTreasuryConfigured()) return false
+  if (suiLaunchpad() === 'crewpay') return crewpayLaunchpadConfigured()
+  return true
 }
 
 export type SuiNetwork = 'testnet'
@@ -164,12 +204,17 @@ export function getSuiTreasuryWallet(): string {
 export function assertSuiEnabled(): void {
   if (!suiEnabled()) {
     throw new Error(
-      'Sui Memez launches are disabled — set SUI_ENABLED=1 (Sui testnet / Memez.gg by default).',
+      'Sui launches are disabled — set SUI_ENABLED=1 (testnet; SUI_LAUNCHPAD=memez|crewpay, default memez).',
     )
   }
   suiNetwork()
   if (!suiTreasuryConfigured()) {
-    throw new Error('Sui Memez launches need SUI_TREASURY_ADDRESS (0x… treasury in the fee map).')
+    throw new Error('Sui launches need SUI_TREASURY_ADDRESS (0x… treasury in the fee map).')
+  }
+  if (suiLaunchpad() === 'crewpay' && !crewpayLaunchpadConfigured()) {
+    throw new Error(
+      'SUI_LAUNCHPAD=crewpay requires CREWPAY_LAUNCHPAD_PACKAGE_ID and CREWPAY_LAUNCHPAD_CONFIG_ID.',
+    )
   }
 }
 
@@ -396,7 +441,7 @@ export function platformDisplayName(platform: LaunchPlatform): string {
   if (platform === 'zora') return 'Zora'
   if (platform === 'clanker') return 'Clanker'
   if (platform === 'vibevibe') return 'vibe/vibe'
-  if (platform === 'sui') return 'Memez.gg'
+  if (platform === 'sui') return suiLaunchpad() === 'crewpay' ? 'CrewPay Sui launchpad' : 'Memez.gg'
   return 'Pump.fun'
 }
 
@@ -547,16 +592,20 @@ export function listLaunchVenues(): LaunchVenue[] {
       ? [
           {
             id: 'sui' as const,
-            name: 'Memez.gg',
+            name: suiLaunchpad() === 'crewpay' ? 'CrewPay launchpad' : 'Memez.gg',
             chain: 'sui-testnet' as LaunchChain,
             enabled: suiOn,
             status: (suiOn ? 'testnet' : 'disabled') as LaunchVenueStatus,
             caption: 'Sui testnet',
-            tradeHost: 'testnet.blast.fun',
+            tradeHost: suiLaunchpad() === 'crewpay' ? 'suiscan.xyz' : 'testnet.blast.fun',
             explorer: 'suiscan' as const,
             note: suiOn
-              ? 'Memez.gg / Blast.fun pump launches on Sui testnet. Two unsigned steps: publish coin, then create pool. Set MEMEZ_CONFIG_KEY when Interest Protocol registers CrewPay integrator fees.'
-              : 'SUI_ENABLED is on but SUI_TREASURY_ADDRESS is missing (0x… treasury in the fee map).',
+              ? suiLaunchpad() === 'crewpay'
+                ? 'CrewPay bonding-curve launchpad on Sui testnet. Fees 60/15/25 (or 60/15/5/20) enforced on-chain. Two steps: publish coin, open_pool. See docs/integrations/sui-crewpay-launchpad.md.'
+                : 'Memez.gg / Blast.fun pump launches on Sui testnet. Two unsigned steps: publish coin, then create pool. Set MEMEZ_CONFIG_KEY when Interest Protocol registers CrewPay integrator fees.'
+              : suiLaunchpad() === 'crewpay'
+                ? 'SUI_ENABLED is on but CrewPay launchpad is not ready — set SUI_TREASURY_ADDRESS plus CREWPAY_LAUNCHPAD_PACKAGE_ID and CREWPAY_LAUNCHPAD_CONFIG_ID.'
+                : 'SUI_ENABLED is on but SUI_TREASURY_ADDRESS is missing (0x… treasury in the fee map).',
           },
         ]
       : []),
