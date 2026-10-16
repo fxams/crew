@@ -11,7 +11,7 @@ type Props = {
   acp: AcpInfo
 }
 
-/** Pump.fun / Bags / Zora / x402 / Virtuals ACP — one mobile-first icon row. */
+/** Pump.fun / Bags / Zora / Clanker / x402 / Virtuals ACP — one mobile-first icon row. */
 export function PlatformChipRow({ venues, x402, acp }: Props) {
   return (
     <div className="plat-hero-row plat-chip-row" aria-label="Launch venues and integrations">

@@ -371,10 +371,10 @@ function ConnectModal() {
   const solanaFirst = preferred !== 'evm'
   const hint =
     preferred === 'evm'
-      ? 'Zora uses Base. Connect an EVM wallet — then Solana if you also launch Pump.fun or Bags.'
+      ? 'Zora and Clanker use Base. Connect an EVM wallet — then Solana if you also launch Pump.fun or Bags.'
       : preferred === 'solana'
-        ? 'Pump.fun and Bags.fm use Solana. Connect a Solana wallet — then Base for Zora.'
-        : 'Pump.fun and Bags.fm use Solana. Zora uses Base.'
+        ? 'Pump.fun and Bags.fm use Solana. Connect a Solana wallet — then Base for Zora / Clanker.'
+        : 'Pump.fun and Bags.fm use Solana. Zora and Clanker use Base.'
 
   const sheet = (
     <div className="crew-connect-backdrop" onClick={close} role="presentation">
@@ -454,7 +454,9 @@ function ConnectModal() {
 
           <section className="crew-connect-group" aria-label="EVM wallets">
             <h3>Base</h3>
-            <p className="crew-connect-caption">Zora{evmChainId === 4663 ? ' · Robinhood Chain' : ''}</p>
+            <p className="crew-connect-caption">
+              Zora · Clanker (testnet){evmChainId === 4663 ? ' · Robinhood Chain' : ''}
+            </p>
             <ul>
               {evmRows.map((row) => (
                 <li key={`evm-${row.key}`}>

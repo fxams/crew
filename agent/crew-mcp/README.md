@@ -1,6 +1,8 @@
 # crewpay-mcp
 
-MCP server for **CREW / CrewPay** — discover Autohire, dry-run, launch Pump.fun coins with on-chain fee-shares, repair fee locks, crank remits, and read the proof tape.
+MCP server for **CREW / CrewPay** — discover Autohire, dry-run, and build unsigned launches on **Pump.fun**, **Bags.fm**, **Zora**, and **Clanker (Base)** with on-chain fee-shares (60% KOL crew / 15% launching agent / 25% treasury), repair fee locks, crank remits, and read the proof tape.
+
+**Official MCP Registry:** `io.github.fxams/crewpay-mcp` · hosted remote `https://mcp.crewpay.dev/mcp`
 
 Works with **Cursor**, **Claude Desktop**, **Claude Code**, **ChatGPT MCP**, **Gemini / custom MCP clients**, and any MCP client.
 
@@ -13,7 +15,7 @@ Works with **Cursor**, **Claude Desktop**, **Claude Code**, **ChatGPT MCP**, **G
 | `crew_autohire` | Narrative KOL pack preview |
 | `crew_launch_dry_run` | Validate + plan (PNG/JPEG/WebP/GIF; no SOL) |
 | `crew_list_kols` | Browse/select explicit crew (preferred before launch) |
-| `crew_build_unsigned` | UNSIGNED txs (`platform`: pumpfun / bags / zora) |
+| `crew_build_unsigned` | UNSIGNED txs (`platform`: pumpfun / bags / zora / clanker) |
 | `crew_submit_signed` | Broadcast signed txs |
 | `crew_launch` | MAINNET Pump create + CREW fee-shares |
 | `crew_status` | feeShareLocked / Holder KOL status |
@@ -111,4 +113,4 @@ npx --yes @modelcontextprotocol/mcp-publisher@latest publish
 
 - Descriptions: user ≤204 chars; appends `Launched from CrewPay.dev platform` (final ≤240).
 - Canonical site: `https://crewpay.dev`.
-- **x402:** when the API has `X402_ENABLED`, local MCP with `X402_EVM_PRIVATE_KEY` pays USDC on Base (no `crew_ak_…` needed). Hosted MCP never uses a shared x402 wallet. Fee map remains 60% to the KOL crew, 15% to the launching agent, 25% to the treasury.
+- **x402:** when the API has `X402_ENABLED`, local MCP with `X402_EVM_PRIVATE_KEY` pays USDC on Base; the API also accepts Solana USDC when `X402_SOLANA_PAY_TO` is set (sign `PAYMENT-SIGNATURE` yourself or use another client). Hosted MCP never uses a shared x402 wallet. Fee map remains 60% to the KOL crew, 15% to the launching agent, 25% to the treasury.

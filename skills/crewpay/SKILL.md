@@ -1,6 +1,6 @@
 ---
 name: crewpay
-description: Launch Pump.fun, Bags, and Zora coins via CrewPay with KOL Autohire and on-chain fee-shares. Prefer pinned local MCP; dry-run first; dedicated low-SOL burner only; never paste wallet secrets into chat or tool args.
+description: Launch Pump.fun, Bags, Zora, and Clanker (Base) coins via CrewPay with KOL Autohire and on-chain fee-shares (60/15/25). Prefer pinned local MCP (io.github.fxams/crewpay-mcp); dry-run first; dedicated low-SOL burner only; never paste wallet secrets into chat or tool args.
 version: 1.1.6
 homepage: https://crewpay.dev
 metadata:
@@ -29,7 +29,7 @@ metadata:
 
 Approval is optional. Operators can require human approval per key.
 
-Use this skill when launching **Solana / Pump.fun / Bags.fm** or **Zora (Base)** coins, hiring **KOLs**, or locking **on-chain creator fee-shares** through CrewPay. `platform` defaults to `pumpfun`. Bags needs `BAGS_API_KEY`; Zora needs `ZORA_ENABLED`.
+Use this skill when launching **Solana / Pump.fun / Bags.fm** or **Zora / Clanker (Base)** coins, hiring **KOLs**, or locking **on-chain creator fee-shares** through CrewPay. `platform` defaults to `pumpfun`. Bags needs `BAGS_API_KEY`; Zora needs `ZORA_ENABLED`; Clanker needs `CLANKER_ENABLED` (Base Sepolia testnet default). Pay API routes with **x402** USDC on Base or Solana when enabled.
 
 ## Why KOLs matter
 
