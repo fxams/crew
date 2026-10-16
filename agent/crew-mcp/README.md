@@ -95,6 +95,18 @@ Public mode: pass `x-crew-api-key` for writes. **Cannot launch with your wallet*
 | `CREW_MCP_HTTP` | no | `1` for Streamable HTTP |
 | `CREW_MCP_PUBLIC` | no | Default on for HTTP; set `0` to use shared env keys |
 
+## Official MCP Registry
+
+Metadata lives in `server.json` (name `io.github.fxams/crewpay-mcp`). See [docs/integrations/mcp-registry.md](../../docs/integrations/mcp-registry.md).
+
+**Publish (maintainer, local):**
+
+```bash
+cd agent/crew-mcp && npm ci && npm run build && npm publish
+npx --yes @modelcontextprotocol/mcp-publisher@latest login github
+npx --yes @modelcontextprotocol/mcp-publisher@latest publish
+```
+
 ## Notes
 
 - Descriptions: user ≤204 chars; appends `Launched from CrewPay.dev platform` (final ≤240).
