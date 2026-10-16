@@ -13,7 +13,7 @@ import { planNarrativeHires, type CrewMember } from './narrative.js'
 import {
   LAUNCH_FEE_MAP_COPY,
   assertPlatformReady,
-  getEvmTreasuryWallet,
+  getTreasuryWalletForPlatform,
   isEvmLaunchPlatform,
   parseLaunchPlatform,
   platformDisplayName,
@@ -22,6 +22,7 @@ import {
 import { buildCrewShareholders, maxCrewSeats } from './shareholders.js'
 import { buildUnsignedLaunchTransactions, type UnsignedLaunchPlan } from './unsigned.js'
 import { buildClankerUnsignedLaunch, resolveClankerCrewWallets } from './clanker.js'
+import { buildVibevibeUnsignedLaunch, resolveVibevibeCrewWallets } from './vibevibe.js'
 import { applyRegisteredEvmWallets, buildZoraUnsignedLaunch, resolveZoraCrewWallets } from './zora.js'
 
 export type UnsignedLaunchInput = {
@@ -122,7 +123,9 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
     throw new Error('launcherPubkey is required (the address that will sign — CrewPay stays non-custodial).')
   }
   if (isEvmLaunchPlatform(platform) && !isEvmAddress(launcherPubkey)) {
-    throw new Error(`${platformDisplayName(platform)} launches require an EVM launcherPubkey (0x… on Base).`)
+    throw new Error(
+      `${platformDisplayName(platform)} launches require an EVM launcherPubkey (0x…).`,
+    )
   }
   if (!isEvmLaunchPlatform(platform)) {
     try {
@@ -170,6 +173,11 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
       strict: strictEvmCrew,
     })
   }
+  if (platform === 'vibevibe') {
+    crew = resolveVibevibeCrewWallets(applyRegisteredEvmWallets(crew || [], registered), {
+      strict: strictEvmCrew,
+    })
+  }
 
   if (input.optInOnly && crew && crew.length) {
     await assertOptedInCrew(crew)
@@ -181,7 +189,7 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
     crew && crew.length
       ? buildCrewShareholders(crew, input.mode || 'agent', {
           deskWallet,
-          platformWallet: isEvmLaunchPlatform(platform) ? getEvmTreasuryWallet() : undefined,
+          platformWallet: isEvmLaunchPlatform(platform) ? getTreasuryWalletForPlatform(platform) : undefined,
           agentReferrer: referralPayout
             ? {
                 wallet: referralPayout,
@@ -253,6 +261,17 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
       twitter: input.twitter?.trim() || undefined,
       website: input.website?.trim() || undefined,
     })
+  } else if (platform === 'vibevibe') {
+    const metadataUri =
+      input.imageUrl?.trim() ||
+      `https://crewpay.dev/agent/launch-metadata?ticker=${encodeURIComponent(ticker)}`
+    plan = await buildVibevibeUnsignedLaunch({
+      name: input.name,
+      ticker,
+      metadataUri,
+      launcherPubkey,
+      shareholders: shareholders || [],
+    })
   } else {
     const { metadataUri } = await import('./ipfs.js').then((m) =>
       m.uploadPumpMetadataResilient({
@@ -280,7 +299,9 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
       ? 'UNSIGNED Zora EIP-1559 — sign split then zora_create; POST /api/agent/launch/submit { platform:"zora", signed:[hex…] }.'
       : platform === 'clanker'
         ? 'UNSIGNED Clanker EIP-1559 — sign clanker_deploy; POST /api/agent/launch/submit { platform:"clanker", signed:[hex…] }.'
-        : 'UNSIGNED build — sign and submit locally (or POST /api/agent/launch/submit with the signed base64). Messages expire with the blockhash; rebuild when expired.'
+        : platform === 'vibevibe'
+          ? 'UNSIGNED vibe/vibe EIP-1559 — sign vibevibe_deploy; POST /api/agent/launch/submit { platform:"vibevibe", signed:[hex…] }.'
+          : 'UNSIGNED build — sign and submit locally (or POST /api/agent/launch/submit with the signed base64). Messages expire with the blockhash; rebuild when expired.'
 
   const referralWarnings: string[] = []
   if (boundRef && !referralPayout && isEvmLaunchPlatform(platform)) {

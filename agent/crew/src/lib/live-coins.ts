@@ -96,7 +96,7 @@ export function filterLiveCoins(rows: LiveCoinRow[], filter: LiveCoinFilter): Li
 export function availableCoinVenues(rows: LiveCoinRow[]): LaunchPlatform[] {
   const seen = new Set<LaunchPlatform>()
   for (const row of rows) seen.add(liveCoinVenue(row))
-  return (['pumpfun', 'bags', 'zora', 'clanker'] as const).filter((id) => seen.has(id))
+  return (['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe'] as const).filter((id) => seen.has(id))
 }
 
 export function sortLiveCoins(

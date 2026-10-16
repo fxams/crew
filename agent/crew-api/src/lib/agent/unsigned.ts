@@ -14,6 +14,7 @@ export type UnsignedStepKind =
   | 'split'
   | 'zora_create'
   | 'clanker_deploy'
+  | 'vibevibe_deploy'
 
 export type UnsignedEncoding = 'message-v0' | 'solana-tx' | 'eip1559'
 
