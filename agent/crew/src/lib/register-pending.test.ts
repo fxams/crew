@@ -59,6 +59,17 @@ describe('pending KOL registration', () => {
     })
   })
 
+  it('round-trips an optional Base payout address', () => {
+    const wallet = '8x3KqP7nR2mYvC4wL9tHjF6sD1aB0eU5gN8cQ3zW7pXk'
+    const evmWallet = '0xAbCdEf0123456789abcdef0123456789ABCDEF01'
+    const raw = serializePendingRegistration({ wallet, startedAt: 1_700_000_000_000, evmWallet })
+    expect(parsePendingRegistration(raw, 1_700_000_000_000)).toEqual({
+      wallet,
+      startedAt: 1_700_000_000_000,
+      evmWallet,
+    })
+  })
+
   it('drops expired or junk payloads', () => {
     const wallet = '8x3KqP7nR2mYvC4wL9tHjF6sD1aB0eU5gN8cQ3zW7pXk'
     const raw = serializePendingRegistration({ wallet, startedAt: 1_000 })
