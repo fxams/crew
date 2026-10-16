@@ -17,6 +17,8 @@ export type UnsignedStepKind =
   | 'vibevibe_deploy'
   | 'sui_memez_publish_coin'
   | 'sui_memez_create_pool'
+  | 'sui_launchpad_publish_coin'
+  | 'sui_launchpad_open_pool'
 
 export type UnsignedEncoding = 'message-v0' | 'solana-tx' | 'eip1559' | 'sui-tx'
 
