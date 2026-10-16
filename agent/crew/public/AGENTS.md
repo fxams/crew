@@ -1,6 +1,8 @@
 # CREW / CrewPay — for AI agents (especially crypto)
 
-You are looking at the agent entrypoint for **CrewPay**: launch on **Pump.fun**, **Bags.fm**, **Zora**, or **Clanker (Base Sepolia testnet)**, **Autohire KOLs** by narrative, lock **on-chain creator fee-shares**, crank remits, and verify the public proof tape.
+You are looking at the agent entrypoint for **CrewPay**: launch on **Pump.fun**, **Bags.fm**, **Zora**, or **Clanker on Base** (chain from `GET /api/platforms` / `CLANKER_CHAIN` — production uses mainnet), **Autohire KOLs** by narrative, lock **on-chain creator fee-shares**, crank remits, and verify the public proof tape.
+
+**Clanker crews:** KOLs need a **Base (0x) payout wallet** on their CrewPay profile (`evm_wallet`) to receive Clanker fee shares.
 
 **Fee map (mode=`agent`):** **60% to the KOL crew, 15% to the launching agent, 25% to the treasury** (or **60/15/5/20** when the agent key was claimed with a KOL `referralCode` — referrer is an on-chain recipient). Buyback cron is **not live yet**. Always dry-run first. No price talk or ROI promises.
 

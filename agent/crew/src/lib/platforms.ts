@@ -67,13 +67,14 @@ export const FALLBACK_LAUNCH_VENUES: LaunchVenue[] = [
   {
     id: 'clanker',
     name: 'Clanker',
-    chain: 'base-sepolia',
+    chain: 'base',
     enabled: false,
     status: 'disabled',
-    caption: 'Base Sepolia (testnet)',
+    caption: 'Base',
     tradeHost: 'clanker.world',
     explorer: 'basescan',
-    note: 'Clanker v4 on Base Sepolia (testnet). Off unless CLANKER_ENABLED and a 0x treasury are set.',
+    note:
+      'Clanker v4 on Base (chain from GET /api/platforms / CLANKER_CHAIN). KOLs need a Base (0x) payout wallet on their CrewPay profile for fee shares. Off unless CLANKER_ENABLED and a 0x treasury are set.',
   },
   {
     id: 'vibevibe',
@@ -254,7 +255,8 @@ export function parseVenueChain(raw: unknown, id: LaunchPlatform): LaunchChain {
   if (raw === 'solana') return 'solana'
   if (raw === 'robinhood-testnet' || raw === 'robinhood') return raw
   if (id === 'vibevibe') return 'robinhood-testnet'
-  if (id === 'zora' || id === 'clanker') return 'base-sepolia'
+  if (id === 'zora') return 'base-sepolia'
+  if (id === 'clanker') return 'base'
   return 'solana'
 }
 
@@ -264,9 +266,19 @@ export function zoraCaption(enabled: boolean, chain: LaunchChain): string {
   return chain === 'base' ? 'Base' : 'testnet'
 }
 
-/** Clanker is Base Sepolia (testnet) until mainnet is enabled. */
-export function clankerCaption(_enabled?: boolean, _chain?: LaunchChain): string {
-  return 'Base Sepolia (testnet)'
+/** Clanker chip copy: Base (mainnet), Base Sepolia (testnet), soon (off). */
+export function clankerCaption(enabled: boolean, chain: LaunchChain): string {
+  if (!enabled) return 'soon'
+  return chain === 'base' ? 'Base' : 'Base Sepolia (testnet)'
+}
+
+/** Human label for marketing copy — uses API venue row when available. */
+export function clankerLaunchLabel(venues?: LaunchVenue[]): string {
+  const row = venues?.find((v) => v.id === 'clanker')
+  if (row?.enabled && row.caption && row.caption !== 'soon') {
+    return row.chain === 'base-sepolia' ? `Clanker (${row.caption})` : `Clanker on ${row.caption}`
+  }
+  return 'Clanker on Base'
 }
 
 export function vibevibeCaption(_enabled?: boolean, chain?: LaunchChain): string {
@@ -377,6 +389,14 @@ export function unsignedVenueHint(venue: LaunchVenue): string {
       return 'Zora on Base. Unsigned EIP-1559 — crew wallets must be 0x.'
     }
     return 'Zora on Base Sepolia (testnet). Unsigned EIP-1559 — crew wallets must be 0x.'
+  }
+  if (venue.id === 'clanker') {
+    if (!venue.enabled) {
+      return 'Clanker is soon unless the API enables it (CLANKER_ENABLED + 0x treasury). Chain follows CLANKER_CHAIN.'
+    }
+    const chainLabel =
+      venue.chain === 'base' ? 'Base mainnet' : 'Base Sepolia (testnet)'
+    return `Clanker on ${chainLabel}. Unsigned EIP-1559. KOLs need a Base (0x) payout wallet (evm_wallet) on their CrewPay profile to receive Clanker fee shares.`
   }
   if (venue.id === 'bags') {
     return venue.enabled
