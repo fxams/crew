@@ -776,7 +776,10 @@ export function KolRegisterPage() {
                   spellCheck={false}
                   maxLength={42}
                 />
-                <em>Needed for Zora / Base payouts. Pump.fun and Bags.fm still pay Solana.</em>
+                <em>
+                  Base (0x) payouts for Zora, Clanker, and the 5% agent-referral slice on EVM launches.
+                  Pump.fun and Bags.fm still pay Solana.
+                </em>
               </label>
             </details>
 

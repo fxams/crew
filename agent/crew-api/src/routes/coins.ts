@@ -17,7 +17,13 @@ import { isPlatformTreasury, readPlatformBuybackWallet } from '../lib/agent/cons
 import { requireApiKeyOrWallet, requireWalletSignatureOnly } from '../lib/wallet-auth.js'
 import { issueBoardNonce } from '../lib/board-nonces.js'
 import { assertSafeHttpUrl } from '../lib/agent/safe-url.js'
-import { coinPageUrl, enrichPublicCoinMeta, toPublicCoinPage, type PublicCoinMeta } from '../lib/coin-page.js'
+import {
+  coinPageUrl,
+  enrichPublicCoinMeta,
+  publicCoinLinks,
+  toPublicCoinPage,
+  type PublicCoinMeta,
+} from '../lib/coin-page.js'
 import { avatarLogo, isLogoMint, logoCacheHeaders, resolveCoinLogo, type CachedLogo } from '../lib/coin-logo.js'
 import { listLiveCoins } from '../lib/live-coins.js'
 import { featuredPublic, listGraduatedUnfeatured, setCoinFeaturedX } from '../lib/featured.js'
@@ -90,7 +96,13 @@ coinsRouter.get('/coins', async (req, res) => {
   try {
     const limit = Number(req.query.limit || 100)
     const coins = await listCoins(limit)
-    res.json({ coins })
+    res.json({
+      coins: coins.map((coin) => ({
+        ...coin,
+        ...publicCoinLinks(coin),
+        pageUrl: coinPageUrl(coin.mint),
+      })),
+    })
   } catch (err) {
     sendInternalError(res, err, 'list coins')
   }

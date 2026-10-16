@@ -673,6 +673,7 @@ agentRouter.post('/agent/launch/dry-run', requireAgentApiKeyOrX402, async (req, 
       agentKeyId,
       ownerWallet,
       deskWallet: deskWallet || undefined,
+      platform,
     })
     const bodyHash = hashLaunchBody(body as unknown as Record<string, unknown>, imageSha256, {
       crew: result.crew,

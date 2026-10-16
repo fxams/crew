@@ -30,6 +30,7 @@ import {
 import {
   getAgentKeyReferral,
   getAgentReferralByOwnerWallet,
+  referrerPayoutWallet,
   resolveLaunchAgentReferrer,
   upsertCoinShareholders,
 } from '../agent-referral.js'
@@ -42,6 +43,17 @@ import {
 import { assertSafeHttpUrl } from './safe-url.js'
 import { pollAdminRevokedOnChain } from './fee-lock-integrity.js'
 import { allowSequentialFeeLock, atomicRetryableError } from './atomic-policy.js'
+import { isEvmAddress, assertEvmAddress } from './evm-address.js'
+import {
+  clankerNetwork,
+  getEvmTreasuryWallet,
+  isEvmLaunchPlatform,
+  zoraNetwork,
+  type LaunchPlatform,
+} from './platforms.js'
+import { applyRegisteredEvmWallets, resolveZoraCrewWallets } from './zora.js'
+import { resolveClankerCrewWallets } from './clanker.js'
+import type { AddressChain } from './shareholders.js'
 
 export type AgentLaunchInput = {
   name: string
@@ -129,9 +141,16 @@ function id(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`
 }
 
+function mapCrewForEvmPlatform(crew: CrewMember[], platform: LaunchPlatform, registered: Awaited<ReturnType<typeof listRegisteredHireBoosts>>): CrewMember[] {
+  const withEvm = applyRegisteredEvmWallets(crew, registered)
+  if (platform === 'zora') return resolveZoraCrewWallets(withEvm)
+  if (platform === 'clanker') return resolveClankerCrewWallets(withEvm)
+  return withEvm
+}
+
 export async function resolveCrew(
   input: AgentLaunchInput,
-  opts?: { hasAgentReferrer?: boolean },
+  opts?: { hasAgentReferrer?: boolean; platform?: LaunchPlatform },
 ): Promise<{
   crew: CrewMember[]
   hirePlan?: NarrativeHirePlan
@@ -141,26 +160,35 @@ export async function resolveCrew(
   seatsMax?: number
 }> {
   const mode = input.mode || 'agent'
+  const platform = opts?.platform || 'pumpfun'
+  const chain: AddressChain = isEvmLaunchPlatform(platform) ? 'evm' : 'solana'
   const maxSeats = maxCrewSeats({
     hasAgentReferrer: Boolean(opts?.hasAgentReferrer),
     mode,
+    platform,
   })
   if (input.holderKol) {
     return { crew: [] }
   }
+  const registered = await listRegisteredHireBoosts()
   if (input.crew?.length) {
-    const filtered = skipCrewWithoutPayoutWallets(input.crew)
+    let crew = input.crew
+    if (isEvmLaunchPlatform(platform)) {
+      crew = mapCrewForEvmPlatform(crew, platform, registered)
+    }
+    const filtered = skipCrewWithoutPayoutWallets(crew, chain)
     if (!filtered.crew.length) {
       throw new Error(
-        'Crew has no payout wallets — add a wallet to get hired and paid. KOLs without a wallet are skipped for crews.',
+        chain === 'evm'
+          ? 'Crew has no Base (0x) payout wallets — pass EVM addresses or register evm_wallet on KOL profiles.'
+          : 'Crew has no payout wallets — add a wallet to get hired and paid. KOLs without a wallet are skipped for crews.',
       )
     }
-    return { crew: normalizeCrew(filtered.crew, mode, { maxSeats }) }
+    return { crew: normalizeCrew(filtered.crew, mode, { maxSeats, chain }) }
   }
   const requested = Math.max(1, Math.floor(input.autoHire?.seats ?? 5))
   const seats = Math.min(maxSeats, requested)
   const seatsDropped = requested > seats ? requested - seats : 0
-  const registered = await listRegisteredHireBoosts()
   const hirePlan = planNarrativeHires(
     {
       name: input.name,
@@ -172,8 +200,19 @@ export async function resolveCrew(
   if (!hirePlan.crew.length) {
     throw new Error('Auto-hire found no KOLs — provide crew[] or richer narrative.')
   }
+  let crew = hirePlan.crew
+  if (isEvmLaunchPlatform(platform)) {
+    crew = mapCrewForEvmPlatform(crew, platform, registered)
+    const filtered = skipCrewWithoutPayoutWallets(crew, chain)
+    if (!filtered.crew.length) {
+      throw new Error(
+        'Autohire crew has no Base (0x) payout wallets — pick explicit crew[] with EVM addresses or register evm_wallet for KOLs.',
+      )
+    }
+    crew = filtered.crew
+  }
   return {
-    crew: normalizeCrew(hirePlan.crew, mode, { maxSeats }),
+    crew: normalizeCrew(crew, mode, { maxSeats, chain }),
     hirePlan,
     seatsDropped: seatsDropped || undefined,
     seatsRequested: seatsDropped ? requested : undefined,
@@ -184,7 +223,7 @@ export async function resolveCrew(
 export type AgentDryRunResult = {
   ok: true
   dryRun: true
-  cluster: 'mainnet-beta'
+  cluster: 'mainnet-beta' | 'base' | 'base-sepolia'
   name: string
   ticker: string
   mode: DeskMode
@@ -241,8 +280,11 @@ export async function dryRunLaunchForAgent(
     ownerWallet?: string | null
     /** Override 15% launching-agent wallet (x402 payer when chain-compatible). */
     deskWallet?: string | null
+    platform?: LaunchPlatform
   },
 ): Promise<AgentDryRunResult> {
+  const platform = opts?.platform || 'pumpfun'
+  const chain: AddressChain = isEvmLaunchPlatform(platform) ? 'evm' : 'solana'
   const mode: DeskMode = input.mode || 'agent'
   const name = input.name.trim()
   const ticker = normalizeTicker(input.ticker)
@@ -287,9 +329,10 @@ export async function dryRunLaunchForAgent(
     : opts?.ownerWallet
       ? await getAgentReferralByOwnerWallet(opts.ownerWallet)
       : null
+  const referralPayoutPreview = boundRef ? referrerPayoutWallet(boundRef.referrer, chain) : null
   const { crew, hirePlan, seatsDropped, seatsRequested, seatsMax } = await resolveCrew(
     { ...input, mode },
-    { hasAgentReferrer: Boolean(boundRef) },
+    { hasAgentReferrer: Boolean(referralPayoutPreview), platform },
   )
   const vibe = withCrewLaunchDescription(vibeRaw)
   const agentRef = await resolveLaunchAgentReferrer({
@@ -297,20 +340,27 @@ export async function dryRunLaunchForAgent(
     ownerWallet: opts?.ownerWallet,
     launcherWallet: launcherPreview,
     crewWallets: crew.map((m) => m.wallet),
+    chain,
   })
-  const hasAgentReferrer = Boolean(agentRef.referrer)
+  const hasAgentReferrer = Boolean(agentRef.referrerPayoutWallet)
   const separateReferrer = hasAgentReferrer && !agentRef.dualRoleInCrew
   const deskBps = MODE_DESK_BPS[mode]
   const platformBps = platformBuybackBps(separateReferrer)
   const referrerBps = separateReferrer ? AGENT_REFERRAL_BPS : 0
   const crewPoolBps = 10_000 - platformBps - referrerBps - deskBps
   const needSol = initialBuySol + MIN_LAUNCH_FEE_SOL
-  const warnings: string[] = [
-    'MAINNET ONLY — dry-run does not create a mint; a real launch spends SOL.',
-    'Autohire wallets are public Pump.fun profiles — not endorsed affiliates and not opt-in partners.',
-    'Never put a Solana secret in an LLM tool argument — set CREW_LAUNCHER_KEY in MCP/server env only.',
-    `Description will include attribution: "${CREW_LAUNCH_ATTRIBUTION}" (appended if missing).`,
-  ]
+  const warnings: string[] = isEvmLaunchPlatform(platform)
+    ? [
+        `${platform === 'clanker' ? 'Clanker' : 'Zora'} dry-run — no on-chain deploy; unsigned build + local signing only.`,
+        'Crew wallets must be Base (0x…) addresses. Autohire maps registered evm_wallet when present.',
+        `Description will include attribution: "${CREW_LAUNCH_ATTRIBUTION}" (appended if missing).`,
+      ]
+    : [
+        'MAINNET ONLY — dry-run does not create a mint; a real launch spends SOL.',
+        'Autohire wallets are public Pump.fun profiles — not endorsed affiliates and not opt-in partners.',
+        'Never put a Solana secret in an LLM tool argument — set CREW_LAUNCHER_KEY in MCP/server env only.',
+        `Description will include attribution: "${CREW_LAUNCH_ATTRIBUTION}" (appended if missing).`,
+      ]
   if (agentRef.warning) warnings.push(agentRef.warning)
   if (seatsDropped && seatsRequested && seatsMax) {
     warnings.push(
@@ -325,9 +375,9 @@ export async function dryRunLaunchForAgent(
     warnings.push(
       `Agent referral dual-role: ${agentRef.referrer.handle} paid max(crew seat, ${AGENT_REFERRAL_BPS} bps).`,
     )
-  } else if (!agentRef.dualRoleInCrew) {
+  } else if (!agentRef.dualRoleInCrew && !agentRef.referrer) {
     warnings.push(
-      `Non-referred agent — fee map 60/15/25 (crew/agent/treasury). Max ${maxCrewSeats({ hasAgentReferrer: false })} crew seats.`,
+      `Non-referred agent — fee map 60/15/25 (crew/agent/treasury). Max ${maxCrewSeats({ hasAgentReferrer: false, platform })} crew seats.`,
     )
   }
   if (input.holderKol) {
@@ -337,35 +387,55 @@ export async function dryRunLaunchForAgent(
   let shareholders: { wallet: string; bps: number; role?: string; handle?: string }[] | undefined
   if (!input.holderKol) {
     const deskWallet =
-      opts?.deskWallet?.trim() || launcherPreview || '11111111111111111111111111111111'
-    // Hard-fail (400) when recipients exceed Pump's 10-wallet cap — never soft-warn.
+      opts?.deskWallet?.trim() ||
+      launcherPreview ||
+      (chain === 'evm' ? '0x1111111111111111111111111111111111111111' : '11111111111111111111111111111111')
+    const deskNormalized =
+      chain === 'evm'
+        ? isEvmAddress(deskWallet)
+          ? assertEvmAddress(deskWallet)
+          : launcherPreview && isEvmAddress(launcherPreview)
+            ? assertEvmAddress(launcherPreview)
+            : assertEvmAddress(deskWallet)
+        : new PublicKey(deskWallet).toBase58()
     shareholders = buildCrewShareholders(crew, mode, {
-      deskWallet: new PublicKey(deskWallet).toBase58(),
-      agentReferrer: agentRef.referrer
+      deskWallet: deskNormalized,
+      platformWallet: chain === 'evm' ? getEvmTreasuryWallet() : undefined,
+      agentReferrer: agentRef.referrerPayoutWallet
         ? {
-            wallet: agentRef.referrer.wallet,
-            handle: agentRef.referrer.handle,
-            code: agentRef.referrer.code,
+            wallet: agentRef.referrerPayoutWallet,
+            handle: agentRef.referrer?.handle,
+            code: agentRef.referrer?.code,
           }
         : null,
+      chain,
+      platform,
     })
   }
 
   let balance: AgentDryRunResult['balance']
   if (launcherPreview) {
-    const launcher = new PublicKey(launcherPreview).toBase58()
-    const lamports = await getConnection().getBalance(new PublicKey(launcher), 'confirmed')
-    const sol = lamports / 1e9
-    balance = { launcher, sol, sufficient: sol >= needSol }
-    if (!balance.sufficient) {
-      warnings.push(
-        `Launcher has ${sol.toFixed(4)} SOL; needs ≥ ${needSol.toFixed(3)} SOL for this plan.`,
-      )
+    if (chain === 'evm') {
+      const launcher = assertEvmAddress(launcherPreview)
+      balance = { launcher, sol: 0, sufficient: true }
+      warnings.push('EVM dry-run — fund the launcher with Base ETH for deploy gas (not checked here).')
+    } else {
+      const launcher = new PublicKey(launcherPreview).toBase58()
+      const lamports = await getConnection().getBalance(new PublicKey(launcher), 'confirmed')
+      const sol = lamports / 1e9
+      balance = { launcher, sol, sufficient: sol >= needSol }
+      if (!balance.sufficient) {
+        warnings.push(
+          `Launcher has ${sol.toFixed(4)} SOL; needs ≥ ${needSol.toFixed(3)} SOL for this plan.`,
+        )
+      }
     }
   }
 
   const deskWalletPreview =
-    opts?.deskWallet?.trim() || launcherPreview || '11111111111111111111111111111111'
+    opts?.deskWallet?.trim() ||
+    launcherPreview ||
+    (chain === 'evm' ? '0x1111111111111111111111111111111111111111' : '11111111111111111111111111111111')
   const crewOut = input.holderKol
     ? [{ handle: '@holder', wallet: '(launcher)', share: 100, hireRole: 'kol' as HireRole }]
     : crew.map((m) => {
@@ -394,7 +464,9 @@ export async function dryRunLaunchForAgent(
   return {
     ok: true,
     dryRun: true,
-    cluster: 'mainnet-beta',
+    cluster: isEvmLaunchPlatform(platform)
+      ? (platform === 'clanker' ? clankerNetwork() : zoraNetwork())
+      : 'mainnet-beta',
     name,
     ticker,
     mode,
@@ -416,10 +488,10 @@ export async function dryRunLaunchForAgent(
       crewPoolBps,
       ...(referrerBps ? { referrerBps } : {}),
     },
-    referral: agentRef.referrer
+    referral: agentRef.referrerPayoutWallet && agentRef.referrer
       ? {
           code: agentRef.referrer.code,
-          wallet: agentRef.referrer.wallet,
+          wallet: agentRef.referrerPayoutWallet,
           handle: agentRef.referrer.handle,
           bps: AGENT_REFERRAL_BPS,
         }

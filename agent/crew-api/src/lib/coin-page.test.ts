@@ -12,6 +12,7 @@ import {
   parseDexTokenQuotes,
   parseJupToken,
   parsePumpCoinMeta,
+  publicCoinLinks,
   pumpCurveMarketCapUsd,
   resetCoinMetaCache,
   setCoinMetaFetch,
@@ -73,6 +74,27 @@ describe('public coin page DTO', () => {
   it('never claims launcher gets 60%', () => {
     const page = toPublicCoinPage(coin)
     expect(JSON.stringify(page).toLowerCase()).not.toMatch(/launcher gets 60/)
+  })
+
+  it('fills coinUrl, tradeUrl, and explorerUrl for Clanker testnet mints', () => {
+    const mint = '0x52c3f4ac350f0ddfae43a9fda7798bb6262535e9'
+    const clankerCoin: ApiCoin = {
+      ...coin,
+      mint,
+      platform: 'clanker',
+      pumpUrl: `https://sepolia.basescan.org/token/${mint}#clanker`,
+    }
+    const links = publicCoinLinks(clankerCoin)
+    expect(links.coinUrl).toBe(coinPageUrl(mint))
+    expect(links.tradeUrl).toBe(coinPageUrl(mint))
+    expect(links.explorerUrl).toContain('sepolia.basescan.org')
+    expect(links.explorerUrl).toContain(mint)
+    const page = toPublicCoinPage(clankerCoin)
+    expect(page.coinUrl).toBe(links.coinUrl)
+    expect(page.tradeUrl).toBe(links.tradeUrl)
+    expect(page.explorerUrl).toBe(links.explorerUrl)
+    expect(page.chain).toBe('base-sepolia')
+    expect(page.launchpadLabel).toBe('Clanker')
   })
 })
 

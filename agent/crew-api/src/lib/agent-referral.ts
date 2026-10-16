@@ -7,15 +7,35 @@
 import { PublicKey } from '@solana/web3.js'
 import { randomBytes } from 'node:crypto'
 import { AGENT_REFERRAL_BPS, REFERRAL_CLAIM_DAILY_CAP } from './agent/constants.js'
-import { normalizeShareholderRole } from './agent/shareholders.js'
+import { assertEvmAddress, isEvmAddress } from './agent/evm-address.js'
+import { normalizeShareholderRole, type AddressChain } from './agent/shareholders.js'
 import { query } from './db.js'
 import { normalizeReferralCode, siteUrl } from './kol-register.js'
 
 export type AgentReferrer = {
   code: string
+  /** Solana payout wallet (KOL registration). */
   wallet: string
+  /** Optional Base / EVM payout wallet for Zora & Clanker fee maps. */
+  evmWallet: string | null
   handle: string
   xUsername: string
+}
+
+/** On-chain payout address for the referrer on this launch chain. */
+export function referrerPayoutWallet(
+  referrer: AgentReferrer,
+  chain: AddressChain = 'solana',
+): string | null {
+  if (chain === 'evm') {
+    const w = (referrer.evmWallet || '').trim()
+    return isEvmAddress(w) ? assertEvmAddress(w) : null
+  }
+  try {
+    return new PublicKey(referrer.wallet.trim()).toBase58()
+  } catch {
+    return null
+  }
 }
 
 export function agentReferralLink(code: string): string {
@@ -30,7 +50,7 @@ export async function resolveAgentReferrer(rawCode: string): Promise<AgentReferr
     throw new Error('Invalid referralCode — use a registered KOL code (2+ chars).')
   }
   const { rows } = await query(
-    `SELECT referral_code, wallet, x_username
+    `SELECT referral_code, wallet, evm_wallet, x_username
      FROM kol_registrations
      WHERE lower(referral_code) = $1
      LIMIT 1`,
@@ -46,12 +66,15 @@ export async function resolveAgentReferrer(rawCode: string): Promise<AgentReferr
   try {
     wallet = new PublicKey(String(row.wallet).trim()).toBase58()
   } catch {
-    throw new Error(`Referral code "${code}" has an invalid referrer wallet on file.`)
+    throw new Error(`Referral code "${code}" has an invalid referrer Solana wallet on file.`)
   }
+  const rawEvm = row.evm_wallet ? String(row.evm_wallet).trim() : ''
+  const evmWallet = isEvmAddress(rawEvm) ? assertEvmAddress(rawEvm) : null
   const xUsername = String(row.x_username || '').replace(/^@+/, '')
   return {
     code: String(row.referral_code).toLowerCase(),
     wallet,
+    evmWallet,
     handle: xUsername ? `@${xUsername}` : '@referrer',
     xUsername,
   }
@@ -255,17 +278,21 @@ export async function resolveLaunchAgentReferrer(opts: {
   ownerXUsername?: string | null
   agentLabel?: string | null
   crewWallets?: string[]
+  chain?: AddressChain
 }): Promise<{
   referrer: AgentReferrer | null
+  /** Wallet that receives the 5% referral cut on this chain (null → 60/15/25). */
+  referrerPayoutWallet: string | null
   warning?: string
   dualRoleInCrew?: boolean
 }> {
+  const chain = opts.chain || 'solana'
   const bound = opts.keyId
     ? await getAgentKeyReferral(opts.keyId)
     : opts.ownerWallet
       ? await getAgentReferralByOwnerWallet(opts.ownerWallet)
       : null
-  if (!bound) return { referrer: null }
+  if (!bound) return { referrer: null, referrerPayoutWallet: null }
   if (
     isSelfReferral({
       referrerWallet: bound.referrer.wallet,
@@ -278,17 +305,36 @@ export async function resolveLaunchAgentReferrer(opts: {
   ) {
     return {
       referrer: null,
+      referrerPayoutWallet: null,
       warning:
         'Agent referral ignored — referring KOL matches owner wallet/X (self-referral blocked).',
     }
   }
+  const payout = referrerPayoutWallet(bound.referrer, chain)
+  if (!payout) {
+    const evmNote =
+      chain === 'evm'
+        ? ' Referrer has no Base (0x) payout wallet on file — fee map stays 60/15/25 (not 60/15/5/20). KOLs can add evm_wallet at /register or on their desk profile.'
+        : ''
+    return {
+      referrer: bound.referrer,
+      referrerPayoutWallet: null,
+      warning: `Agent referral code ${bound.referrer.code} is bound, but no ${chain === 'evm' ? 'EVM' : 'Solana'} payout wallet is available for this launch.${evmNote}`,
+    }
+  }
   if (opts.crewWallets?.length) {
-    const ref = bound.referrer.wallet
     for (const w of opts.crewWallets) {
       try {
-        if (new PublicKey(w.trim()).toBase58() === ref) {
+        const normalized =
+          chain === 'evm'
+            ? isEvmAddress(w)
+              ? assertEvmAddress(w)
+              : null
+            : new PublicKey(w.trim()).toBase58()
+        if (normalized && normalized === payout) {
           return {
             referrer: bound.referrer,
+            referrerPayoutWallet: payout,
             dualRoleInCrew: true,
             warning:
               'Referrer is also in this launch crew — paid max(crew seat, 5% referral floor); no separate referrer wallet.',
@@ -299,7 +345,7 @@ export async function resolveLaunchAgentReferrer(opts: {
       }
     }
   }
-  return { referrer: bound.referrer }
+  return { referrer: bound.referrer, referrerPayoutWallet: payout }
 }
 
 export type KolReferralStats = {
