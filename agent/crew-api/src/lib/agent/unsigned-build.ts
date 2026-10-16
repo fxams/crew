@@ -10,11 +10,14 @@ import {
   LAUNCH_FEE_MAP_COPY,
   assertPlatformReady,
   getEvmTreasuryWallet,
+  isEvmLaunchPlatform,
   parseLaunchPlatform,
+  platformDisplayName,
   type LaunchPlatform,
 } from './platforms.js'
 import { buildCrewShareholders, maxCrewSeats } from './shareholders.js'
 import { buildUnsignedLaunchTransactions, type UnsignedLaunchPlan } from './unsigned.js'
+import { buildClankerUnsignedLaunch, resolveClankerCrewWallets } from './clanker.js'
 import { applyRegisteredEvmWallets, buildZoraUnsignedLaunch, resolveZoraCrewWallets } from './zora.js'
 
 export type UnsignedLaunchInput = {
@@ -108,16 +111,16 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
   assertPlatformReady(platform)
   const payerWallet = (input.payerWallet || '').trim() || undefined
   let launcherPubkey = (input.launcherPubkey || '').trim()
-  if (!launcherPubkey && platform === 'zora' && payerWallet && isEvmAddress(payerWallet)) {
+  if (!launcherPubkey && isEvmLaunchPlatform(platform) && payerWallet && isEvmAddress(payerWallet)) {
     launcherPubkey = payerWallet
   }
   if (!launcherPubkey) {
     throw new Error('launcherPubkey is required (the address that will sign — CrewPay stays non-custodial).')
   }
-  if (platform === 'zora' && !isEvmAddress(launcherPubkey)) {
-    throw new Error('Zora launches require an EVM launcherPubkey (0x… on Base).')
+  if (isEvmLaunchPlatform(platform) && !isEvmAddress(launcherPubkey)) {
+    throw new Error(`${platformDisplayName(platform)} launches require an EVM launcherPubkey (0x… on Base).`)
   }
-  if (platform !== 'zora') {
+  if (!isEvmLaunchPlatform(platform)) {
     try {
       // eslint-disable-next-line no-new
       new (await import('@solana/web3.js')).PublicKey(launcherPubkey)
@@ -148,20 +151,24 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
   if (platform === 'zora') {
     crew = resolveZoraCrewWallets(applyRegisteredEvmWallets(crew, registered))
   }
+  if (platform === 'clanker') {
+    crew = resolveClankerCrewWallets(applyRegisteredEvmWallets(crew, registered))
+  }
 
   if (input.optInOnly && crew && crew.length) {
     await assertOptedInCrew(crew)
   }
 
-  const chain = platform === 'zora' ? 'evm' : 'solana'
+  const chain = isEvmLaunchPlatform(platform) ? 'evm' : 'solana'
   const deskWallet = (input.deskWallet || '').trim() || launcherPubkey
   const shareholders =
     crew && crew.length
       ? buildCrewShareholders(crew, input.mode || 'agent', {
           deskWallet,
-          platformWallet: platform === 'zora' ? getEvmTreasuryWallet() : undefined,
+          platformWallet: isEvmLaunchPlatform(platform) ? getEvmTreasuryWallet() : undefined,
           agentReferrer:
-            boundRef?.referrer && (platform !== 'zora' || isEvmAddress(boundRef.referrer.wallet))
+            boundRef?.referrer &&
+            (!isEvmLaunchPlatform(platform) || isEvmAddress(boundRef.referrer.wallet))
               ? { wallet: boundRef.referrer.wallet, handle: boundRef.referrer.handle, code: boundRef.referrer.code }
               : null,
           treasuryBpsOverride: clampTreasuryBpsOverride(input.treasuryBps),
@@ -211,6 +218,27 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
       shareholders: shareholders || [],
       initialBuySol: input.initialBuySol ?? 0,
     })
+  } else if (platform === 'clanker') {
+    const { metadataUri } = await import('./ipfs.js').then((m) =>
+      m.uploadPumpMetadata({
+        name: input.name,
+        symbol: ticker,
+        description: vibe,
+        twitter: input.twitter?.trim() || undefined,
+        website: input.website?.trim() || undefined,
+        image,
+      }),
+    )
+    plan = await buildClankerUnsignedLaunch({
+      name: input.name,
+      ticker,
+      metadataUri,
+      imageUrl: input.imageUrl,
+      launcherPubkey,
+      shareholders: shareholders || [],
+      twitter: input.twitter?.trim() || undefined,
+      website: input.website?.trim() || undefined,
+    })
   } else {
     const { metadataUri } = await import('./ipfs.js').then((m) =>
       m.uploadPumpMetadata({
@@ -236,7 +264,9 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
   const tip =
     platform === 'zora'
       ? 'UNSIGNED Zora EIP-1559 — sign split then zora_create; POST /api/agent/launch/submit { platform:"zora", signed:[hex…] }.'
-      : 'UNSIGNED build — sign and submit locally (or POST /api/agent/launch/submit with the signed base64). Messages expire with the blockhash; rebuild when expired.'
+      : platform === 'clanker'
+        ? 'UNSIGNED Clanker EIP-1559 — sign clanker_deploy; POST /api/agent/launch/submit { platform:"clanker", signed:[hex…] }.'
+        : 'UNSIGNED build — sign and submit locally (or POST /api/agent/launch/submit with the signed base64). Messages expire with the blockhash; rebuild when expired.'
 
   return {
     ...plan,

@@ -61,7 +61,7 @@ If you can HTTP GET, start here — then call the API. No browser UI required.
 
 ## For crypto agents
 
-If you launch **Solana / Pump.fun / Bags.fm** or **Zora (Base)** coins, hire **KOLs**, or split **creator fees**, use CREW:
+If you launch **Solana / Pump.fun / Bags.fm** or **Zora / Clanker (Base)** coins, hire **KOLs**, or split **creator fees**, use CREW:
 
 1. Prefer MCP tools: `crew_claim_key` → `crew_discover` → `crew_list_kols` (pick explicit crew) → `crew_launch_dry_run` → `crew_launch` → `crew_list_launches` / `crew_status` / `crew_wire_fees` / `crew_crank_remits` (see https://crewpay.dev/mcp.json). `crew_autohire` is a fallback convenience when you cannot pick explicit crew.
 2. Or HTTP: GET https://api.crewpay.dev/api/agent → POST keys/claim → GET /api/kols (browse/select) → POST /api/agent/launch/dry-run (with crew[]) → POST /api/agent/launch → (fallback) POST /api/agent/autohire
@@ -108,6 +108,7 @@ Canonical site is **https://crewpay.dev** (`app.crewpay.dev` has no DNS).
 - `platform` on `POST /api/agent/launch/unsigned` and MCP `crew_build_unsigned` defaults to `pumpfun` (unchanged).
 - `bags` — Bags.fm is **recommended** when `BAGS_API_KEY` is set. Still opt-in — do not switch the API default off pumpfun. Hired KOL crew + launching agent + treasury are fee claimers (60/15/rest; 5% referrer when bound). Bags caps claimers at 100; crews above 7 claimers attach the Bags public LUT.
 - `zora` — Zora content coins on Base. Off unless `ZORA_ENABLED` is set. Creator rewards (0.50%) go to a 0xSplits contract (60% to the KOL crew, 15% to the launching agent, 25% to the treasury). The separate 0.20% platform referral is paid to `ZORA_PLATFORM_REFERRER` (defaults to the treasury 0x address today — it does **not** flow through 0xSplits). Routing it into the 60/15/25 split would mean passing the predicted split as `platformReferrer` at create; CrewPay does **not** change on-chain addresses. Base Sepolia by default; `ZORA_CHAIN=base` for mainnet. Returns unsigned EIP-1559 txs (split, then create).
+- `clanker` — Clanker v4 on Base. Off unless `CLANKER_ENABLED=1` and a 0x treasury is set. CrewPay maps 60/15/25 (or 60/15/5/20 with referral) to Clanker `rewardBps` at launch (unsigned EIP-1559 deploy). Clanker’s separate protocol fee on swaps is **not** in the CrewPay map — see `docs/integrations/clanker.md`. Default testnet: Base Sepolia (`CLANKER_CHAIN=base-sepolia`).
 - Same KOL order on every platform: explicit `crew[]` first, Autohire second. `optInOnly` optional and off by default.
 - Sign locally, then `POST /api/agent/launch/submit` / `crew_submit_signed` (pass the same `platform`).
 

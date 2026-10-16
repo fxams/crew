@@ -80,7 +80,12 @@ import { solanaAddress } from '../lib/agent/solana-address.js'
 import { evmAddress } from '../lib/agent/evm-address.js'
 import { draftMentionFromRemit } from '../lib/kol-mentions.js'
 import { emitWebhookEvent } from '../lib/webhooks.js'
-import { assertPlatformReady, parseLaunchPlatform } from '../lib/agent/platforms.js'
+import {
+  assertPlatformReady,
+  evmLaunchRpcUrl,
+  isEvmLaunchPlatform,
+  parseLaunchPlatform,
+} from '../lib/agent/platforms.js'
 
 export const agentRouter = Router()
 
@@ -127,7 +132,7 @@ const unsignedLaunchSchema = z
       .optional(),
     optInOnly: z.boolean().optional().default(false),
     treasuryBps: z.number().int().min(2000).max(3000).optional(),
-    platform: z.enum(['pumpfun', 'bags', 'zora']).optional().default('pumpfun'),
+    platform: z.enum(['pumpfun', 'bags', 'zora', 'clanker']).optional().default('pumpfun'),
     launcherPubkey: z.string().min(20).max(64),
     mintPubkey: z.string().min(20).max(64).optional(),
   })
@@ -142,7 +147,7 @@ agentRouter.post('/agent/launch/unsigned', requireAgentApiKeyOrX402, async (req,
 
     const body = unsignedLaunchSchema.parse(req.body)
     const platform = parseLaunchPlatform(body.platform)
-    const chain = platform === 'zora' ? 'evm' : 'solana'
+    const chain = isEvmLaunchPlatform(platform) ? 'evm' : 'solana'
     const result = await runUnsignedLaunch({
       ...body,
       keyId: req.crewAgentAuth?.keyId,
@@ -158,7 +163,7 @@ agentRouter.post('/agent/launch/unsigned', requireAgentApiKeyOrX402, async (req,
 const submitSignedSchema = z.object({
   /** Signed txs: Solana base64 (Pump/Bags) or EVM hex (Zora), in builder order. */
   signed: z.array(z.string().min(64)).min(1).max(8),
-  platform: z.enum(['pumpfun', 'bags', 'zora']).optional().default('pumpfun'),
+  platform: z.enum(['pumpfun', 'bags', 'zora', 'clanker']).optional().default('pumpfun'),
 })
 
 agentRouter.post('/agent/launch/submit', requireAgentApiKeyOrX402, async (req, res) => {
@@ -170,19 +175,19 @@ agentRouter.post('/agent/launch/submit', requireAgentApiKeyOrX402, async (req, r
     const body = submitSignedSchema.parse(req.body)
     const platform = parseLaunchPlatform(body.platform)
     const sigs: string[] = []
-    if (platform === 'zora') {
-      assertPlatformReady('zora')
-      const { zoraRpcUrl } = await import('../lib/agent/platforms.js')
+    if (isEvmLaunchPlatform(platform)) {
+      assertPlatformReady(platform)
+      const rpcUrl = evmLaunchRpcUrl(platform)
       for (const raw of body.signed) {
         const hex = raw.startsWith('0x') ? raw : `0x${Buffer.from(raw, 'base64').toString('hex')}`
-        const resRpc = await fetch(zoraRpcUrl(), {
+        const resRpc = await fetch(rpcUrl, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_sendRawTransaction', params: [hex] }),
         })
         const json = (await resRpc.json()) as { result?: string; error?: { message?: string } }
         if (json.error?.message) throw new Error(json.error.message)
-        if (!json.result) throw new Error('Zora submit missing tx hash')
+        if (!json.result) throw new Error(`${platform} submit missing tx hash`)
         sigs.push(json.result)
       }
     } else {
@@ -316,7 +321,7 @@ const launchBodySchema = z
      * From POST /api/agent/launch/dry-run (+ approval when required).
      */
     dryRunId: z.string().min(16).max(64).optional(),
-    platform: z.enum(['pumpfun', 'bags', 'zora']).optional().default('pumpfun'),
+    platform: z.enum(['pumpfun', 'bags', 'zora', 'clanker']).optional().default('pumpfun'),
   })
   .superRefine(refineLaunchBody)
 
@@ -630,7 +635,7 @@ agentRouter.post('/agent/launch/dry-run', requireAgentApiKeyOrX402, async (req, 
     const platform = parseLaunchPlatform(body.platform)
     assertPlatformReady(platform)
     const launcherPubkey =
-      platform === 'zora'
+      isEvmLaunchPlatform(platform)
         ? body.launcherPubkey
           ? body.launcherPubkey.trim()
           : null
@@ -650,7 +655,7 @@ agentRouter.post('/agent/launch/dry-run', requireAgentApiKeyOrX402, async (req, 
       (agentKeyId ? await getOwnerWalletByKeyId(agentKeyId) : null) ||
       req.crewAgentAuth?.payerWallet ||
       null
-    const chain = platform === 'zora' ? 'evm' : 'solana'
+    const chain = isEvmLaunchPlatform(platform) ? 'evm' : 'solana'
     const deskWallet = launcherPubkey
       ? deskWalletFromAuth(req.crewAgentAuth, launcherPubkey, chain)
       : req.crewAgentAuth?.source === 'x402' && chain === 'solana'
