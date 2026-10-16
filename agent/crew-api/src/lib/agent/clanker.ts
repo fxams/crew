@@ -8,7 +8,7 @@ import {
   clankerNetwork,
   clankerRpcUrl,
 } from './platforms.js'
-import { applyRegisteredEvmWallets, resolveZoraCrewWallets } from './zora.js'
+import { applyRegisteredEvmWallets, resolveClankerCrewWallets } from './zora.js'
 
 export type EvmRpc = (method: string, params: unknown[]) => Promise<unknown>
 
@@ -32,7 +32,7 @@ export function setClankerDeployCallForTests(fn: ClankerDeployCall | null): void
 }
 
 /** Re-export crew EVM resolution (Clanker uses the same Base addresses as Zora). */
-export { applyRegisteredEvmWallets, resolveZoraCrewWallets as resolveClankerCrewWallets }
+export { applyRegisteredEvmWallets, resolveClankerCrewWallets }
 
 async function evmRpc(method: string, params: unknown[]): Promise<unknown> {
   if (evmRpcImpl) return evmRpcImpl(method, params)
