@@ -118,7 +118,16 @@ fun graduation_at_target_not_yet_migrated() {
         let cfg = ts::take_shared<LaunchpadConfig>(&scenario);
         let cap = ts::take_from_sender<coin::TreasuryCap<TEST_COIN>>(&scenario);
         let recipients = fees::recipients_for_test(vector[CREW1], vector[10000u64], AGENT, TREAS);
-        pool::create_pool(&cfg, cap, 10_000_000_000_000, 5_000_000_000, 5_000_000_000_000_000_000, 1_000_000_000, recipients, ts::ctx(&mut scenario));
+        pool::create_pool(
+            &cfg,
+            cap,
+            5_000_000_000_000_000_000,
+            5_000_000_000,
+            5_000_000_000_000_000_000,
+            1_000_000_000,
+            recipients,
+            ts::ctx(&mut scenario),
+        );
         ts::return_shared(cfg);
     };
     ts::next_tx(&mut scenario, LAUNCHER);
@@ -147,7 +156,16 @@ fun post_graduation_buy_blocks() {
         let cfg = ts::take_shared<LaunchpadConfig>(&scenario);
         let cap = ts::take_from_sender<coin::TreasuryCap<TEST_COIN>>(&scenario);
         let recipients = fees::recipients_for_test(vector[CREW1], vector[10000u64], AGENT, TREAS);
-        pool::create_pool(&cfg, cap, 10_000_000_000_000, 5_000_000_000, 5_000_000_000_000_000_000, 1_000_000_000, recipients, ts::ctx(&mut scenario));
+        pool::create_pool(
+            &cfg,
+            cap,
+            5_000_000_000_000_000_000,
+            5_000_000_000,
+            5_000_000_000_000_000_000,
+            1_000_000_000,
+            recipients,
+            ts::ctx(&mut scenario),
+        );
         ts::return_shared(cfg);
     };
     ts::next_tx(&mut scenario, LAUNCHER);

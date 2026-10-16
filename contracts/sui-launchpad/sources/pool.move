@@ -227,8 +227,10 @@ fun maybe_graduate<T>(pool: &mut Pool<T>) {
     if (pool.graduated) return;
     let sui_liq = balance::value(&pool.sui);
     if (sui_liq < pool.target_sui) return;
-    pool.graduated = true;
     let meme_liq = balance::value(&pool.meme);
+    // Cetus migration needs both reserves; do not graduate on SUI target alone.
+    if (meme_liq == 0) return;
+    pool.graduated = true;
     event::emit(Graduated {
         pool_id: object::id(pool),
         sui_liquidity: sui_liq,
@@ -255,7 +257,8 @@ public fun migrate_to_cetus<T>(
     let sui_bal = balance::split(&mut pool.sui, sui_amt);
     let meme_bal = balance::split(&mut pool.meme, meme_amt);
     let pool_id = object::id(pool);
-    migration::migrate_graduated_pool_to_cetus<T>(
+    let refund_treasury = fees::treasury_addr(&pool.recipients);
+    migration::migrate_graduated_pool_to_cetus_with_refund<T>(
         pool_id,
         sui_bal,
         meme_bal,
@@ -264,6 +267,7 @@ public fun migrate_to_cetus<T>(
         cetus_pools,
         metadata_t,
         metadata_sui,
+        refund_treasury,
         clock,
         ctx,
     );

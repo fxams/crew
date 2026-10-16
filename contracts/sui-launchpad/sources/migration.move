@@ -37,6 +37,7 @@ public struct MigratedToCetus has copy, drop {
 }
 
 /// Drain graduated bonding-curve reserves into a new Cetus CLMM pool (full range) and lock the LP NFT.
+/// Legacy entry — Cetus dust refunds go to `ctx.sender()`. Prefer `migrate_graduated_pool_to_cetus_with_refund`.
 public fun migrate_graduated_pool_to_cetus<T>(
     bonding_pool_id: ID,
     sui_bal: Balance<SUI>,
@@ -46,6 +47,35 @@ public fun migrate_graduated_pool_to_cetus<T>(
     cetus_pools: &mut Pools,
     _metadata_t: &CoinMetadata<T>,
     _metadata_sui: &CoinMetadata<SUI>,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    migrate_graduated_pool_to_cetus_with_refund(
+        bonding_pool_id,
+        sui_bal,
+        meme_bal,
+        mig_cfg,
+        cetus_cfg,
+        cetus_pools,
+        _metadata_t,
+        _metadata_sui,
+        ctx.sender(),
+        clock,
+        ctx,
+    );
+}
+
+/// Same as `migrate_graduated_pool_to_cetus` but refunds Cetus `create_pool_v3` dust to `refund_treasury`.
+public(package) fun migrate_graduated_pool_to_cetus_with_refund<T>(
+    bonding_pool_id: ID,
+    sui_bal: Balance<SUI>,
+    meme_bal: Balance<T>,
+    mig_cfg: &CetusMigrationConfig,
+    cetus_cfg: &GlobalConfig,
+    cetus_pools: &mut Pools,
+    _metadata_t: &CoinMetadata<T>,
+    _metadata_sui: &CoinMetadata<SUI>,
+    refund_treasury: address,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -63,6 +93,7 @@ public fun migrate_graduated_pool_to_cetus<T>(
             mig_cfg,
             cetus_cfg,
             cetus_pools,
+            refund_treasury,
             clock,
             ctx,
         );
@@ -76,6 +107,7 @@ public fun migrate_graduated_pool_to_cetus<T>(
             mig_cfg,
             cetus_cfg,
             cetus_pools,
+            refund_treasury,
             clock,
             ctx,
         );
@@ -91,6 +123,7 @@ fun migrate_ordered<CoinTypeA, CoinTypeB>(
     mig_cfg: &CetusMigrationConfig,
     cetus_cfg: &GlobalConfig,
     cetus_pools: &mut Pools,
+    refund_treasury: address,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -124,8 +157,8 @@ fun migrate_ordered<CoinTypeA, CoinTypeB>(
         ctx,
     );
 
-    refund_leftover(leftover_a, ctx);
-    refund_leftover(leftover_b, ctx);
+    refund_leftover(leftover_a, refund_treasury, ctx);
+    refund_leftover(leftover_b, refund_treasury, ctx);
 
     let locked = LockedClmmPosition {
         id: object::new(ctx),
@@ -144,11 +177,11 @@ fun migrate_ordered<CoinTypeA, CoinTypeB>(
     });
 }
 
-fun refund_leftover<CoinType>(mut coin: Coin<CoinType>, ctx: &mut TxContext) {
+fun refund_leftover<CoinType>(mut coin: Coin<CoinType>, refund_treasury: address, _ctx: &mut TxContext) {
     if (coin::value(&coin) == 0) {
         coin::destroy_zero(coin);
     } else {
-        transfer::public_transfer(coin, ctx.sender());
+        transfer::public_transfer(coin, refund_treasury);
     }
 }
 

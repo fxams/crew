@@ -189,6 +189,44 @@ export function suiRpcUrl(): string {
   return 'https://fullnode.testnet.sui.io:443'
 }
 
+/** Sui GraphQL endpoint (testnet). Prefer over JSON-RPC for coin metadata and object reads. */
+export function suiGraphqlUrl(): string {
+  const explicit = (process.env.SUI_GRAPHQL_URL || '').trim()
+  if (explicit) return explicit
+  return 'https://graphql.testnet.sui.io/graphql'
+}
+
+export function crewpayLaunchpadMigrationConfigId(): string {
+  const w = (process.env.CREWPAY_LAUNCHPAD_MIGRATION_CONFIG_ID || '').trim()
+  if (!isSuiAddress(w)) {
+    throw new Error(
+      'Set CREWPAY_LAUNCHPAD_MIGRATION_CONFIG_ID (0x… shared CetusMigrationConfig from deploy).',
+    )
+  }
+  return assertSuiAddress(w, 'migrationConfigId')
+}
+
+/** Cetus CLMM shared objects on Sui testnet (see contracts/sui-launchpad/scripts/e2e-testnet-results.json). */
+export function cetusTestnetGlobalConfigId(): string {
+  const w = (process.env.CETUS_GLOBAL_CONFIG_ID || '').trim()
+  if (w) return assertSuiAddress(w, 'cetusGlobalConfig')
+  return assertSuiAddress(
+    '0xc6273f844b4bc258952c4e477697aa12c918c8e08106fac6b934811298c9820a',
+    'cetusGlobalConfig',
+  )
+}
+
+export function cetusTestnetPoolsId(): string {
+  const w = (process.env.CETUS_POOLS_ID || '').trim()
+  if (w) return assertSuiAddress(w, 'cetusPools')
+  return assertSuiAddress(
+    '0x20a086e6fa0741b3ca77d033a65faf0871349b986ddbdde6fa1d85d78a5f4222',
+    'cetusPools',
+  )
+}
+
+export const SUI_CLOCK_OBJECT_ID = '0x6'
+
 export function memezCustomConfigActive(): boolean {
   return Boolean((process.env.MEMEZ_CONFIG_KEY || '').trim())
 }
