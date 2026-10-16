@@ -150,15 +150,25 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
     const seats = Math.min(maxSeats, requested)
     const plan = planNarrativeHires(
       { name: input.name, ticker: input.ticker, vibe: input.description },
-      { limit: seats, registered, onlyRegistered: Boolean(input.optInOnly) },
+      {
+        limit: seats,
+        registered,
+        onlyRegistered: Boolean(input.optInOnly),
+        requireEvmPayout: isEvmLaunchPlatform(platform),
+      },
     )
     crew = plan.crew
   }
+  const strictEvmCrew = Boolean(input.crew?.length)
   if (platform === 'zora') {
-    crew = resolveZoraCrewWallets(applyRegisteredEvmWallets(crew, registered))
+    crew = resolveZoraCrewWallets(applyRegisteredEvmWallets(crew || [], registered), {
+      strict: strictEvmCrew,
+    })
   }
   if (platform === 'clanker') {
-    crew = resolveClankerCrewWallets(applyRegisteredEvmWallets(crew, registered))
+    crew = resolveClankerCrewWallets(applyRegisteredEvmWallets(crew || [], registered), {
+      strict: strictEvmCrew,
+    })
   }
 
   if (input.optInOnly && crew && crew.length) {

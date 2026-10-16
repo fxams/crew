@@ -262,16 +262,47 @@ function eip1559Step(kind: UnsignedStep['kind'], tx: Eip1559Tx, signer: string, 
   }
 }
 
-export function resolveZoraCrewWallets(crew: CrewMember[]): CrewMember[] {
-  return crew.map((m) => {
-    if (isEvmAddress(m.wallet)) return { ...m, wallet: assertEvmAddress(m.wallet) }
-    if (m.evmWallet && isEvmAddress(m.evmWallet)) {
-      return { ...m, wallet: assertEvmAddress(m.evmWallet), evmWallet: assertEvmAddress(m.evmWallet) }
+export function evmLaunchPlatformLabel(platform: 'zora' | 'clanker'): string {
+  return platform === 'clanker' ? 'Clanker (Base)' : 'Zora (Base)'
+}
+
+/**
+ * Map crew to Base payout wallets. Autohire uses strict=false (skip Solana-only rows).
+ * Explicit crew[] uses strict=true (fail fast with platform-specific copy).
+ */
+export function resolveEvmLaunchCrewWallets(
+  crew: CrewMember[],
+  platform: 'zora' | 'clanker',
+  opts?: { strict?: boolean },
+): CrewMember[] {
+  const strict = opts?.strict !== false
+  const label = evmLaunchPlatformLabel(platform)
+  const out: CrewMember[] = []
+  for (const m of crew) {
+    if (isEvmAddress(m.wallet)) {
+      out.push({ ...m, wallet: assertEvmAddress(m.wallet) })
+      continue
     }
-    throw new Error(
-      `Zora (Base) launches need EVM crew wallets. ${m.handle} has a Solana wallet — pass crew[] with Base addresses (wallet or evmWallet). Directory Autohire wallets are Solana unless the KOL registered evm_wallet.`,
-    )
-  })
+    if (m.evmWallet && isEvmAddress(m.evmWallet)) {
+      const evm = assertEvmAddress(m.evmWallet)
+      out.push({ ...m, wallet: evm, evmWallet: evm })
+      continue
+    }
+    if (strict) {
+      throw new Error(
+        `${label} launches need EVM crew wallets. ${m.handle} has a Solana wallet — pass crew[] with Base addresses (wallet or evmWallet), or register evm_wallet for Autohire.`,
+      )
+    }
+  }
+  return out
+}
+
+export function resolveZoraCrewWallets(crew: CrewMember[], opts?: { strict?: boolean }): CrewMember[] {
+  return resolveEvmLaunchCrewWallets(crew, 'zora', opts)
+}
+
+export function resolveClankerCrewWallets(crew: CrewMember[], opts?: { strict?: boolean }): CrewMember[] {
+  return resolveEvmLaunchCrewWallets(crew, 'clanker', opts)
 }
 
 export function applyRegisteredEvmWallets(

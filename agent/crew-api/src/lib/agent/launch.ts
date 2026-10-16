@@ -51,8 +51,11 @@ import {
   zoraNetwork,
   type LaunchPlatform,
 } from './platforms.js'
-import { applyRegisteredEvmWallets, resolveZoraCrewWallets } from './zora.js'
-import { resolveClankerCrewWallets } from './clanker.js'
+import {
+  applyRegisteredEvmWallets,
+  resolveClankerCrewWallets,
+  resolveZoraCrewWallets,
+} from './zora.js'
 import type { AddressChain } from './shareholders.js'
 
 export type AgentLaunchInput = {
@@ -141,11 +144,26 @@ function id(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`
 }
 
-function mapCrewForEvmPlatform(crew: CrewMember[], platform: LaunchPlatform, registered: Awaited<ReturnType<typeof listRegisteredHireBoosts>>): CrewMember[] {
+function mapCrewForEvmPlatform(
+  crew: CrewMember[],
+  platform: LaunchPlatform,
+  registered: Awaited<ReturnType<typeof listRegisteredHireBoosts>>,
+  strict: boolean,
+): CrewMember[] {
   const withEvm = applyRegisteredEvmWallets(crew, registered)
-  if (platform === 'zora') return resolveZoraCrewWallets(withEvm)
-  if (platform === 'clanker') return resolveClankerCrewWallets(withEvm)
+  if (platform === 'zora') return resolveZoraCrewWallets(withEvm, { strict })
+  if (platform === 'clanker') return resolveClankerCrewWallets(withEvm, { strict })
   return withEvm
+}
+
+function autohireNoCrewMessage(platform: LaunchPlatform): string {
+  if (platform === 'clanker') {
+    return 'Autohire found no Clanker crew with Base (0x) payout wallets — register evm_wallet on KOL profiles or pass explicit crew[].'
+  }
+  if (platform === 'zora') {
+    return 'Autohire found no Zora crew with Base (0x) payout wallets — register evm_wallet on KOL profiles or pass explicit crew[].'
+  }
+  return 'Auto-hire found no KOLs — provide crew[] or richer narrative.'
 }
 
 export async function resolveCrew(
@@ -174,7 +192,7 @@ export async function resolveCrew(
   if (input.crew?.length) {
     let crew = input.crew
     if (isEvmLaunchPlatform(platform)) {
-      crew = mapCrewForEvmPlatform(crew, platform, registered)
+      crew = mapCrewForEvmPlatform(crew, platform, registered, true)
     }
     const filtered = skipCrewWithoutPayoutWallets(crew, chain)
     if (!filtered.crew.length) {
@@ -195,19 +213,21 @@ export async function resolveCrew(
       ticker: input.ticker,
       vibe: input.description,
     },
-    { limit: seats, registered },
+    {
+      limit: seats,
+      registered,
+      requireEvmPayout: isEvmLaunchPlatform(platform),
+    },
   )
   if (!hirePlan.crew.length) {
-    throw new Error('Auto-hire found no KOLs — provide crew[] or richer narrative.')
+    throw new Error(autohireNoCrewMessage(platform))
   }
   let crew = hirePlan.crew
   if (isEvmLaunchPlatform(platform)) {
-    crew = mapCrewForEvmPlatform(crew, platform, registered)
+    crew = mapCrewForEvmPlatform(crew, platform, registered, false)
     const filtered = skipCrewWithoutPayoutWallets(crew, chain)
     if (!filtered.crew.length) {
-      throw new Error(
-        'Autohire crew has no Base (0x) payout wallets — pick explicit crew[] with EVM addresses or register evm_wallet for KOLs.',
-      )
+      throw new Error(autohireNoCrewMessage(platform))
     }
     crew = filtered.crew
   }
