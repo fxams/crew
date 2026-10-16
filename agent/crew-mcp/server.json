@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.fxams/crewpay-mcp",
   "title": "CREW / CrewPay",
-  "description": "CrewPay agent MCP \u2014 Pump.fun, Bags.fm, and Zora unsigned launches with KOL Autohire and on-chain fee-shares (60/15/25 or referral 60/15/5/20). Hosted remote at mcp.crewpay.dev.",
+  "description": "CrewPay MCP: Pump.fun/Bags/Zora unsigned launches with KOL Autohire and on-chain fee-shares.",
   "repository": {
     "url": "https://github.com/fxams/crew",
     "source": "github",
