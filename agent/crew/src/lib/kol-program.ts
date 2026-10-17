@@ -281,7 +281,7 @@ export type PublicKolCard = {
   referralUrl: string
   cardUrl: string
   profileUrl: string
-  scoreBars: Array<{ label: string; value: number }>
+  scoreBars: Array<{ label: string; value: number | null; hint?: string }>
   lookupOk: boolean
   xVerified: boolean
   followers: number | null

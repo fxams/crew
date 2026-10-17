@@ -16,6 +16,7 @@ import {
 } from '../lib/kol-program'
 import { kolTierDisplayName, kolTierFrameClass } from '../lib/kol-tiers'
 import { kolProfilePath } from '../lib/routes'
+import { KolLeaderboardEmpty } from './KolLeaderboardEmpty'
 
 function founderLabel(n: number | null): string | null {
   if (n == null || n < 1) return null
@@ -199,6 +200,8 @@ export function KolLeaderboardPage() {
 
         {loadError ? <p className="register-err">{loadError}</p> : null}
 
+        {!archiveSeason && !displayRows.length && !loadError ? <KolLeaderboardEmpty /> : null}
+
         {!archiveSeason && displayRows.length >= 3 ? (
           <div className="kol-podium" aria-label="Top 3">
             {[1, 0, 2].map((idx) => {
@@ -254,8 +257,8 @@ export function KolLeaderboardPage() {
           })}
         </ol>
 
-        {!displayRows.length && !loadError ? (
-          <p className="hint">No scores yet. Sign in with X on the register page to join.</p>
+        {displayRows.length === 0 && !loadError && archiveSeason ? (
+          <p className="hint">No archived scores for this season.</p>
         ) : null}
       </section>
     </div>

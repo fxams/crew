@@ -4,11 +4,13 @@ import { CREW_VERSION, KOL_PROGRAM_ENABLED } from '../lib/config'
 import { hubMemberLine, hubRecentJoiners } from '../lib/kol-hub-display'
 import {
   fetchKolProgramHub,
+  fetchKolProgramLeaderboard,
   fetchKolProgramMe,
   fetchKolProgramTasksToday,
   fetchPublicKolCard,
   verifyKolProgramTask,
   KOL_PROGRAM_POINTS_DISCLAIMER,
+  type KolLeaderboardRow,
   type KolProgramHub,
   type KolProgramProfile,
   type KolProgramTask,
@@ -25,6 +27,7 @@ import { KolInfluenceCard } from './KolInfluenceCard'
 import { KolHubDashboard } from './KolHubDashboard'
 import { KolMobileTabBar } from './KolMobileTabBar'
 import { KolNotionalFormulaNote } from './KolNotionalFormulaNote'
+import { KolLeaderboardEmpty } from './KolLeaderboardEmpty'
 
 function founderLabel(n: number | null): string | null {
   if (n == null || n < 1) return null
@@ -65,13 +68,16 @@ export function KolHubPage() {
     Array<{ id: string; title: string; body: string; href: string | null }>
   >([])
   const [publicCard, setPublicCard] = useState<PublicKolCard | null>(null)
+  const [boardRows, setBoardRows] = useState<KolLeaderboardRow[] | null>(null)
 
   const refresh = useCallback(async () => {
-    const [h, me, today] = await Promise.all([
+    const [h, me, today, board] = await Promise.all([
       fetchKolProgramHub(),
       fetchKolProgramMe(),
       fetchKolProgramTasksToday(),
+      fetchKolProgramLeaderboard(3),
     ])
+    setBoardRows(board?.rows ?? [])
     setHub(h)
     setProfile(me)
     setTasks(today?.tasks ?? [])
@@ -239,6 +245,30 @@ export function KolHubPage() {
             </p>
           </div>
         ) : null}
+
+        <section className="kol-hub-leaderboard" id="leaderboard" data-testid="kol-hub-leaderboard">
+          {boardRows && boardRows.length > 0 ? (
+            <>
+              <p className="section-label">Season leaderboard</p>
+              <ol className="kol-leaderboard-list">
+                {boardRows.map((r) => (
+                  <li key={r.handle} className="kol-leaderboard-row">
+                    <span className="kol-leaderboard-rank">{r.rank}</span>
+                    <span className="kol-leaderboard-handle">
+                      <Link to={kolProfilePath(r.handle)}>@{r.handle}</Link>
+                    </span>
+                    <span className="kol-leaderboard-points">{r.seasonPoints} pts</span>
+                  </li>
+                ))}
+              </ol>
+              <p className="hint">
+                <Link to="/kol/leaderboard">Full leaderboard</Link>
+              </p>
+            </>
+          ) : (
+            <KolLeaderboardEmpty />
+          )}
+        </section>
 
         {ticker ? (
           <p className="kol-hub-ticker" aria-live="polite">
