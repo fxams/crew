@@ -26,7 +26,18 @@ import { query } from '../lib/db.js'
 import { fetchRecentUserTweets } from '../lib/kol-program/x-tweets.js'
 import { verifyTaskFromTweets } from '../lib/kol-program/task-verify.js'
 import { siteUrl } from '../lib/kol-register.js'
-import { KOL_POOL_BPS, CREWPAY_HQ_X_HANDLE } from '../lib/kol-program/flags.js'
+import { KOL_POOL_BPS, CREWPAY_HQ_X_HANDLE, kolPinnedPostId } from '../lib/kol-program/flags.js'
+import { buildPublicKolCard } from '../lib/kol-program/public-card.js'
+import {
+  ONBOARDING_STEPS,
+  isStepUnlocked,
+  listCompletedSteps,
+  markStepComplete,
+  nextUnlockableStep,
+  skipTelegramStep,
+  verifyOnboardingStep,
+  type OnboardingStepId,
+} from '../lib/kol-program/onboarding.js'
 import {
   currentSeasonPoolStatus,
   seasonBounds,
@@ -161,6 +172,26 @@ kolProgramRouter.get('/kol-program/seasons', async (req, res) => {
   }
 })
 
+kolProgramRouter.get('/kol-program/public/:handle', async (req, res) => {
+  try {
+    const ip = clientIp(req)
+    const gate = takeRateLimit(`kolprog:public:${ip}`, { limit: 60, windowMs: 60 * 60 * 1000 })
+    if (!gate.ok) {
+      res.status(429).json({ ok: false, error: 'Too many lookups — try again later.' })
+      return
+    }
+    const card = await buildPublicKolCard(req.params.handle)
+    res.json({
+      ok: true,
+      card,
+      disclaimer: KOL_PROGRAM_POINTS_DISCLAIMER,
+      pinnedPostId: kolPinnedPostId() || null,
+    })
+  } catch (err) {
+    sendInternalError(res, err, 'kol-program public card')
+  }
+})
+
 kolProgramRouter.get('/kol-program/profile/:handle', async (req, res) => {
   try {
     const profile = await getProgramProfileByHandle(req.params.handle)
@@ -182,7 +213,7 @@ kolProgramRouter.get('/kol-program/card/:handle.svg', async (req, res) => {
       return
     }
     res.setHeader('content-type', 'image/svg+xml')
-    res.setHeader('cache-control', 'public, max-age=300')
+    res.setHeader('cache-control', 'public, max-age=86400')
     res.send(svg)
   } catch (err) {
     sendInternalError(res, err, 'kol-program card')
@@ -191,13 +222,19 @@ kolProgramRouter.get('/kol-program/card/:handle.svg', async (req, res) => {
 
 kolProgramRouter.get('/kol-program/card/:handle.png', async (req, res) => {
   try {
+    const ip = clientIp(req)
+    const gate = takeRateLimit(`kolprog:cardimg:${ip}`, { limit: 120, windowMs: 60 * 60 * 1000 })
+    if (!gate.ok) {
+      res.status(429).send('Rate limited')
+      return
+    }
     const svg = await cardSvgForHandle(req.params.handle)
     if (!svg) {
       res.status(404).send('Not found')
       return
     }
     res.setHeader('content-type', 'image/svg+xml')
-    res.setHeader('cache-control', 'public, max-age=300')
+    res.setHeader('cache-control', 'public, max-age=86400')
     res.send(svg)
   } catch (err) {
     sendInternalError(res, err, 'kol-program card png alias')
@@ -209,6 +246,87 @@ function sessionUser(req: Request): { xUserId: string; handle: string } | null {
   if (!session) return null
   return { xUserId: session.u, handle: session.h }
 }
+
+kolProgramRouter.get('/kol-program/onboarding', async (req, res) => {
+  try {
+    const sess = sessionUser(req)
+    if (!sess) {
+      res.status(401).json({ ok: false, error: 'KOL session required.' })
+      return
+    }
+    const completed = await listCompletedSteps(sess.xUserId)
+    const profile = await getProgramProfileByHandle(sess.handle)
+    res.json({
+      ok: true,
+      steps: ONBOARDING_STEPS.map((s) => ({
+        ...s,
+        completed: completed.has(s.id),
+        unlocked: completed.has(s.id) || isStepUnlocked(s.id, completed),
+      })),
+      nextStep: nextUnlockableStep(completed),
+      disclaimer: KOL_PROGRAM_POINTS_DISCLAIMER,
+      referralUrl: profile?.referralUrl ?? `${siteUrl()}/ref/${sess.handle}`,
+      pinnedPostId: kolPinnedPostId() || null,
+    })
+  } catch (err) {
+    sendInternalError(res, err, 'kol-program onboarding')
+  }
+})
+
+kolProgramRouter.post('/kol-program/onboarding/:stepId/verify', async (req, res) => {
+  try {
+    const ip = clientIp(req)
+    const gate = takeRateLimit(`kolprog:onboard:${ip}`, { limit: 30, windowMs: 60 * 60 * 1000 })
+    if (!gate.ok) {
+      res.status(429).json({ ok: false, error: 'Slow down and retry.' })
+      return
+    }
+    const sess = sessionUser(req)
+    if (!sess) {
+      res.status(401).json({ ok: false, error: 'KOL session required.' })
+      return
+    }
+    const profile = await getProgramProfileByHandle(sess.handle)
+    if (!profile) {
+      res.status(404).json({ ok: false, error: 'Enroll in the KOL program first.' })
+      return
+    }
+    const stepId = req.params.stepId as OnboardingStepId
+    const def = ONBOARDING_STEPS.find((s) => s.id === stepId)
+    if (!def) {
+      res.status(404).json({ ok: false, error: 'Unknown step.' })
+      return
+    }
+    const verdict = await verifyOnboardingStep(
+      sess.xUserId,
+      sess.handle,
+      stepId,
+      profile.referralUrl,
+    )
+    if (!verdict.ok) {
+      res.status(400).json({ ok: false, error: verdict.reason })
+      return
+    }
+    const awarded = await markStepComplete(sess.xUserId, stepId, def.points)
+    res.json({ ok: true, points: awarded ? def.points : 0, already: !awarded })
+  } catch (err) {
+    sendInternalError(res, err, 'kol-program onboarding verify')
+  }
+})
+
+kolProgramRouter.post('/kol-program/onboarding/telegram/skip', async (req, res) => {
+  try {
+    const sess = sessionUser(req)
+    if (!sess) {
+      res.status(401).json({ ok: false, error: 'KOL session required.' })
+      return
+    }
+    await skipTelegramStep(sess.xUserId)
+    res.json({ ok: true })
+  } catch (err) {
+    sendInternalError(res, err, 'kol-program onboarding skip telegram')
+  }
+})
 
 kolProgramRouter.get('/kol-program/me', async (req, res) => {
   try {

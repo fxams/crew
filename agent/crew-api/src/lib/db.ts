@@ -747,4 +747,18 @@ export async function migrate(): Promise<void> {
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['028_kol_program_hall_of_fame'],
   )
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS kol_program_onboarding_steps (
+      x_user_id TEXT NOT NULL,
+      step_id TEXT NOT NULL,
+      points INT NOT NULL DEFAULT 0,
+      completed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (x_user_id, step_id)
+    )
+  `)
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['029_kol_onboarding'],
+  )
 }
