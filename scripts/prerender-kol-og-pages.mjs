@@ -7,9 +7,8 @@ import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const dist = join(root, 'dist')
-const indexPath = join(dist, 'index.html')
-const indexTemplate = readFileSync(indexPath, 'utf8')
+const targets = ['dist', 'render-site'].map((d) => join(root, d))
+const indexTemplate = readFileSync(join(root, 'dist', 'index.html'), 'utf8')
 
 const SITE = (process.env.VITE_SITE_URL || 'https://crewpay.dev').replace(/\/$/, '')
 const API = (process.env.VITE_CREW_API_URL || 'https://api.crewpay.dev').replace(/\/$/, '')
