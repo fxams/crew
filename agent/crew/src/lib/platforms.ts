@@ -125,6 +125,12 @@ export function platformShortName(platform: LaunchPlatform): string {
   return 'Pump'
 }
 
+/** Label under icon in home / agents platform chip row. */
+export function platformChipLabel(platform: LaunchPlatform): string {
+  if (platform === 'vibevibe') return 'vibe/vibe'
+  return platformShortName(platform)
+}
+
 export function platformMark(platform: LaunchPlatform): string {
   if (platform === 'bags') return 'B'
   if (platform === 'zora') return 'Z'

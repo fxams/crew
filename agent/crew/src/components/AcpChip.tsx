@@ -4,14 +4,15 @@ import { IntegrationMark } from './IntegrationMark'
 type Props = {
   acp: AcpInfo
   compact?: boolean
+  chipStack?: boolean
 }
 
 /** Virtuals ACP chip — icon + link, sits next to Pump / Bags / Zora / x402. */
-export function AcpChip({ acp, compact }: Props) {
+export function AcpChip({ acp, compact, chipStack }: Props) {
   const label = acpChipLabel(acp)
   return (
     <a
-      className={`plat-badge plat-acp${compact ? ' is-compact' : ''}`}
+      className={`plat-badge plat-acp${compact ? ' is-compact' : ''}${chipStack ? ' is-chip-stack' : ''}`}
       href={acp.href || ACP_HREF}
       target="_blank"
       rel="noreferrer"
@@ -21,7 +22,11 @@ export function AcpChip({ acp, compact }: Props) {
       <span className="plat-mark" aria-hidden>
         <IntegrationMark kind="acp" />
       </span>
-      {compact ? null : <span className="plat-name">ACP</span>}
+      {compact ? null : (
+        <span className="plat-chip-text">
+          <span className="plat-name">ACP</span>
+        </span>
+      )}
     </a>
   )
 }

@@ -10,6 +10,7 @@ import {
   isAllowedTradeUrl,
   parseLaunchPlatform,
   platformDisplayName,
+  platformChipLabel,
   platformShortName,
   tradeLabel,
   tradeUrl,
@@ -164,6 +165,8 @@ describe('launch platform helpers', () => {
     expect(platformShortName('pumpfun')).toBe('Pump')
     expect(platformShortName('bags')).toBe('Bags')
     expect(platformShortName('zora')).toBe('Zora')
+    expect(platformChipLabel('vibevibe')).toBe('vibe/vibe')
+    expect(platformChipLabel('clanker')).toBe('Clanker')
   })
 
   it('Clanker unsigned hint mentions Base payout wallets', () => {
