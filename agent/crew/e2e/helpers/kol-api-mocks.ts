@@ -75,6 +75,7 @@ export async function mockKolRegisterApis(
         seasonEndsAt: new Date(Date.now() + 86400000 * 12).toISOString(),
         memberCount: 0,
         recentJoiners: [],
+        rows: [],
         referralMilestones: [
           { referrals: 5, bonusPoints: 1000 },
           { referrals: 25, bonusPoints: 5000 },

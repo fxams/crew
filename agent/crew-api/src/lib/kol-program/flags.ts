@@ -22,3 +22,9 @@ export const KOL_POOL_BPS = Math.min(
 
 /** Top N eligible KOLs by season points share the pool pro-rata. */
 export const KOL_POOL_TOP_N = Math.min(200, Math.max(1, Number(process.env.KOL_POOL_TOP_N || 50)))
+
+/** Max task + onboarding points a KOL can earn per UTC day. Referrals stay on their own 25/day cap. */
+export function kolDailyPointsCap(): number {
+  const n = Number(process.env.KOL_DAILY_POINTS_CAP || 5000)
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 5000
+}

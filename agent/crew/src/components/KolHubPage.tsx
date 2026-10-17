@@ -8,7 +8,6 @@ import {
   fetchKolProgramMe,
   fetchKolProgramTasksToday,
   fetchPublicKolCard,
-  verifyKolProgramTask,
   KOL_PROGRAM_POINTS_DISCLAIMER,
   type KolLeaderboardRow,
   type KolProgramHub,
@@ -20,11 +19,10 @@ import { kolTierDisplayName } from '../lib/kol-tiers'
 import { startKolHubXSignIn } from '../lib/kol-x-sign-in'
 import { kolProfilePath } from '../lib/routes'
 import { KolSampleCardPreview } from './KolSampleCardPreview'
-import { KolOnboardingChecklist } from './KolOnboardingChecklist'
 import { KolBattlesPanel } from './KolBattlesPanel'
+import { KolTaskLadder } from './KolTaskLadder'
 import { fetchKolNotifications, markKolNotificationsRead } from '../lib/kol-program'
 import { KolInfluenceCard } from './KolInfluenceCard'
-import { KolHubDashboard } from './KolHubDashboard'
 import { KolMobileTabBar } from './KolMobileTabBar'
 import { KolNotionalFormulaNote } from './KolNotionalFormulaNote'
 import { KolLeaderboardEmpty } from './KolLeaderboardEmpty'
@@ -36,33 +34,49 @@ export function KolHubPage() {
   const [hub, setHub] = useState<KolProgramHub | null>(null)
   const [profile, setProfile] = useState<KolProgramProfile | null>(null)
   const [tasks, setTasks] = useState<KolProgramTask[]>([])
+  const [todayMeta, setTodayMeta] = useState<{
+    resetIn?: string
+    tweetId?: string | null
+    pointsToday?: number
+    pointsCap?: number
+  }>({})
   const [signInBusy, setSignInBusy] = useState(false)
-  const [taskBusy, setTaskBusy] = useState<string | null>(null)
-  const [taskError, setTaskError] = useState<string | null>(null)
   const [lookupHandle, setLookupHandle] = useState('')
-  const [pinnedPostId, setPinnedPostId] = useState<string | null>(null)
   const [notifUnread, setNotifUnread] = useState(0)
   const [notifs, setNotifs] = useState<
     Array<{ id: string; title: string; body: string; href: string | null }>
   >([])
   const [publicCard, setPublicCard] = useState<PublicKolCard | null>(null)
   const [boardRows, setBoardRows] = useState<KolLeaderboardRow[] | null>(null)
+  const [boardReady, setBoardReady] = useState(false)
 
   const refresh = useCallback(async () => {
-    const [h, me, today, board] = await Promise.all([
-      fetchKolProgramHub(),
+    const h = await fetchKolProgramHub()
+    setHub(h)
+    const hubRows = h?.rows?.filter((r) => r.handle) ?? []
+    if (hubRows.length) {
+      setBoardRows(hubRows)
+    } else {
+      const board = await fetchKolProgramLeaderboard(50)
+      setBoardRows(board?.rows ?? [])
+    }
+    setBoardReady(true)
+
+    const [me, today] = await Promise.all([
       fetchKolProgramMe(),
       fetchKolProgramTasksToday(),
-      fetchKolProgramLeaderboard(50),
     ])
-    setBoardRows(board?.rows ?? [])
-    setHub(h)
     setProfile(me)
     setTasks(today?.tasks ?? [])
+    setTodayMeta({
+      resetIn: today?.resetIn,
+      tweetId: today?.tweetId,
+      pointsToday: today?.pointsToday ?? me?.pointsToday,
+      pointsCap: today?.pointsCap ?? me?.pointsCap,
+    })
     if (me?.handle) {
       const pub = await fetchPublicKolCard(me.handle)
       setPublicCard(pub?.card ?? null)
-      setPinnedPostId(pub?.pinnedPostId ?? null)
       const n = await fetchKolNotifications()
       if (n) {
         setNotifUnread(n.unread)
@@ -87,18 +101,6 @@ export function KolHubPage() {
     } catch {
       setSignInBusy(false)
     }
-  }
-
-  async function onVerify(taskId: string) {
-    setTaskBusy(taskId)
-    setTaskError(null)
-    const result = await verifyKolProgramTask(taskId)
-    setTaskBusy(null)
-    if (!result.ok) {
-      setTaskError(result.error || 'Verify failed.')
-      return
-    }
-    void refresh()
   }
 
   if (!KOL_PROGRAM_ENABLED) {
@@ -181,6 +183,11 @@ export function KolHubPage() {
                 <Link to="/kol/leaderboard">Full leaderboard</Link>
               </p>
             </>
+          ) : !boardReady ? (
+            <div data-testid="kol-hub-board-loading">
+              <p className="section-label">Season points</p>
+              <KolSeasonPodium rows={[]} />
+            </div>
           ) : (
             <KolLeaderboardEmpty showSignIn={!profile} />
           )}
@@ -273,19 +280,18 @@ export function KolHubPage() {
 
       {profile ? (
         <section className="section kol-hub-dashboard-wrap" id="tasks">
-          <KolOnboardingChecklist />
-          <KolBattlesPanel />
-          <KolHubDashboard
+          <KolTaskLadder
             profile={profile}
             hub={hub}
-            tasks={tasks}
-            taskBusy={taskBusy}
-            taskError={taskError}
-            onVerify={onVerify}
-            shareTag=""
-            replyPinned={false}
-            pinnedPostId={pinnedPostId}
+            today={{
+              tasks,
+              resetIn: todayMeta.resetIn,
+              tweetId: todayMeta.tweetId,
+              pointsToday: todayMeta.pointsToday,
+              pointsCap: todayMeta.pointsCap,
+            }}
           />
+          <KolBattlesPanel />
         </section>
       ) : null}
       <KolMobileTabBar />
