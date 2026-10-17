@@ -7669,6 +7669,84 @@ ol.coin-timeline.coin-panel {
   background: var(--surface);
 }
 
+.kol-ladder-head {
+  margin-bottom: 0.75rem;
+}
+
+.kol-ladder-progress {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0.15rem 0;
+}
+
+.kol-ladder-cap {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--accent);
+}
+
+.kol-ladder-tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.kol-ladder-tabs button {
+  flex: 1;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+.kol-ladder-tabs button.is-active {
+  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.kol-ladder-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.kol-ladder-list li {
+  display: grid;
+  grid-template-columns: 2rem 1fr auto;
+  gap: 0.45rem 0.6rem;
+  align-items: center;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.kol-ladder-list li.is-locked {
+  opacity: 0.55;
+}
+
+.kol-ladder-list li.is-done {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+.kol-ladder-icon {
+  font-size: 1.1rem;
+  text-align: center;
+}
+
+.kol-ladder-body strong {
+  display: block;
+}
+
+.kol-ladder-today {
+  margin-top: 1.25rem;
+}
+
 .kol-onboarding-list {
   list-style: none;
   padding: 0;

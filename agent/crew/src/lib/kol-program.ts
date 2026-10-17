@@ -37,6 +37,8 @@ export type KolProgramProfile = {
   referralUrl: string
   rank?: number | null
   referralCount?: number
+  pointsToday?: number
+  pointsCap?: number
 }
 
 export type KolHubRecentJoiner = {
@@ -56,6 +58,7 @@ export type KolProgramHub = {
   showMemberCount?: boolean
   foundingSnapshotAt?: string | null
   recentJoiners: KolHubRecentJoiner[]
+  rows?: KolLeaderboardRow[]
   referralMilestones: Array<{ referrals: number; bonusPoints: number }>
   referralRewards?: { perReferral: number; forReferred: number }
   disclaimer: string
@@ -69,6 +72,9 @@ export type KolProgramTask = {
   points: number
   completed: boolean
   locked?: boolean
+  kind?: 'today' | 'onboarding'
+  tweetId?: string | null
+  pending?: boolean
 }
 
 export type KolLeaderboardRow = {
@@ -137,6 +143,18 @@ export async function fetchKolProgramHub(): Promise<KolProgramHub | null> {
             tier: j.tier ? String(j.tier) : null,
           }))
         : [],
+      rows: Array.isArray(body.rows)
+        ? body.rows.map((r) => ({
+            rank: Number(r.rank) || 0,
+            handle: String(r.handle || '').replace(/^@+/, ''),
+            displayName: r.displayName ? String(r.displayName) : null,
+            avatarUrl: r.avatarUrl ? String(r.avatarUrl) : null,
+            seasonPoints: Number(r.seasonPoints) || 0,
+            reachScore: Number(r.reachScore) || 0,
+            tier: String(r.tier || 'bronze'),
+            founderNumber: r.founderNumber != null ? Number(r.founderNumber) : null,
+          }))
+        : [],
       referralMilestones: Array.isArray(body.referralMilestones) ? body.referralMilestones : [],
       disclaimer: body.disclaimer || KOL_PROGRAM_POINTS_DISCLAIMER,
     }
@@ -175,23 +193,43 @@ export async function fetchKolProgramStatus(): Promise<{
 }
 
 export async function fetchKolProgramMe(): Promise<KolProgramProfile | null> {
-  const res = await fetch(`${API}/api/kol-program/me`, { credentials: 'include' })
-  if (!res.ok) return null
-  const body = (await res.json()) as { profile?: KolProgramProfile }
-  return body.profile ?? null
+  try {
+    const res = await fetch(`${API}/api/kol-program/me`, { credentials: 'include' })
+    if (!res.ok) return null
+    const body = (await res.json()) as { profile?: KolProgramProfile }
+    return body.profile ?? null
+  } catch {
+    return null
+  }
 }
 
 export async function fetchKolProgramTasksToday(): Promise<{
   dayUtc: string
   tasks: KolProgramTask[]
   disclaimer: string
+  tweetId?: string | null
+  tweetText?: string | null
+  resetAt?: string
+  resetIn?: string
+  pointsToday?: number
+  pointsCap?: number
 } | null> {
-  const res = await fetch(`${API}/api/kol-program/tasks/today`, { credentials: 'include' })
-  if (!res.ok) return null
-  return (await res.json()) as {
-    dayUtc: string
-    tasks: KolProgramTask[]
-    disclaimer: string
+  try {
+    const res = await fetch(`${API}/api/kol-program/tasks/today`, { credentials: 'include' })
+    if (!res.ok) return null
+    return (await res.json()) as {
+      dayUtc: string
+      tasks: KolProgramTask[]
+      disclaimer: string
+      tweetId?: string | null
+      tweetText?: string | null
+      resetAt?: string
+      resetIn?: string
+      pointsToday?: number
+      pointsCap?: number
+    }
+  } catch {
+    return null
   }
 }
 
@@ -210,11 +248,14 @@ export async function verifyKolProgramTask(taskId: string): Promise<{
     error?: string
     points?: number
     flagged?: boolean
+    pending?: boolean
+    capped?: boolean
   }
-  if (!res.ok) {
+  if (!res.ok && res.status !== 202) {
     return { ok: false, error: body.error || 'Verify failed.', flagged: body.flagged }
   }
-  return { ok: true, points: body.points }
+  if (body.pending) return { ok: false, error: body.error || 'Pending verification.' }
+  return { ok: Boolean(body.ok), points: body.points }
 }
 
 export async function fetchKolProgramLeaderboard(limit = 50): Promise<{
@@ -225,6 +266,7 @@ export async function fetchKolProgramLeaderboard(limit = 50): Promise<{
   pool?: KolPoolStatus | null
   poolError?: string
 } | null> {
+  try {
   const res = await fetch(`${API}/api/kol-program/leaderboard?limit=${limit}`)
   if (!res.ok) return null
   const body = (await res.json()) as {
@@ -249,6 +291,9 @@ export async function fetchKolProgramLeaderboard(limit = 50): Promise<{
           founderNumber: r.founderNumber != null ? Number(r.founderNumber) : null,
         }))
       : [],
+  }
+  } catch {
+    return null
   }
 }
 
@@ -350,6 +395,8 @@ export type OnboardingStep = {
   optional?: boolean
   completed: boolean
   unlocked: boolean
+  icon?: string
+  hint?: string
 }
 
 export async function fetchKolOnboarding(): Promise<{
@@ -357,6 +404,8 @@ export async function fetchKolOnboarding(): Promise<{
   nextStep: string | null
   referralUrl: string
   pinnedPostId: string | null
+  pointsToday?: number
+  pointsCap?: number
 } | null> {
   const res = await fetch(`${API}/api/kol-program/onboarding`, { credentials: 'include' })
   if (!res.ok) return null
@@ -365,17 +414,34 @@ export async function fetchKolOnboarding(): Promise<{
     nextStep: string | null
     referralUrl: string
     pinnedPostId: string | null
+    pointsToday?: number
+    pointsCap?: number
   }
 }
 
-export async function verifyKolOnboardingStep(stepId: string): Promise<{ ok: boolean; error?: string }> {
+export async function verifyKolOnboardingStep(stepId: string): Promise<{
+  ok: boolean
+  error?: string
+  pending?: boolean
+  capped?: boolean
+  points?: number
+}> {
   const res = await fetch(`${API}/api/kol-program/onboarding/${encodeURIComponent(stepId)}/verify`, {
     method: 'POST',
     credentials: 'include',
   })
-  const body = (await res.json()) as { ok?: boolean; error?: string }
-  if (!res.ok) return { ok: false, error: body.error || 'Verify failed.' }
-  return { ok: true }
+  const body = (await res.json()) as {
+    ok?: boolean
+    error?: string
+    pending?: boolean
+    capped?: boolean
+    points?: number
+  }
+  if (!res.ok && res.status !== 202) {
+    return { ok: false, pending: body.pending, error: body.error || 'Verify failed.' }
+  }
+  if (body.pending) return { ok: false, pending: true, error: body.error }
+  return { ok: Boolean(body.ok), capped: body.capped, points: body.points, error: body.error }
 }
 
 export type KolBattle = {

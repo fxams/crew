@@ -5,7 +5,7 @@ import { clientIp } from '../lib/client-ip.js'
 import { takeRateLimit } from '../lib/agent/rate-limit.js'
 import { sendInternalError } from '../lib/http-error.js'
 import { readKolSessionCookie } from '../lib/kol-session.js'
-import { kolProgramEnabled } from '../lib/kol-program/flags.js'
+import { kolDailyPointsCap, kolProgramEnabled } from '../lib/kol-program/flags.js'
 import { KOL_PROGRAM_POINTS_DISCLAIMER } from '../lib/kol-program/copy.js'
 import { REACH_FORMULA_DOC } from '../lib/kol-program/reach-score.js'
 import {
@@ -14,10 +14,11 @@ import {
 } from '../lib/kol-program/notional-influence-value.js'
 import {
   cardSvgForHandle,
-  creditProgramPoints,
+  creditProgramPointsCapped,
   getCurrentSeasonId,
   getProgramProfileByHandle,
   leaderboard,
+  taskPointsToday,
   listSeasons,
   loadUserAccessToken,
   programMemberCount,
@@ -51,14 +52,22 @@ import {
 } from '../lib/kol-program/notifications.js'
 import {
   ONBOARDING_STEPS,
+  ensureConnectXComplete,
   isStepUnlocked,
-  listCompletedSteps,
   markStepComplete,
   nextUnlockableStep,
   skipTelegramStep,
   verifyOnboardingStep,
   type OnboardingStepId,
 } from '../lib/kol-program/onboarding.js'
+import {
+  latestHqTweet,
+  pendingReason,
+  utcMidnightCountdown,
+  verifyLikedTweet,
+  verifyRepliedToConversation,
+  verifyRepostedTweet,
+} from '../lib/kol-program/x-engagement.js'
 import {
   currentSeasonPoolStatus,
   seasonBounds,
@@ -96,9 +105,10 @@ kolProgramRouter.get('/kol-program/hub', async (_req, res) => {
   try {
     const seasonId = await getCurrentSeasonId()
     const bounds = await seasonBounds(seasonId)
-    const [memberCount, recentJoiners] = await Promise.all([
+    const [memberCount, recentJoiners, rows] = await Promise.all([
       programMemberCount(),
       recentProgramJoiners(16),
+      leaderboard(50),
     ])
     const foundingAt = kolFoundingSnapshotAt()
     res.json({
@@ -109,6 +119,7 @@ kolProgramRouter.get('/kol-program/hub', async (_req, res) => {
       showMemberCount: memberCount >= 10,
       foundingSnapshotAt: foundingAt?.toISOString() ?? null,
       recentJoiners,
+      rows,
       referralMilestones: [...KOL_PROGRAM_REFERRAL_MILESTONES],
       referralRewards: {
         perReferral: KOL_PROGRAM_REFERRAL_POINTS_REFERRER,
@@ -304,8 +315,10 @@ kolProgramRouter.get('/kol-program/onboarding', async (req, res) => {
       res.status(401).json({ ok: false, error: 'KOL session required.' })
       return
     }
-    const completed = await listCompletedSteps(sess.xUserId)
+    const completed = await ensureConnectXComplete(sess.xUserId)
     const profile = await getProgramProfileByHandle(sess.handle)
+    const usedToday = await taskPointsToday(sess.xUserId)
+    const cap = kolDailyPointsCap()
     res.json({
       ok: true,
       steps: ONBOARDING_STEPS.map((s) => ({
@@ -317,6 +330,8 @@ kolProgramRouter.get('/kol-program/onboarding', async (req, res) => {
       disclaimer: KOL_PROGRAM_POINTS_DISCLAIMER,
       referralUrl: profile?.referralUrl ?? `${siteUrl()}/ref/${sess.handle}`,
       pinnedPostId: kolPinnedPostId() || null,
+      pointsToday: usedToday,
+      pointsCap: cap,
     })
   } catch (err) {
     sendInternalError(res, err, 'kol-program onboarding')
@@ -354,11 +369,22 @@ kolProgramRouter.post('/kol-program/onboarding/:stepId/verify', async (req, res)
       profile.referralUrl,
     )
     if (!verdict.ok) {
-      res.status(400).json({ ok: false, error: verdict.reason })
+      res.status(verdict.pending ? 202 : 400).json({
+        ok: false,
+        pending: Boolean(verdict.pending),
+        error: verdict.reason,
+      })
       return
     }
     const awarded = await markStepComplete(sess.xUserId, stepId, def.points)
-    res.json({ ok: true, points: awarded ? def.points : 0, already: !awarded })
+    res.json({
+      ok: true,
+      points: awarded.credited,
+      already: !awarded.awarded,
+      capped: awarded.capped,
+      pointsToday: (await taskPointsToday(sess.xUserId)),
+      pointsCap: kolDailyPointsCap(),
+    })
   } catch (err) {
     sendInternalError(res, err, 'kol-program onboarding verify')
   }
@@ -394,7 +420,11 @@ kolProgramRouter.get('/kol-program/me', async (req, res) => {
       seasonRankForHandle(profile.handle),
       referralCountForReferrerCode(profile.referralCode),
     ])
-    res.json({ ok: true, profile: { ...profile, rank, referralCount } })
+    const usedToday = await taskPointsToday(sess.xUserId)
+    res.json({
+      ok: true,
+      profile: { ...profile, rank, referralCount, pointsToday: usedToday, pointsCap: kolDailyPointsCap() },
+    })
   } catch (err) {
     sendInternalError(res, err, 'kol-program me')
   }
@@ -402,10 +432,6 @@ kolProgramRouter.get('/kol-program/me', async (req, res) => {
 
 kolProgramRouter.get('/kol-program/tasks/today', async (req, res) => {
   try {
-    const { rows } = await query<Record<string, unknown>>(
-      `SELECT id, slug, title, instructions, task_type, points
-       FROM kol_program_task_templates WHERE active = true ORDER BY sort_order ASC`,
-    )
     const day = new Date().toISOString().slice(0, 10)
     const sess = sessionUser(req)
     let completed: string[] = []
@@ -416,27 +442,56 @@ kolProgramRouter.get('/kol-program/tasks/today', async (req, res) => {
       )
       completed = done.rows.map((r) => r.task_id)
     }
-    const ordered = rows.slice(0, 5)
-    let priorDone = true
-    const tasksOut = ordered.map((t) => {
-      const id = String(t.id)
-      const done = completed.includes(id)
-      const locked = !priorDone
-      if (!done) priorDone = false
-      return {
-        id,
-        slug: String(t.slug),
-        title: String(t.title),
-        instructions: String(t.instructions),
-        points: Number(t.points),
-        completed: done,
-        locked,
-      }
-    })
+    const hqTweet = await latestHqTweet()
+    const reset = utcMidnightCountdown()
+    const todayTasks = hqTweet
+      ? [
+          {
+            id: 'today_like',
+            slug: 'today-like',
+            title: 'Like today’s @CrewPayHQ post',
+            instructions: 'Like the newest @CrewPayHQ post. Resets 00:00 UTC.',
+            points: 250,
+            completed: Boolean(sess && completed.includes('today_like')),
+            locked: false,
+            kind: 'today' as const,
+            tweetId: hqTweet.id,
+          },
+          {
+            id: 'today_repost',
+            slug: 'today-repost',
+            title: 'Repost today’s @CrewPayHQ post',
+            instructions: 'Repost the newest @CrewPayHQ post. Resets 00:00 UTC.',
+            points: 500,
+            completed: Boolean(sess && completed.includes('today_repost')),
+            locked: false,
+            kind: 'today' as const,
+            tweetId: hqTweet.id,
+          },
+          {
+            id: 'today_reply',
+            slug: 'today-reply',
+            title: 'Reply and tag a friend',
+            instructions: 'Reply to today’s @CrewPayHQ post and tag someone. Resets 00:00 UTC.',
+            points: 1000,
+            completed: Boolean(sess && completed.includes('today_reply')),
+            locked: false,
+            kind: 'today' as const,
+            tweetId: hqTweet.id,
+          },
+        ]
+      : []
+    const usedToday = sess ? await taskPointsToday(sess.xUserId) : 0
     res.json({
       ok: true,
       dayUtc: day,
-      tasks: tasksOut,
+      tasks: todayTasks,
+      tweetId: hqTweet?.id ?? null,
+      tweetText: hqTweet?.text ?? null,
+      resetAt: reset.resetAt,
+      resetIn: reset.label,
+      pointsToday: usedToday,
+      pointsCap: kolDailyPointsCap(),
       disclaimer: KOL_PROGRAM_POINTS_DISCLAIMER,
     })
   } catch (err) {
@@ -467,6 +522,55 @@ kolProgramRouter.post('/kol-program/tasks/:taskId/verify', async (req, res) => {
       return
     }
     const taskId = req.params.taskId
+    const todayIds: Record<string, { points: number; action: 'like' | 'repost' | 'reply' }> = {
+      today_like: { points: 250, action: 'like' },
+      today_repost: { points: 500, action: 'repost' },
+      today_reply: { points: 1000, action: 'reply' },
+    }
+    const day = new Date().toISOString().slice(0, 10)
+    const token = await loadUserAccessToken(sess.xUserId)
+
+    if (todayIds[taskId]) {
+      const spec = todayIds[taskId]
+      const hqTweet = await latestHqTweet()
+      if (!hqTweet?.id) {
+        res.status(202).json({ ok: false, pending: true, error: pendingReason(spec.action) })
+        return
+      }
+      const already = await query(
+        `SELECT id FROM kol_program_point_events
+         WHERE x_user_id = $1 AND kind = $2 AND created_at >= $3::timestamptz
+           AND created_at < ($3::timestamptz + interval '1 day')`,
+        [sess.xUserId, `today:${spec.action}`, `${day}T00:00:00.000Z`],
+      )
+      if (already.rows.length) {
+        res.json({ ok: true, already: true, points: 0 })
+        return
+      }
+      let status: 'ok' | 'pending' | 'not_found' = 'pending'
+      if (spec.action === 'like') status = await verifyLikedTweet(hqTweet.id, sess.xUserId, token)
+      else if (spec.action === 'repost') status = await verifyRepostedTweet(hqTweet.id, sess.xUserId, token)
+      else if (token) status = await verifyRepliedToConversation(token, sess.handle, hqTweet.id)
+      if (status !== 'ok') {
+        res.status(status === 'pending' ? 202 : 400).json({
+          ok: false,
+          pending: status === 'pending',
+          error: status === 'pending' ? pendingReason(spec.action) : `Do the ${spec.action} first, then verify.`,
+        })
+        return
+      }
+      const credit = await creditProgramPointsCapped(sess.xUserId, spec.points, `today:${spec.action}`, hqTweet.id)
+      res.json({
+        ok: true,
+        points: credit.credited,
+        tweetId: hqTweet.id,
+        capped: credit.capped,
+        pointsToday: credit.usedToday,
+        pointsCap: credit.cap,
+      })
+      return
+    }
+
     const { rows: tasks } = await query<Record<string, unknown>>(
       `SELECT id, slug, task_type, config, points FROM kol_program_task_templates WHERE id = $1 AND active`,
       [taskId],
@@ -476,7 +580,6 @@ kolProgramRouter.post('/kol-program/tasks/:taskId/verify', async (req, res) => {
       res.status(404).json({ ok: false, error: 'Unknown task.' })
       return
     }
-    const day = new Date().toISOString().slice(0, 10)
     const dup = await query(
       `SELECT id FROM kol_program_task_completions WHERE x_user_id = $1 AND task_id = $2 AND day_utc = $3::date`,
       [sess.xUserId, taskId, day],
@@ -485,11 +588,11 @@ kolProgramRouter.post('/kol-program/tasks/:taskId/verify', async (req, res) => {
       res.json({ ok: true, already: true, points: 0 })
       return
     }
-    const token = await loadUserAccessToken(sess.xUserId)
     if (!token) {
-      res.status(401).json({
+      res.status(202).json({
         ok: false,
-        error: 'X session expired — sign in with X again from /register to verify tasks.',
+        pending: true,
+        error: pendingReason('task'),
       })
       return
     }
@@ -505,7 +608,7 @@ kolProgramRouter.post('/kol-program/tasks/:taskId/verify', async (req, res) => {
       { handle: sess.handle, referralUrl: profile.referralUrl },
     )
     if (!verdict.ok) {
-      res.status(400).json({ ok: false, error: verdict.reason })
+      res.status(202).json({ ok: false, pending: true, error: pendingReason(String(task.slug)) })
       return
     }
     const points = Number(task.points)
@@ -514,8 +617,15 @@ kolProgramRouter.post('/kol-program/tasks/:taskId/verify', async (req, res) => {
        VALUES ($1,$2,$3,$4::date,$5,$6)`,
       [`kptc_${Date.now()}`, sess.xUserId, taskId, day, points, verdict.tweetId],
     )
-    await creditProgramPoints(sess.xUserId, points, `task:${task.slug}`, verdict.tweetId)
-    res.json({ ok: true, points, tweetId: verdict.tweetId })
+    const credit = await creditProgramPointsCapped(sess.xUserId, points, `task:${task.slug}`, verdict.tweetId)
+    res.json({
+      ok: true,
+      points: credit.credited,
+      tweetId: verdict.tweetId,
+      capped: credit.capped,
+      pointsToday: credit.usedToday,
+      pointsCap: credit.cap,
+    })
   } catch (err) {
     sendInternalError(res, err, 'kol-program verify')
   }
