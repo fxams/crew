@@ -53,6 +53,7 @@ export type KolProgramHub = {
   foundingSnapshotAt?: string | null
   recentJoiners: KolHubRecentJoiner[]
   referralMilestones: Array<{ referrals: number; bonusPoints: number }>
+  referralRewards?: { perReferral: number; forReferred: number }
   disclaimer: string
 }
 
@@ -63,6 +64,7 @@ export type KolProgramTask = {
   instructions: string
   points: number
   completed: boolean
+  locked?: boolean
 }
 
 export type KolLeaderboardRow = {
@@ -279,6 +281,8 @@ export type PublicKolCard = {
   lookupOk: boolean
   xVerified: boolean
   followers: number | null
+  seasonPoints: number
+  memberNumber: number | null
 }
 
 export async function fetchPublicKolCard(handle: string): Promise<{
