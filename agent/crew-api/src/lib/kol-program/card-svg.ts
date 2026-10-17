@@ -1,3 +1,5 @@
+export type KolCardHallBadge = { label: string; rank: number; seasonNumber: number }
+
 export type KolCardInput = {
   handle: string
   displayName: string
@@ -6,6 +8,7 @@ export type KolCardInput = {
   tier: string
   founderNumber: number | null
   referralUrl: string
+  hallOfFameBadges?: KolCardHallBadge[]
 }
 
 export function renderKolCardSvg(input: KolCardInput): string {
@@ -18,6 +21,11 @@ export function renderKolCardSvg(input: KolCardInput): string {
       ? `Founding KOL #${String(input.founderNumber).padStart(3, '0')}`
       : 'CrewPay KOL'
   const url = escapeXml(input.referralUrl)
+  const hof =
+    (input.hallOfFameBadges || [])
+      .slice()
+      .sort((a, b) => b.seasonNumber - a.seasonNumber)[0]?.label || ''
+  const hofLine = hof ? escapeXml(hof) : ''
   const avatar = input.avatarUrl ? escapeXml(input.avatarUrl) : ''
   const avatarBlock = avatar
     ? `<image href="${avatar}" x="40" y="48" width="72" height="72" clip-path="url(#av)"/>`
@@ -38,6 +46,7 @@ export function renderKolCardSvg(input: KolCardInput): string {
   <text x="140" y="72" fill="#e8f5e9" font-size="26" font-weight="700" font-family="system-ui,sans-serif">@${handle}</text>
   <text x="140" y="98" fill="#9cb3a8" font-size="16" font-family="system-ui,sans-serif">${name}</text>
   <text x="140" y="132" fill="#c8ff3d" font-size="14" font-family="ui-monospace,monospace">${founder}</text>
+  ${hofLine ? `<text x="140" y="152" fill="#9cb3a8" font-size="12" font-family="ui-monospace,monospace">${hofLine}</text>` : ''}
   <text x="140" y="168" fill="#e8f5e9" font-size="42" font-weight="800" font-family="system-ui,sans-serif">${score}</text>
   <text x="220" y="168" fill="#9cb3a8" font-size="16" font-family="ui-monospace,monospace">reach</text>
   <text x="140" y="200" fill="#c8ff3d" font-size="18" font-weight="600" font-family="ui-monospace,monospace">${tier}</text>

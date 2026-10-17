@@ -104,6 +104,43 @@ describe('agent narrative autohire', () => {
     }
   })
 
+  it('ranks registered crew by KOL season points when program priority is on', () => {
+    const prevReg = process.env.AUTOHIRE_REGISTERED_FIRST
+    const prevKol = process.env.KOL_PROGRAM_ENABLED
+    process.env.AUTOHIRE_REGISTERED_FIRST = 'true'
+    process.env.KOL_PROGRAM_ENABLED = '1'
+    try {
+      const plan = planNarrativeHires(
+        { name: 'Meme', ticker: 'MEME', vibe: 'meme degen' },
+        {
+          limit: 2,
+          onlyRegistered: true,
+          kolProgramPriority: true,
+          registered: [
+            {
+              handle: 'low_pts',
+              wallet: 'So11111111111111111111111111111111111111112',
+              kolSeasonPoints: 12,
+              kolCrewPriority: true,
+            },
+            {
+              handle: 'high_pts',
+              wallet: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+              kolSeasonPoints: 400,
+              kolCrewPriority: true,
+              kolFounderNumber: 2,
+            },
+          ],
+        },
+      )
+      expect(plan.hires.length).toBe(2)
+      expect(plan.hires[0]!.kol.pump.toLowerCase()).toBe('high_pts')
+    } finally {
+      process.env.AUTOHIRE_REGISTERED_FIRST = prevReg
+      process.env.KOL_PROGRAM_ENABLED = prevKol
+    }
+  })
+
   it('registered not in kol-db gets picked (registered-first)', () => {
     const prev = process.env.AUTOHIRE_REGISTERED_FIRST
     process.env.AUTOHIRE_REGISTERED_FIRST = 'true'

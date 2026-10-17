@@ -689,4 +689,62 @@ export async function migrate(): Promise<void> {
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['026_kol_program_season_archive'],
   )
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS kol_treasury_fee_receipts (
+      id TEXT PRIMARY KEY,
+      chain TEXT NOT NULL CHECK (chain IN ('solana', 'base')),
+      tx_id TEXT NOT NULL,
+      amount_raw NUMERIC(40, 0) NOT NULL CHECK (amount_raw > 0),
+      currency TEXT NOT NULL CHECK (currency IN ('SOL', 'ETH')),
+      received_at TIMESTAMPTZ NOT NULL,
+      mint TEXT,
+      source TEXT NOT NULL DEFAULT 'remit_index',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE (chain, tx_id, mint, amount_raw)
+    )
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS kol_treasury_fee_receipts_received_idx
+      ON kol_treasury_fee_receipts (received_at DESC)
+  `)
+  await query(`
+    CREATE TABLE IF NOT EXISTS kol_program_pool_manifests (
+      season_id TEXT PRIMARY KEY,
+      status TEXT NOT NULL DEFAULT 'draft',
+      manifest JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await query(`ALTER TABLE kol_program_profiles ADD COLUMN IF NOT EXISTS crew_priority_opt_in BOOLEAN NOT NULL DEFAULT true`)
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['027_kol_program_pool'],
+  )
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS kol_program_hall_of_fame (
+      season_id TEXT NOT NULL,
+      season_number INT NOT NULL,
+      rank INT NOT NULL CHECK (rank >= 1 AND rank <= 10),
+      handle TEXT NOT NULL,
+      season_points INT NOT NULL,
+      archived_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (season_id, rank)
+    )
+  `)
+  await query(`
+    CREATE TABLE IF NOT EXISTS kol_program_hof_badges (
+      handle TEXT NOT NULL,
+      season_id TEXT NOT NULL,
+      season_number INT NOT NULL,
+      rank INT NOT NULL CHECK (rank >= 1 AND rank <= 10),
+      PRIMARY KEY (handle, season_id)
+    )
+  `)
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['028_kol_program_hall_of_fame'],
+  )
 }
