@@ -222,17 +222,18 @@ export function KolHubPage() {
         ) : null}
 
         <form className="kol-handle-lookup" onSubmit={onLookupSubmit} data-testid="kol-handle-lookup">
-          <label>
-            Check any handle
-            <input
-              type="search"
-              placeholder="@username"
-              value={lookupHandle}
-              onChange={(e) => setLookupHandle(e.target.value)}
-              autoComplete="off"
-            />
-          </label>
-          <button type="submit" className="btn btn-ghost btn-sm">Go</button>
+          <label htmlFor="kol-handle-lookup-input">Check any handle</label>
+          <input
+            id="kol-handle-lookup-input"
+            type="search"
+            placeholder="@username"
+            value={lookupHandle}
+            onChange={(e) => setLookupHandle(e.target.value)}
+            autoComplete="off"
+          />
+          <button type="submit" className="btn btn-ghost btn-sm">
+            Go
+          </button>
         </form>
 
         {!profile ? (

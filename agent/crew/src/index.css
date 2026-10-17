@@ -8,6 +8,8 @@
   --acid-soft: rgba(200, 255, 61, 0.1);
   --accent: var(--acid);
   --border: var(--line);
+  --surface: var(--panel);
+  --text: var(--ink);
   --amber: #ffb84d;
   --danger: #ff5c6a;
   --ok: #7dff9a;
@@ -7308,35 +7310,41 @@ ol.coin-timeline.coin-panel {
 
 .kol-leaderboard-list {
   list-style: none;
-  margin: 1rem 0 0;
+  margin: 0.15rem 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0;
 }
 
 .kol-leaderboard-row {
   display: grid;
-  grid-template-columns: 2.4rem 40px 1fr auto;
-  grid-template-areas:
-    "rank avatar handle points"
-    "rank avatar tier reach";
-  gap: 0.15rem 0.5rem;
-  padding: 0.65rem 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  grid-template-columns: 1.55rem 2rem minmax(0, 1fr) auto;
+  grid-template-areas: "rank avatar handle points";
+  gap: 0.35rem 0.45rem;
+  min-height: 56px;
+  height: 56px;
+  max-height: 56px;
+  padding: 0 0.1rem;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--muted) 22%, transparent);
+  border-radius: 0;
   align-items: center;
 }
 
+.kol-leaderboard-row.is-self,
+.kol-leaderboard-row.is-top {
+  box-shadow: inset 2px 0 0 var(--acid);
+}
+
 .kol-leaderboard-row.is-self {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--acid) 6%, transparent);
 }
 
 .kol-board-avatar,
 .kol-podium-avatar {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   object-fit: cover;
   background: #0d1a12;
@@ -7344,8 +7352,16 @@ ol.coin-timeline.coin-panel {
 }
 
 .kol-podium-avatar {
-  width: 56px;
-  height: 56px;
+  width: 36px;
+  height: 36px;
+}
+
+.kol-podium-first .kol-podium-avatar {
+  width: 40px;
+  height: 40px;
+  box-shadow:
+    0 0 0 2px var(--acid),
+    0 0 10px color-mix(in srgb, var(--acid) 45%, transparent);
 }
 
 .kol-board-avatar-fallback {
@@ -7353,20 +7369,23 @@ ol.coin-timeline.coin-panel {
   align-items: center;
   justify-content: center;
   font-weight: 700;
+  font-size: 0.72rem;
   color: var(--accent);
   border: 1px solid var(--border);
 }
 
 .kol-board-identity {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.35rem;
   min-width: 0;
   color: inherit;
   text-decoration: none;
 }
 
 .kol-board-name {
-  font-size: 0.92rem;
+  font-size: 0.86rem;
   line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -7374,30 +7393,43 @@ ol.coin-timeline.coin-panel {
 }
 
 .kol-board-handle {
-  font-size: 0.75rem;
-  opacity: 0.75;
+  font-size: 0.72rem;
+  opacity: 0.7;
+  white-space: nowrap;
 }
 
 .kol-leaderboard-rank {
   grid-area: rank;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
   font-weight: 700;
-  opacity: 0.85;
+  opacity: 0.7;
+}
+
+.kol-leaderboard-row.is-top .kol-leaderboard-rank {
+  color: var(--acid);
+  opacity: 1;
 }
 
 .kol-leaderboard-handle {
   grid-area: handle;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  overflow: hidden;
 }
 
 .kol-hof-badge {
   display: inline-block;
-  margin-left: 0.35rem;
-  font-size: 0.68rem;
-  padding: 0.1rem 0.35rem;
+  flex-shrink: 0;
+  font-size: 0.62rem;
+  padding: 0.08rem 0.35rem;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: rgba(200, 255, 61, 0.08);
   vertical-align: middle;
+  white-space: nowrap;
 }
 
 .kol-hof-season {
@@ -7417,32 +7449,34 @@ ol.coin-timeline.coin-panel {
 
 .kol-founder-badge {
   display: inline-block;
-  margin-left: 0.35rem;
-  font-size: 0.68rem;
-  padding: 0.1rem 0.35rem;
+  flex-shrink: 0;
+  margin-left: 0;
+  font-size: 0.62rem;
+  font-family: var(--font-mono);
+  padding: 0.08rem 0.35rem;
   border-radius: 999px;
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--acid) 40%, var(--border));
+  color: var(--acid);
   vertical-align: middle;
+  white-space: nowrap;
 }
 
 .kol-leaderboard-tier {
-  grid-area: tier;
-  font-size: 0.75rem;
-  opacity: 0.8;
-  text-transform: capitalize;
+  display: none;
 }
 
 .kol-leaderboard-points {
   grid-area: points;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
   font-weight: 600;
   text-align: right;
+  color: var(--acid);
+  white-space: nowrap;
 }
 
 .kol-leaderboard-reach {
-  grid-area: reach;
-  font-size: 0.72rem;
-  opacity: 0.75;
-  text-align: right;
+  display: none;
 }
 
 .register-kol-program {
@@ -7462,15 +7496,19 @@ ol.coin-timeline.coin-panel {
 
 @media (min-width: 640px) {
   .kol-leaderboard-row {
-    grid-template-columns: 2.5rem 40px 1fr 5rem 5rem 4.5rem;
-    grid-template-areas: "rank avatar handle tier points reach";
+    grid-template-columns: 1.8rem 2rem minmax(0, 1fr) auto;
+    grid-template-areas: "rank avatar handle points";
   }
 }
 
+.page-kol-hub .kol-hub-hero {
+  padding-top: 0.35rem;
+}
+
 .page-kol-hub .kol-hub-title {
-  font-size: clamp(1.85rem, 6vw, 2.75rem);
-  line-height: 1.1;
-  margin: 0.35rem 0 0.75rem;
+  font-size: 1.35rem;
+  line-height: 1.15;
+  margin: 0.15rem 0 0.4rem;
 }
 
 .kol-hub-showcase {
@@ -7501,8 +7539,8 @@ ol.coin-timeline.coin-panel {
 .kol-hub-subnav {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 0.35rem 0 0.55rem;
+  gap: 0.35rem;
+  margin: 0.2rem 0 0.35rem;
 }
 
 .kol-sample-card {
@@ -7582,35 +7620,47 @@ ol.coin-timeline.coin-panel {
 }
 
 .kol-hub-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.5rem;
-  margin: 1rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin: 0.45rem 0 0.55rem;
+  padding: 0.35rem 0.55rem;
+  min-height: 36px;
+  border: 1px solid color-mix(in srgb, var(--acid) 35%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--acid) 6%, transparent);
 }
 
 .kol-hub-stat {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.02rem;
   margin: 0;
   min-width: 0;
-  padding: 0.7rem 0.45rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
   text-align: center;
-  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  background: transparent;
+  flex: 1;
 }
 
 .kol-hub-stat strong {
-  font-size: 0.92rem;
-  line-height: 1.2;
-  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  line-height: 1.15;
+  color: var(--acid);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .kol-hub-stat span {
-  font-size: 0.68rem;
-  line-height: 1.25;
-  opacity: 0.7;
+  font-size: 0.58rem;
+  line-height: 1.15;
+  opacity: 0.65;
+  white-space: nowrap;
 }
 
 .kol-hub-joiners {
@@ -7627,29 +7677,40 @@ ol.coin-timeline.coin-panel {
 
 .kol-handle-lookup {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: flex-end;
-  margin: 0 0 1.25rem;
+  flex-wrap: nowrap;
+  gap: 0.4rem;
+  align-items: center;
+  margin: 0.35rem 0 0.75rem;
   max-width: 28rem;
 }
 
 .kol-handle-lookup label {
-  flex: 1 1 12rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  font-size: 0.85rem;
+  flex: 0 0 auto;
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--muted);
+  white-space: nowrap;
 }
 
 .kol-handle-lookup input {
-  width: 100%;
-  padding: 0.55rem 0.75rem;
-  border-radius: var(--radius);
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  height: 32px;
+  padding: 0 0.6rem;
+  border-radius: 999px;
   border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.kol-handle-lookup .btn {
+  height: 32px;
+  padding: 0 0.7rem;
+  flex-shrink: 0;
 }
 
 .kol-share-row,
@@ -8152,26 +8213,26 @@ ol.coin-timeline.coin-panel {
 
 .kol-podium {
   display: grid;
-  grid-template-columns: 1fr 1.15fr 1fr;
-  gap: 0.5rem;
+  grid-template-columns: 1fr 1.1fr 1fr;
+  gap: 0.2rem;
   align-items: end;
-  margin: 1rem 0 1.25rem;
+  margin: 0.25rem 0 0.35rem;
 }
 
 .kol-podium-slot {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  gap: 0.12rem;
+  padding: 0.15rem 0.1rem;
+  border: 0;
+  border-radius: 0;
   text-align: center;
+  min-width: 0;
 }
 
 .kol-podium-first {
   order: 2;
-  transform: translateY(-0.35rem);
 }
 
 .kol-podium-side:first-child {
@@ -8182,44 +8243,64 @@ ol.coin-timeline.coin-panel {
   order: 3;
 }
 
-.kol-podium-card {
-  width: 100%;
-  max-width: 200px;
-  border-radius: 8px;
+.kol-podium-rank {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+.kol-podium-first .kol-podium-rank {
+  color: var(--acid);
+}
+
+.kol-podium-handle {
+  font-size: 0.68rem;
+  font-weight: 650;
+  line-height: 1.15;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: inherit;
+}
+
+.kol-podium-points {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  color: var(--acid);
+}
+
+.kol-podium-tier {
+  display: none;
+}
+
+.kol-podium-ghost {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--muted) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--muted) 32%, transparent);
 }
 
 .kol-podium-placeholder {
-  width: 100%;
-  aspect-ratio: 16 / 10;
-  max-width: 200px;
-  border-radius: 8px;
-  border: 1px dashed rgba(200, 255, 61, 0.45);
-  background: rgba(200, 255, 61, 0.04);
+  display: none;
 }
 
 .kol-podium-slot.is-placeholder {
-  opacity: 0.92;
+  opacity: 0.7;
 }
 
-.kol-podium-slot.is-self {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+.kol-podium-slot.is-self .kol-podium-handle {
+  color: var(--acid);
 }
 
 .kol-leaderboard-empty {
-  margin: 0.35rem 0 0.75rem;
+  margin: 0.25rem 0 0.55rem;
 }
 
 .kol-leaderboard-empty .kol-podium {
-  margin: 0.4rem 0 0.55rem;
-}
-
-.kol-leaderboard-empty .kol-podium-slot {
-  padding: 0.35rem 0.25rem;
-}
-
-.kol-leaderboard-empty .kol-podium-placeholder {
-  aspect-ratio: 16 / 8;
-  max-height: 56px;
+  margin: 0.25rem 0 0.4rem;
 }
 
 .kol-leaderboard-empty-copy {
