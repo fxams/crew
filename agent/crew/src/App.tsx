@@ -106,7 +106,14 @@ import { AdminKickoffPage } from "./components/AdminKickoffPage";
 import { AdminOpsPage } from "./components/AdminOpsPage";
 import { AdminFarcasterPage } from "./components/AdminFarcasterPage";
 import { TasksPage } from "./components/TasksPage";
-import { distributeCreatorFees, lockHolderKolFeeShares, wireCrewFeeShares } from "./lib/pump/fees";
+import {
+  buildWireCrewFeeSharePlan,
+  distributeCreatorFees,
+  executeWireCrewFeeSharePlan,
+  lockHolderKolFeeShares,
+  type WireFeeSharePlan,
+} from "./lib/pump/fees";
+import { WireFeesConfirmModal } from "./components/WireFeesConfirmModal";
 import {
   remitsFromSignature,
   syncChainRemitsForCoins,
@@ -245,6 +252,10 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [cranking, setCranking] = useState<string | null>(null);
   const [wiring, setWiring] = useState<string | null>(null);
+  const [wireConfirm, setWireConfirm] = useState<{
+    plan: WireFeeSharePlan;
+    coin: CoinRecord;
+  } | null>(null);
   const [tapeSyncing, setTapeSyncing] = useState(false);
   const [serverScoreboard, setServerScoreboard] = useState<
     { handle: string; totalSol: number; remits: number; tickers: string[] }[] | null
@@ -936,13 +947,38 @@ export default function App() {
     setWiring(coin.mint);
     setDeskMessage(null);
     try {
-      const wired = await wireCrewFeeShares({
+      const plan = await buildWireCrewFeeSharePlan({
         mint: coin.mint,
         mode: coin.mode,
         crew: coin.crew,
         wallet,
         coin,
       });
+      setWireConfirm({ plan, coin });
+    } catch (err) {
+      setDeskMessage({
+        kind: "error",
+        text: err instanceof Error ? err.message : "Wire fees failed.",
+      });
+    } finally {
+      setWiring(null);
+    }
+  }
+
+  async function confirmWireFees() {
+    if (!wireConfirm) return;
+    const { plan, coin } = wireConfirm;
+    setWiring(coin.mint);
+    setDeskMessage(null);
+    try {
+      const wired = await executeWireCrewFeeSharePlan(plan, {
+        mint: coin.mint,
+        mode: coin.mode,
+        crew: coin.crew,
+        wallet,
+        coin,
+      });
+      setWireConfirm(null);
       const board = persistLaunch(wired.coin, []);
       setCoins(board.coins);
       setSelectedCoin(wired.coin);
@@ -952,8 +988,13 @@ export default function App() {
       }
       setDeskMessage({
         kind: "info",
-        text: `Crew fees locked · ${shortAddr(wired.feeShareSignature)}`,
+        text: wireConfirm.coin.id.startsWith("adopt_")
+          ? `Adopted $${wired.coin.ticker} · fees ${shortAddr(wired.feeShareSignature)}`
+          : `Crew fees locked · ${shortAddr(wired.feeShareSignature)}`,
       });
+      if (wireConfirm.coin.id.startsWith("adopt_")) {
+        setAdoptMint("");
+      }
       await refreshTapeFromChain(board.coins);
     } catch (err) {
       setDeskMessage({
@@ -1048,35 +1089,33 @@ export default function App() {
       });
       return;
     }
+    const adoptCoin: CoinRecord = {
+      id: `adopt_${mint.slice(0, 8)}`,
+      mint,
+      name: draft.name.trim(),
+      ticker: normalizeTicker(draft.ticker),
+      vibe: draft.vibe.trim(),
+      mode: draft.mode,
+      crew: draft.crew,
+      signature: "",
+      launchedAt: Date.now(),
+      launcher: wallet.publicKey?.toBase58() || "",
+      pumpUrl: "",
+      buybackRule: draft.buybackRule,
+      raidQuests: draft.raidQuests,
+      agent: draft.agent,
+    };
     setWiring(mint);
     setDeskMessage(null);
     try {
-      const wired = await wireCrewFeeShares({
+      const plan = await buildWireCrewFeeSharePlan({
         mint,
         mode: draft.mode,
         crew: draft.crew,
         wallet,
-        coin: {
-          name: draft.name.trim(),
-          ticker: normalizeTicker(draft.ticker),
-          vibe: draft.vibe.trim(),
-          mode: draft.mode,
-          crew: draft.crew,
-          buybackRule: draft.buybackRule,
-          raidQuests: draft.raidQuests,
-          agent: draft.agent,
-        },
+        coin: adoptCoin,
       });
-      const board = persistLaunch(wired.coin, []);
-      setCoins(board.coins);
-      setSelectedCoin(wired.coin);
-      setResult(wired.coin);
-      setAdoptMint("");
-      setDeskMessage({
-        kind: "info",
-        text: `Adopted $${wired.coin.ticker} · fees ${shortAddr(wired.feeShareSignature)}`,
-      });
-      await refreshTapeFromChain(board.coins);
+      setWireConfirm({ plan, coin: adoptCoin });
     } catch (err) {
       setDeskMessage({
         kind: "error",
@@ -3196,6 +3235,14 @@ export default function App() {
           {stickyCta.label}
         </button>
       </div>
+      ) : null}
+      {wireConfirm ? (
+        <WireFeesConfirmModal
+          plan={wireConfirm.plan}
+          busy={Boolean(wiring)}
+          onConfirm={() => void confirmWireFees()}
+          onCancel={() => setWireConfirm(null)}
+        />
       ) : null}
     </div>
   );
