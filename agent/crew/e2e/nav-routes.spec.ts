@@ -11,7 +11,6 @@ const NAV_ROUTES = [
   '/ref/CrewPayHQ',
   '/kol/e2eKol',
   '/coins',
-  '/tasks',
   '/proof',
   '/launch',
 ]

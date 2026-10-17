@@ -109,7 +109,15 @@ export async function fetchKolProgramHub(): Promise<KolProgramHub | null> {
   try {
     const res = await fetch(`${API}/api/kol-program/hub`)
     if (!res.ok) return null
-    return (await res.json()) as KolProgramHub
+    const body = (await res.json()) as KolProgramHub & { ok?: boolean }
+    return {
+      seasonId: body.seasonId,
+      seasonEndsAt: body.seasonEndsAt ?? null,
+      memberCount: Math.max(0, Number(body.memberCount) || 0),
+      recentJoiners: Array.isArray(body.recentJoiners) ? body.recentJoiners : [],
+      referralMilestones: Array.isArray(body.referralMilestones) ? body.referralMilestones : [],
+      disclaimer: body.disclaimer || KOL_PROGRAM_POINTS_DISCLAIMER,
+    }
   } catch {
     return null
   }

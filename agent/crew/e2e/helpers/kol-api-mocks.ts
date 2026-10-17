@@ -73,8 +73,8 @@ export async function mockKolRegisterApis(
         ok: true,
         seasonId: 'season_test',
         seasonEndsAt: new Date(Date.now() + 86400000 * 12).toISOString(),
-        memberCount: 21710,
-        recentJoiners: [{ handle: 'CrewPayHQ', enrolledAt: new Date().toISOString(), founderNumber: 1 }],
+        memberCount: 0,
+        recentJoiners: [],
         referralMilestones: [
           { referrals: 5, bonusPoints: 1000 },
           { referrals: 25, bonusPoints: 5000 },

@@ -1477,7 +1477,10 @@ export default function App() {
                     ? isOwnDeskPage
                       ? "is-active-nav-text"
                       : undefined
-                    : isRegisterPage || isKolsPage || isKolHubPage
+                    : isRegisterPage ||
+                        isKolsPage ||
+                        isKolHubPage ||
+                        (KOL_PROGRAM_ENABLED && isKolLeaderboardPage)
                       ? "is-active-nav-text"
                       : undefined
                 }
@@ -1500,9 +1503,11 @@ export default function App() {
                 Sui
               </Link>
             ) : null}
-            <Link className={isTasksPage ? "is-active-nav-text" : undefined} to="/tasks">
-              Tasks
-            </Link>
+            {!KOL_PROGRAM_ENABLED ? (
+              <Link className={isTasksPage ? "is-active-nav-text" : undefined} to="/tasks">
+                Tasks
+              </Link>
+            ) : null}
             <Link
               className={isProofPage ? "is-active-nav-text" : undefined}
               to="/proof"

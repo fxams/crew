@@ -18,11 +18,8 @@ describe('headerKolLinks', () => {
     expect(headerKolLinks('')).toEqual([{ label: 'KOL', to: '/register' }])
   })
 
-  it('points KOL at /kol when program flag is on', () => {
-    expect(headerKolLinks(null, { kolProgram: true })).toEqual([
-      { label: 'KOL', to: '/kol' },
-      { label: 'Leaderboard', to: '/kol/leaderboard' },
-    ])
+  it('points KOL at /kol when program flag is on (no extra header links)', () => {
+    expect(headerKolLinks(null, { kolProgram: true })).toEqual([{ label: 'KOL', to: '/kol' }])
   })
 
   it('adds Desk next to KOL when the wallet is a registered handle', () => {
@@ -35,7 +32,6 @@ describe('headerKolLinks', () => {
   it('adds Desk when registered and program is on', () => {
     expect(headerKolLinks('0x4dY', { kolProgram: true })).toEqual([
       { label: 'KOL', to: '/kol' },
-      { label: 'Leaderboard', to: '/kol/leaderboard' },
       { label: 'Desk', to: '/kol/0x4dY' },
     ])
   })
