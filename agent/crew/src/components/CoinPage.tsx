@@ -7,6 +7,7 @@ import { loadBoard } from '../lib/store'
 import { PlatformBadge } from './PlatformBadge'
 import { CoinLogo } from './CoinLogo'
 import { inferLaunchPlatform, tradeLabel } from '../lib/platforms'
+import { XLink } from './XLink'
 
 type Coin = {
   mint: string
@@ -229,9 +230,9 @@ export function CoinPage() {
                   </a>
                 ) : null}
                 {socials.map((s) => (
-                  <a key={s.href} className="btn btn-ghost" href={s.href} target="_blank" rel="noreferrer">
+                  <XLink key={s.href} className="btn btn-ghost" href={s.href}>
                     {s.label}
-                  </a>
+                  </XLink>
                 ))}
               </div>
             </div>
@@ -273,13 +274,13 @@ export function CoinPage() {
                         ) : null}
                         <span className="coin-tl-links">
                           {step.href ? (
-                            <a href={step.href} target="_blank" rel="noreferrer">
+                            <XLink href={step.href}>
                               {step.id === 'featured-crewpayhq' && step.status === 'done'
                                 ? 'View post'
                                 : step.id === 'page-live'
                                   ? 'Open page'
                                   : 'Open'}
-                            </a>
+                            </XLink>
                           ) : null}
                           {step.tx ? (
                             <a href={step.href} target="_blank" rel="noreferrer">

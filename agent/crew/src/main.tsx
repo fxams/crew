@@ -6,10 +6,12 @@ import { WalletProvider } from './providers/WalletProvider'
 import { SuiProvider } from './providers/SuiProvider'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { installChunkLoadReloadHandler } from './lib/chunk-reload'
+import { installMobileXLinkCapture } from './lib/x-links'
 import App from './App'
 import './index.css'
 
 installChunkLoadReloadHandler()
+installMobileXLinkCapture()
 
 /** Empty basename at site root — `basename="/"` breaks some path matches. */
 const rawBase = (import.meta.env.BASE_URL || '/').replace(/\/$/, '')
