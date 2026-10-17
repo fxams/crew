@@ -1,4 +1,4 @@
-import { X402_HREF, formatX402Networks, x402PayLabel, type X402Info } from '../lib/x402'
+import { X402_HREF, x402PayLabel, type X402Info } from '../lib/x402'
 import { IntegrationMark } from './IntegrationMark'
 
 type Props = {
@@ -10,7 +10,7 @@ type Props = {
 /** x402 pay-per-call chip — icon + link, styled like Pump / Bags / Zora / ACP. */
 export function X402Chip({ x402, compact, chipStack }: Props) {
   const label = x402PayLabel(x402)
-  const networks = formatX402Networks(x402.networks)
+  const chipLabel = chipStack ? 'X402' : 'x402'
   return (
     <a
       className={`plat-badge plat-x402${compact ? ' is-compact' : ''}${chipStack ? ' is-chip-stack' : ''}`}
@@ -25,8 +25,7 @@ export function X402Chip({ x402, compact, chipStack }: Props) {
       </span>
       {compact ? null : (
         <span className="plat-chip-text">
-          <span className="plat-name">x402</span>
-          <span className="plat-caption plat-x402-net">{networks}</span>
+          <span className="plat-name">{chipLabel}</span>
         </span>
       )}
     </a>
