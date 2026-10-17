@@ -32,6 +32,7 @@ export function KolLeaderboardPage() {
   const [disclaimer, setDisclaimer] = useState('')
   const [crewPriorityCopy, setCrewPriorityCopy] = useState('')
   const [pool, setPool] = useState<KolPoolStatus | null>(null)
+  const [poolUnavailable, setPoolUnavailable] = useState(false)
   const [seasons, setSeasons] = useState<KolProgramSeason[]>([])
   const [archiveSeason, setArchiveSeason] = useState<string | null>(null)
   const [archiveRows, setArchiveRows] = useState<KolLeaderboardRow[]>([])
@@ -59,7 +60,8 @@ export function KolLeaderboardPage() {
       setSeasonId(board.seasonId)
       setDisclaimer(board.disclaimer)
       setCrewPriorityCopy(board.crewPriorityCopy || '')
-      setPool(board.pool || null)
+      setPool(board.pool ?? null)
+      setPoolUnavailable(Boolean(board.poolError) && !board.pool)
       if (meta) setSeasons(meta.seasons)
       setHofSeasons(hof)
     })()
@@ -113,6 +115,12 @@ export function KolLeaderboardPage() {
             <p className="hint">Current season: <strong>{seasonId.replace(/^season_/, '')}</strong></p>
           ) : null}
         </div>
+
+        {poolUnavailable && !archiveSeason ? (
+          <p className="hint kol-pool-unavailable">
+            Season pool totals are temporarily unavailable; rankings below are still live.
+          </p>
+        ) : null}
 
         {pool && !archiveSeason ? (
           <div className="kol-pool-status" aria-label="Season treasury pool">

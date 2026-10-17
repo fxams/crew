@@ -23,7 +23,12 @@ import { fetchRecentUserTweets } from '../lib/kol-program/x-tweets.js'
 import { verifyTaskFromTweets } from '../lib/kol-program/task-verify.js'
 import { siteUrl } from '../lib/kol-register.js'
 import { KOL_POOL_BPS, CREWPAY_HQ_X_HANDLE } from '../lib/kol-program/flags.js'
-import { currentSeasonPoolStatus, seasonBounds } from '../lib/kol-program/treasury-pool.js'
+import {
+  currentSeasonPoolStatus,
+  seasonBounds,
+  seasonPoolStatusToJson,
+  tryCurrentSeasonPoolStatus,
+} from '../lib/kol-program/treasury-pool.js'
 import { buildPoolManifest, eligiblePoolKols } from '../lib/kol-program/pool-allocations.js'
 import { buildUnsignedPoolPayouts } from '../lib/kol-program/pool-unsigned.js'
 import {
@@ -64,20 +69,16 @@ kolProgramRouter.get('/kol-program/leaderboard', async (req, res) => {
     const limit = Math.min(100, Number(req.query.limit || 50))
     const rows = await leaderboard(limit)
     const seasonId = await getCurrentSeasonId()
-    const pool = await currentSeasonPoolStatus(seasonId)
+    const poolResult = await tryCurrentSeasonPoolStatus(seasonId)
     res.json({
       ok: true,
       seasonId,
       rows,
       disclaimer: KOL_PROGRAM_POINTS_DISCLAIMER,
       crewPriorityCopy: 'Top KOLs by season points get first crew slots on new launches (when eligible).',
-      pool: {
-        poolBps: pool.poolBps,
-        receipts: pool.receipts,
-        poolSlice: pool.poolSlice,
-        copy: pool.copy,
-        disclaimer: pool.disclaimer,
-      },
+      ...(poolResult.ok
+        ? { pool: seasonPoolStatusToJson(poolResult.status) }
+        : { pool: null, poolError: 'season_pool_unavailable' }),
     })
   } catch (err) {
     sendInternalError(res, err, 'kol-program leaderboard')
@@ -88,7 +89,7 @@ kolProgramRouter.get('/kol-program/pool', async (_req, res) => {
   try {
     const seasonId = await getCurrentSeasonId()
     const pool = await currentSeasonPoolStatus(seasonId)
-    res.json({ ok: true, ...pool })
+    res.json({ ok: true, ...seasonPoolStatusToJson(pool) })
   } catch (err) {
     sendInternalError(res, err, 'kol-program pool')
   }
