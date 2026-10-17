@@ -25,6 +25,7 @@ describe('headerKolLinks', () => {
   it('adds Desk next to KOL when the wallet is a registered handle', () => {
     expect(headerKolLinks('0x4dY')).toEqual([
       { label: 'KOL', to: '/register' },
+      { label: 'My card', to: '/kol/0x4dY' },
       { label: 'Desk', to: '/kol/0x4dY' },
     ])
   })
@@ -32,6 +33,7 @@ describe('headerKolLinks', () => {
   it('adds Desk when registered and program is on', () => {
     expect(headerKolLinks('0x4dY', { kolProgram: true })).toEqual([
       { label: 'KOL', to: '/kol' },
+      { label: 'My card', to: '/kol/0x4dY' },
       { label: 'Desk', to: '/kol/0x4dY' },
     ])
   })

@@ -1,6 +1,6 @@
 import { kolProfilePath } from './routes'
 
-export type HeaderKolLink = { label: 'KOL' | 'Desk'; to: string }
+export type HeaderKolLink = { label: 'KOL' | 'Desk' | 'My card'; to: string }
 
 /** KOL hub + desk in header only — leaderboard/tasks live under /kol. */
 export function headerKolLinks(
@@ -9,7 +9,10 @@ export function headerKolLinks(
 ): HeaderKolLink[] {
   const items: HeaderKolLink[] = [{ label: 'KOL', to: opts?.kolProgram ? '/kol' : '/register' }]
   const handle = ownHandle?.trim()
-  if (handle) items.push({ label: 'Desk', to: kolProfilePath(handle) })
+  if (handle) {
+    items.push({ label: 'My card', to: kolProfilePath(handle) })
+    items.push({ label: 'Desk', to: kolProfilePath(handle) })
+  }
   return items
 }
 
