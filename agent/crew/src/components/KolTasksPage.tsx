@@ -5,7 +5,6 @@ import {
   fetchKolProgramHub,
   fetchKolProgramMe,
   fetchKolProgramTasksToday,
-  KOL_PROGRAM_POINTS_DISCLAIMER,
   type KolProgramHub,
   type KolProgramProfile,
   type KolProgramTask,
@@ -90,7 +89,6 @@ export function KolTasksPage() {
         }}
         onSignIn={() => void onSignIn()}
       />
-      <p className="section-sub kol-hub-lead">{KOL_PROGRAM_POINTS_DISCLAIMER}</p>
       <KolMobileTabBar />
     </div>
   )

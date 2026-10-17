@@ -95,6 +95,13 @@ export async function mockKolRegisterApis(
   await page.route('**/api/kol-program/me', (route: Route) =>
     route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ ok: false }) }),
   )
+  await page.route('**/api/kol-program/notifications**', (route: Route) =>
+    route.fulfill({
+      status: 401,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: false }),
+    }),
+  )
   await page.route('**/api/kol-program/tasks/today', (route: Route) =>
     route.fulfill({
       status: 200,

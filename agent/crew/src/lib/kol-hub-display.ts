@@ -14,6 +14,22 @@ export function hubMemberLine(hub: KolProgramHub | null): { primary: string; sec
   }
 }
 
+export function seasonMonthLabel(seasonId: string): string {
+  const m = seasonId.match(/(\d{4})-(\d{2})/)
+  if (!m) return seasonId.replace(/^season_/, '') || 'Season'
+  const date = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, 1))
+  return date.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' })
+}
+
+export function seasonChipLabel(seasonId: string, endsAt: string | null | undefined, now = Date.now()): string {
+  const month = seasonMonthLabel(seasonId)
+  if (!endsAt) return `Season ${month}`
+  const ms = new Date(endsAt).getTime() - now
+  if (!Number.isFinite(ms) || ms <= 0) return `Season ${month} · ended`
+  const d = Math.max(1, Math.floor(ms / 86400000))
+  return `Season ${month} · ends in ${d}d`
+}
+
 export function hubCountdownParts(
   iso: string | null | undefined,
   endedLabel: string,

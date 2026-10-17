@@ -10,6 +10,7 @@ import {
   isKolHubPath,
   isKolLeaderboardPath,
   isKolRefPath,
+  isKolAlertsPath,
   isKolReservedRedirectPath,
   isKolTasksPath,
   isKolsPath,
@@ -121,7 +122,9 @@ describe("kol reserved path words", () => {
     for (const word of ["alerts", "battles", "me", "hub", "card", "settings", "founders"]) {
       expect(kolHandleFromPath(`/kol/${word}`)).toBe(null);
     }
-    expect(isKolReservedRedirectPath("/kol/alerts")).toBe(true);
+    expect(isKolAlertsPath("/kol/alerts")).toBe(true);
+    expect(kolHandleFromPath("/kol/alerts")).toBe(null);
+    expect(isKolReservedRedirectPath("/kol/alerts")).toBe(false);
     expect(isKolReservedRedirectPath("/kol/settings")).toBe(true);
     expect(isKolReservedRedirectPath("/kol/founders")).toBe(false);
     expect(isKolReservedRedirectPath("/kol/leaderboard")).toBe(false);

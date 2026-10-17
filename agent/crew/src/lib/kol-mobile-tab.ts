@@ -14,7 +14,7 @@ export function kolMobileTabActive(
     if (!handle) return false
     return path.toLowerCase() === `/kol/${handle.toLowerCase()}`
   }
-  if (tab === 'alerts') return path === '/kol' && h === 'alerts'
+  if (tab === 'alerts') return path === '/kol/alerts' || path.endsWith('/kol/alerts') || (path === '/kol' && h === 'alerts')
   if (tab === 'tasks') return path === '/kol/tasks' || path.endsWith('/kol/tasks') || (path === '/kol' && h === 'tasks')
   return path === '/kol' && h !== 'alerts' && h !== 'tasks'
 }

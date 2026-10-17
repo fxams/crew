@@ -216,6 +216,9 @@ test.describe('iOS Safari regressions (WebKit)', () => {
     await expect(page.getByTestId('kol-tab-board')).toHaveClass(/is-active/)
     await expect(page.getByTestId('kol-tab-alerts')).not.toHaveClass(/is-active/)
     await expect(page.getByTestId('kol-season-podium')).toBeInViewport()
+    await expect(page.getByTestId('kol-season-chip')).toBeVisible()
+    await expect(page.getByText('Season treasury pool')).toHaveCount(0)
+    await expect(page.getByTestId('kol-how-rewards')).toContainText('Points have no cash value')
     await expect(page.getByTestId('kol-board-row').first()).toContainText('@mubaraqabba')
     await expect(page.getByTestId('kol-board-row').first()).toContainText('0 pts')
     await page.screenshot({
@@ -352,6 +355,21 @@ test.describe('iOS Safari regressions (WebKit)', () => {
     })
   })
 
+  test('/kol/alerts signed-out is Notifications, not a handle card', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 700 })
+    await page.goto('/kol/alerts', { waitUntil: 'domcontentloaded' })
+    await expect(page.getByTestId('kol-alerts-page')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'All' })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Replies' })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Points' })).toBeVisible()
+    await expect(page.getByTestId('kol-alerts-sign-in-x')).toBeVisible()
+    await expect(page.getByText('Claim your card')).toHaveCount(0)
+    await expect(page.getByText('@alerts')).toHaveCount(0)
+    await expect(page.getByTestId('kol-tab-alerts')).toHaveClass(/is-active/)
+    await page.screenshot({ path: '/opt/cursor/artifacts/screenshots/kol-alerts-signedout-390x700.png' })
+  })
+
   test('/kol/tasks is the ladder, not an @tasks card', async ({ page }) => {
     await page.route('**/api/kol-program/public/tasks', (route) =>
       route.fulfill({
@@ -365,7 +383,12 @@ test.describe('iOS Safari regressions (WebKit)', () => {
     await expect(page.getByTestId('kol-task-ladder')).toBeVisible()
     await expect(page.getByTestId('kol-daily-cap')).toContainText('0 / 5,000 today')
     await expect(page.getByTestId('kol-tasks-sign-in-x')).toBeVisible()
-    await expect(page.getByText('Get started, one step at a time')).toBeVisible()
+    await expect(page.getByTestId('kol-ladder-segments').locator('i')).toHaveCount(2)
+    await expect(page.getByRole('tab', { name: 'Tasks' })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Referrals' })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Founding' })).toBeVisible()
+    await expect(page.getByTestId('kol-ladder-step-connect_x').getByRole('button', { name: 'Start' })).toBeVisible()
+    await expect(page.getByTestId('kol-ladder-step-connect_x').getByRole('button', { name: 'Sign in with X' })).toHaveCount(0)
     await expect(page.getByText('Unlocks after the task above')).toBeVisible()
     await expect(page.getByText('Claim your card')).toHaveCount(0)
     await expect(page.getByText('@tasks')).toHaveCount(0)
