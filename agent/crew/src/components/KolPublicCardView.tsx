@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { KOL_PROGRAM_POINTS_DISCLAIMER, kolProgramCardUrl, type PublicKolCard } from '../lib/kol-program'
 import { kolTierDisplayName, kolTierFrameClass } from '../lib/kol-tiers'
@@ -22,7 +23,8 @@ export function KolPublicCardView({
   onReplyUnderPinnedChange,
 }: Props) {
   const tierClass = kolTierFrameClass(card.tier)
-  const img = kolProgramCardUrl(card.handle, 'png')
+  const pngUrl = kolProgramCardUrl(card.handle, 'png')
+  const [imgSrc, setImgSrc] = useState(() => pngUrl)
   const claimTo = referralInvitePath(card.handle)
 
   const shareUrl = buildKolGrowthShareTweet({
@@ -37,10 +39,18 @@ export function KolPublicCardView({
       <div className={`kol-hub-card-frame kol-hub-card-frame-hero ${tierClass}`}>
         <img
           className="kol-hub-card-img kol-hub-card-img-hero"
-          src={img}
+          src={imgSrc}
           alt={`KOL card @${card.handle}`}
           width={1200}
           height={630}
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onError={() => {
+            const fallback = card.cardUrl?.includes('.png')
+              ? card.cardUrl
+              : kolProgramCardUrl(card.handle, 'png')
+            if (imgSrc !== fallback) setImgSrc(fallback)
+          }}
         />
       </div>
       <p className="kol-hub-card-meta kol-hub-card-meta-hero">

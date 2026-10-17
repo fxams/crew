@@ -1,0 +1,35 @@
+name: crewpay site build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "agent/crew/**"
+      - "scripts/**"
+      - "package.json"
+      - "package-lock.json"
+      - "render.yaml"
+      - ".github/workflows/crewpay-site-build.yml"
+  pull_request:
+    paths:
+      - "agent/crew/**"
+      - "scripts/**"
+      - "package.json"
+      - "package-lock.json"
+      - "render.yaml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci --legacy-peer-deps
+      - run: npm run build
+      - run: test -f dist/kol/VitalikButerin.html && test -f render-site/kol/VitalikButerin.html
