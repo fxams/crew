@@ -1,7 +1,7 @@
 import { query } from '../db.js'
 import { isPlatformTreasury, readPlatformBuybackWallet, readLegacyPlatformBuybackWallets } from '../agent/constants.js'
 import { isEvmAddress } from '../agent/evm-address.js'
-import { evmTreasuryConfigured } from '../agent/platforms.js'
+import { evmTreasuryConfigured, inferLaunchPlatformFromCoin } from '../agent/platforms.js'
 import { KOL_PROGRAM_POINTS_DISCLAIMER } from './copy.js'
 import { KOL_POOL_BPS, kolProgramEnabled } from './flags.js'
 
@@ -17,6 +17,39 @@ export type SeasonPoolStatus = {
   poolSlice: TreasuryReceiptTotals
   disclaimer: string
   copy: string
+}
+
+/** JSON-safe pool totals (Express res.json cannot serialize bigint). */
+export type TreasuryReceiptTotalsJson = {
+  solana: { lamports: string; sol: number }
+  base: { wei: string; eth: number }
+}
+
+export function treasuryReceiptTotalsToJson(t: TreasuryReceiptTotals): TreasuryReceiptTotalsJson {
+  return {
+    solana: { lamports: t.solana.lamports.toString(), sol: t.solana.sol },
+    base: { wei: t.base.wei.toString(), eth: t.base.eth },
+  }
+}
+
+export type SeasonPoolStatusJson = {
+  seasonId: string
+  poolBps: number
+  receipts: TreasuryReceiptTotalsJson
+  poolSlice: TreasuryReceiptTotalsJson
+  disclaimer: string
+  copy: string
+}
+
+export function seasonPoolStatusToJson(status: SeasonPoolStatus): SeasonPoolStatusJson {
+  return {
+    seasonId: status.seasonId,
+    poolBps: status.poolBps,
+    receipts: treasuryReceiptTotalsToJson(status.receipts),
+    poolSlice: treasuryReceiptTotalsToJson(status.poolSlice),
+    disclaimer: status.disclaimer,
+    copy: status.copy,
+  }
 }
 
 const POOL_TECHNICAL_NOTE =
@@ -59,7 +92,7 @@ export async function syncTreasuryReceiptsFromRemits(): Promise<number> {
   const { rows } = await query<Record<string, unknown>>(
     `SELECT r.signature, r.mint, r.wallet, r.amount_sol, r.at,
             COALESCE(cs.role, '') AS role,
-            COALESCE(c.platform, 'pumpfun') AS platform
+            c.pump_url AS pump_url
      FROM remits r
      INNER JOIN coins c ON c.mint = r.mint AND c.fee_share_signature IS NOT NULL
      LEFT JOIN coin_shareholders cs ON cs.mint = r.mint AND cs.wallet = r.wallet
@@ -74,9 +107,13 @@ export async function syncTreasuryReceiptsFromRemits(): Promise<number> {
     const wallet = String(row.wallet || '')
     const amountSol = Number(row.amount_sol || 0)
     if (amountSol <= 0) continue
+    const platform = inferLaunchPlatformFromCoin({
+      pumpUrl: String(row.pump_url || ''),
+      mint: String(row.mint || ''),
+    })
     const isBase =
       isEvmAddress(wallet) ||
-      ['zora', 'clanker', 'vibevibe'].includes(String(row.platform || '').toLowerCase())
+      ['zora', 'clanker', 'vibevibe'].includes(platform)
     const chain = isBase ? 'base' : 'solana'
     const currency = isBase ? 'ETH' : 'SOL'
     const amountRaw = isBase ? weiFromEth(amountSol) : lamportsFromSol(amountSol)
@@ -163,5 +200,17 @@ export async function currentSeasonPoolStatus(seasonId: string): Promise<SeasonP
     poolSlice,
     disclaimer: KOL_PROGRAM_POINTS_DISCLAIMER,
     copy: POOL_TECHNICAL_NOTE,
+  }
+}
+
+/** Leaderboard must stay up if pool indexing fails (missing table, RPC, etc.). */
+export async function tryCurrentSeasonPoolStatus(
+  seasonId: string,
+): Promise<{ ok: true; status: SeasonPoolStatus } | { ok: false }> {
+  try {
+    const status = await currentSeasonPoolStatus(seasonId)
+    return { ok: true, status }
+  } catch {
+    return { ok: false }
   }
 }

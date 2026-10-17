@@ -148,7 +148,8 @@ export async function fetchKolProgramLeaderboard(limit = 50): Promise<{
   rows: KolLeaderboardRow[]
   disclaimer: string
   crewPriorityCopy?: string
-  pool?: KolPoolStatus
+  pool?: KolPoolStatus | null
+  poolError?: string
 } | null> {
   const res = await fetch(`${API}/api/kol-program/leaderboard?limit=${limit}`)
   if (!res.ok) return null
@@ -157,7 +158,8 @@ export async function fetchKolProgramLeaderboard(limit = 50): Promise<{
     rows: KolLeaderboardRow[]
     disclaimer: string
     crewPriorityCopy?: string
-    pool?: KolPoolStatus
+    pool?: KolPoolStatus | null
+    poolError?: string
   }
 }
 
