@@ -21,6 +21,17 @@ import { query } from '../lib/db.js'
 import { fetchRecentUserTweets } from '../lib/kol-program/x-tweets.js'
 import { verifyTaskFromTweets } from '../lib/kol-program/task-verify.js'
 import { siteUrl } from '../lib/kol-register.js'
+import { KOL_POOL_BPS, CREWPAY_HQ_X_HANDLE } from '../lib/kol-program/flags.js'
+import { currentSeasonPoolStatus, seasonBounds } from '../lib/kol-program/treasury-pool.js'
+import { buildPoolManifest, eligiblePoolKols } from '../lib/kol-program/pool-allocations.js'
+import { buildUnsignedPoolPayouts } from '../lib/kol-program/pool-unsigned.js'
+import {
+  hofBadgesForHandle,
+  hofBadgeLabel,
+  listHallOfFameAll,
+  listHallOfFameBySeason,
+  shoutoutForSeason,
+} from '../lib/kol-program/hall-of-fame.js'
 
 export const kolProgramRouter = Router()
 
@@ -53,9 +64,51 @@ kolProgramRouter.get('/kol-program/leaderboard', async (req, res) => {
     const limit = Math.min(100, Number(req.query.limit || 50))
     const rows = await leaderboard(limit)
     const seasonId = await getCurrentSeasonId()
-    res.json({ ok: true, seasonId, rows, disclaimer: 'Points have no monetary value.' })
+    const pool = await currentSeasonPoolStatus(seasonId)
+    res.json({
+      ok: true,
+      seasonId,
+      rows,
+      disclaimer: 'Points have no monetary value.',
+      crewPriorityCopy: 'Top KOLs by season points get first crew slots on new launches (when eligible).',
+      pool: {
+        poolBps: pool.poolBps,
+        receipts: pool.receipts,
+        poolSlice: pool.poolSlice,
+        copy: pool.copy,
+        disclaimer: pool.disclaimer,
+      },
+    })
   } catch (err) {
     sendInternalError(res, err, 'kol-program leaderboard')
+  }
+})
+
+kolProgramRouter.get('/kol-program/pool', async (_req, res) => {
+  try {
+    const seasonId = await getCurrentSeasonId()
+    const pool = await currentSeasonPoolStatus(seasonId)
+    res.json({ ok: true, ...pool })
+  } catch (err) {
+    sendInternalError(res, err, 'kol-program pool')
+  }
+})
+
+kolProgramRouter.get('/kol-program/hall-of-fame', async (req, res) => {
+  try {
+    const seasonId =
+      typeof req.query.seasonId === 'string' && req.query.seasonId.trim()
+        ? req.query.seasonId.trim()
+        : null
+    if (seasonId) {
+      const top = await listHallOfFameBySeason(seasonId)
+      res.json({ ok: true, seasonId, top })
+      return
+    }
+    const seasons = await listHallOfFameAll()
+    res.json({ ok: true, seasons })
+  } catch (err) {
+    sendInternalError(res, err, 'kol-program hall-of-fame')
   }
 })
 
@@ -70,7 +123,8 @@ kolProgramRouter.get('/kol-program/seasons', async (req, res) => {
     if (seasonId) {
       archive = await seasonArchiveLeaderboard(seasonId, 100)
     }
-    res.json({ ok: true, seasons, archiveSeasonId: seasonId, archive })
+    const hallOfFame = seasonId ? await listHallOfFameBySeason(seasonId) : null
+    res.json({ ok: true, seasons, archiveSeasonId: seasonId, archive, hallOfFame })
   } catch (err) {
     sendInternalError(res, err, 'kol-program seasons')
   }
@@ -300,6 +354,82 @@ kolProgramRouter.get('/kol-program/admin/flagged', requireApiKey, async (_req, r
     res.json({ ok: true, rows })
   } catch (err) {
     sendInternalError(res, err, 'kol-program admin flagged')
+  }
+})
+
+kolProgramRouter.post('/kol-program/admin/pool/manifest/:seasonId', requireApiKey, async (req, res) => {
+  try {
+    const seasonId = String(req.params.seasonId)
+    const bounds = await seasonBounds(seasonId)
+    if (!bounds) {
+      res.status(404).json({ ok: false, error: 'Unknown season.' })
+      return
+    }
+    const pool = await currentSeasonPoolStatus(seasonId)
+    const kols = await eligiblePoolKols(seasonId)
+    const manifest = buildPoolManifest({
+      seasonId,
+      poolBps: KOL_POOL_BPS,
+      receipts: pool.receipts,
+      kols,
+    })
+    const unsigned = await buildUnsignedPoolPayouts(manifest.allocations)
+    const full = { ...manifest, unsigned }
+    await query(
+      `INSERT INTO kol_program_pool_manifests (season_id, status, manifest, updated_at)
+       VALUES ($1, 'draft', $2::jsonb, now())
+       ON CONFLICT (season_id) DO UPDATE SET manifest = EXCLUDED.manifest, updated_at = now()`,
+      [seasonId, JSON.stringify(full)],
+    )
+    res.json({ ok: true, manifest: full })
+  } catch (err) {
+    sendInternalError(res, err, 'kol-program pool manifest')
+  }
+})
+
+kolProgramRouter.get('/kol-program/admin/pool/manifest/:seasonId', requireApiKey, async (req, res) => {
+  try {
+    const seasonId = String(req.params.seasonId)
+    const { rows } = await query<{ manifest: unknown }>(
+      `SELECT manifest FROM kol_program_pool_manifests WHERE season_id = $1`,
+      [seasonId],
+    )
+    if (!rows[0]) {
+      res.status(404).json({ ok: false, error: 'No manifest saved for this season.' })
+      return
+    }
+    res.json({ ok: true, manifest: rows[0].manifest })
+  } catch (err) {
+    sendInternalError(res, err, 'kol-program pool manifest get')
+  }
+})
+
+kolProgramRouter.get('/kol-program/admin/season/:seasonId/shoutout', requireApiKey, async (req, res) => {
+  try {
+    const seasonId = String(req.params.seasonId)
+    const out = await shoutoutForSeason(seasonId)
+    res.json({
+      ok: true,
+      seasonId,
+      seasonNumber: out.seasonNumber,
+      hqHandle: CREWPAY_HQ_X_HANDLE,
+      text: out.text,
+      top: out.top,
+    })
+  } catch (err) {
+    sendInternalError(res, err, 'kol-program season shoutout')
+  }
+})
+
+kolProgramRouter.get('/kol-program/profile/:handle/hof-badges', async (req, res) => {
+  try {
+    const badges = await hofBadgesForHandle(req.params.handle)
+    res.json({
+      ok: true,
+      badges: badges.map((b) => ({ ...b, label: hofBadgeLabel(b.seasonNumber) })),
+    })
+  } catch (err) {
+    sendInternalError(res, err, 'kol-program hof badges')
   }
 })
 

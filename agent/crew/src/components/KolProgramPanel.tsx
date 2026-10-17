@@ -70,7 +70,8 @@ export function KolProgramPanel({ onSignInWithX, signInBusy, xOauthReady }: Prop
       <p className="section-label">KOL program</p>
       <h2 className="section-title register-board-title">Reach card &amp; daily tasks</h2>
       <p className="section-sub">
-        Sign in with X to enroll — no wallet required. Share{' '}
+        Top KOLs by season points get first crew slots on new launches when eligible. Sign in with X to
+        enroll — no wallet required. Share{' '}
         <code>crewpay.dev/ref/&lt;handle&gt;</code> so agent keys bind your referrer split (
         {KOL_REFERRAL_CUT_PCT}% on referred launches; fee map 60/15/{KOL_REFERRAL_CUT_PCT}/20 — not a
         earnings promise).

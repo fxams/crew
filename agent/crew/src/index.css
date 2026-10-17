@@ -7337,6 +7337,32 @@ ol.coin-timeline.coin-panel {
   min-width: 0;
 }
 
+.kol-hof-badge {
+  display: inline-block;
+  margin-left: 0.35rem;
+  font-size: 0.68rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(200, 255, 61, 0.08);
+  vertical-align: middle;
+}
+
+.kol-hof-season {
+  margin-bottom: 1rem;
+}
+
+.kol-pool-status {
+  margin: 0.75rem 0 1.25rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.kol-priority-copy {
+  margin-top: 0.35rem;
+}
+
 .kol-founder-badge {
   display: inline-block;
   margin-left: 0.35rem;

@@ -5,6 +5,7 @@ import { useAccount } from 'wagmi'
 import bs58 from 'bs58'
 import {
   CREW_VERSION,
+  KOL_PROGRAM_ENABLED,
   KOL_REFERRAL_CUT_PCT,
   REFERRAL_POINTS_HIRE,
   REFERRAL_POINTS_MIN_FOLLOWERS,
@@ -13,6 +14,7 @@ import {
 } from '../lib/config'
 import { formatSol } from '../lib/format-sol'
 import { useOwnRegisteredHandle } from '../lib/registered-kol'
+import { fetchKolProgramProfile, hofBadgeLabel, type HofBadge } from '../lib/kol-program'
 import { kolHandleFromPath, referralInvitePath } from '../lib/routes'
 import { PrivyPayoutWallet } from './PrivyPayoutWallet'
 import {
@@ -178,6 +180,7 @@ export function KolProfilePage() {
   const [evmBusy, setEvmBusy] = useState(false)
   const [evmMsg, setEvmMsg] = useState<string | null>(null)
   const [deskTick, setDeskTick] = useState(0)
+  const [programHof, setProgramHof] = useState<HofBadge[]>([])
   const justRegistered = params.get('registered') === '1'
   const fromXOauth = params.get('from') === 'x'
   const viewingOwnDesk =
@@ -221,6 +224,21 @@ export function KolProfilePage() {
       cancelled = true
     }
   }, [handle, deskTick])
+
+  useEffect(() => {
+    if (!KOL_PROGRAM_ENABLED || !handle) {
+      setProgramHof([])
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      const prof = await fetchKolProgramProfile(handle)
+      if (!cancelled) setProgramHof(prof?.hallOfFame || [])
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [handle])
 
   useEffect(() => {
     if (evmAddress) {
@@ -571,6 +589,15 @@ export function KolProfilePage() {
                   {desk.profile.xName || desk.profile.xUsername}
                   {desk.profile.xVerified ? <span className="desk-check"> ✓</span> : null}
                 </h1>
+                {programHof.length ? (
+                  <div className="desk-hof-badges" data-testid="desk-hof-badges">
+                    {programHof.map((b) => (
+                      <span key={b.seasonId} className="kol-hof-badge" title={`Rank #${b.rank}`}>
+                        {hofBadgeLabel(b.seasonNumber)}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
                 <a
                   className="desk-handle"
                   href={
