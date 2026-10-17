@@ -4,15 +4,28 @@ import { loadUserAccessToken, creditProgramPoints } from './store.js'
 import { fetchRecentUserTweets } from './x-tweets.js'
 import { verifyTaskFromTweets } from './task-verify.js'
 
-export const ONBOARDING_STEPS = [
+type OnboardingStepDef = {
+  id: OnboardingStepId
+  title: string
+  points: number
+  order: number
+  optional?: boolean
+}
+
+export const ONBOARDING_STEPS: OnboardingStepDef[] = [
   { id: 'follow_hq', title: 'Follow @CrewPayHQ', points: 25, order: 1 },
   { id: 'engage_pinned', title: 'Like or repost the pinned post', points: 30, order: 2 },
   { id: 'share_card', title: 'Post your card (or reply under pinned)', points: 40, order: 3 },
   { id: 'payout_wallet', title: 'Add a payout wallet', points: 35, order: 4 },
   { id: 'telegram', title: 'Connect Telegram (optional)', points: 15, order: 5, optional: true },
-] as const
+]
 
-export type OnboardingStepId = (typeof ONBOARDING_STEPS)[number]['id']
+export type OnboardingStepId =
+  | 'follow_hq'
+  | 'engage_pinned'
+  | 'share_card'
+  | 'payout_wallet'
+  | 'telegram'
 
 export async function listCompletedSteps(xUserId: string): Promise<Set<string>> {
   const { rows } = await query<{ step_id: string }>(
