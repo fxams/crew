@@ -16,10 +16,10 @@ export function PlatformChipRow({ venues, x402, acp }: Props) {
   return (
     <div className="plat-hero-row plat-chip-row" aria-label="Launch venues and integrations">
       {venues.map((v) => (
-        <PlatformBadge key={v.id} platform={v.id} />
+        <PlatformBadge key={v.id} platform={v.id} chipStack />
       ))}
-      <X402Chip x402={x402} />
-      <AcpChip acp={acp} />
+      <X402Chip x402={x402} chipStack />
+      <AcpChip acp={acp} chipStack />
     </div>
   )
 }
