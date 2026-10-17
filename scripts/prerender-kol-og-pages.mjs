@@ -108,9 +108,11 @@ function extraHandles() {
 async function writePage(relDir, handle, kind) {
   const meta = await metaFor(handle, kind)
   const html = injectMeta(indexTemplate, meta)
-  const dir = join(dist, relDir)
-  mkdirSync(dir, { recursive: true })
-  writeFileSync(join(dir, `${handle}.html`), html)
+  for (const base of targets) {
+    const dir = join(base, relDir)
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, `${handle}.html`), html)
+  }
 }
 
 const handles = [...new Set([...kolDbHandles(), ...extraHandles()])]

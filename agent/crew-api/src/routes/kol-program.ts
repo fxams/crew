@@ -274,6 +274,7 @@ kolProgramRouter.get('/kol-program/card/:handle.svg', async (req, res) => {
     }
     res.setHeader('content-type', 'image/svg+xml')
     res.setHeader('cache-control', 'public, max-age=86400')
+    res.setHeader('cross-origin-resource-policy', 'cross-origin')
     res.send(svg)
   } catch (err) {
     sendInternalError(res, err, 'kol-program card')
@@ -296,6 +297,7 @@ kolProgramRouter.get('/kol-program/card/:handle.png', async (req, res) => {
     }
     res.setHeader('content-type', 'image/png')
     res.setHeader('cache-control', 'public, max-age=86400')
+    res.setHeader('cross-origin-resource-policy', 'cross-origin')
     res.send(png)
   } catch (err) {
     sendInternalError(res, err, 'kol-program card png')

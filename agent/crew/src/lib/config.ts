@@ -37,10 +37,22 @@ export const CREW_PUBLIC_API_URL = 'https://api.crewpay.dev'
  * Runtime Agent API base (no trailing slash).
  * Prefers VITE_CREW_API_URL so deploys can keep the Render alias until TLS is ready.
  */
-export const CREW_AGENT_API_URL = (
-  (import.meta.env.VITE_CREW_API_URL as string | undefined)?.replace(/\/$/, '') ||
-  CREW_PUBLIC_API_URL
-)
+/** Trim and validate Agent API base — Safari throws on fetch() when the URL is malformed. */
+export function resolveCrewAgentApiUrl(): string {
+  const raw = (import.meta.env.VITE_CREW_API_URL as string | undefined)?.trim().replace(/\/$/, '')
+  const candidate = raw || CREW_PUBLIC_API_URL
+  try {
+    const u = new URL(candidate)
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') {
+      return CREW_PUBLIC_API_URL
+    }
+    return u.origin
+  } catch {
+    return CREW_PUBLIC_API_URL
+  }
+}
+
+export const CREW_AGENT_API_URL = resolveCrewAgentApiUrl()
 
 /** Streamable MCP HTTP endpoint (canonical custom domain). */
 export const CREW_MCP_HTTP_URL = 'https://mcp.crewpay.dev/mcp'
