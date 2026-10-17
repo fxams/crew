@@ -14,6 +14,7 @@ test.describe('KOL hub mobile screenshots', () => {
     await page.goto('/kol')
     await page.waitForTimeout(800)
     await page.screenshot({ path: `${outDir}/kol-hub-landing-mobile.png`, fullPage: true })
+    await page.locator('.nav-shell').screenshot({ path: `${outDir}/kol-hub-nav-mobile.png` })
 
     await page.goto('/kol/leaderboard')
     await page.waitForTimeout(800)
