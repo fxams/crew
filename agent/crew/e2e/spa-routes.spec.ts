@@ -39,6 +39,21 @@ async function mockCommonApis(page: import('@playwright/test').Page) {
         body: JSON.stringify({ ok: true, enabled: true }),
       })
     }
+    if (url.includes('/onboarding') || url.includes('/tasks/today')) {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          signedIn: false,
+          steps: [],
+          tasks: [],
+          pointsToday: 0,
+          pointsCap: 5000,
+          disclaimer: 'Points have no cash value.',
+        }),
+      })
+    }
     return route.fulfill({ status: 404, body: '{}' })
   })
   await page.route('**/api/coins*', (route) =>
@@ -46,7 +61,7 @@ async function mockCommonApis(page: import('@playwright/test').Page) {
   )
 }
 
-const paths = ['/', '/agents', '/kol', '/kol/leaderboard', '/coins', '/proof', '/register', '/ref/CrewPayHQ']
+const paths = ['/', '/agents', '/kol', '/kol/leaderboard', '/kol/tasks', '/coins', '/proof', '/register', '/ref/CrewPayHQ']
 
 test.describe('SPA route smoke', () => {
   test.beforeEach(async ({ page }) => {

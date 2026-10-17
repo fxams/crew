@@ -10,6 +10,8 @@ import {
   isKolHubPath,
   isKolLeaderboardPath,
   isKolRefPath,
+  isKolReservedRedirectPath,
+  isKolTasksPath,
   isKolsPath,
   isLaunchPath,
   isOnepagerPath,
@@ -104,6 +106,26 @@ describe("kol leaderboard path", () => {
     expect(kolHandleFromPath("/kol")).toBe(null);
     expect(kolHandleFromPath("/kol/leaderboard")).toBe(null);
     expect(kolHandleFromPath("/kol/CrewPayHQ")).toBe("CrewPayHQ");
+  });
+});
+
+describe("kol reserved path words", () => {
+  it("does not treat tasks as a profile handle", () => {
+    expect(isKolTasksPath("/kol/tasks")).toBe(true);
+    expect(isKolTasksPath("/kol/tasks/")).toBe(true);
+    expect(kolHandleFromPath("/kol/tasks")).toBe(null);
+    expect(isKolReservedRedirectPath("/kol/tasks")).toBe(false);
+  });
+
+  it("redirects other reserved words and keeps real handles", () => {
+    for (const word of ["alerts", "battles", "me", "hub", "card", "settings", "founders"]) {
+      expect(kolHandleFromPath(`/kol/${word}`)).toBe(null);
+    }
+    expect(isKolReservedRedirectPath("/kol/alerts")).toBe(true);
+    expect(isKolReservedRedirectPath("/kol/settings")).toBe(true);
+    expect(isKolReservedRedirectPath("/kol/founders")).toBe(false);
+    expect(isKolReservedRedirectPath("/kol/leaderboard")).toBe(false);
+    expect(kolHandleFromPath("/kol/mubaraqabba")).toBe("mubaraqabba");
   });
 });
 

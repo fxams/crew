@@ -6,8 +6,9 @@ const API = (
 const RETURN_KEY = 'crew_kol_return'
 
 /** X OAuth for KOL program — wallet optional; returns via /register then hub redirect. */
-export async function startKolHubXSignIn(opts?: { referralCode?: string }): Promise<void> {
-  sessionStorage.setItem(RETURN_KEY, '/kol')
+export async function startKolHubXSignIn(opts?: { referralCode?: string; returnPath?: string }): Promise<void> {
+  const ret = opts?.returnPath?.trim()
+  sessionStorage.setItem(RETURN_KEY, ret && ret.startsWith('/kol') ? ret : '/kol')
   const body: Record<string, string> = {}
   const ref = opts?.referralCode?.trim()
   if (ref && ref.length >= 2) body.referralCode = ref
