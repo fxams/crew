@@ -2,6 +2,7 @@ import { query } from '../db.js'
 import { isPlatformTreasury, readPlatformBuybackWallet, readLegacyPlatformBuybackWallets } from '../agent/constants.js'
 import { isEvmAddress } from '../agent/evm-address.js'
 import { evmTreasuryConfigured } from '../agent/platforms.js'
+import { KOL_PROGRAM_POINTS_DISCLAIMER } from './copy.js'
 import { KOL_POOL_BPS, kolProgramEnabled } from './flags.js'
 
 export type TreasuryReceiptTotals = {
@@ -18,8 +19,8 @@ export type SeasonPoolStatus = {
   copy: string
 }
 
-const POOL_DISCLAIMER =
-  'Season pool size is based on actual indexed treasury creator-fee receipts only (Solana + Base). Amounts vary with real fees. Nothing is custodial — payouts are unsigned transactions for manual review and signing. Not a promise of future value.'
+const POOL_TECHNICAL_NOTE =
+  'Pool totals use indexed treasury creator-fee receipts (Solana + Base). Payouts are non-custodial unsigned transactions for manual review and signing only.'
 
 export function poolSliceFromReceipts(receipts: TreasuryReceiptTotals, poolBps = KOL_POOL_BPS): TreasuryReceiptTotals {
   const mul = BigInt(Math.max(0, Math.min(10_000, poolBps)))
@@ -160,8 +161,7 @@ export async function currentSeasonPoolStatus(seasonId: string): Promise<SeasonP
     poolBps: KOL_POOL_BPS,
     receipts,
     poolSlice,
-    disclaimer: POOL_DISCLAIMER,
-    copy:
-      `${KOL_POOL_BPS / 100}% of treasury creator-fee receipts indexed this season fund a pool split pro-rata by season points among eligible top KOLs. Actual fees only — variable, not guaranteed.`,
+    disclaimer: KOL_PROGRAM_POINTS_DISCLAIMER,
+    copy: POOL_TECHNICAL_NOTE,
   }
 }
