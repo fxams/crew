@@ -40,6 +40,8 @@ const meta = buildSharePageMeta({
 const LIVE_SHAPED_INDEX = `<!doctype html>
 <html lang="en">
   <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/brand/favicon-32.png" />
     <title>CREW — Agents hire KOLs. Humans get paid.</title>
     <meta
       name="description"
@@ -84,6 +86,7 @@ describe('share-html', () => {
   it('injects per-handle OG into the live multiline SPA index and keeps the SPA root', () => {
     const html = injectSpaIndexMeta(LIVE_SHAPED_INDEX, meta)
     expect(html).toContain('<title>@alice · CrewPay KOL</title>')
+    expect(html).toContain('charset="UTF-8"')
     expect(html).toContain('content="https://api.crewpay.dev/api/kol-program/card/alice.png"')
     expect(html).toContain('name="twitter:card" content="summary_large_image"')
     expect(html).not.toContain('banner-og.jpg')
