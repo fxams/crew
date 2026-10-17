@@ -69,10 +69,9 @@ export function renderShareHtml(meta: SharePageMeta): string {
 </html>`
 }
 
-const META_ATTR = `(?:[\\s\\S]*?\\s)`
-
 function stripMeta(html: string, attr: 'name' | 'property', key: string): string {
-  const re = new RegExp(`<meta\\s+${META_ATTR}?${attr}="${key}"[\\s\\S]*?\\/>`, 'i')
+  // One tag only — never span from an earlier <meta charset> across <title>.
+  const re = new RegExp(`<meta\\b[^>]*?\\b${attr}="${key}"[^>]*?\\/>`, 'i')
   return html.replace(re, '')
 }
 
@@ -113,7 +112,11 @@ export function injectSpaIndexMeta(indexHtml: string, meta: SharePageMeta): stri
     <meta name="twitter:title" content="${t}" />
     <meta name="twitter:description" content="${d}" />
     <meta name="twitter:image" content="${img}" />`
-  h = h.replace(/<\/title>/i, `</title>\n${block}`)
+  if (/<\/title>/i.test(h)) {
+    h = h.replace(/<\/title>/i, `</title>\n${block}`)
+  } else {
+    h = h.replace(/<head[^>]*>/i, (open) => `${open}\n    <title>${t}</title>\n${block}`)
+  }
   return h
 }
 
