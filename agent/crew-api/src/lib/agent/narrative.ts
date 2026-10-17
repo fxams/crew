@@ -6,6 +6,7 @@ import { equalShares, MAX_CREW, type HireRole } from './constants.js'
 import { assertEvmAddress, isEvmAddress } from './evm-address.js'
 import { isSuiAddress } from './sui-address.js'
 import { autohireOptOuts, isOptedOut } from './optout.js'
+import { kolProgramEnabled } from '../kol-program/flags.js'
 
 export type NarrativeTag =
   | 'meme'
@@ -79,6 +80,11 @@ export type RegisteredHireBoost = {
   tgChannelVerified?: boolean
   tgReach?: number | null
   tgChannelVerifiedAt?: string | null
+  /** KOL program season points (when KOL_PROGRAM_ENABLED). */
+  kolSeasonPoints?: number
+  kolFounderNumber?: number | null
+  /** Eligible for season-points crew priority. */
+  kolCrewPriority?: boolean
 }
 
 function telegramReachInput(reg?: RegisteredHireBoost | null): TelegramReachInput {
@@ -225,6 +231,38 @@ function roleFor(kol: KolRecord, index: number, used: Set<HireRole>): HireRole {
   return pick
 }
 
+function kolProgramPriorityEnabled(opts?: { kolProgramPriority?: boolean }): boolean {
+  if (opts?.kolProgramPriority === false) return false
+  if (opts?.kolProgramPriority === true) return true
+  return kolProgramEnabled()
+}
+
+function regBoostForHandle(
+  handle: string,
+  registered?: RegisteredHireBoost[],
+): RegisteredHireBoost | undefined {
+  const h = handle.replace(/^@+/, '').toLowerCase()
+  return (registered || []).find((r) => r.handle.replace(/^@+/, '').toLowerCase() === h)
+}
+
+function compareKolProgramRank(
+  aHandle: string,
+  bHandle: string,
+  registered?: RegisteredHireBoost[],
+): number {
+  const a = regBoostForHandle(aHandle, registered)
+  const b = regBoostForHandle(bHandle, registered)
+  const aOk = a?.kolCrewPriority !== false
+  const bOk = b?.kolCrewPriority !== false
+  const aPts = aOk ? Number(a?.kolSeasonPoints || 0) : 0
+  const bPts = bOk ? Number(b?.kolSeasonPoints || 0) : 0
+  if (bPts !== aPts) return bPts - aPts
+  const aFounder = aOk && a?.kolFounderNumber != null ? a.kolFounderNumber : 999_999
+  const bFounder = bOk && b?.kolFounderNumber != null ? b.kolFounderNumber : 999_999
+  if (aFounder !== bFounder) return aFounder - bFounder
+  return 0
+}
+
 function tagWeight(match: NarrativeHirePlan['match'], tag: NarrativeTag): number {
   const idx = match.tags.indexOf(tag)
   if (idx < 0) return 0
@@ -248,6 +286,8 @@ export function planNarrativeHires(
     requireEvmPayout?: boolean
     /** Sui Memez: only hire KOLs whose registered Solana wallet field is a Sui address. */
     requireSuiPayout?: boolean
+    /** When KOL program is on, sort registered crew by season points (default follows env). */
+    kolProgramPriority?: boolean
   },
 ): NarrativeHirePlan {
   const optOut = opts?.optOut ?? autohireOptOuts()
@@ -542,8 +582,14 @@ export function planNarrativeHires(
       regRegisteredAtMs,
     })
   }
-  // Order registered tier by fit score, then registration recency (newer first), then followers.
+  // Order registered tier: KOL program season points (when enabled), then fit score, recency, followers.
   registeredPool.sort((a, b) => {
+    if (kolProgramPriorityEnabled(opts)) {
+      const aHandle = (a.kol.x || a.kol.pump || '').replace(/^@+/, '')
+      const bHandle = (b.kol.x || b.kol.pump || '').replace(/^@+/, '')
+      const byKol = compareKolProgramRank(aHandle, bHandle, opts?.registered)
+      if (byKol !== 0) return byKol
+    }
     const byScore = b.score - a.score
     if (byScore !== 0) return byScore
     const aMs = a.regRegisteredAtMs ?? -Infinity

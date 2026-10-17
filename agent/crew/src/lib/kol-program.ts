@@ -35,6 +35,30 @@ export type KolLeaderboardRow = {
   founderNumber: number | null
 }
 
+export type HofBadge = {
+  seasonId: string
+  seasonNumber: number
+  rank: number
+  label: string
+}
+
+export type HallOfFameEntry = {
+  seasonId: string
+  seasonNumber: number
+  rank: number
+  handle: string
+  seasonPoints: number
+}
+
+export type KolPoolStatus = {
+  seasonId: string
+  poolBps: number
+  receipts: { solana: { sol: number }; base: { eth: number } }
+  poolSlice: { solana: { sol: number }; base: { eth: number } }
+  copy: string
+  disclaimer: string
+}
+
 export type KolProgramSeason = {
   id: string
   name: string
@@ -117,21 +141,25 @@ export async function fetchKolProgramLeaderboard(limit = 50): Promise<{
   seasonId: string
   rows: KolLeaderboardRow[]
   disclaimer: string
+  crewPriorityCopy?: string
+  pool?: KolPoolStatus
 } | null> {
   const res = await fetch(`${API}/api/kol-program/leaderboard?limit=${limit}`)
   if (!res.ok) return null
-  const body = (await res.json()) as {
+  return (await res.json()) as {
     seasonId: string
     rows: KolLeaderboardRow[]
     disclaimer: string
+    crewPriorityCopy?: string
+    pool?: KolPoolStatus
   }
-  return body
 }
 
 export async function fetchKolProgramSeasons(seasonId?: string): Promise<{
   seasons: KolProgramSeason[]
   archive: KolLeaderboardRow[] | null
   archiveSeasonId: string | null
+  hallOfFame: HallOfFameEntry[] | null
 } | null> {
   const q = seasonId ? `?seasonId=${encodeURIComponent(seasonId)}` : ''
   const res = await fetch(`${API}/api/kol-program/seasons${q}`)
@@ -140,7 +168,32 @@ export async function fetchKolProgramSeasons(seasonId?: string): Promise<{
     seasons: KolProgramSeason[]
     archive: KolLeaderboardRow[] | null
     archiveSeasonId: string | null
+    hallOfFame: HallOfFameEntry[] | null
   }
+}
+
+export async function fetchHallOfFameAll(): Promise<
+  Array<{ seasonId: string; seasonNumber: number; name: string; top: HallOfFameEntry[] }>
+> {
+  const res = await fetch(`${API}/api/kol-program/hall-of-fame`)
+  if (!res.ok) return []
+  const body = (await res.json()) as {
+    seasons?: Array<{ seasonId: string; seasonNumber: number; name: string; top: HallOfFameEntry[] }>
+  }
+  return body.seasons || []
+}
+
+export async function fetchKolProgramProfile(handle: string): Promise<{
+  hallOfFame: HofBadge[]
+} | null> {
+  const res = await fetch(`${API}/api/kol-program/profile/${encodeURIComponent(handle)}`)
+  if (!res.ok) return null
+  const body = (await res.json()) as { profile?: { hallOfFame?: HofBadge[] } }
+  return body.profile ? { hallOfFame: body.profile.hallOfFame || [] } : null
+}
+
+export function hofBadgeLabel(seasonNumber: number): string {
+  return `Season ${seasonNumber} top KOL`
 }
 
 export function kolProgramCardUrl(handle: string, ext: 'svg' | 'png' = 'png'): string {

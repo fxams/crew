@@ -16,6 +16,8 @@ import {
 } from './reach-score.js'
 import { renderKolCardSvg } from './card-svg.js'
 import { siteUrl } from '../kol-register.js'
+import { hofBadgesForHandle, persistHallOfFame } from './hall-of-fame.js'
+import type { HofBadge } from './hall-of-fame.js'
 
 export type ProgramProfile = {
   xUserId: string
@@ -29,6 +31,7 @@ export type ProgramProfile = {
   revoked: boolean
   referralCode: string
   referralUrl: string
+  hallOfFame: HofBadge[]
 }
 
 function id(prefix: string): string {
@@ -158,8 +161,15 @@ export async function getCurrentSeasonId(): Promise<string> {
        LIMIT 100`,
       [active],
     )
+    const archiveRows: Array<{ rank: number; handle: string; seasonPoints: number }> = []
     for (let i = 0; i < top.rows.length; i++) {
       const r = top.rows[i]
+      const rank = i + 1
+      archiveRows.push({
+        rank,
+        handle: String(r.x_username),
+        seasonPoints: Number(r.season_points),
+      })
       await query(
         `INSERT INTO kol_program_season_archive (
            season_id, rank, handle, season_points, reach_score, reach_tier, founder_number
@@ -167,7 +177,7 @@ export async function getCurrentSeasonId(): Promise<string> {
          ON CONFLICT (season_id, rank) DO NOTHING`,
         [
           active,
-          i + 1,
+          rank,
           String(r.x_username),
           Number(r.season_points),
           Number(r.reach_score),
@@ -176,6 +186,7 @@ export async function getCurrentSeasonId(): Promise<string> {
         ],
       )
     }
+    await persistHallOfFame(active, archiveRows)
     await query(
       `UPDATE kol_program_seasons SET ends_at = now(), archived_at = now() WHERE id = $1`,
       [active],
@@ -252,9 +263,11 @@ export async function getProgramProfileByHandle(handle: string): Promise<Program
   const r = rows[0]
   if (!r) return null
   const code = String(r.referral_code || h)
+  const profileHandle = String(r.x_username)
+  const hallOfFame = await hofBadgesForHandle(profileHandle)
   return {
     xUserId: String(r.x_user_id),
-    handle: String(r.x_username),
+    handle: profileHandle,
     reachScore: Number(r.reach_score),
     tier: String(r.reach_tier),
     founderNumber: r.founder_number != null ? Number(r.founder_number) : null,
@@ -263,7 +276,8 @@ export async function getProgramProfileByHandle(handle: string): Promise<Program
     flaggedReason: r.flagged_reason ? String(r.flagged_reason) : null,
     revoked: Boolean(r.revoked),
     referralCode: code,
-    referralUrl: `${siteUrl()}/ref/${encodeURIComponent(String(r.x_username))}`,
+    referralUrl: `${siteUrl()}/ref/${encodeURIComponent(profileHandle)}`,
+    hallOfFame,
   }
 }
 
@@ -304,6 +318,7 @@ export async function cardSvgForHandle(handle: string): Promise<string | null> {
     [profile.xUserId],
   )
   const row = rows[0]
+  const badges = await hofBadgesForHandle(profile.handle)
   return renderKolCardSvg({
     handle: profile.handle,
     displayName: row?.x_name || profile.handle,
@@ -312,6 +327,7 @@ export async function cardSvgForHandle(handle: string): Promise<string | null> {
     tier: profile.tier,
     founderNumber: profile.founderNumber,
     referralUrl: profile.referralUrl,
+    hallOfFameBadges: badges,
   })
 }
 

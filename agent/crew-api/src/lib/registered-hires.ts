@@ -5,6 +5,7 @@
 import { query } from './db.js'
 import { isPayoutWallet } from './agent/shareholders.js'
 import type { RegisteredHireBoost } from './agent/narrative.js'
+import { kolProgramEnabled } from './kol-program/flags.js'
 
 export async function listRegisteredHireBoosts(): Promise<RegisteredHireBoost[]> {
   try {
@@ -19,12 +20,24 @@ export async function listRegisteredHireBoosts(): Promise<RegisteredHireBoost[]>
       tg_channel_verified?: boolean
       tg_reach?: number | null
       tg_channel_verified_at?: string | null
+      season_points?: number | null
+      founder_number?: number | null
+      crew_priority_opt_in?: boolean | null
+      flagged_reason?: string | null
+      revoked?: boolean | null
     }>
+    const programOn = kolProgramEnabled()
     try {
       ;({ rows } = await query(
-        `SELECT x_username, wallet, evm_wallet, followers, registered_at, x_user_id, x_verified,
-                tg_channel_verified, tg_reach, tg_channel_verified_at
-           FROM kol_registrations`,
+        programOn
+          ? `SELECT r.x_username, r.wallet, r.evm_wallet, r.followers, r.registered_at, r.x_user_id, r.x_verified,
+                    r.tg_channel_verified, r.tg_reach, r.tg_channel_verified_at,
+                    p.season_points, p.founder_number, p.crew_priority_opt_in, p.flagged_reason, p.revoked
+             FROM kol_registrations r
+             LEFT JOIN kol_program_profiles p ON p.x_user_id = r.x_user_id`
+          : `SELECT x_username, wallet, evm_wallet, followers, registered_at, x_user_id, x_verified,
+                    tg_channel_verified, tg_reach, tg_channel_verified_at
+             FROM kol_registrations`,
       ))
     } catch {
       try {
@@ -56,6 +69,15 @@ export async function listRegisteredHireBoosts(): Promise<RegisteredHireBoost[]>
         tgChannelVerifiedAt: row.tg_channel_verified_at
           ? new Date(String(row.tg_channel_verified_at)).toISOString()
           : null,
+        kolSeasonPoints:
+          programOn && row.season_points != null ? Number(row.season_points) : undefined,
+        kolFounderNumber:
+          programOn && row.founder_number != null ? Number(row.founder_number) : undefined,
+        kolCrewPriority:
+          programOn &&
+          !row.revoked &&
+          !row.flagged_reason &&
+          row.crew_priority_opt_in !== false,
       }))
       // Add a wallet to get hired and paid. KOLs without a wallet are skipped for crews.
       .filter((r) => r.handle && isPayoutWallet(r.wallet))
