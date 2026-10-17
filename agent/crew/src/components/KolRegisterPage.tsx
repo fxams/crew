@@ -11,7 +11,8 @@ import {
   solflareBrowseUrl,
 } from '../lib/wallet'
 import bs58 from 'bs58'
-import { CREW_VERSION, KOL_REFERRAL_CUT_PCT } from '../lib/config'
+import { CREW_VERSION, KOL_PROGRAM_ENABLED, KOL_REFERRAL_CUT_PCT } from '../lib/config'
+import { KolProgramPanel } from './KolProgramPanel'
 import { formatSol } from '../lib/format-sol'
 import {
   classifyStuckXOauth,
@@ -878,7 +879,7 @@ export function KolRegisterPage() {
                   disabled={busy || xOauth === false}
                   onClick={() => void onRegister()}
                 >
-                  {busy ? 'Waiting…' : 'Register with X'}
+                  {busy ? 'Waiting…' : KOL_PROGRAM_ENABLED ? 'Sign in with X' : 'Register with X'}
                 </button>
               )}
               <TelegramLogin
@@ -931,6 +932,13 @@ export function KolRegisterPage() {
         </div>
 
         <div className="register-rest">
+          {KOL_PROGRAM_ENABLED ? (
+            <KolProgramPanel
+              onSignInWithX={() => void onRegister()}
+              signInBusy={busy}
+              xOauthReady={xOauth ?? undefined}
+            />
+          ) : null}
           {showAgentSnippets ? (
             <aside className="register-agent-card" aria-label="Agent builders">
               <p className="section-label">Agent builders</p>
