@@ -28,18 +28,21 @@ export function KolTaskLadder({
   profile,
   hub,
   today,
+  onSignIn,
 }: {
-  profile: KolProgramProfile
+  profile: KolProgramProfile | null
   hub: KolProgramHub | null
   today: TodayMeta
+  onSignIn?: () => void
 }) {
   const [tab, setTab] = useState<Tab>('tasks')
   const [steps, setSteps] = useState<OnboardingStep[]>([])
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [capped, setCapped] = useState(false)
-  const [pointsToday, setPointsToday] = useState(today.pointsToday ?? profile.pointsToday ?? 0)
-  const cap = today.pointsCap ?? profile.pointsCap ?? 5000
+  const [pointsToday, setPointsToday] = useState(today.pointsToday ?? profile?.pointsToday ?? 0)
+  const cap = today.pointsCap ?? profile?.pointsCap ?? 5000
+  const signedIn = Boolean(profile)
   const [todayTasks, setTodayTasks] = useState(today.tasks)
 
   const refresh = useCallback(async () => {
@@ -107,22 +110,37 @@ export function KolTaskLadder({
         {capped ? (
           <p className="hint">Daily task points cap reached. More tomorrow (00:00 UTC).</p>
         ) : null}
+        {!signedIn && onSignIn ? (
+          <div className="register-actions kol-hub-cta kol-hub-cta-primary">
+            <button
+              type="button"
+              className="btn btn-primary kol-hub-signin"
+              data-testid="kol-tasks-sign-in-x"
+              onClick={() => onSignIn()}
+            >
+              Sign in with X
+            </button>
+            <p className="hint">Sign in to start the ladder. Points have no cash value.</p>
+          </div>
+        ) : null}
       </div>
 
-      <div className="kol-ladder-tabs" role="tablist">
-        {(['tasks', 'referrals', 'founding'] as const).map((id) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            className={tab === id ? 'is-active' : undefined}
-            onClick={() => setTab(id)}
-          >
-            {id === 'tasks' ? 'Tasks' : id === 'referrals' ? 'Referrals' : 'Founding'}
-          </button>
-        ))}
-      </div>
+      {signedIn ? (
+        <div className="kol-ladder-tabs" role="tablist">
+          {(['tasks', 'referrals', 'founding'] as const).map((id) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              className={tab === id ? 'is-active' : undefined}
+              onClick={() => setTab(id)}
+            >
+              {id === 'tasks' ? 'Tasks' : id === 'referrals' ? 'Referrals' : 'Founding'}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {tab === 'tasks' ? (
         <>
@@ -156,7 +174,13 @@ export function KolTaskLadder({
                       </button>
                     </div>
                   ) : s.id === 'connect_x' ? (
-                    <span className="register-ok">points earned</span>
+                    signedIn ? (
+                      <span className="register-ok">points earned</span>
+                    ) : (
+                      <button type="button" className="btn btn-primary btn-sm" onClick={() => onSignIn?.()}>
+                        Sign in with X
+                      </button>
+                    )
                   ) : (
                     <button type="button" className="btn btn-primary btn-sm" disabled={busy === s.id} onClick={() => void onVerifyOnboard(s.id)}>
                       {busy === s.id ? 'Checking…' : 'Start'}
@@ -179,25 +203,33 @@ export function KolTaskLadder({
               <p className="hint">Today’s @CrewPayHQ post will appear here when available.</p>
             )}
             <ul className="kol-ladder-list">
-              {todayTasks.map((t) => (
-                <li key={t.id} className={t.completed ? 'is-done' : ''}>
+              {todayTasks.map((t) => {
+                const locked = !signedIn || Boolean(t.locked)
+                return (
+                <li key={t.id} className={t.completed ? 'is-done' : locked ? 'is-locked' : ''}>
                   <span className="kol-ladder-icon" aria-hidden>
-                    {t.completed ? '✓' : '•'}
+                    {t.completed ? '✓' : locked ? '🔒' : '•'}
                   </span>
                   <div className="kol-ladder-body">
                     <strong>{t.title}</strong>
                     <p className="hint">{t.instructions}</p>
+                    {locked ? <p className="kol-inf-unlock">Sign in with X to start</p> : null}
                   </div>
                   <span className="kol-onboarding-pts">+{t.points.toLocaleString()}</span>
                   {t.completed ? (
                     <span className="register-ok">points earned</span>
+                  ) : locked ? (
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => onSignIn?.()}>
+                      Sign in
+                    </button>
                   ) : (
                     <button type="button" className="btn btn-primary btn-sm" disabled={busy === t.id} onClick={() => void onVerifyToday(t.id)}>
                       {busy === t.id ? 'Checking…' : 'Start'}
                     </button>
                   )}
                 </li>
-              ))}
+                )
+              })}
             </ul>
           </div>
           {error ? <p className="register-err">{error}</p> : null}
@@ -205,7 +237,7 @@ export function KolTaskLadder({
         </>
       ) : null}
 
-      {tab !== 'tasks' ? (
+      {signedIn && profile && tab !== 'tasks' ? (
         <KolHubDashboard
           profile={profile}
           hub={hub}
