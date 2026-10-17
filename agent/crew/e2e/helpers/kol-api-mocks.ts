@@ -23,6 +23,19 @@ export const emptyBoardBody = {
   rankedBy: 'sol_earned',
 }
 
+/** Matches production API shape — object formula must not crash KolProgramPanel. */
+export const kolProgramStatusBody = {
+  ok: true,
+  enabled: true,
+  pointsDisclaimer: 'Points have no cash value.',
+  referralFeeMap: '60/15/5/20 when referred.',
+  reachFormula: {
+    weights: { followers: 0.3, impressions: 0.25 },
+    caps: { accountAgeYears: 3 },
+    tiers: { bronze: [0, 39] },
+  },
+}
+
 export async function resetKolClientState(page: Page) {
   await page.addInitScript(() => {
     localStorage.clear()
@@ -51,6 +64,52 @@ export async function mockKolRegisterApis(
   )
   await page.route('**/api/proof', (route: Route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ leaderboard: [] }) }),
+  )
+  await page.route('**/api/kol-program/status', (route: Route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(kolProgramStatusBody),
+    }),
+  )
+  await page.route('**/api/kol-program/me', (route: Route) =>
+    route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ ok: false }) }),
+  )
+  await page.route('**/api/kol-program/tasks/today', (route: Route) =>
+    route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ ok: false }) }),
+  )
+  await page.route('**/api/kol-program/leaderboard*', (route: Route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        seasonId: 'season_test',
+        rows: [],
+        disclaimer: 'Points have no cash value.',
+        pool: null,
+      }),
+    }),
+  )
+  await page.route('**/api/kol-program/hall-of-fame*', (route: Route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, seasons: [] }),
+    }),
+  )
+  await page.route('**/api/kol-program/seasons*', (route: Route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        seasons: [],
+        archive: null,
+        archiveSeasonId: null,
+        hallOfFame: null,
+      }),
+    }),
   )
   await page.route('**/api/kols/register/start', async (route: Route) => {
     opts?.onStart?.()

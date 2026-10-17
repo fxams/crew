@@ -5,6 +5,7 @@ import {
   fetchKolProgramMe,
   fetchKolProgramStatus,
   fetchKolProgramTasksToday,
+  formatReachFormulaDoc,
   kolProgramCardUrl,
   verifyKolProgramTask,
   type KolProgramProfile,
@@ -35,7 +36,7 @@ export function KolProgramPanel({ onSignInWithX, signInBusy, xOauthReady }: Prop
   const refresh = useCallback(async () => {
     const status = await fetchKolProgramStatus()
     setEnabled(status.enabled)
-    setFormula(status.reachFormula ?? null)
+    setFormula(formatReachFormulaDoc(status.reachFormula))
     setFeeMap(status.referralFeeMap ?? null)
     setDisclaimer(status.pointsDisclaimer ?? null)
     if (!status.enabled) return
