@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom'
 
 const TABS = [
   { to: '/kol', label: 'Home', icon: '⌂' },
-  { to: '/kol/leaderboard', label: 'Explore', icon: '◎' },
+  { to: '/kol/leaderboard', label: 'Board', icon: '◎' },
   { to: '/kol#alerts', label: 'Alerts', icon: '◉' },
   { to: '/kol#tasks', label: 'Tasks', icon: '≡' },
 ] as const

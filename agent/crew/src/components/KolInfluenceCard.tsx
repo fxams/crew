@@ -10,9 +10,10 @@ type Props = {
   showReplay?: boolean
 }
 
-function SegmentedMeter({ value }: { value: number }) {
+function SegmentedMeter({ value }: { value: number | null }) {
   const segments = 12
-  const filled = Math.round((Math.max(0, Math.min(100, value)) / 100) * segments)
+  const filled =
+    value == null ? 0 : Math.round((Math.max(0, Math.min(100, value)) / 100) * segments)
   return (
     <div className="kol-meter" aria-hidden>
       {Array.from({ length: segments }, (_, i) => (
@@ -49,16 +50,19 @@ export function KolInfluenceCard({ card, portrait = true, showReplay = true }: P
   }, [])
 
   const tier = kolTierDisplayName(card.tier)
-  const globalRank =
-    card.rank != null && card.rank > 0 ? `GLOBAL RANK #${card.rank.toLocaleString('en-US')}` : 'GLOBAL RANK —'
-  const member =
-    card.memberNumber != null
+  const showRank = !card.unclaimed && card.rank != null && card.rank > 0
+  const showMember =
+    !card.unclaimed &&
+    ((card.memberNumber != null && card.memberNumber > 0) || card.founderNumber != null)
+  const globalRank = showRank ? `GLOBAL RANK #${card.rank!.toLocaleString('en-US')}` : null
+  const member = showMember
+    ? card.memberNumber != null && card.memberNumber > 0
       ? `MEMBER #${card.memberNumber.toLocaleString('en-US')}`
-      : card.founderNumber != null
-        ? `FOUNDING #${String(card.founderNumber).padStart(3, '0')}`
-        : 'MEMBER —'
+      : `FOUNDING #${String(card.founderNumber).padStart(3, '0')}`
+    : null
 
   const shareUrl = buildKolGrowthShareTweet({ refLink: card.referralUrl })
+  const hasUnavailable = card.scoreBars.some((b) => b.value == null)
 
   const rootClass = [
     'kol-influence-card',
@@ -75,11 +79,25 @@ export function KolInfluenceCard({ card, portrait = true, showReplay = true }: P
             <p className="kol-influence-tagline">Real reach · season points · no cash value</p>
           </div>
           <div className="kol-influence-rank-block">
-            <p>{globalRank}</p>
-            <p className="muted">{member}</p>
+            {globalRank ? <p>{globalRank}</p> : null}
+            {member ? <p className="muted">{member}</p> : null}
             <span className="kol-influence-tier-pill">{tier}</span>
           </div>
         </header>
+
+        <div className="kol-influence-identity">
+          <div className="kol-influence-avatar-wrap">
+            {card.avatarUrl ? (
+              <img src={card.avatarUrl} alt="" referrerPolicy="no-referrer" />
+            ) : (
+              <span className="kol-influence-avatar-fallback">@</span>
+            )}
+          </div>
+          <div className="kol-influence-identity-copy">
+            <p className="kol-influence-display-name">{card.displayName || card.handle}</p>
+            <p className="kol-influence-handle">@{card.handle}</p>
+          </div>
+        </div>
 
         <div className="kol-influence-hero">
           <p className="kol-influence-kicker">Notional influence value</p>
@@ -94,31 +112,22 @@ export function KolInfluenceCard({ card, portrait = true, showReplay = true }: P
 
         <ul className="kol-influence-bars">
           {card.scoreBars.slice(0, 6).map((b) => (
-            <li key={b.label}>
+            <li key={b.label} title={b.hint || undefined}>
               <span className="kol-influence-bar-label">{b.label}</span>
               <SegmentedMeter value={b.value} />
-              <span className="kol-influence-bar-val">{b.value}</span>
+              <span className="kol-influence-bar-val">{b.value == null ? '—' : b.value}</span>
             </li>
           ))}
         </ul>
-
-        <div className="kol-influence-profile">
-          <div className="kol-influence-avatar-wrap">
-            {card.avatarUrl ? (
-              <img src={card.avatarUrl} alt="" referrerPolicy="no-referrer" />
-            ) : (
-              <span className="kol-influence-avatar-fallback">@</span>
-            )}
-          </div>
-          <p className="kol-influence-display-name">{card.displayName || card.handle}</p>
-          <p className="kol-influence-handle">@{card.handle}</p>
-          <p className="kol-influence-quote">
-            {card.unclaimed ? 'Claim your card · CrewPay KOL' : 'Reach is a signal · use it wisely'}
+        {hasUnavailable ? (
+          <p className="kol-influence-bars-hint">
+            — needs recent public posts or a claimed card. Not a zero score.
           </p>
-          <a className="kol-influence-share-box" href={shareUrl} target="_blank" rel="noreferrer">
-            Share your KOL card on X
-          </a>
-        </div>
+        ) : null}
+
+        <a className="kol-influence-share-box" href={shareUrl} target="_blank" rel="noreferrer">
+          Share your KOL card on X
+        </a>
 
         <footer className="kol-influence-foot">CREWPAY.DEV</footer>
       </div>

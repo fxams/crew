@@ -25,7 +25,7 @@ describe('renderKolCardSvg', () => {
     expect(svg).toContain('REACH SCORE 42')
   })
 
-  it('marks unclaimed cards', () => {
+  it('marks unclaimed cards and hides empty rank/member', () => {
     const svg = renderKolCardSvg({
       handle: 'bob',
       displayName: 'Bob',
@@ -36,7 +36,14 @@ describe('renderKolCardSvg', () => {
       founderNumber: null,
       referralUrl: 'https://crewpay.dev/ref/bob',
       unclaimed: true,
+      scoreBars: [
+        { label: 'Engagement', value: null, hint: 'Needs recent public posts' },
+        { label: 'Followers', value: 61 },
+      ],
     })
     expect(svg).toContain('CLAIM YOUR CARD')
+    expect(svg).not.toContain('GLOBAL RANK —')
+    expect(svg).not.toContain('MEMBER —')
+    expect(svg).toContain('—')
   })
 })
