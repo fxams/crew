@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   CREW_FARCASTER_URL,
+  CREW_GITHUB_URL,
   CREW_TELEGRAM_COMMUNITY_URL,
   CREW_TELEGRAM_URL,
   CREW_X_URL,
@@ -128,14 +129,15 @@ describe('mobileStickyCta', () => {
 })
 
 describe('header and footer socials', () => {
-  it('points X, Farcaster, and Telegram at the official CrewPay profiles', () => {
+  it('points X, Farcaster, Telegram, and GitHub at the official CrewPay profiles', () => {
     expect(CREW_X_URL).toBe('https://x.com/CrewPayHQ')
     expect(CREW_FARCASTER_URL).toBe('https://farcaster.xyz/crewpay')
     expect(CREW_TELEGRAM_URL).toBe('https://t.me/CrewPayHQ')
     expect(CREW_TELEGRAM_COMMUNITY_URL).toBe('https://t.me/crewpay_hq')
+    expect(CREW_GITHUB_URL).toBe('https://github.com/fxams/crew')
   })
 
-  it('puts Farcaster then Telegram next to X in the site nav', () => {
+  it('puts Farcaster then Telegram then GitHub next to X in the site nav', () => {
     const app = readFileSync(join(here, '../App.tsx'), 'utf8')
     const nav = app.slice(app.indexOf('<nav className="nav-links"'), app.indexOf('</nav>'))
     expect(nav).toContain('<NavSocialLinks />')
@@ -145,13 +147,17 @@ describe('header and footer socials', () => {
     const xIdx = socials.indexOf('nav-link-x')
     const fcIdx = socials.indexOf('nav-link-fc')
     const tgIdx = socials.indexOf('nav-link-tg')
+    const ghIdx = socials.indexOf('nav-link-gh')
     expect(xIdx).toBeGreaterThan(-1)
     expect(fcIdx).toBeGreaterThan(xIdx)
     expect(tgIdx).toBeGreaterThan(fcIdx)
+    expect(ghIdx).toBeGreaterThan(tgIdx)
     expect(socials).toContain('aria-label="Farcaster @crewpay"')
     expect(socials).toContain('aria-label="Telegram @CrewPayHQ"')
+    expect(socials).toContain('aria-label="GitHub fxams/crew"')
     expect(socials).toContain('CREW_FARCASTER_URL')
     expect(socials).toContain('CREW_TELEGRAM_URL')
+    expect(socials).toContain('CREW_GITHUB_URL')
     expect(socials).toContain('<XLink')
     expect(socials).toContain('target="_blank"')
     expect(socials).toContain('M257.778 155.556H742.222V844.445')
@@ -170,7 +176,8 @@ describe('header and footer socials', () => {
     expect(onepager).toContain('<FooterSocials />')
     const socials = readFileSync(join(here, '../components/SocialIcons.tsx'), 'utf8')
     expect(socials).toContain('<XLink href={CREW_X_URL}>')
-    expect(socials).toMatch(/@CrewPayHQ[\s\S]*@crewpay[\s\S]*Telegram[\s\S]*Community/)
+    expect(socials).toMatch(/@CrewPayHQ[\s\S]*@crewpay[\s\S]*Telegram[\s\S]*Community[\s\S]*GitHub/)
     expect(socials).toContain('CREW_TELEGRAM_COMMUNITY_URL')
+    expect(socials).toContain('CREW_GITHUB_URL')
   })
 })

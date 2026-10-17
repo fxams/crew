@@ -401,4 +401,18 @@ test.describe('iOS Safari regressions (WebKit)', () => {
       path: '/opt/cursor/artifacts/screenshots/kol-tasks-signedout-ladder-390x700.png',
     })
   })
+
+  test('header GitHub icon follows Telegram and opens in a new tab', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 700 })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+    const github = page.getByTestId('nav-link-github')
+    await expect(github).toBeVisible()
+    await expect(github).toHaveAttribute('href', 'https://github.com/fxams/crew')
+    await expect(github).toHaveAttribute('target', '_blank')
+    await expect(github).toHaveAttribute('rel', /noopener/)
+    const socials = page.locator('.nav-socials a')
+    await expect(socials).toHaveCount(4)
+    await expect(socials.nth(2)).toHaveAttribute('aria-label', 'Telegram @CrewPayHQ')
+    await expect(socials.nth(3)).toHaveAttribute('aria-label', 'GitHub fxams/crew')
+  })
 })
