@@ -4,9 +4,12 @@ import { feeSharingConfigPda, isSharingConfigEditable } from '@pump-fun/pump-sdk
 import type { WalletContextState } from '@solana/wallet-adapter-react'
 import { PUMP_COIN_URL } from '../config'
 import type { CoinRecord, CrewMember, DeskMode } from '../types'
-import { buildCrewShareholders } from '../validation'
 import { formatRpcError, getConnection, getLatestBlockhashSafe, getPumpSdk } from './connection'
 import { sendInstructions } from './send'
+import { buildWireCrewFeeSharePlan, type WireFeeSharePlan } from './wire-fees-plan'
+
+export { buildWireCrewFeeSharePlan } from './wire-fees-plan'
+export type { WireFeeSharePlan } from './wire-fees-plan'
 
 function id(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`
@@ -186,71 +189,27 @@ export async function lockHolderKolFeeShares(
  * Required when launch create landed but the fee-share tx never confirmed —
  * without this, creator fees stay with the launcher only and crew is unpaid.
  */
-export async function wireCrewFeeShares(opts: WireFeesOpts): Promise<WireFeesResult> {
+export async function executeWireCrewFeeSharePlan(
+  plan: WireFeeSharePlan,
+  opts: WireFeesOpts,
+): Promise<WireFeesResult> {
   const { wallet } = opts
-  if (!wallet.publicKey || !wallet.sendTransaction) {
-    throw new Error('Connect a wallet to wire crew fees.')
-  }
-
-  let mint: PublicKey
-  try {
-    mint = new PublicKey(opts.mint.trim())
-  } catch {
-    throw new Error('Invalid mint address.')
-  }
-
-  const launcher = wallet.publicKey
-  const shareholders = buildCrewShareholders(opts.crew, opts.mode, {
-    deskWallet: launcher.toBase58(),
-  })
-
-  await getLatestBlockhashSafe('confirmed')
-  const sdk = getPumpSdk()
-  const connection = getConnection()
-  const sharingPda = feeSharingConfigPda(mint)
-  const existing = await connection.getAccountInfo(sharingPda)
-
-  const ixs = []
-  if (!existing) {
-    ixs.push(
-      await sdk.createFeeSharingConfig({
-        creator: launcher,
-        mint,
-        pool: null,
-      }),
-    )
-  }
-
-  const currentShareholders = existing
-    ? sdk.decodeSharingConfig(existing).shareholders.map((s) => s.address)
-    : [launcher]
-
-  const newShareholders = shareholders.map((s) => ({
-    address: new PublicKey(s.wallet),
-    shareBps: s.bps,
-  }))
-
-  ixs.push(
-    await sdk.updateFeeSharesV2({
-      authority: launcher,
-      mint,
-      currentShareholders,
-      newShareholders,
-      quoteMint: NATIVE_MINT,
-      quoteTokenProgram: TOKEN_PROGRAM_ID,
-    }),
-  )
-
   let feeShareSignature: string
   try {
-    feeShareSignature = await sendInstructions({ wallet, ixs, attempts: 2 })
+    feeShareSignature = await sendInstructions({
+      wallet,
+      ixs: plan.ixs,
+      attempts: 2,
+      simulateBeforeSend: true,
+    })
   } catch (err) {
     throw new Error(formatRpcError(err instanceof Error ? err : new Error('Wire fees failed.')))
   }
 
   const launchedAt = opts.coin?.launchedAt ?? Number(new Date())
-  const mintStr = mint.toBase58()
-  const ticker = (opts.coin?.ticker || 'COIN').toUpperCase().replace(/^\$/, '')
+  const mintStr = plan.mint
+  const launcher = wallet.publicKey!
+  const ticker = plan.ticker
 
   const coin: CoinRecord = {
     id: opts.coin?.id || id('coin'),
@@ -271,4 +230,15 @@ export async function wireCrewFeeShares(opts: WireFeesOpts): Promise<WireFeesRes
   }
 
   return { feeShareSignature, coin }
+}
+
+export async function wireCrewFeeShares(opts: WireFeesOpts): Promise<WireFeesResult> {
+  const plan = await buildWireCrewFeeSharePlan({
+    mint: opts.mint,
+    mode: opts.mode,
+    crew: opts.crew,
+    wallet: opts.wallet,
+    coin: opts.coin,
+  })
+  return executeWireCrewFeeSharePlan(plan, opts)
 }

@@ -6,6 +6,7 @@ import {
 import type { WalletContextState } from '@solana/wallet-adapter-react'
 import { SOLSCAN_TX_URL } from '../config'
 import { getConnection, getLatestBlockhashSafe } from './connection'
+import { phantomSignAndSendTransaction } from './phantom-send'
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -70,6 +71,41 @@ export type SendIxsOpts = {
   signers?: Keypair[]
   /** Total attempts including the first send. */
   attempts?: number
+  /** RPC simulate before opening the wallet (recommended for fee-share txs). */
+  simulateBeforeSend?: boolean
+}
+
+export type SimulateResult = {
+  ok: boolean
+  err: string | null
+  unitsConsumed?: number
+}
+
+/** Dry-run on RPC — unsigned tx, sigVerify off (no pre-signing). */
+export async function simulateInstructionTx(
+  wallet: WalletContextState,
+  ixs: TransactionInstruction[],
+): Promise<SimulateResult> {
+  if (!wallet.publicKey) {
+    return { ok: false, err: 'Wallet not ready.' }
+  }
+  const { blockhash, lastValidBlockHeight } = await getLatestBlockhashSafe('processed')
+  const connection = getConnection()
+  const tx = new Transaction({
+    feePayer: wallet.publicKey,
+    blockhash,
+    lastValidBlockHeight,
+  }).add(...ixs)
+
+  const sim = await connection.simulateTransaction(tx)
+  if (sim.value.err) {
+    return {
+      ok: false,
+      err: JSON.stringify(sim.value.err),
+      unitsConsumed: sim.value.unitsConsumed,
+    }
+  }
+  return { ok: true, err: null, unitsConsumed: sim.value.unitsConsumed }
 }
 
 /**
@@ -77,9 +113,17 @@ export type SendIxsOpts = {
  * Retries once with a new blockhash if the first never lands.
  */
 export async function sendInstructions(opts: SendIxsOpts): Promise<string> {
-  const { wallet, ixs, signers = [], attempts = 2 } = opts
+  const { wallet, ixs, signers = [], attempts = 2, simulateBeforeSend = false } = opts
   if (!wallet.publicKey || !wallet.sendTransaction) {
     throw new Error('Wallet not ready.')
+  }
+  if (simulateBeforeSend) {
+    const sim = await simulateInstructionTx(wallet, ixs)
+    if (!sim.ok) {
+      throw new Error(
+        `Simulation failed before wallet prompt — fix the plan or RPC and retry. ${sim.err || ''}`,
+      )
+    }
   }
 
   let lastErr: unknown
@@ -95,12 +139,19 @@ export async function sendInstructions(opts: SendIxsOpts): Promise<string> {
         lastValidBlockHeight,
       }).add(...ixs)
 
-      const signature = await wallet.sendTransaction(tx, connection, {
-        signers,
-        skipPreflight: false,
-        maxRetries: 5,
-        preflightCommitment: 'processed',
-      })
+      let signature: string | null = null
+      // Fee-share / crank: no local signers — prefer Phantom signAndSendTransaction.
+      if (!signers.length) {
+        signature = await phantomSignAndSendTransaction(tx, connection)
+      }
+      if (!signature) {
+        signature = await wallet.sendTransaction(tx, connection, {
+          signers,
+          skipPreflight: false,
+          maxRetries: 5,
+          preflightCommitment: 'processed',
+        })
+      }
 
       try {
         await connection.confirmTransaction(
