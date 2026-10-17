@@ -29,6 +29,21 @@ import { siteUrl } from '../lib/kol-register.js'
 import { KOL_POOL_BPS, CREWPAY_HQ_X_HANDLE, kolPinnedPostId } from '../lib/kol-program/flags.js'
 import { buildPublicKolCard } from '../lib/kol-program/public-card.js'
 import {
+  ensureFoundingSnapshot,
+  kolFoundingSnapshotAt,
+} from '../lib/kol-program/founding-snapshot.js'
+import {
+  createBattle,
+  listActiveBattles,
+  resolveBattle,
+  stakeOnBattle,
+} from '../lib/kol-program/battles.js'
+import {
+  listNotifications,
+  markNotificationsRead,
+  unreadNotificationCount,
+} from '../lib/kol-program/notifications.js'
+import {
   ONBOARDING_STEPS,
   isStepUnlocked,
   listCompletedSteps,
@@ -74,11 +89,14 @@ kolProgramRouter.get('/kol-program/hub', async (_req, res) => {
       programMemberCount(),
       recentProgramJoiners(16),
     ])
+    const foundingAt = kolFoundingSnapshotAt()
     res.json({
       ok: true,
       seasonId,
       seasonEndsAt: bounds?.end?.toISOString() ?? null,
       memberCount,
+      showMemberCount: memberCount >= 10,
+      foundingSnapshotAt: foundingAt?.toISOString() ?? null,
       recentJoiners,
       referralMilestones: [
         { referrals: 5, bonusPoints: 1000 },
@@ -583,6 +601,132 @@ kolProgramRouter.get('/kol-program/profile/:handle/hof-badges', async (req, res)
     })
   } catch (err) {
     sendInternalError(res, err, 'kol-program hof badges')
+  }
+})
+
+kolProgramRouter.get('/kol-program/founders', async (_req, res) => {
+  try {
+    const rows = await ensureFoundingSnapshot()
+    res.json({
+      ok: true,
+      snapshotAt: kolFoundingSnapshotAt()?.toISOString() ?? null,
+      topN: rows.length,
+      founders: rows,
+      disclaimer: KOL_PROGRAM_POINTS_DISCLAIMER,
+    })
+  } catch (err) {
+    sendInternalError(res, err, 'kol-program founders')
+  }
+})
+
+kolProgramRouter.get('/kol-program/battles', async (_req, res) => {
+  try {
+    const battles = await listActiveBattles(30)
+    res.json({ ok: true, battles, disclaimer: KOL_PROGRAM_POINTS_DISCLAIMER })
+  } catch (err) {
+    sendInternalError(res, err, 'kol-program battles list')
+  }
+})
+
+kolProgramRouter.post('/kol-program/battles', async (req, res) => {
+  try {
+    const sess = sessionUser(req)
+    if (!sess) {
+      res.status(401).json({ ok: false, error: 'KOL session required.' })
+      return
+    }
+    const theme = String(req.body?.theme || '').trim()
+    const opponentHandle = req.body?.opponentHandle
+      ? String(req.body.opponentHandle).trim()
+      : null
+    if (theme.length < 3) {
+      res.status(400).json({ ok: false, error: 'Theme required (3+ chars).' })
+      return
+    }
+    const battle = await createBattle({
+      challengerXUserId: sess.xUserId,
+      challengerHandle: sess.handle,
+      opponentHandle,
+      theme,
+    })
+    res.json({
+      ok: true,
+      battle,
+      shareIntent: `https://x.com/intent/post?text=${encodeURIComponent(
+        `${battle.hashtag} KOL battle: ${theme} — stake points on crewpay.dev/kol`,
+      )}`,
+    })
+  } catch (err) {
+    sendInternalError(res, err, 'kol-program battle create')
+  }
+})
+
+kolProgramRouter.post('/kol-program/battles/:id/stake', async (req, res) => {
+  try {
+    const sess = sessionUser(req)
+    if (!sess) {
+      res.status(401).json({ ok: false, error: 'KOL session required.' })
+      return
+    }
+    const side = req.body?.side === 'opponent' ? 'opponent' : 'challenger'
+    const points = Number(req.body?.points || 0)
+    const out = await stakeOnBattle({
+      battleId: req.params.id,
+      xUserId: sess.xUserId,
+      handle: sess.handle,
+      side,
+      points,
+    })
+    res.json({ ok: true, ...out })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Stake failed.'
+    res.status(400).json({ ok: false, error: msg })
+  }
+})
+
+kolProgramRouter.post('/kol-program/battles/:id/resolve', requireApiKey, async (req, res) => {
+  try {
+    const battle = await resolveBattle(req.params.id, {
+      challenger: { engagementRate: Number(req.body?.challengerEngagement || 0) },
+      opponent: { engagementRate: Number(req.body?.opponentEngagement || 0) },
+    })
+    if (!battle) {
+      res.status(404).json({ ok: false, error: 'Battle not found or not active.' })
+      return
+    }
+    res.json({ ok: true, battle })
+  } catch (err) {
+    sendInternalError(res, err, 'kol-program battle resolve')
+  }
+})
+
+kolProgramRouter.get('/kol-program/notifications', async (req, res) => {
+  try {
+    const sess = sessionUser(req)
+    if (!sess) {
+      res.status(401).json({ ok: false, error: 'KOL session required.' })
+      return
+    }
+    const items = await listNotifications(sess.xUserId)
+    const unread = await unreadNotificationCount(sess.xUserId)
+    res.json({ ok: true, unread, items })
+  } catch (err) {
+    sendInternalError(res, err, 'kol-program notifications')
+  }
+})
+
+kolProgramRouter.post('/kol-program/notifications/read', async (req, res) => {
+  try {
+    const sess = sessionUser(req)
+    if (!sess) {
+      res.status(401).json({ ok: false, error: 'KOL session required.' })
+      return
+    }
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(String) : undefined
+    await markNotificationsRead(sess.xUserId, ids)
+    res.json({ ok: true })
+  } catch (err) {
+    sendInternalError(res, err, 'kol-program notifications read')
   }
 })
 

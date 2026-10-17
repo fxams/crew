@@ -49,6 +49,8 @@ export type KolProgramHub = {
   seasonId: string
   seasonEndsAt: string | null
   memberCount: number
+  showMemberCount?: boolean
+  foundingSnapshotAt?: string | null
   recentJoiners: KolHubRecentJoiner[]
   referralMilestones: Array<{ referrals: number; bonusPoints: number }>
   disclaimer: string
@@ -114,6 +116,8 @@ export async function fetchKolProgramHub(): Promise<KolProgramHub | null> {
       seasonId: body.seasonId,
       seasonEndsAt: body.seasonEndsAt ?? null,
       memberCount: Math.max(0, Number(body.memberCount) || 0),
+      showMemberCount: Boolean(body.showMemberCount),
+      foundingSnapshotAt: body.foundingSnapshotAt ?? null,
       recentJoiners: Array.isArray(body.recentJoiners) ? body.recentJoiners : [],
       referralMilestones: Array.isArray(body.referralMilestones) ? body.referralMilestones : [],
       disclaimer: body.disclaimer || KOL_PROGRAM_POINTS_DISCLAIMER,
@@ -333,6 +337,98 @@ export async function verifyKolOnboardingStep(stepId: string): Promise<{ ok: boo
   const body = (await res.json()) as { ok?: boolean; error?: string }
   if (!res.ok) return { ok: false, error: body.error || 'Verify failed.' }
   return { ok: true }
+}
+
+export type KolBattle = {
+  id: string
+  challengerHandle: string
+  opponentHandle: string | null
+  theme: string
+  status: string
+  hashtag: string
+  endsAt: string
+  winnerHandle: string | null
+}
+
+export async function fetchKolFounders(): Promise<{
+  founders: Array<{
+    badgeNumber: number
+    handle: string
+    seasonPoints: number
+    reachScore: number
+  }>
+  snapshotAt: string | null
+} | null> {
+  const res = await fetch(`${API}/api/kol-program/founders`)
+  if (!res.ok) return null
+  const body = (await res.json()) as {
+    founders?: Array<{
+      badgeNumber: number
+      handle: string
+      seasonPoints: number
+      reachScore: number
+    }>
+    snapshotAt?: string | null
+  }
+  return { founders: body.founders || [], snapshotAt: body.snapshotAt ?? null }
+}
+
+export async function fetchKolBattles(): Promise<{ battles: KolBattle[] } | null> {
+  const res = await fetch(`${API}/api/kol-program/battles`)
+  if (!res.ok) return null
+  return (await res.json()) as { battles: KolBattle[] }
+}
+
+export async function createKolBattle(body: {
+  theme: string
+  opponentHandle?: string
+}): Promise<{ ok: boolean; error?: string; shareIntent?: string }> {
+  const res = await fetch(`${API}/api/kol-program/battles`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const json = (await res.json()) as { ok?: boolean; error?: string; shareIntent?: string }
+  if (!res.ok) return { ok: false, error: json.error || 'Create failed.' }
+  return { ok: true, shareIntent: json.shareIntent }
+}
+
+export async function stakeKolBattle(
+  battleId: string,
+  side: 'challenger' | 'opponent',
+  points: number,
+): Promise<{ ok: boolean; error?: string }> {
+  const res = await fetch(`${API}/api/kol-program/battles/${encodeURIComponent(battleId)}/stake`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ side, points }),
+  })
+  const json = (await res.json()) as { ok?: boolean; error?: string }
+  if (!res.ok) return { ok: false, error: json.error || 'Stake failed.' }
+  return { ok: true }
+}
+
+export async function fetchKolNotifications(): Promise<{
+  unread: number
+  items: Array<{ id: string; title: string; body: string; href: string | null; readAt: string | null }>
+} | null> {
+  const res = await fetch(`${API}/api/kol-program/notifications`, { credentials: 'include' })
+  if (!res.ok) return null
+  return (await res.json()) as {
+    unread: number
+    items: Array<{ id: string; title: string; body: string; href: string | null; readAt: string | null }>
+  }
+}
+
+export async function markKolNotificationsRead(): Promise<void> {
+  await fetch(`${API}/api/kol-program/notifications/read`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({}),
+  })
 }
 
 export async function skipKolOnboardingTelegram(): Promise<boolean> {

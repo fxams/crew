@@ -32,10 +32,15 @@ export function isKolLeaderboardPath(pathname: string): boolean {
   return path === '/kol/leaderboard' || path.endsWith('/kol/leaderboard')
 }
 
+export function isKolFoundersPath(pathname: string): boolean {
+  const path = normalizePath(pathname)
+  return path === '/kol/founders' || path.endsWith('/kol/founders')
+}
+
 /** Public desk for one registered KOL: `/kol/:handle`. */
 export function kolHandleFromPath(pathname: string): string | null {
   const path = normalizePath(pathname)
-  if (isKolHubPath(path)) return null
+  if (isKolHubPath(path) || isKolFoundersPath(path)) return null
   if (isKolLeaderboardPath(path)) return null
   const match = path.match(/(?:^|\/)kol\/([A-Za-z0-9_]{1,15})$/)
   return match?.[1] ?? null
