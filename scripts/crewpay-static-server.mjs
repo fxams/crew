@@ -16,6 +16,15 @@ const SITE = (process.env.VITE_SITE_URL || 'https://crewpay.dev').replace(/\/$/,
 const API = (process.env.VITE_CREW_API_URL || 'https://api.crewpay.dev').replace(/\/$/, '')
 const PORT = Number(process.env.PORT || 10000)
 
+const SECURITY_HEADERS = {
+  'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
+  'Content-Security-Policy':
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; frame-src 'self' https://verify.walletconnect.org https://verify.walletconnect.com https://secure.walletconnect.com https://secure.walletconnect.org; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+}
+
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -102,9 +111,13 @@ function safePath(urlPath) {
   return p
 }
 
+function writeHead(res, status, extra = {}) {
+  res.writeHead(status, { ...SECURITY_HEADERS, ...extra })
+}
+
 function serveFile(res, filePath) {
   const ext = extname(filePath)
-  res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' })
+  writeHead(res, 200, { 'Content-Type': MIME[ext] || 'application/octet-stream' })
   createReadStream(filePath).pipe(res)
 }
 
@@ -121,7 +134,10 @@ const server = createServer(async (req, res) => {
     if (kolRef) {
       const meta = await fetchShareMeta(kolRef.handle, kolRef.kind)
       const html = injectMeta(indexTemplate, meta)
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' })
+      writeHead(res, 200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      })
       res.end(html)
       return
     }
@@ -137,7 +153,7 @@ const server = createServer(async (req, res) => {
       /* spa fallback */
     }
 
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+    writeHead(res, 200, { 'Content-Type': 'text/html; charset=utf-8' })
     res.end(indexTemplate)
   } catch (err) {
     console.error('crewpay-static-server', err)
