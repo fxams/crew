@@ -13,9 +13,13 @@ import { headerKolLinks, mobileStickyCta } from './nav'
 const here = dirname(fileURLToPath(import.meta.url))
 
 describe('headerKolLinks', () => {
-  it('always keeps KOL pointing at the public register/info page', () => {
+  it('keeps KOL on register when program flag is off', () => {
     expect(headerKolLinks(null)).toEqual([{ label: 'KOL', to: '/register' }])
     expect(headerKolLinks('')).toEqual([{ label: 'KOL', to: '/register' }])
+  })
+
+  it('points KOL at /kol when program flag is on (no extra header links)', () => {
+    expect(headerKolLinks(null, { kolProgram: true })).toEqual([{ label: 'KOL', to: '/kol' }])
   })
 
   it('adds Desk next to KOL when the wallet is a registered handle', () => {
@@ -25,10 +29,10 @@ describe('headerKolLinks', () => {
     ])
   })
 
-  it('adds Leaderboard when kol program flag is on', () => {
-    expect(headerKolLinks(null, { kolProgram: true })).toEqual([
-      { label: 'KOL', to: '/register' },
-      { label: 'Leaderboard', to: '/kol/leaderboard' },
+  it('adds Desk when registered and program is on', () => {
+    expect(headerKolLinks('0x4dY', { kolProgram: true })).toEqual([
+      { label: 'KOL', to: '/kol' },
+      { label: 'Desk', to: '/kol/0x4dY' },
     ])
   })
 })

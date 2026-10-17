@@ -352,6 +352,60 @@ export async function creditProgramPoints(
   )
 }
 
+export async function programMemberCount(): Promise<number> {
+  const { rows } = await query<{ n: string }>(
+    `SELECT COUNT(*)::text AS n FROM kol_program_profiles WHERE revoked = false`,
+  )
+  return Number(rows[0]?.n || 0)
+}
+
+export async function recentProgramJoiners(
+  limit = 12,
+): Promise<Array<{ handle: string; enrolledAt: string; founderNumber: number | null }>> {
+  const { rows } = await query<{
+    x_username: string
+    enrolled_at: Date
+    founder_number: number | null
+  }>(
+    `SELECT x_username, enrolled_at, founder_number
+     FROM kol_program_profiles
+     WHERE revoked = false
+     ORDER BY enrolled_at DESC
+     LIMIT $1`,
+    [limit],
+  )
+  return rows.map((r) => ({
+    handle: String(r.x_username),
+    enrolledAt: new Date(r.enrolled_at).toISOString(),
+    founderNumber: r.founder_number != null ? Number(r.founder_number) : null,
+  }))
+}
+
+export async function referralCountForReferrerCode(code: string): Promise<number> {
+  const { rows } = await query<{ n: string }>(
+    `SELECT COUNT(*)::text AS n FROM kol_referral_events
+     WHERE lower(referrer_code) = lower($1) AND event_type = 'register'`,
+    [code],
+  )
+  return Number(rows[0]?.n || 0)
+}
+
+export async function seasonRankForHandle(handle: string): Promise<number | null> {
+  const season = await getCurrentSeasonId()
+  const h = handle.replace(/^@+/, '').toLowerCase()
+  const { rows } = await query<{ rank: string }>(
+    `SELECT sub.rank::text FROM (
+       SELECT x_username,
+              ROW_NUMBER() OVER (ORDER BY season_points DESC, reach_score DESC, enrolled_at ASC) AS rank
+       FROM kol_program_profiles
+       WHERE season_id = $1 AND revoked = false AND flagged_reason IS NULL
+     ) sub WHERE lower(sub.x_username) = $2`,
+    [season, h],
+  )
+  const n = Number(rows[0]?.rank || 0)
+  return n > 0 ? n : null
+}
+
 export async function referralsTodayForCode(code: string): Promise<number> {
   const { rows } = await query<{ n: string }>(
     `SELECT COUNT(*)::text AS n FROM kol_referral_events

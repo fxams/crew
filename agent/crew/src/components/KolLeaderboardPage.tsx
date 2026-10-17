@@ -5,6 +5,7 @@ import {
   fetchHallOfFameAll,
   fetchKolProgramLeaderboard,
   fetchKolProgramSeasons,
+  kolProgramCardUrl,
   type HallOfFameEntry,
   type KolLeaderboardRow,
   type KolPoolStatus,
@@ -13,6 +14,7 @@ import {
   KOL_PROGRAM_POINTS_DISCLAIMER,
   KOL_PROGRAM_POOL_SHARE_LABEL,
 } from '../lib/kol-program'
+import { kolTierDisplayName, kolTierFrameClass } from '../lib/kol-tiers'
 import { kolProfilePath } from '../lib/routes'
 
 function founderLabel(n: number | null): string | null {
@@ -197,6 +199,37 @@ export function KolLeaderboardPage() {
 
         {loadError ? <p className="register-err">{loadError}</p> : null}
 
+        {!archiveSeason && displayRows.length >= 3 ? (
+          <div className="kol-podium" aria-label="Top 3">
+            {[1, 0, 2].map((idx) => {
+              const r = displayRows[idx]
+              if (!r) return null
+              const podiumClass = idx === 0 ? 'kol-podium-first' : 'kol-podium-side'
+              return (
+                <div
+                  key={r.handle}
+                  className={`kol-podium-slot ${podiumClass} ${kolTierFrameClass(r.tier)}`}
+                >
+                  <span className="kol-podium-rank">#{r.rank}</span>
+                  <img
+                    className="kol-podium-card"
+                    src={kolProgramCardUrl(r.handle, 'png')}
+                    alt=""
+                    width={280}
+                    height={147}
+                    loading="lazy"
+                  />
+                  <Link to={kolProfilePath(r.handle)} className="kol-podium-handle">
+                    @{r.handle}
+                  </Link>
+                  <span className="kol-podium-tier">{kolTierDisplayName(r.tier)}</span>
+                  <span className="kol-podium-points">{r.seasonPoints} pts</span>
+                </div>
+              )
+            })}
+          </div>
+        ) : null}
+
         <ol className="kol-leaderboard-list">
           {displayRows.map((r) => {
             const founder = founderLabel(r.founderNumber)
@@ -211,7 +244,9 @@ export function KolLeaderboardPage() {
                     <span className="kol-hof-badge">{hofBadgeLabel(hof.seasonNumber)}</span>
                   ) : null}
                 </span>
-                <span className="kol-leaderboard-tier">{r.tier}</span>
+                <span className={`kol-leaderboard-tier ${kolTierFrameClass(r.tier)}`}>
+                  {kolTierDisplayName(r.tier)}
+                </span>
                 <span className="kol-leaderboard-points">{r.seasonPoints} pts</span>
                 <span className="kol-leaderboard-reach">Reach {r.reachScore}</span>
               </li>

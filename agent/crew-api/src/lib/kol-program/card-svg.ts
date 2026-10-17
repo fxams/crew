@@ -11,10 +11,40 @@ export type KolCardInput = {
   hallOfFameBadges?: KolCardHallBadge[]
 }
 
+const TIER_FRAME: Record<string, string> = {
+  bronze: '#9cb3a8',
+  silver: '#7eb8ff',
+  gold: '#ffb84d',
+  platinum: '#c8ff3d',
+  spark: '#9cb3a8',
+  pulse: '#7eb8ff',
+  surge: '#ffb84d',
+  apex: '#c8ff3d',
+  legend: '#ff6bcb',
+}
+
+const TIER_LABEL: Record<string, string> = {
+  bronze: 'SPARK',
+  silver: 'PULSE',
+  gold: 'SURGE',
+  platinum: 'APEX',
+}
+
+function tierStroke(tier: string): string {
+  const key = tier.toLowerCase()
+  return TIER_FRAME[key] || TIER_FRAME.spark
+}
+
+function tierLabel(tier: string): string {
+  const key = tier.toLowerCase()
+  return TIER_LABEL[key] || tier.toUpperCase()
+}
+
 export function renderKolCardSvg(input: KolCardInput): string {
   const handle = escapeXml(input.handle.replace(/^@+/, ''))
   const name = escapeXml(input.displayName || handle)
-  const tier = escapeXml(input.tier.toUpperCase())
+  const tier = escapeXml(tierLabel(input.tier))
+  const frame = tierStroke(input.tier)
   const score = String(input.reachScore)
   const founder =
     input.founderNumber != null && input.founderNumber > 0
@@ -41,7 +71,7 @@ export function renderKolCardSvg(input: KolCardInput): string {
     </linearGradient>
   </defs>
   <rect width="600" height="315" fill="url(#bg)"/>
-  <rect x="12" y="12" width="576" height="291" rx="16" fill="none" stroke="#c8ff3d" stroke-opacity="0.35"/>
+  <rect x="12" y="12" width="576" height="291" rx="16" fill="none" stroke="${frame}" stroke-opacity="0.85" stroke-width="3"/>
   ${avatarBlock}
   <text x="140" y="72" fill="#e8f5e9" font-size="26" font-weight="700" font-family="system-ui,sans-serif">@${handle}</text>
   <text x="140" y="98" fill="#9cb3a8" font-size="16" font-family="system-ui,sans-serif">${name}</text>

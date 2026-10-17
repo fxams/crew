@@ -20,6 +20,12 @@ export function isKolsPath(pathname: string): boolean {
   return path === "/kols" || path.endsWith("/kols");
 }
 
+/** KOL program hub landing (`/kol` only — not `/kol/:handle`). */
+export function isKolHubPath(pathname: string): boolean {
+  const path = normalizePath(pathname)
+  return path === '/kol' || path.endsWith('/kol')
+}
+
 /** KOL program points leaderboard (not a profile handle). */
 export function isKolLeaderboardPath(pathname: string): boolean {
   const path = normalizePath(pathname)
@@ -29,6 +35,7 @@ export function isKolLeaderboardPath(pathname: string): boolean {
 /** Public desk for one registered KOL: `/kol/:handle`. */
 export function kolHandleFromPath(pathname: string): string | null {
   const path = normalizePath(pathname)
+  if (isKolHubPath(path)) return null
   if (isKolLeaderboardPath(path)) return null
   const match = path.match(/(?:^|\/)kol\/([A-Za-z0-9_]{1,15})$/)
   return match?.[1] ?? null

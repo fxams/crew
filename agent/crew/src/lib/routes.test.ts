@@ -7,6 +7,7 @@ import {
   isClaimPath,
   isCoinsPath,
   isHomePath,
+  isKolHubPath,
   isKolLeaderboardPath,
   isKolRefPath,
   isKolsPath,
@@ -97,7 +98,10 @@ describe("referral invite paths", () => {
 
 describe("kol leaderboard path", () => {
   it("does not treat leaderboard as a profile handle", () => {
+    expect(isKolHubPath("/kol")).toBe(true);
+    expect(isKolHubPath("/kol/leaderboard")).toBe(false);
     expect(isKolLeaderboardPath("/kol/leaderboard")).toBe(true);
+    expect(kolHandleFromPath("/kol")).toBe(null);
     expect(kolHandleFromPath("/kol/leaderboard")).toBe(null);
     expect(kolHandleFromPath("/kol/CrewPayHQ")).toBe("CrewPayHQ");
   });
