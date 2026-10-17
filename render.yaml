@@ -70,10 +70,10 @@ services:
     routes:
       - type: rewrite
         source: /kol/:handle
-        destination: /kol/:handle/index.html
+        destination: /kol/:handle.html
       - type: rewrite
         source: /ref/:handle
-        destination: /ref/:handle/index.html
+        destination: /ref/:handle.html
       - type: rewrite
         source: /*
         destination: /index.html
