@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { KOL_PROGRAM_ENABLED } from '../lib/config'
 import { KOL_PROGRAM_POINTS_DISCLAIMER, fetchKolFounders } from '../lib/kol-program'
 import { kolProfilePath } from '../lib/routes'
+import { KolMobileTabBar } from './KolMobileTabBar'
 
 export function KolFoundersPage() {
   const [founders, setFounders] = useState<
@@ -53,6 +54,7 @@ export function KolFoundersPage() {
         </ul>
         <p className="section-sub">{KOL_PROGRAM_POINTS_DISCLAIMER}</p>
       </section>
+      <KolMobileTabBar />
     </div>
   )
 }

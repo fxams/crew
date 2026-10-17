@@ -156,6 +156,45 @@ export function KolHubPage() {
         <p className="section-label">CrewPay KOL · v{CREW_VERSION}</p>
         <h1 className="kol-hub-title">Your reach has a season.</h1>
 
+        <nav className="kol-hub-subnav" aria-label="KOL program">
+          <Link className="btn btn-ghost btn-sm" to="/kol/leaderboard">Leaderboard</Link>
+          <Link className="btn btn-ghost btn-sm" to="/kol/founders">Founders</Link>
+          <Link className="btn btn-ghost btn-sm" to="/tasks">Tasks</Link>
+          {profile && notifUnread > 0 ? (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm kol-notif-badge"
+              onClick={() => void markKolNotificationsRead().then(() => setNotifUnread(0))}
+            >
+              Alerts ({notifUnread})
+            </button>
+          ) : null}
+        </nav>
+
+        <section className="kol-hub-leaderboard" id="leaderboard" data-testid="kol-hub-leaderboard">
+          {boardRows && boardRows.length > 0 ? (
+            <>
+              <p className="section-label">Season leaderboard</p>
+              <ol className="kol-leaderboard-list">
+                {boardRows.map((r) => (
+                  <li key={r.handle} className="kol-leaderboard-row">
+                    <span className="kol-leaderboard-rank">{r.rank}</span>
+                    <span className="kol-leaderboard-handle">
+                      <Link to={kolProfilePath(r.handle)}>@{r.handle}</Link>
+                    </span>
+                    <span className="kol-leaderboard-points">{r.seasonPoints} pts</span>
+                  </li>
+                ))}
+              </ol>
+              <p className="hint">
+                <Link to="/kol/leaderboard">Full leaderboard</Link>
+              </p>
+            </>
+          ) : (
+            <KolLeaderboardEmpty showSignIn={!profile} />
+          )}
+        </section>
+
         <form className="kol-handle-lookup" onSubmit={onLookupSubmit} data-testid="kol-handle-lookup">
           <label>
             Check any handle
@@ -183,7 +222,7 @@ export function KolHubPage() {
           )}
         </div>
 
-        {!profile ? (
+        {!profile && boardRows && boardRows.length > 0 ? (
           <div className="register-actions kol-hub-cta kol-hub-cta-primary">
             <button
               type="button"
@@ -195,11 +234,13 @@ export function KolHubPage() {
               {signInBusy ? 'Opening X…' : 'Sign in with X'}
             </button>
           </div>
-        ) : (
+        ) : null}
+
+        {profile ? (
           <div className="register-actions kol-hub-cta">
             <Link className="btn btn-ghost btn-sm" to={kolProfilePath(profile.handle)}>Full desk</Link>
           </div>
-        )}
+        ) : null}
 
         {profile ? (
           <p className="kol-hub-card-meta kol-hub-card-meta-hero">
@@ -211,21 +252,6 @@ export function KolHubPage() {
         ) : null}
 
         <p className="section-sub kol-hub-lead">{disclaimer}</p>
-
-        <nav className="kol-hub-subnav" aria-label="KOL program">
-          <Link className="btn btn-ghost btn-sm" to="/kol/leaderboard">Leaderboard</Link>
-          <Link className="btn btn-ghost btn-sm" to="/kol/founders">Founders</Link>
-          <Link className="btn btn-ghost btn-sm" to="/tasks">Tasks</Link>
-          {profile && notifUnread > 0 ? (
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm kol-notif-badge"
-              onClick={() => void markKolNotificationsRead().then(() => setNotifUnread(0))}
-            >
-              Alerts ({notifUnread})
-            </button>
-          ) : null}
-        </nav>
 
         {hub ? (
           <div className="kol-hub-stats">
@@ -245,30 +271,6 @@ export function KolHubPage() {
             </p>
           </div>
         ) : null}
-
-        <section className="kol-hub-leaderboard" id="leaderboard" data-testid="kol-hub-leaderboard">
-          {boardRows && boardRows.length > 0 ? (
-            <>
-              <p className="section-label">Season leaderboard</p>
-              <ol className="kol-leaderboard-list">
-                {boardRows.map((r) => (
-                  <li key={r.handle} className="kol-leaderboard-row">
-                    <span className="kol-leaderboard-rank">{r.rank}</span>
-                    <span className="kol-leaderboard-handle">
-                      <Link to={kolProfilePath(r.handle)}>@{r.handle}</Link>
-                    </span>
-                    <span className="kol-leaderboard-points">{r.seasonPoints} pts</span>
-                  </li>
-                ))}
-              </ol>
-              <p className="hint">
-                <Link to="/kol/leaderboard">Full leaderboard</Link>
-              </p>
-            </>
-          ) : (
-            <KolLeaderboardEmpty />
-          )}
-        </section>
 
         {ticker ? (
           <p className="kol-hub-ticker" aria-live="polite">
