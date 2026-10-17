@@ -132,6 +132,7 @@ export async function fetchKolProgramHub(): Promise<KolProgramHub | null> {
 export async function fetchKolProgramStatus(): Promise<{
   enabled: boolean
   reachFormula?: string
+  notionalValueFormula?: { steps?: string[]; disclaimer?: string }
   pointsDisclaimer?: string
   referralFeeMap?: string
 }> {
@@ -141,12 +142,14 @@ export async function fetchKolProgramStatus(): Promise<{
     const body = (await res.json()) as {
       enabled?: boolean
       reachFormula?: string
+      notionalValueFormula?: { steps?: string[]; disclaimer?: string }
       pointsDisclaimer?: string
       referralFeeMap?: string
     }
     return {
       enabled: Boolean(body.enabled),
       reachFormula: formatReachFormulaDoc(body.reachFormula) ?? undefined,
+      notionalValueFormula: body.notionalValueFormula,
       pointsDisclaimer: body.pointsDisclaimer,
       referralFeeMap: body.referralFeeMap,
     }
@@ -271,6 +274,7 @@ export type PublicKolCard = {
   displayName: string
   avatarUrl: string | null
   reachScore: number
+  notionalInfluenceValueUsd: number
   tier: string
   rank: number | null
   founderNumber: number | null

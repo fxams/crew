@@ -10,6 +10,7 @@ import {
 } from './reach-score.js'
 import { fetchPublicXUserByHandle } from './x-public-user.js'
 import { hofBadgesForHandle } from './hall-of-fame.js'
+import { computeNotionalInfluenceValueUsd } from './notional-influence-value.js'
 
 export type ScoreBar = { label: string; value: number }
 
@@ -20,6 +21,8 @@ export type PublicKolCard = {
   displayName: string
   avatarUrl: string | null
   reachScore: number
+  /** Display-only USD from public X metrics — not earnings. */
+  notionalInfluenceValueUsd: number
   tier: string
   rank: number | null
   founderNumber: number | null
@@ -75,6 +78,7 @@ function blankCard(handle: string): PublicKolCard {
     displayName: h,
     avatarUrl: null,
     reachScore: 0,
+    notionalInfluenceValueUsd: 0,
     tier: 'bronze',
     rank: null,
     founderNumber: null,
@@ -176,6 +180,7 @@ export async function buildPublicKolCard(handle: string): Promise<PublicKolCard>
       displayName: String(member.x_name || profileHandle),
       avatarUrl: member.profile_image_url ? String(member.profile_image_url) : null,
       reachScore: Number(member.reach_score),
+      notionalInfluenceValueUsd: computeNotionalInfluenceValueUsd(reachInput),
       tier: String(member.reach_tier),
       rank,
       founderNumber: member.founder_number != null ? Number(member.founder_number) : null,
@@ -221,6 +226,7 @@ export async function buildPublicKolCard(handle: string): Promise<PublicKolCard>
     displayName: xUser.name,
     avatarUrl: xUser.profileImageUrl,
     reachScore,
+    notionalInfluenceValueUsd: computeNotionalInfluenceValueUsd(reachInput),
     tier,
     rank: null,
     founderNumber: null,

@@ -7,6 +7,7 @@ export type KolCardInput = {
   displayName: string
   avatarUrl: string | null
   reachScore: number
+  notionalInfluenceValueUsd: number
   tier: string
   founderNumber: number | null
   referralUrl: string
@@ -61,7 +62,7 @@ function segmentedMeter(x: number, y: number, value: number, segments = 12): str
 }
 
 function renderBars(bars: ScoreBar[]): string {
-  const startY = 248
+  const startY = 318
   const rowH = 36
   return bars
     .slice(0, 6)
@@ -90,6 +91,7 @@ export function renderKolCardSvg(input: KolCardInput): string {
   const tier = escapeXml(tierLabel(input.tier))
   const score = String(input.reachScore)
   const pts = String(Math.max(0, input.seasonPoints ?? 0))
+  const notional = `$${Math.max(0, Math.round(input.notionalInfluenceValueUsd)).toLocaleString('en-US')}`
   const globalRank =
     input.rank != null && input.rank > 0 ? `GLOBAL RANK #${input.rank.toLocaleString('en-US')}` : 'GLOBAL RANK —'
   const memberNo =
@@ -129,9 +131,10 @@ export function renderKolCardSvg(input: KolCardInput): string {
   <text x="1144" y="94" fill="${MUTED}" font-size="13" font-family="Roboto,sans-serif" text-anchor="end">${escapeXml(memberNo)}</text>
   <rect x="1020" y="108" width="124" height="32" rx="16" fill="none" stroke="${LIME}" stroke-width="2"/>
   <text x="1082" y="130" fill="${LIME}" font-size="14" font-weight="700" font-family="Roboto,sans-serif" text-anchor="middle">${tier}</text>
-  <text x="56" y="168" fill="${MUTED}" font-size="13" font-family="Roboto,sans-serif" letter-spacing="0.12em">REACH SCORE</text>
-  <text x="56" y="228" fill="${LIME}" font-size="88" font-weight="800" font-family="Roboto,sans-serif" filter="url(#glow)">${score}</text>
-  <text x="56" y="258" fill="${INK}" font-size="22" font-family="Roboto,sans-serif">${pts} SEASON PTS</text>
+  <text x="56" y="158" fill="${MUTED}" font-size="11" font-family="Roboto,sans-serif" letter-spacing="0.1em">NOTIONAL INFLUENCE VALUE</text>
+  <text x="56" y="218" fill="${LIME}" font-size="72" font-weight="800" font-family="Roboto,sans-serif" filter="url(#glow)">${escapeXml(notional)}</text>
+  <text x="56" y="242" fill="${MUTED}" font-size="9" font-family="Roboto,sans-serif">NOTIONAL · PUBLIC X METRICS · NOT EARNINGS</text>
+  <text x="56" y="272" fill="${MUTED}" font-size="12" font-family="Roboto,sans-serif" letter-spacing="0.08em">REACH SCORE ${score} · ${pts} SEASON PTS</text>
   ${bars}
   ${avatarBlock}
   <text x="936" y="456" fill="${LIME}" font-size="32" font-style="italic" font-family="Roboto,sans-serif" text-anchor="middle">${name}</text>

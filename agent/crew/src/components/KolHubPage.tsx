@@ -24,6 +24,7 @@ import { fetchKolNotifications, markKolNotificationsRead } from '../lib/kol-prog
 import { KolInfluenceCard } from './KolInfluenceCard'
 import { KolHubDashboard } from './KolHubDashboard'
 import { KolMobileTabBar } from './KolMobileTabBar'
+import { KolNotionalFormulaNote } from './KolNotionalFormulaNote'
 
 function founderLabel(n: number | null): string | null {
   if (n == null || n < 1) return null
@@ -165,7 +166,10 @@ export function KolHubPage() {
 
         <div className="kol-hub-showcase" data-testid="kol-hub-showcase">
           {profile && publicCard ? (
-            <KolInfluenceCard card={publicCard} portrait />
+            <>
+              <KolInfluenceCard card={publicCard} portrait />
+              <KolNotionalFormulaNote />
+            </>
           ) : profile ? (
             <p className="muted">Loading your card…</p>
           ) : (
