@@ -20,10 +20,21 @@ import { kolProfilePath } from '../lib/routes'
 import { KolSampleCardPreview } from './KolSampleCardPreview'
 import { buildKolGrowthShareTweet } from '../lib/kol-share'
 import { KolOnboardingChecklist } from './KolOnboardingChecklist'
+import { KolBattlesPanel } from './KolBattlesPanel'
+import { fetchKolNotifications, markKolNotificationsRead } from '../lib/kol-program'
 
 function founderLabel(n: number | null): string | null {
   if (n == null || n < 1) return null
   return `#${String(n).padStart(3, '0')}`
+}
+
+function foundingCountdown(iso: string | null): string {
+  if (!iso) return 'Founding snapshot TBA'
+  const ms = new Date(iso).getTime() - Date.now()
+  if (ms <= 0) return 'Founding snapshot locked'
+  const d = Math.floor(ms / 86400000)
+  const h = Math.floor((ms % 86400000) / 3600000)
+  return `${d}d ${h}h to founding snapshot`
 }
 
 function seasonCountdown(endsAt: string | null): string {
@@ -48,6 +59,10 @@ export function KolHubPage() {
   const [shareTag, setShareTag] = useState('')
   const [replyPinned, setReplyPinned] = useState(false)
   const [pinnedPostId, setPinnedPostId] = useState<string | null>(null)
+  const [notifUnread, setNotifUnread] = useState(0)
+  const [notifs, setNotifs] = useState<
+    Array<{ id: string; title: string; body: string; href: string | null }>
+  >([])
 
   const refresh = useCallback(async () => {
     const [h, me, today] = await Promise.all([
@@ -61,6 +76,11 @@ export function KolHubPage() {
     if (me?.handle) {
       const pub = await fetchPublicKolCard(me.handle)
       setPinnedPostId(pub?.pinnedPostId ?? null)
+      const n = await fetchKolNotifications()
+      if (n) {
+        setNotifUnread(n.unread)
+        setNotifs(n.items.slice(0, 8))
+      }
     }
   }, [])
 
@@ -246,7 +266,17 @@ export function KolHubPage() {
 
         <nav className="kol-hub-subnav" aria-label="KOL program">
           <Link className="btn btn-ghost btn-sm" to="/kol/leaderboard">Leaderboard</Link>
+          <Link className="btn btn-ghost btn-sm" to="/kol/founders">Founders</Link>
           <Link className="btn btn-ghost btn-sm" to="/tasks">Tasks</Link>
+          {profile && notifUnread > 0 ? (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm kol-notif-badge"
+              onClick={() => void markKolNotificationsRead().then(() => setNotifUnread(0))}
+            >
+              Alerts ({notifUnread})
+            </button>
+          ) : null}
         </nav>
 
         {hub ? (
@@ -260,6 +290,10 @@ export function KolHubPage() {
             <p className="kol-hub-stat">
               <strong>{seasonCountdown(hub.seasonEndsAt)}</strong>
               <span>this season</span>
+            </p>
+            <p className="kol-hub-stat">
+              <strong>{foundingCountdown(hub.foundingSnapshotAt ?? null)}</strong>
+              <span>founding</span>
             </p>
           </div>
         ) : null}
@@ -275,9 +309,23 @@ export function KolHubPage() {
         ) : null}
       </section>
 
+      {profile && notifs.length ? (
+        <section className="section kol-notifications">
+          <p className="section-label">Notifications</p>
+          <ul>
+            {notifs.map((n) => (
+              <li key={n.id}>
+                <strong>{n.title}</strong> — {n.body}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       {profile ? (
         <section className="section kol-hub-dashboard">
           <KolOnboardingChecklist />
+          <KolBattlesPanel />
           <p className="section-label">Dashboard</p>
           <div className="kol-hub-dash-grid">
             <div className="kol-hub-dash-card">
