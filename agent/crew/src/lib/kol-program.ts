@@ -257,3 +257,88 @@ export function kolProgramCardUrl(handle: string, ext: 'svg' | 'png' = 'png'): s
   const h = handle.replace(/^@+/, '')
   return `${API}/api/kol-program/card/${encodeURIComponent(h)}.${ext}`
 }
+
+export type PublicKolCard = {
+  handle: string
+  claimed: boolean
+  unclaimed: boolean
+  displayName: string
+  avatarUrl: string | null
+  reachScore: number
+  tier: string
+  rank: number | null
+  founderNumber: number | null
+  referralUrl: string
+  cardUrl: string
+  profileUrl: string
+  scoreBars: Array<{ label: string; value: number }>
+  lookupOk: boolean
+  xVerified: boolean
+  followers: number | null
+}
+
+export async function fetchPublicKolCard(handle: string): Promise<{
+  card: PublicKolCard
+  pinnedPostId: string | null
+  disclaimer: string
+} | null> {
+  const h = handle.replace(/^@+/, '').trim()
+  if (!h) return null
+  const res = await fetch(`${API}/api/kol-program/public/${encodeURIComponent(h)}`)
+  if (!res.ok) return null
+  const body = (await res.json()) as {
+    card?: PublicKolCard
+    pinnedPostId?: string | null
+    disclaimer?: string
+  }
+  if (!body.card) return null
+  return {
+    card: body.card,
+    pinnedPostId: body.pinnedPostId ?? null,
+    disclaimer: body.disclaimer || KOL_PROGRAM_POINTS_DISCLAIMER,
+  }
+}
+
+export type OnboardingStep = {
+  id: string
+  title: string
+  points: number
+  order: number
+  optional?: boolean
+  completed: boolean
+  unlocked: boolean
+}
+
+export async function fetchKolOnboarding(): Promise<{
+  steps: OnboardingStep[]
+  nextStep: string | null
+  referralUrl: string
+  pinnedPostId: string | null
+} | null> {
+  const res = await fetch(`${API}/api/kol-program/onboarding`, { credentials: 'include' })
+  if (!res.ok) return null
+  return (await res.json()) as {
+    steps: OnboardingStep[]
+    nextStep: string | null
+    referralUrl: string
+    pinnedPostId: string | null
+  }
+}
+
+export async function verifyKolOnboardingStep(stepId: string): Promise<{ ok: boolean; error?: string }> {
+  const res = await fetch(`${API}/api/kol-program/onboarding/${encodeURIComponent(stepId)}/verify`, {
+    method: 'POST',
+    credentials: 'include',
+  })
+  const body = (await res.json()) as { ok?: boolean; error?: string }
+  if (!res.ok) return { ok: false, error: body.error || 'Verify failed.' }
+  return { ok: true }
+}
+
+export async function skipKolOnboardingTelegram(): Promise<boolean> {
+  const res = await fetch(`${API}/api/kol-program/onboarding/telegram/skip`, {
+    method: 'POST',
+    credentials: 'include',
+  })
+  return res.ok
+}

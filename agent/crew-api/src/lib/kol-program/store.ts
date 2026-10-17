@@ -14,7 +14,7 @@ import {
   reachTier,
   type ReachScoreInput,
 } from './reach-score.js'
-import { renderKolCardSvg } from './card-svg.js'
+import { cardSvgForAnyHandle } from './card-from-handle.js'
 import { siteUrl } from '../kol-register.js'
 import { hofBadgesForHandle, persistHallOfFame } from './hall-of-fame.js'
 import type { HofBadge } from './hall-of-fame.js'
@@ -311,24 +311,7 @@ export async function leaderboard(limit = 50): Promise<
 }
 
 export async function cardSvgForHandle(handle: string): Promise<string | null> {
-  const profile = await getProgramProfileByHandle(handle)
-  if (!profile) return null
-  const { rows } = await query<{ x_name: string; profile_image_url: string | null }>(
-    `SELECT x_name, profile_image_url FROM kol_registrations WHERE x_user_id = $1`,
-    [profile.xUserId],
-  )
-  const row = rows[0]
-  const badges = await hofBadgesForHandle(profile.handle)
-  return renderKolCardSvg({
-    handle: profile.handle,
-    displayName: row?.x_name || profile.handle,
-    avatarUrl: row?.profile_image_url || null,
-    reachScore: profile.reachScore,
-    tier: profile.tier,
-    founderNumber: profile.founderNumber,
-    referralUrl: profile.referralUrl,
-    hallOfFameBadges: badges,
-  })
+  return cardSvgForAnyHandle(handle)
 }
 
 export async function creditProgramPoints(

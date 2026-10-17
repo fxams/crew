@@ -34,6 +34,27 @@ vi.mock('../lib/kol-program/store.js', async (importOriginal) => {
   }
 })
 
+vi.mock('../lib/kol-program/public-card.js', () => ({
+  buildPublicKolCard: vi.fn(async (handle: string) => ({
+    handle: handle.replace(/^@+/, ''),
+    claimed: false,
+    unclaimed: true,
+    displayName: handle,
+    avatarUrl: null,
+    reachScore: 0,
+    tier: 'bronze',
+    rank: null,
+    founderNumber: null,
+    referralUrl: `https://crewpay.dev/ref/${handle}`,
+    cardUrl: `https://crewpay.dev/api/kol-program/card/${handle}.png`,
+    profileUrl: `https://crewpay.dev/kol/${handle}`,
+    scoreBars: [],
+    lookupOk: false,
+    xVerified: false,
+    followers: null,
+  })),
+}))
+
 vi.mock('../lib/kol-program/treasury-pool.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../lib/kol-program/treasury-pool.js')>()
   return {
@@ -71,6 +92,14 @@ describe('kol-program routes on mounted API app', () => {
     const res = await request(app).get('/api/kol-program/status')
     expect(res.status).toBe(200)
     expect(res.body.enabled).toBe(true)
+  })
+
+  it('GET /api/kol-program/public/:handle returns card json', async () => {
+    const app = await createApiApp()
+    const res = await request(app).get('/api/kol-program/public/strangerhandle')
+    expect(res.status).toBe(200)
+    expect(res.body.ok).toBe(true)
+    expect(res.body.card?.handle).toBeTruthy()
   })
 
   it('GET /api/kol-program/me includes rank and referralCount when session present', async () => {
