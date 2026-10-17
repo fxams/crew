@@ -47,7 +47,7 @@ import {
   stakeOnBattle,
 } from '../lib/kol-program/battles.js'
 import {
-  listNotifications,
+  listPresentedNotifications,
   markNotificationsRead,
   unreadNotificationCount,
 } from '../lib/kol-program/notifications.js'
@@ -892,7 +892,7 @@ kolProgramRouter.get('/kol-program/notifications', async (req, res) => {
       res.status(401).json({ ok: false, error: 'KOL session required.' })
       return
     }
-    const items = await listNotifications(sess.xUserId)
+    const items = await listPresentedNotifications(sess.xUserId)
     const unread = await unreadNotificationCount(sess.xUserId)
     res.json({ ok: true, unread, items })
   } catch (err) {

@@ -51,9 +51,20 @@ export function isKolTasksPath(pathname: string): boolean {
   return path === '/kol/tasks' || path.endsWith('/kol/tasks')
 }
 
+/** Notifications / Alerts (not an X handle named "alerts"). */
+export function isKolAlertsPath(pathname: string): boolean {
+  const path = normalizePath(pathname)
+  return path === '/kol/alerts' || path.endsWith('/kol/alerts')
+}
+
 /** Reserved /kol/<word> with no dedicated page — bounce to the hub. */
 export function isKolReservedRedirectPath(pathname: string): boolean {
-  if (isKolLeaderboardPath(pathname) || isKolFoundersPath(pathname) || isKolTasksPath(pathname)) {
+  if (
+    isKolLeaderboardPath(pathname) ||
+    isKolFoundersPath(pathname) ||
+    isKolTasksPath(pathname) ||
+    isKolAlertsPath(pathname)
+  ) {
     return false
   }
   const seg = kolSegmentFromPath(pathname)
@@ -64,7 +75,7 @@ export function isKolReservedRedirectPath(pathname: string): boolean {
 export function kolHandleFromPath(pathname: string): string | null {
   const path = normalizePath(pathname)
   if (isKolHubPath(path) || isKolFoundersPath(path)) return null
-  if (isKolLeaderboardPath(path) || isKolTasksPath(path)) return null
+  if (isKolLeaderboardPath(path) || isKolTasksPath(path) || isKolAlertsPath(path)) return null
   const match = kolSegmentFromPath(path)
   if (!match || isKolReservedPathWord(match)) return null
   return match

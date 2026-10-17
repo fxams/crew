@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { CREW_VERSION, KOL_PROGRAM_ENABLED } from '../lib/config'
 import {
   fetchHallOfFameAll,
+  fetchKolProgramHub,
   fetchKolProgramLeaderboard,
   fetchKolProgramMe,
   fetchKolProgramSeasons,
@@ -14,6 +15,7 @@ import {
   KOL_PROGRAM_POINTS_DISCLAIMER,
   KOL_PROGRAM_POOL_SHARE_LABEL,
 } from '../lib/kol-program'
+import { seasonChipLabel } from '../lib/kol-hub-display'
 import { kolProfilePath } from '../lib/routes'
 import { KolBoardRow } from './KolBoardRow'
 import { KolLeaderboardEmpty } from './KolLeaderboardEmpty'
@@ -42,16 +44,19 @@ export function KolLeaderboardPage() {
   >([])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [ownHandle, setOwnHandle] = useState<string | null>(null)
+  const [seasonEndsAt, setSeasonEndsAt] = useState<string | null>(null)
+  const [howOpen, setHowOpen] = useState(false)
 
   useEffect(() => {
     if (!KOL_PROGRAM_ENABLED) return
     let cancelled = false
     void (async () => {
-      const [board, meta, hof, me] = await Promise.all([
+      const [board, meta, hof, me, hub] = await Promise.all([
         fetchKolProgramLeaderboard(50),
         fetchKolProgramSeasons(),
         fetchHallOfFameAll(),
         fetchKolProgramMe(),
+        fetchKolProgramHub(),
       ])
       if (cancelled) return
       if (!board) {
@@ -67,6 +72,7 @@ export function KolLeaderboardPage() {
       if (meta) setSeasons(meta.seasons)
       setHofSeasons(hof)
       if (!cancelled) setOwnHandle(me?.handle ?? null)
+      if (hub?.seasonEndsAt) setSeasonEndsAt(hub.seasonEndsAt)
     })()
     return () => {
       cancelled = true
@@ -110,39 +116,15 @@ export function KolLeaderboardPage() {
             <p className="section-label">KOL program · v{CREW_VERSION}</p>
           </div>
           <h1 className="section-title">Leaderboard</h1>
+          {seasonId && !archiveSeason ? (
+            <p className="kol-season-chip" data-testid="kol-season-chip">
+              {seasonChipLabel(seasonId, seasonEndsAt)}
+            </p>
+          ) : null}
           {!archiveSeason && !displayRows.length && !loadError ? (
             <KolLeaderboardEmpty heading="" />
           ) : null}
-          <p className="section-sub">
-            Monthly season points from daily X tasks. {disclaimer || KOL_PROGRAM_POINTS_DISCLAIMER}
-          </p>
-          {crewPriorityCopy ? <p className="hint kol-priority-copy">{crewPriorityCopy}</p> : null}
-          {seasonId && !archiveSeason ? (
-            <p className="hint">Current season: <strong>{seasonId.replace(/^season_/, '')}</strong></p>
-          ) : null}
         </div>
-
-        {poolUnavailable && !archiveSeason ? (
-          <p className="hint kol-pool-unavailable">
-            Season pool totals are temporarily unavailable; rankings below are still live.
-          </p>
-        ) : null}
-
-        {pool && !archiveSeason ? (
-          <div className="kol-pool-status" aria-label="Season treasury pool">
-            <p className="section-label">Season treasury pool</p>
-            <p className="hint">{pool.copy}</p>
-            <p className="hint">
-              Indexed receipts: {formatPoolSol(pool.receipts.solana.sol)}
-              {pool.receipts.base.eth > 0 ? ` · ${pool.receipts.base.eth.toFixed(4)} ETH` : ''}
-            </p>
-            <p className="hint">
-              {KOL_PROGRAM_POOL_SHARE_LABEL}: {formatPoolSol(pool.poolSlice.solana.sol)}
-              {pool.poolSlice.base.eth > 0 ? ` · ${pool.poolSlice.base.eth.toFixed(4)} ETH` : ''}
-            </p>
-            <p className="hint kol-program-disclaimer">{pool.disclaimer || KOL_PROGRAM_POINTS_DISCLAIMER}</p>
-          </div>
-        ) : null}
 
         {hofSeasons.length ? (
           <div className="kol-hall-of-fame" aria-label="Season hall of fame">
@@ -225,6 +207,30 @@ export function KolLeaderboardPage() {
         {displayRows.length === 0 && !loadError && archiveSeason ? (
           <p className="hint">No archived scores for this season.</p>
         ) : null}
+
+        <div className="kol-how-rewards" data-testid="kol-how-rewards">
+          <p className="kol-how-rewards-one">
+            Points have no cash value. Top 50 share 20% of treasury fees each season. Not guaranteed.
+          </p>
+          <details open={howOpen} onToggle={(e) => setHowOpen((e.target as HTMLDetailsElement).open)}>
+            <summary>
+              <span aria-hidden>ⓘ</span> How rewards work
+            </summary>
+          {crewPriorityCopy ? <p className="hint">{crewPriorityCopy}</p> : null}
+          {poolUnavailable ? (
+            <p className="hint">Season pool totals are temporarily unavailable; rankings above are still live.</p>
+          ) : null}
+          {pool ? (
+            <p className="hint">
+              Indexed receipts: {formatPoolSol(pool.receipts.solana.sol)}
+              {pool.receipts.base.eth > 0 ? ` · ${pool.receipts.base.eth.toFixed(4)} ETH` : ''}.{' '}
+              {KOL_PROGRAM_POOL_SHARE_LABEL}: {formatPoolSol(pool.poolSlice.solana.sol)}
+              {pool.poolSlice.base.eth > 0 ? ` · ${pool.poolSlice.base.eth.toFixed(4)} ETH` : ''}.
+            </p>
+          ) : null}
+          <p className="hint">{disclaimer || KOL_PROGRAM_POINTS_DISCLAIMER}</p>
+          </details>
+        </div>
       </section>
       <KolMobileTabBar />
     </div>

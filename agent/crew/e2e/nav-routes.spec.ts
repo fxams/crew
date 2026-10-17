@@ -9,6 +9,7 @@ const NAV_ROUTES = [
   '/register',
   '/kol/leaderboard',
   '/kol/tasks',
+  '/kol/alerts',
   '/ref/CrewPayHQ',
   '/kol/e2eKol',
   '/coins',

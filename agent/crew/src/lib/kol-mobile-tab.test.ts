@@ -12,6 +12,7 @@ describe('kolMobileTabActive', () => {
   it('does not let Alerts steal Board', () => {
     expect(kolMobileTabActive('/kol/leaderboard', '', 'alerts')).toBe(false)
     expect(kolMobileTabActive('/kol', '#alerts', 'alerts')).toBe(true)
+    expect(kolMobileTabActive('/kol/alerts', '', 'alerts')).toBe(true)
     expect(kolMobileTabActive('/kol', '#alerts', 'home')).toBe(false)
   })
 
