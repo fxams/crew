@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { KOL_PROGRAM_POINTS_DISCLAIMER, type PublicKolCard } from '../lib/kol-program'
 import { referralInvitePath } from '../lib/routes'
 import { KolInfluenceCard } from './KolInfluenceCard'
+import { KolNotionalFormulaNote } from './KolNotionalFormulaNote'
 
 type Props = {
   card: PublicKolCard
@@ -26,6 +27,7 @@ export function KolPublicCardView({
     <section className="section kol-public-card" data-testid="kol-public-card">
       <p className="section-label">{card.unclaimed ? 'Unclaimed card' : 'CrewPay KOL card'}</p>
       <KolInfluenceCard card={card} portrait />
+      <KolNotionalFormulaNote />
       <p className="kol-hub-card-meta kol-hub-card-meta-hero">
         <strong>@{card.handle}</strong>
         {card.rank ? ` · Rank #${card.rank}` : ''}

@@ -9,6 +9,10 @@ import { kolProgramEnabled } from '../lib/kol-program/flags.js'
 import { KOL_PROGRAM_POINTS_DISCLAIMER } from '../lib/kol-program/copy.js'
 import { REACH_FORMULA_DOC } from '../lib/kol-program/reach-score.js'
 import {
+  NOTIONAL_VALUE_DISCLAIMER,
+  NOTIONAL_VALUE_FORMULA_DOC,
+} from '../lib/kol-program/notional-influence-value.js'
+import {
   cardSvgForHandle,
   creditProgramPoints,
   getCurrentSeasonId,
@@ -126,6 +130,8 @@ kolProgramRouter.get('/kol-program/status', (_req, res) => {
       'When an agent key is bound with your referral code, launches use 60% crew / 15% agent / 5% referrer / 20% treasury. Non-referred launches stay 60/15/25. No earnings promises.',
     linkPattern: `${siteUrl()}/ref/<handle>`,
     reachFormula: REACH_FORMULA_DOC,
+    notionalValueDisclaimer: NOTIONAL_VALUE_DISCLAIMER,
+    notionalValueFormula: NOTIONAL_VALUE_FORMULA_DOC,
     env: ['KOL_PROGRAM_ENABLED', 'X_CLIENT_ID', 'X_CLIENT_SECRET', 'X_REDIRECT_URI'],
   })
 })

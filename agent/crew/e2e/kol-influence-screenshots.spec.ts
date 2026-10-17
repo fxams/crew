@@ -28,6 +28,7 @@ const mockCard = {
   followers: 5_000_000,
   seasonPoints: 2250,
   memberNumber: 20361,
+  notionalInfluenceValueUsd: 2357,
 }
 
 test.describe('KOL influence UI screenshots', () => {
