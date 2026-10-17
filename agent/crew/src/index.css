@@ -6,6 +6,8 @@
   --acid: #c8ff3d;
   --acid-ink: #101410;
   --acid-soft: rgba(200, 255, 61, 0.1);
+  --accent: var(--acid);
+  --border: var(--line);
   --amber: #ffb84d;
   --danger: #ff5c6a;
   --ok: #7dff9a;
@@ -7815,8 +7817,8 @@ ol.coin-timeline.coin-panel {
   height: 32px;
   padding: 0 0.95rem;
   border-radius: 999px;
-  background: var(--accent);
-  color: var(--bg);
+  background: var(--acid);
+  color: var(--acid-ink);
   font-size: 0.8rem;
   font-weight: 700;
 }
