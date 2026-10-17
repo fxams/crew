@@ -408,7 +408,7 @@ export function KolRegisterPage() {
   }, [])
 
   const finishOnDesk = useCallback(
-    async (handle: string) => {
+    async (_handle: string) => {
       const pending = loadPendingRegistration()
       const pubkey = (wallet.publicKey?.toBase58() || pending?.wallet || '').trim()
       const evmTarget = (evmWallet.trim() || pending?.evmWallet || '').trim()
@@ -429,7 +429,8 @@ export function KolRegisterPage() {
       setAwaitingX(false)
       setStuckOauth(null)
       setRefreshTick((n) => n + 1)
-      navigate(kolProfilePath(handle))
+      const returnPath = consumeKolHubReturnPath()
+      navigate(returnPath || '/kol')
     },
     [evmWallet, navigate, wallet.publicKey, wallet.signMessage],
   )

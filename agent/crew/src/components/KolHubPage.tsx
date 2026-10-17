@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { CREW_VERSION, KOL_PROGRAM_ENABLED } from '../lib/config'
-import { hubMemberLine, hubRecentJoiners } from '../lib/kol-hub-display'
+import { founderLabel, hubRecentJoiners, hubStatTiles } from '../lib/kol-hub-display'
 import {
   fetchKolProgramHub,
   fetchKolProgramLeaderboard,
@@ -28,29 +28,8 @@ import { KolHubDashboard } from './KolHubDashboard'
 import { KolMobileTabBar } from './KolMobileTabBar'
 import { KolNotionalFormulaNote } from './KolNotionalFormulaNote'
 import { KolLeaderboardEmpty } from './KolLeaderboardEmpty'
-
-function founderLabel(n: number | null): string | null {
-  if (n == null || n < 1) return null
-  return `#${String(n).padStart(3, '0')}`
-}
-
-function foundingCountdown(iso: string | null): string {
-  if (!iso) return 'Founding snapshot TBA'
-  const ms = new Date(iso).getTime() - Date.now()
-  if (ms <= 0) return 'Founding snapshot locked'
-  const d = Math.floor(ms / 86400000)
-  const h = Math.floor((ms % 86400000) / 3600000)
-  return `${d}d ${h}h to founding snapshot`
-}
-
-function seasonCountdown(endsAt: string | null): string {
-  if (!endsAt) return 'Season active'
-  const ms = new Date(endsAt).getTime() - Date.now()
-  if (ms <= 0) return 'Season ending soon'
-  const d = Math.floor(ms / 86400000)
-  const h = Math.floor((ms % 86400000) / 3600000)
-  return `${d}d ${h}h left`
-}
+import { KolBoardRow } from './KolBoardRow'
+import { KolSeasonPodium } from './KolSeasonPodium'
 
 export function KolHubPage() {
   const navigate = useNavigate()
@@ -60,7 +39,6 @@ export function KolHubPage() {
   const [signInBusy, setSignInBusy] = useState(false)
   const [taskBusy, setTaskBusy] = useState<string | null>(null)
   const [taskError, setTaskError] = useState<string | null>(null)
-  const [tickerIdx, setTickerIdx] = useState(0)
   const [lookupHandle, setLookupHandle] = useState('')
   const [pinnedPostId, setPinnedPostId] = useState<string | null>(null)
   const [notifUnread, setNotifUnread] = useState(0)
@@ -75,7 +53,7 @@ export function KolHubPage() {
       fetchKolProgramHub(),
       fetchKolProgramMe(),
       fetchKolProgramTasksToday(),
-      fetchKolProgramLeaderboard(3),
+      fetchKolProgramLeaderboard(50),
     ])
     setBoardRows(board?.rows ?? [])
     setHub(h)
@@ -99,15 +77,8 @@ export function KolHubPage() {
   }, [refresh])
 
   const joiners = useMemo(() => hubRecentJoiners(hub?.recentJoiners), [hub?.recentJoiners])
-
-  useEffect(() => {
-    if (joiners.length < 2) return
-    const id = window.setInterval(() => setTickerIdx((i) => (i + 1) % joiners.length), 3500)
-    return () => window.clearInterval(id)
-  }, [joiners])
-
-  const ticker = joiners.length ? joiners[tickerIdx % joiners.length] : null
-  const memberLine = hubMemberLine(hub)
+  const statTiles = useMemo(() => hubStatTiles(hub), [hub])
+  const ownHandle = profile?.handle ?? null
 
   async function onSignIn() {
     setSignInBusy(true)
@@ -157,9 +128,16 @@ export function KolHubPage() {
         <h1 className="kol-hub-title">Your reach has a season.</h1>
 
         <nav className="kol-hub-subnav" aria-label="KOL program">
-          <Link className="btn btn-ghost btn-sm" to="/kol/leaderboard">Leaderboard</Link>
+          <Link className="btn btn-primary btn-sm" to="/kol/leaderboard" data-testid="kol-hub-leaderboard-link">
+            Leaderboard
+          </Link>
           <Link className="btn btn-ghost btn-sm" to="/kol/founders">Founders</Link>
           <Link className="btn btn-ghost btn-sm" to="/tasks">Tasks</Link>
+          {profile ? (
+            <Link className="btn btn-ghost btn-sm" to={kolProfilePath(profile.handle)} data-testid="kol-hub-my-card">
+              My card
+            </Link>
+          ) : null}
           {profile && notifUnread > 0 ? (
             <button
               type="button"
@@ -171,19 +149,32 @@ export function KolHubPage() {
           ) : null}
         </nav>
 
+        {profile && publicCard ? (
+          <div className="kol-hub-showcase" data-testid="kol-hub-showcase" id="card">
+            <KolInfluenceCard card={publicCard} portrait />
+            <KolNotionalFormulaNote />
+            <p className="kol-hub-card-meta kol-hub-card-meta-hero">
+              <strong>@{profile.handle}</strong> · {kolTierDisplayName(profile.tier)} · Reach {profile.reachScore}
+              {founderLabel(profile.founderNumber)
+                ? ` · Founding KOL ${founderLabel(profile.founderNumber)}`
+                : ''}
+            </p>
+          </div>
+        ) : null}
+
         <section className="kol-hub-leaderboard" id="leaderboard" data-testid="kol-hub-leaderboard">
           {boardRows && boardRows.length > 0 ? (
             <>
-              <p className="section-label">Season leaderboard</p>
+              <p className="section-label">Season points</p>
+              <KolSeasonPodium rows={boardRows} highlightHandle={ownHandle} />
               <ol className="kol-leaderboard-list">
                 {boardRows.map((r) => (
-                  <li key={r.handle} className="kol-leaderboard-row">
-                    <span className="kol-leaderboard-rank">{r.rank}</span>
-                    <span className="kol-leaderboard-handle">
-                      <Link to={kolProfilePath(r.handle)}>@{r.handle}</Link>
-                    </span>
-                    <span className="kol-leaderboard-points">{r.seasonPoints} pts</span>
-                  </li>
+                  <KolBoardRow
+                    key={r.handle}
+                    kind="ranked"
+                    row={r}
+                    highlight={Boolean(ownHandle && r.handle.toLowerCase() === ownHandle.toLowerCase())}
+                  />
                 ))}
               </ol>
               <p className="hint">
@@ -194,6 +185,33 @@ export function KolHubPage() {
             <KolLeaderboardEmpty showSignIn={!profile} />
           )}
         </section>
+
+        {statTiles.length ? (
+          <div className="kol-hub-stats" data-testid="kol-hub-stats">
+            {statTiles.map((tile) => (
+              <p key={tile.label} className="kol-hub-stat">
+                <strong>{tile.value}</strong>
+                <span>{tile.label}</span>
+              </p>
+            ))}
+          </div>
+        ) : null}
+
+        {joiners.length ? (
+          <section className="kol-hub-joiners" data-testid="kol-hub-joiners" aria-label="Just joined">
+            <p className="section-label">Just joined</p>
+            <ol className="kol-leaderboard-list">
+              {joiners.map((j) => (
+                <KolBoardRow
+                  key={`${j.handle}-${j.enrolledAt}`}
+                  kind="joiner"
+                  row={j}
+                  highlight={Boolean(ownHandle && j.handle.toLowerCase() === ownHandle.toLowerCase())}
+                />
+              ))}
+            </ol>
+          </section>
+        ) : null}
 
         <form className="kol-handle-lookup" onSubmit={onLookupSubmit} data-testid="kol-handle-lookup">
           <label>
@@ -209,18 +227,13 @@ export function KolHubPage() {
           <button type="submit" className="btn btn-ghost btn-sm">Go</button>
         </form>
 
-        <div className="kol-hub-showcase" data-testid="kol-hub-showcase">
-          {profile && publicCard ? (
-            <>
-              <KolInfluenceCard card={publicCard} portrait />
-              <KolNotionalFormulaNote />
-            </>
-          ) : profile ? (
-            <p className="muted">Loading your card…</p>
-          ) : (
+        {!profile ? (
+          <div className="kol-hub-showcase" data-testid="kol-hub-showcase">
             <KolSampleCardPreview />
-          )}
-        </div>
+          </div>
+        ) : profile && !publicCard ? (
+          <p className="muted">Loading your card…</p>
+        ) : null}
 
         {!profile && boardRows && boardRows.length > 0 ? (
           <div className="register-actions kol-hub-cta kol-hub-cta-primary">
@@ -242,45 +255,7 @@ export function KolHubPage() {
           </div>
         ) : null}
 
-        {profile ? (
-          <p className="kol-hub-card-meta kol-hub-card-meta-hero">
-            <strong>@{profile.handle}</strong> · {kolTierDisplayName(profile.tier)} · Reach {profile.reachScore}
-            {founderLabel(profile.founderNumber)
-              ? ` · Founding KOL ${founderLabel(profile.founderNumber)}`
-              : ''}
-          </p>
-        ) : null}
-
         <p className="section-sub kol-hub-lead">{disclaimer}</p>
-
-        {hub ? (
-          <div className="kol-hub-stats">
-            {memberLine.primary ? (
-              <p className="kol-hub-stat">
-                <strong>{memberLine.primary}</strong>
-                {memberLine.secondary ? <span>{memberLine.secondary}</span> : null}
-              </p>
-            ) : null}
-            <p className="kol-hub-stat">
-              <strong>{seasonCountdown(hub.seasonEndsAt)}</strong>
-              <span>this season</span>
-            </p>
-            <p className="kol-hub-stat">
-              <strong>{foundingCountdown(hub.foundingSnapshotAt ?? null)}</strong>
-              <span>founding</span>
-            </p>
-          </div>
-        ) : null}
-
-        {ticker ? (
-          <p className="kol-hub-ticker" aria-live="polite">
-            <span className="kol-hub-ticker-label">Just joined</span>
-            <span className="kol-hub-ticker-handle">@{ticker.handle}</span>
-            {ticker.founderNumber ? (
-              <span className="kol-founder-badge">Founder {founderLabel(ticker.founderNumber)}</span>
-            ) : null}
-          </p>
-        ) : null}
       </section>
 
       {profile && notifs.length ? (

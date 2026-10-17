@@ -4,8 +4,8 @@ import { CREW_VERSION, KOL_PROGRAM_ENABLED } from '../lib/config'
 import {
   fetchHallOfFameAll,
   fetchKolProgramLeaderboard,
+  fetchKolProgramMe,
   fetchKolProgramSeasons,
-  kolProgramCardUrl,
   type HallOfFameEntry,
   type KolLeaderboardRow,
   type KolPoolStatus,
@@ -14,15 +14,11 @@ import {
   KOL_PROGRAM_POINTS_DISCLAIMER,
   KOL_PROGRAM_POOL_SHARE_LABEL,
 } from '../lib/kol-program'
-import { kolTierDisplayName, kolTierFrameClass } from '../lib/kol-tiers'
 import { kolProfilePath } from '../lib/routes'
+import { KolBoardRow } from './KolBoardRow'
 import { KolLeaderboardEmpty } from './KolLeaderboardEmpty'
 import { KolMobileTabBar } from './KolMobileTabBar'
-
-function founderLabel(n: number | null): string | null {
-  if (n == null || n < 1) return null
-  return `#${String(n).padStart(3, '0')}`
-}
+import { KolSeasonPodium } from './KolSeasonPodium'
 
 function formatPoolSol(n: number): string {
   if (n >= 1) return `${n.toFixed(3)} SOL`
@@ -45,15 +41,17 @@ export function KolLeaderboardPage() {
     Array<{ seasonId: string; seasonNumber: number; name: string; top: HallOfFameEntry[] }>
   >([])
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [ownHandle, setOwnHandle] = useState<string | null>(null)
 
   useEffect(() => {
     if (!KOL_PROGRAM_ENABLED) return
     let cancelled = false
     void (async () => {
-      const [board, meta, hof] = await Promise.all([
+      const [board, meta, hof, me] = await Promise.all([
         fetchKolProgramLeaderboard(50),
         fetchKolProgramSeasons(),
         fetchHallOfFameAll(),
+        fetchKolProgramMe(),
       ])
       if (cancelled) return
       if (!board) {
@@ -68,6 +66,7 @@ export function KolLeaderboardPage() {
       setPoolUnavailable(Boolean(board.poolError) && !board.pool)
       if (meta) setSeasons(meta.seasons)
       setHofSeasons(hof)
+      if (!cancelled) setOwnHandle(me?.handle ?? null)
     })()
     return () => {
       cancelled = true
@@ -204,57 +203,21 @@ export function KolLeaderboardPage() {
 
         {loadError ? <p className="register-err">{loadError}</p> : null}
 
-        {!archiveSeason && displayRows.length >= 3 ? (
-          <div className="kol-podium" aria-label="Top 3">
-            {[1, 0, 2].map((idx) => {
-              const r = displayRows[idx]
-              if (!r) return null
-              const podiumClass = idx === 0 ? 'kol-podium-first' : 'kol-podium-side'
-              return (
-                <div
-                  key={r.handle}
-                  className={`kol-podium-slot ${podiumClass} ${kolTierFrameClass(r.tier)}`}
-                >
-                  <span className="kol-podium-rank">#{r.rank}</span>
-                  <img
-                    className="kol-podium-card"
-                    src={kolProgramCardUrl(r.handle, 'png')}
-                    alt=""
-                    width={280}
-                    height={147}
-                    loading="lazy"
-                  />
-                  <Link to={kolProfilePath(r.handle)} className="kol-podium-handle">
-                    @{r.handle}
-                  </Link>
-                  <span className="kol-podium-tier">{kolTierDisplayName(r.tier)}</span>
-                  <span className="kol-podium-points">{r.seasonPoints} pts</span>
-                </div>
-              )
-            })}
-          </div>
+        {!archiveSeason && displayRows.length > 0 ? (
+          <KolSeasonPodium rows={displayRows} highlightHandle={ownHandle} />
         ) : null}
 
         <ol className="kol-leaderboard-list">
           {displayRows.map((r) => {
-            const founder = founderLabel(r.founderNumber)
             const hof = archiveSeason ? hofByHandle.get(r.handle.toLowerCase()) : null
             return (
-              <li key={`${archiveSeason || 'live'}-${r.rank}-${r.handle}`} className="kol-leaderboard-row">
-                <span className="kol-leaderboard-rank">{r.rank}</span>
-                <span className="kol-leaderboard-handle">
-                  <Link to={kolProfilePath(r.handle)}>@{r.handle}</Link>
-                  {founder ? <span className="kol-founder-badge" title="Founding KOL">Founder {founder}</span> : null}
-                  {hof ? (
-                    <span className="kol-hof-badge">{hofBadgeLabel(hof.seasonNumber)}</span>
-                  ) : null}
-                </span>
-                <span className={`kol-leaderboard-tier ${kolTierFrameClass(r.tier)}`}>
-                  {kolTierDisplayName(r.tier)}
-                </span>
-                <span className="kol-leaderboard-points">{r.seasonPoints} pts</span>
-                <span className="kol-leaderboard-reach">Reach {r.reachScore}</span>
-              </li>
+              <KolBoardRow
+                key={`${archiveSeason || 'live'}-${r.rank}-${r.handle}`}
+                kind="ranked"
+                row={r}
+                highlight={Boolean(ownHandle && r.handle.toLowerCase() === ownHandle.toLowerCase())}
+                badge={hof ? hofBadgeLabel(hof.seasonNumber) : null}
+              />
             )
           })}
         </ol>
