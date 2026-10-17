@@ -174,6 +174,10 @@ export async function sumTreasuryReceiptsBetween(
   }
 }
 
+function endOfUtcMonth(start: Date): Date {
+  return new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1, 0, 0, 0, 0))
+}
+
 export async function seasonBounds(seasonId: string): Promise<{ start: Date; end: Date } | null> {
   const { rows } = await query<{ starts_at: Date; ends_at: Date | null; archived_at: Date | null }>(
     `SELECT starts_at, ends_at, archived_at FROM kol_program_seasons WHERE id = $1`,
@@ -182,7 +186,11 @@ export async function seasonBounds(seasonId: string): Promise<{ start: Date; end
   const row = rows[0]
   if (!row) return null
   const start = new Date(row.starts_at)
-  const end = row.ends_at ? new Date(row.ends_at) : row.archived_at ? new Date(row.archived_at) : new Date()
+  const end = row.ends_at
+    ? new Date(row.ends_at)
+    : row.archived_at
+      ? new Date(row.archived_at)
+      : endOfUtcMonth(start)
   return { start, end }
 }
 

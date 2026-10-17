@@ -167,6 +167,7 @@ test.describe('iOS Safari regressions (WebKit)', () => {
           foundingSnapshotAt: new Date(Date.now() + 14 * 86400000).toISOString(),
           memberCount: 1,
           showMemberCount: false,
+          rows: [row],
           recentJoiners: [
             {
               handle: 'mubaraqabba',
@@ -220,6 +221,63 @@ test.describe('iOS Safari regressions (WebKit)', () => {
     await page.screenshot({
       path: '/opt/cursor/artifacts/screenshots/kol-leaderboard-real-board-390x700.png',
     })
+  })
+
+  test('/kol signed-out board uses hub.rows even if leaderboard fails', async ({ page }) => {
+    const row = {
+      rank: 1,
+      handle: 'mubaraqabba',
+      displayName: 'Mubarak Yakubu',
+      avatarUrl: null,
+      seasonPoints: 0,
+      reachScore: 44,
+      tier: 'silver',
+      founderNumber: 1,
+    }
+    await page.route('**/api/kol-program/leaderboard*', (route) =>
+      route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ ok: false }) }),
+    )
+    await page.route('**/api/kol-program/me', (route) =>
+      route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: false, error: 'KOL session required' }),
+      }),
+    )
+    await page.route('**/api/kol-program/hub', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          seasonId: 'season_test',
+          seasonEndsAt: new Date(Date.now() + 15 * 86400000).toISOString(),
+          foundingSnapshotAt: new Date(Date.now() + 14 * 86400000).toISOString(),
+          memberCount: 1,
+          showMemberCount: false,
+          rows: [row],
+          recentJoiners: [
+            {
+              handle: 'mubaraqabba',
+              displayName: 'Mubarak Yakubu',
+              avatarUrl: null,
+              enrolledAt: new Date().toISOString(),
+              founderNumber: 1,
+              reachScore: 44,
+              tier: 'silver',
+            },
+          ],
+          referralMilestones: [],
+          disclaimer: 'Points have no cash value.',
+        }),
+      }),
+    )
+    await page.setViewportSize({ width: 390, height: 700 })
+    await page.goto('/kol', { waitUntil: 'domcontentloaded' })
+    await expect(page.getByTestId('kol-leaderboard-empty')).toHaveCount(0)
+    await expect(page.getByTestId('kol-board-row').first()).toContainText('@mubaraqabba')
+    await expect(page.getByTestId('kol-hub-stats')).toBeVisible()
+    await expect(page.getByTestId('kol-hub-joiners')).toContainText('Founder #001')
   })
 
   test('/kol/mubaraqabba shows the claimed card, not Claim your card', async ({ page }) => {

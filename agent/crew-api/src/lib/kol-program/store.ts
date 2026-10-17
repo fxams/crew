@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { query } from '../db.js'
-import { KOL_PROGRAM_FOUNDER_CAP, kolProgramEnabled } from './flags.js'
+import { KOL_PROGRAM_FOUNDER_CAP, kolDailyPointsCap, kolProgramEnabled } from './flags.js'
 import {
   accountAgeDays,
   checkAntiFarm,
@@ -323,25 +323,65 @@ export async function cardSvgForHandle(handle: string): Promise<string | null> {
   return cardSvgForAnyHandle(handle)
 }
 
+export async function taskPointsToday(xUserId: string): Promise<number> {
+  const day = new Date().toISOString().slice(0, 10)
+  const { rows } = await query<{ n: string }>(
+    `SELECT COALESCE(SUM(points), 0)::text AS n
+     FROM kol_program_point_events
+     WHERE x_user_id = $1
+       AND created_at >= $2::timestamptz
+       AND created_at < ($2::timestamptz + interval '1 day')
+       AND (kind LIKE 'task:%' OR kind LIKE 'onboarding:%' OR kind LIKE 'today:%')`,
+    [xUserId, `${day}T00:00:00.000Z`],
+  )
+  return Number(rows[0]?.n || 0)
+}
+
+export function isCappedTaskKind(kind: string): boolean {
+  return kind.startsWith('task:') || kind.startsWith('onboarding:') || kind.startsWith('today:')
+}
+
+export async function creditProgramPointsCapped(
+  xUserId: string,
+  points: number,
+  kind: string,
+  refId?: string,
+): Promise<{ credited: number; capped: boolean; usedToday: number; cap: number }> {
+  const cap = kolDailyPointsCap()
+  const usedToday = isCappedTaskKind(kind) ? await taskPointsToday(xUserId) : 0
+  if (points <= 0) return { credited: 0, capped: false, usedToday, cap }
+  let grant = points
+  let capped = false
+  if (isCappedTaskKind(kind)) {
+    const left = Math.max(0, cap - usedToday)
+    if (left <= 0) return { credited: 0, capped: true, usedToday, cap }
+    if (grant > left) {
+      grant = left
+      capped = true
+    }
+  }
+  const season = await getCurrentSeasonId()
+  await query(
+    `INSERT INTO kol_program_point_events (id, x_user_id, season_id, kind, points, ref_id)
+     VALUES ($1,$2,$3,$4,$5,$6)`,
+    [id('kpp'), xUserId, season, kind, grant, refId || null],
+  )
+  await query(
+    `UPDATE kol_program_profiles
+     SET season_points = season_points + $2, total_points = total_points + $2, updated_at = now()
+     WHERE x_user_id = $1`,
+    [xUserId, grant],
+  )
+  return { credited: grant, capped, usedToday: usedToday + grant, cap }
+}
+
 export async function creditProgramPoints(
   xUserId: string,
   points: number,
   kind: string,
   refId?: string,
 ): Promise<void> {
-  if (points <= 0) return
-  const season = await getCurrentSeasonId()
-  await query(
-    `INSERT INTO kol_program_point_events (id, x_user_id, season_id, kind, points, ref_id)
-     VALUES ($1,$2,$3,$4,$5,$6)`,
-    [id('kpp'), xUserId, season, kind, points, refId || null],
-  )
-  await query(
-    `UPDATE kol_program_profiles
-     SET season_points = season_points + $2, total_points = total_points + $2, updated_at = now()
-     WHERE x_user_id = $1`,
-    [xUserId, points],
-  )
+  await creditProgramPointsCapped(xUserId, points, kind, refId)
 }
 
 export async function programMemberCount(): Promise<number> {

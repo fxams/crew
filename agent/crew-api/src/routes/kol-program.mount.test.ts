@@ -16,6 +16,18 @@ vi.mock('../lib/kol-program/store.js', async (importOriginal) => {
     recentProgramJoiners: vi.fn(async () => [
       { handle: 'alice', enrolledAt: new Date().toISOString(), founderNumber: 2 },
     ]),
+    leaderboard: vi.fn(async () => [
+      {
+        rank: 1,
+        handle: 'alice',
+        displayName: 'Alice',
+        avatarUrl: null,
+        seasonPoints: 0,
+        reachScore: 50,
+        tier: 'silver',
+        founderNumber: 2,
+      },
+    ]),
     getProgramProfileByHandle: vi.fn(async () => ({
       xUserId: 'u1',
       handle: 'alice',
@@ -32,6 +44,13 @@ vi.mock('../lib/kol-program/store.js', async (importOriginal) => {
     })),
     seasonRankForHandle: vi.fn(async () => 3),
     referralCountForReferrerCode: vi.fn(async () => 4),
+    taskPointsToday: vi.fn(async () => 0),
+    creditProgramPointsCapped: vi.fn(async () => ({
+      credited: 0,
+      capped: false,
+      usedToday: 0,
+      cap: 5000,
+    })),
   }
 })
 
@@ -87,6 +106,8 @@ describe('kol-program routes on mounted API app', () => {
     expect(res.body.ok).toBe(true)
     expect(res.body.memberCount).toBe(7)
     expect(res.body.recentJoiners).toHaveLength(1)
+    expect(res.body.rows).toHaveLength(1)
+    expect(res.body.rows[0].handle).toBe('alice')
     expect(res.body.seasonId).toBe('season_test')
   })
 
