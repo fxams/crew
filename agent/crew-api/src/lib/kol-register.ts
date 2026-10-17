@@ -1005,6 +1005,27 @@ export async function awardReferralRegisterPoints(opts: {
   )
   if (!rows.length) return false
   await creditReferrerPoints(referrerCode, REFERRAL_POINTS_REGISTER)
+  try {
+    const { kolProgramEnabled } = await import('./kol-program/flags.js')
+    if (kolProgramEnabled()) {
+      const { pushNotification } = await import('./kol-program/notifications.js')
+      const ref = await query<{ x_user_id: string }>(
+        `SELECT x_user_id FROM kol_registrations WHERE lower(referral_code) = lower($1) LIMIT 1`,
+        [referrerCode],
+      )
+      if (ref.rows[0]?.x_user_id) {
+        await pushNotification(
+          ref.rows[0].x_user_id,
+          'referral_join',
+          'Joined via your link',
+          `@${handle} registered with your ref link.`,
+          '/kol',
+        )
+      }
+    }
+  } catch {
+    /* optional */
+  }
   return true
 }
 

@@ -761,4 +761,60 @@ export async function migrate(): Promise<void> {
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['029_kol_onboarding'],
   )
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS kol_program_founding_snapshot (
+      badge_number INT PRIMARY KEY,
+      x_username TEXT NOT NULL,
+      season_points INT NOT NULL DEFAULT 0,
+      reach_score INT NOT NULL DEFAULT 0,
+      snapshot_at TIMESTAMPTZ NOT NULL
+    )
+  `)
+  await query(`
+    CREATE TABLE IF NOT EXISTS kol_program_battles (
+      id TEXT PRIMARY KEY,
+      challenger_x_user_id TEXT NOT NULL,
+      challenger_handle TEXT NOT NULL,
+      opponent_handle TEXT,
+      theme TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      winner_handle TEXT,
+      ends_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      resolved_at TIMESTAMPTZ
+    )
+  `)
+  await query(`
+    CREATE TABLE IF NOT EXISTS kol_program_battle_stakes (
+      id TEXT PRIMARY KEY,
+      battle_id TEXT NOT NULL REFERENCES kol_program_battles (id) ON DELETE CASCADE,
+      x_user_id TEXT NOT NULL,
+      handle TEXT NOT NULL,
+      side TEXT NOT NULL CHECK (side IN ('challenger', 'opponent')),
+      points INT NOT NULL,
+      burned_points INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await query(`
+    CREATE TABLE IF NOT EXISTS kol_program_notifications (
+      id TEXT PRIMARY KEY,
+      x_user_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      href TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      read_at TIMESTAMPTZ
+    )
+  `)
+  await query(
+    `CREATE INDEX IF NOT EXISTS kol_program_notifications_user_idx
+       ON kol_program_notifications (x_user_id, created_at DESC)`,
+  )
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['030_kol_growth_round2_b'],
+  )
 }

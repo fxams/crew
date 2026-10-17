@@ -1,10 +1,11 @@
 import type { KolHubRecentJoiner, KolProgramHub } from './kol-program'
 
-const LOW_MEMBER_THRESHOLD = 3
+const LOW_MEMBER_THRESHOLD = 10
 
 export function hubMemberLine(hub: KolProgramHub | null): { primary: string; secondary: string } {
   if (!hub) return { primary: '', secondary: '' }
-  if (hub.memberCount < LOW_MEMBER_THRESHOLD) {
+  const show = hub.showMemberCount ?? hub.memberCount >= LOW_MEMBER_THRESHOLD
+  if (!show) {
     return { primary: 'Be one of the first', secondary: '' }
   }
   return {
