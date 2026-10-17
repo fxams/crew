@@ -16,7 +16,11 @@ import {
   leaderboard,
   listSeasons,
   loadUserAccessToken,
+  programMemberCount,
+  recentProgramJoiners,
+  referralCountForReferrerCode,
   seasonArchiveLeaderboard,
+  seasonRankForHandle,
 } from '../lib/kol-program/store.js'
 import { query } from '../lib/db.js'
 import { fetchRecentUserTweets } from '../lib/kol-program/x-tweets.js'
@@ -50,6 +54,32 @@ function programGate(_req: Request, res: Response, next: NextFunction) {
 }
 
 kolProgramRouter.use(programGate)
+
+kolProgramRouter.get('/kol-program/hub', async (_req, res) => {
+  try {
+    const seasonId = await getCurrentSeasonId()
+    const bounds = await seasonBounds(seasonId)
+    const [memberCount, recentJoiners] = await Promise.all([
+      programMemberCount(),
+      recentProgramJoiners(16),
+    ])
+    res.json({
+      ok: true,
+      seasonId,
+      seasonEndsAt: bounds?.end?.toISOString() ?? null,
+      memberCount,
+      recentJoiners,
+      referralMilestones: [
+        { referrals: 5, bonusPoints: 1000 },
+        { referrals: 25, bonusPoints: 5000 },
+        { referrals: 100, bonusPoints: 25000 },
+      ],
+      disclaimer: KOL_PROGRAM_POINTS_DISCLAIMER,
+    })
+  } catch (err) {
+    sendInternalError(res, err, 'kol-program hub')
+  }
+})
 
 kolProgramRouter.get('/kol-program/status', (_req, res) => {
   res.json({
@@ -192,7 +222,11 @@ kolProgramRouter.get('/kol-program/me', async (req, res) => {
       res.status(404).json({ ok: false, error: 'Not enrolled yet.' })
       return
     }
-    res.json({ ok: true, profile })
+    const [rank, referralCount] = await Promise.all([
+      seasonRankForHandle(profile.handle),
+      referralCountForReferrerCode(profile.referralCode),
+    ])
+    res.json({ ok: true, profile: { ...profile, rank, referralCount } })
   } catch (err) {
     sendInternalError(res, err, 'kol-program me')
   }

@@ -12,6 +12,8 @@ import {
 } from '../lib/wallet'
 import bs58 from 'bs58'
 import { CREW_VERSION, KOL_PROGRAM_ENABLED, KOL_REFERRAL_CUT_PCT } from '../lib/config'
+import { fetchKolProgramMe } from '../lib/kol-program'
+import { consumeKolHubReturnPath } from '../lib/kol-x-sign-in'
 import { KolProgramPanel } from './KolProgramPanel'
 import { formatSol } from '../lib/format-sol'
 import {
@@ -375,6 +377,15 @@ export function KolRegisterPage() {
   useEffect(() => {
     void load().catch(() => setError('Could not load the registration board.'))
   }, [load])
+
+  useEffect(() => {
+    if (!KOL_PROGRAM_ENABLED) return
+    const returnPath = consumeKolHubReturnPath()
+    if (!returnPath) return
+    void fetchKolProgramMe().then((profile) => {
+      if (profile) navigate(returnPath, { replace: true })
+    })
+  }, [navigate])
 
   useEffect(() => {
     const fromUrl = normalizeRef(params.get('ref'))
