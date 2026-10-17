@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { CREW_VERSION } from '../lib/config'
+import { CREW_VERSION, SHOW_SUI_LAUNCHPAD } from '../lib/config'
 import { LiveCoins } from './LiveCoins'
 
 export function CoinsPage() {
@@ -15,8 +15,13 @@ export function CoinsPage() {
         <p className="section-sub">
           CrewPay-launched coins only. Market cap and 24h change come from public Dexscreener
           quotes (cached). Unknown values show --. Fee map stays 60% KOL crew / 15% launching
-          agent / 25% treasury.{' '}
-          <Link className="sui-link" to="/sui">Sui testnet launchpad →</Link>
+          agent / 25% treasury.
+          {SHOW_SUI_LAUNCHPAD ? (
+            <>
+              {' '}
+              <Link className="sui-link" to="/sui">Sui testnet launchpad →</Link>
+            </>
+          ) : null}
         </p>
         <LiveCoins limit={80} heading="All coins" allLink={false} layout="cards" pageSize={10} />
       </section>

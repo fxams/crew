@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useAccount } from "wagmi";
@@ -55,6 +55,7 @@ import {
   CREW_TOKEN_PRICE_USD,
   CREW_TOKEN_PUMP_URL,
   CREW_VERSION,
+  SHOW_SUI_LAUNCHPAD,
   HIRE_ROLE_OPTIONS,
   KOL_REFERRAL_CUT_PCT,
   MAX_CREW,
@@ -205,8 +206,9 @@ export default function App() {
   const isApprovePage = isApprovePath(path);
   const isCoinPage = isCoinPath(path);
   const isCoinsPage = isCoinsPath(path);
-  const isSuiPage = isSuiLaunchpadPath(path);
-  const isSuiPoolPage = isSuiPoolDetailPath(path);
+  const isSuiPage = SHOW_SUI_LAUNCHPAD && isSuiLaunchpadPath(path);
+  const isSuiPoolPage = SHOW_SUI_LAUNCHPAD && isSuiPoolDetailPath(path);
+  const isHiddenSuiUrl = !SHOW_SUI_LAUNCHPAD && isSuiLaunchpadPath(path);
   const isTasksPage = isTasksPath(path);
   const isAdminKickoffPage = isAdminKickoffPath(path);
   const isAdminFarcasterPage = isAdminFarcasterPath(path);
@@ -1417,6 +1419,10 @@ export default function App() {
     launchLabel,
   });
 
+  if (isHiddenSuiUrl) {
+    return <Navigate to="/coins" replace />;
+  }
+
   return (
     <div className={`site${isLaunchPage ? " site-launch" : ""}${isAdminOpsPage ? " site-admin-ops" : ""}`}>
       <div className="noise" aria-hidden />
@@ -1469,12 +1475,14 @@ export default function App() {
             >
               Coins
             </Link>
-            <Link
-              className={isSuiPage ? "is-active-nav-text" : undefined}
-              to="/sui"
-            >
-              Sui
-            </Link>
+            {SHOW_SUI_LAUNCHPAD ? (
+              <Link
+                className={isSuiPage ? "is-active-nav-text" : undefined}
+                to="/sui"
+              >
+                Sui
+              </Link>
+            ) : null}
             <Link className={isTasksPage ? "is-active-nav-text" : undefined} to="/tasks">
               Tasks
             </Link>
