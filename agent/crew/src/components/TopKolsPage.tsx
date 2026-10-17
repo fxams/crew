@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { CREW_VERSION } from '../lib/config'
 import { topKolRecords, type KolRecord } from '../lib/pump/kol-directory'
 import { kolProfilePath } from '../lib/routes'
+import { XLink } from './XLink'
 
 const API = (
   (import.meta.env.VITE_CREW_API_URL as string | undefined)?.replace(/\/$/, '') ||
@@ -111,9 +112,9 @@ export function TopKolsPage() {
                       </span>
                     </Link>
                   ) : link ? (
-                    <a href={link} target="_blank" rel="noreferrer">
+                    <XLink href={link}>
                       {handle}
-                    </a>
+                    </XLink>
                   ) : (
                     <strong>{handle}</strong>
                   )}

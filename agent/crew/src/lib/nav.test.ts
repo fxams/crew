@@ -150,6 +150,7 @@ describe('header and footer socials', () => {
     expect(socials).toContain('aria-label="Telegram @CrewPayHQ"')
     expect(socials).toContain('CREW_FARCASTER_URL')
     expect(socials).toContain('CREW_TELEGRAM_URL')
+    expect(socials).toContain('<XLink')
     expect(socials).toContain('target="_blank"')
     expect(socials).toContain('M257.778 155.556H742.222V844.445')
     const navFn = socials.slice(
@@ -166,6 +167,7 @@ describe('header and footer socials', () => {
     const onepager = readFileSync(join(here, '../components/OnepagerPage.tsx'), 'utf8')
     expect(onepager).toContain('<FooterSocials />')
     const socials = readFileSync(join(here, '../components/SocialIcons.tsx'), 'utf8')
+    expect(socials).toContain('<XLink href={CREW_X_URL}>')
     expect(socials).toMatch(/@CrewPayHQ[\s\S]*@crewpay[\s\S]*Telegram[\s\S]*Community/)
     expect(socials).toContain('CREW_TELEGRAM_COMMUNITY_URL')
   })

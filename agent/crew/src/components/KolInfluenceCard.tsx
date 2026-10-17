@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { kolTierDisplayName } from '../lib/kol-tiers'
 import type { PublicKolCard } from '../lib/kol-program'
 import { buildKolGrowthShareTweet } from '../lib/kol-share'
+import { XLink } from './XLink'
 import { formatNotionalUsd, NOTIONAL_VALUE_DISCLAIMER } from '../lib/kol-notional-value'
 
 type Props = {
@@ -125,9 +126,9 @@ export function KolInfluenceCard({ card, portrait = true, showReplay = true }: P
           </p>
         ) : null}
 
-        <a className="kol-influence-share-box" href={shareUrl} target="_blank" rel="noreferrer">
+        <XLink className="kol-influence-share-box" href={shareUrl} data-testid="kol-card-share-x">
           Share your KOL card on X
-        </a>
+        </XLink>
 
         <footer className="kol-influence-foot">CREWPAY.DEV</footer>
       </div>
