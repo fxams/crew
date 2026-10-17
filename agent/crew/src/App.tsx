@@ -1472,6 +1472,8 @@ export default function App() {
       isKolHubPage ||
       isKolLeaderboardPage ||
       isKolFoundersPage ||
+      isKolProfilePage ||
+      isKolRefPage ||
       isAdminKickoffPage ||
       isAdminFarcasterPage ||
       isAdminOpsPage,
@@ -1517,7 +1519,7 @@ export default function App() {
               <Link
                 key={item.label}
                 className={
-                  item.label === "Desk"
+                  item.label === "Desk" || item.label === "My card"
                     ? isOwnDeskPage
                       ? "is-active-nav-text"
                       : undefined

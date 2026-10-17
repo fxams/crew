@@ -22,6 +22,7 @@ import {
   type PublicKolCard,
 } from '../lib/kol-program'
 import { KolPublicCardView } from './KolPublicCardView'
+import { KolMobileTabBar } from './KolMobileTabBar'
 import { kolHandleFromPath, referralInvitePath } from '../lib/routes'
 import { PrivyPayoutWallet } from './PrivyPayoutWallet'
 import {
@@ -205,6 +206,7 @@ export function KolProfilePage() {
     setMissing(false)
     setPaidPitch(null)
     setError(null)
+    setPublicCard(null)
     void (async () => {
       try {
         const res = await fetch(`${API}/api/kols/registered/${encodeURIComponent(handle)}`)
@@ -236,6 +238,13 @@ export function KolProfilePage() {
         }
         setDesk(body)
         setEvmInput(body.profile?.evmWallet || '')
+        if (KOL_PROGRAM_ENABLED) {
+          const pub = await fetchPublicKolCard(handle)
+          if (!cancelled && pub) {
+            setPublicCard(pub.card)
+            setPinnedPostId(pub.pinnedPostId)
+          }
+        }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load this desk.')
       }
@@ -589,6 +598,17 @@ export function KolProfilePage() {
               </Link>
             </div>
           </div>
+        ) : null}
+
+        {desk && KOL_PROGRAM_ENABLED && publicCard ? (
+          <KolPublicCardView
+            card={publicCard}
+            pinnedPostId={pinnedPostId}
+            tagHandle={shareTag}
+            onTagHandleChange={setShareTag}
+            replyUnderPinned={replyPinned}
+            onReplyUnderPinnedChange={setReplyPinned}
+          />
         ) : null}
 
         {desk ? (
@@ -1077,6 +1097,7 @@ export function KolProfilePage() {
           </>
         ) : null}
       </section>
+      {KOL_PROGRAM_ENABLED ? <KolMobileTabBar /> : null}
     </div>
   )
 }

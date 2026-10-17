@@ -15,7 +15,7 @@ import {
   type ReachScoreInput,
 } from './reach-score.js'
 import { cardSvgForAnyHandle } from './card-from-handle.js'
-import { siteUrl } from '../kol-register.js'
+import { siteUrl, xAvatarLarge } from '../kol-register.js'
 import { hofBadgesForHandle, persistHallOfFame } from './hall-of-fame.js'
 import type { HofBadge } from './hall-of-fame.js'
 
@@ -285,6 +285,8 @@ export async function leaderboard(limit = 50): Promise<
   Array<{
     rank: number
     handle: string
+    displayName: string
+    avatarUrl: string | null
     seasonPoints: number
     reachScore: number
     tier: string
@@ -293,21 +295,28 @@ export async function leaderboard(limit = 50): Promise<
 > {
   const season = await getCurrentSeasonId()
   const { rows } = await query<Record<string, unknown>>(
-    `SELECT x_username, season_points, reach_score, reach_tier, founder_number
-     FROM kol_program_profiles
-     WHERE season_id = $1 AND revoked = false AND flagged_reason IS NULL
-     ORDER BY season_points DESC, reach_score DESC, enrolled_at ASC
+    `SELECT p.x_username, p.season_points, p.reach_score, p.reach_tier, p.founder_number,
+            r.x_name, r.profile_image_url
+     FROM kol_program_profiles p
+     LEFT JOIN kol_registrations r ON r.x_user_id = p.x_user_id
+     WHERE p.season_id = $1 AND p.revoked = false AND p.flagged_reason IS NULL
+     ORDER BY p.season_points DESC, p.reach_score DESC, p.enrolled_at ASC
      LIMIT $2`,
     [season, limit],
   )
-  return rows.map((r, i) => ({
-    rank: i + 1,
-    handle: String(r.x_username),
-    seasonPoints: Number(r.season_points),
-    reachScore: Number(r.reach_score),
-    tier: String(r.reach_tier),
-    founderNumber: r.founder_number != null ? Number(r.founder_number) : null,
-  }))
+  return rows.map((r, i) => {
+    const handle = String(r.x_username)
+    return {
+      rank: i + 1,
+      handle,
+      displayName: String(r.x_name || handle),
+      avatarUrl: xAvatarLarge(r.profile_image_url ? String(r.profile_image_url) : null),
+      seasonPoints: Number(r.season_points),
+      reachScore: Number(r.reach_score),
+      tier: String(r.reach_tier),
+      founderNumber: r.founder_number != null ? Number(r.founder_number) : null,
+    }
+  })
 }
 
 export async function cardSvgForHandle(handle: string): Promise<string | null> {
@@ -344,24 +353,39 @@ export async function programMemberCount(): Promise<number> {
 
 export async function recentProgramJoiners(
   limit = 12,
-): Promise<Array<{ handle: string; enrolledAt: string; founderNumber: number | null }>> {
-  const { rows } = await query<{
-    x_username: string
-    enrolled_at: Date
-    founder_number: number | null
-  }>(
-    `SELECT x_username, enrolled_at, founder_number
-     FROM kol_program_profiles
-     WHERE revoked = false
-     ORDER BY enrolled_at DESC
+): Promise<
+  Array<{
+    handle: string
+    displayName: string
+    avatarUrl: string | null
+    enrolledAt: string
+    founderNumber: number | null
+    reachScore: number
+    tier: string
+  }>
+> {
+  const { rows } = await query<Record<string, unknown>>(
+    `SELECT p.x_username, p.enrolled_at, p.founder_number, p.reach_score, p.reach_tier,
+            r.x_name, r.profile_image_url
+     FROM kol_program_profiles p
+     LEFT JOIN kol_registrations r ON r.x_user_id = p.x_user_id
+     WHERE p.revoked = false
+     ORDER BY p.enrolled_at DESC
      LIMIT $1`,
     [limit],
   )
-  return rows.map((r) => ({
-    handle: String(r.x_username),
-    enrolledAt: new Date(r.enrolled_at).toISOString(),
-    founderNumber: r.founder_number != null ? Number(r.founder_number) : null,
-  }))
+  return rows.map((r) => {
+    const handle = String(r.x_username)
+    return {
+      handle,
+      displayName: String(r.x_name || handle),
+      avatarUrl: xAvatarLarge(r.profile_image_url ? String(r.profile_image_url) : null),
+      enrolledAt: new Date(String(r.enrolled_at)).toISOString(),
+      founderNumber: r.founder_number != null ? Number(r.founder_number) : null,
+      reachScore: Number(r.reach_score || 0),
+      tier: String(r.reach_tier || 'bronze'),
+    }
+  })
 }
 
 export async function referralCountForReferrerCode(code: string): Promise<number> {

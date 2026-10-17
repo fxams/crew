@@ -43,6 +43,10 @@ export type KolHubRecentJoiner = {
   handle: string
   enrolledAt: string
   founderNumber: number | null
+  displayName?: string | null
+  avatarUrl?: string | null
+  reachScore?: number | null
+  tier?: string | null
 }
 
 export type KolProgramHub = {
@@ -70,6 +74,8 @@ export type KolProgramTask = {
 export type KolLeaderboardRow = {
   rank: number
   handle: string
+  displayName?: string | null
+  avatarUrl?: string | null
   seasonPoints: number
   reachScore: number
   tier: string
@@ -120,7 +126,17 @@ export async function fetchKolProgramHub(): Promise<KolProgramHub | null> {
       memberCount: Math.max(0, Number(body.memberCount) || 0),
       showMemberCount: Boolean(body.showMemberCount),
       foundingSnapshotAt: body.foundingSnapshotAt ?? null,
-      recentJoiners: Array.isArray(body.recentJoiners) ? body.recentJoiners : [],
+      recentJoiners: Array.isArray(body.recentJoiners)
+        ? body.recentJoiners.map((j) => ({
+            handle: String(j.handle || '').replace(/^@+/, ''),
+            enrolledAt: String(j.enrolledAt || ''),
+            founderNumber: j.founderNumber != null ? Number(j.founderNumber) : null,
+            displayName: j.displayName ? String(j.displayName) : null,
+            avatarUrl: j.avatarUrl ? String(j.avatarUrl) : null,
+            reachScore: j.reachScore != null ? Number(j.reachScore) : null,
+            tier: j.tier ? String(j.tier) : null,
+          }))
+        : [],
       referralMilestones: Array.isArray(body.referralMilestones) ? body.referralMilestones : [],
       disclaimer: body.disclaimer || KOL_PROGRAM_POINTS_DISCLAIMER,
     }
@@ -211,13 +227,28 @@ export async function fetchKolProgramLeaderboard(limit = 50): Promise<{
 } | null> {
   const res = await fetch(`${API}/api/kol-program/leaderboard?limit=${limit}`)
   if (!res.ok) return null
-  return (await res.json()) as {
+  const body = (await res.json()) as {
     seasonId: string
     rows: KolLeaderboardRow[]
     disclaimer: string
     crewPriorityCopy?: string
     pool?: KolPoolStatus | null
     poolError?: string
+  }
+  return {
+    ...body,
+    rows: Array.isArray(body.rows)
+      ? body.rows.map((r) => ({
+          rank: Number(r.rank) || 0,
+          handle: String(r.handle || '').replace(/^@+/, ''),
+          displayName: r.displayName ? String(r.displayName) : null,
+          avatarUrl: r.avatarUrl ? String(r.avatarUrl) : null,
+          seasonPoints: Number(r.seasonPoints) || 0,
+          reachScore: Number(r.reachScore) || 0,
+          tier: String(r.tier || 'bronze'),
+          founderNumber: r.founderNumber != null ? Number(r.founderNumber) : null,
+        }))
+      : [],
   }
 }
 
