@@ -2,6 +2,14 @@ import { assertSafeRpcUrl } from './security'
 
 export const CREW_VERSION = '2.8.0'
 
+/**
+ * Show /sui launchpad UI (nav, Coins link, pages). API routes stay enabled regardless.
+ * Set `VITE_SHOW_SUI_LAUNCHPAD=1` (or `true`) at build time to re-enable.
+ */
+export const SHOW_SUI_LAUNCHPAD =
+  import.meta.env.VITE_SHOW_SUI_LAUNCHPAD === '1' ||
+  import.meta.env.VITE_SHOW_SUI_LAUNCHPAD === 'true'
+
 /** Official CREW / CrewPay HQ account on X. */
 export const CREW_X_URL = 'https://x.com/CrewPayHQ'
 
