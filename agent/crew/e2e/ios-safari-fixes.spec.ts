@@ -68,8 +68,12 @@ test.describe('iOS Safari regressions (WebKit)', () => {
             cardUrl: VITALIK_CARD,
             profileUrl: 'https://crewpay.dev/kol/VitalikButerin',
             scoreBars: [
-              { label: 'Engagement', value: 40 },
+              { label: 'Engagement', value: null, hint: 'Needs recent public posts' },
               { label: 'Reach', value: 82 },
+              { label: 'Followers', value: 61 },
+              { label: 'Content quality', value: null },
+              { label: 'Network', value: null },
+              { label: 'Account age', value: 100 },
             ],
             lookupOk: true,
             xVerified: true,
@@ -96,5 +100,23 @@ test.describe('iOS Safari regressions (WebKit)', () => {
     await expect(card.getByText('Notional influence value', { exact: false })).toBeVisible()
     await expect(card.locator('.kol-influence-notional')).toContainText('$')
     await expect(card.locator('.kol-influence-secondary-metrics')).toContainText('82')
+    await expect(card.getByText('GLOBAL RANK')).toHaveCount(0)
+    await expect(card.getByText('MEMBER —')).toHaveCount(0)
+    await expect(card.getByText('Engagement')).toBeVisible()
+    await expect(card.locator('.kol-influence-bar-val').first()).toHaveText('—')
+    const box = await card.locator('.kol-influence-frame').boundingBox()
+    expect(box?.height || 9999).toBeLessThanOrEqual(640)
+  })
+
+  test('/kol always shows leaderboard empty podium', async ({ page }) => {
+    await page.goto('/kol', { waitUntil: 'domcontentloaded' })
+    const board = page.getByTestId('kol-hub-leaderboard')
+    await expect(board).toBeVisible()
+    await expect(board.getByTestId('kol-leaderboard-empty')).toBeVisible()
+    await expect(board.getByText('Be the first')).toHaveCount(3)
+    await expect(board.getByTestId('kol-leaderboard-sign-in-x')).toBeVisible()
+    await page.goto('/kol/leaderboard', { waitUntil: 'domcontentloaded' })
+    await expect(page.getByTestId('kol-leaderboard-empty')).toBeVisible()
+    await expect(page.getByText('Be the first')).toHaveCount(3)
   })
 })

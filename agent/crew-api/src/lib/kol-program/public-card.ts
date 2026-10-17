@@ -3,7 +3,6 @@ import { siteUrl } from '../kol-register.js'
 import { accountAgeDays } from './anti-farm.js'
 import {
   computeReachScore,
-  engagementRateFromTotals,
   REACH_FORMULA_DOC,
   reachTier,
   type ReachScoreInput,
@@ -12,7 +11,14 @@ import { fetchPublicXUserByHandle } from './x-public-user.js'
 import { hofBadgesForHandle } from './hall-of-fame.js'
 import { computeNotionalInfluenceValueUsd } from './notional-influence-value.js'
 
-export type ScoreBar = { label: string; value: number }
+export type ScoreBar = {
+  label: string
+  /** 0–100. Null when the signal is not available (do not show a fake 0). */
+  value: number | null
+  hint?: string
+}
+
+export const SCORE_BAR_UNAVAILABLE_HINT = 'Dashes mean that signal is not on public X yet — not a zero score.'
 
 export type PublicKolCard = {
   handle: string
@@ -41,7 +47,13 @@ function logScale100(n: number): number {
   return Math.min(100, Math.log10(1 + Math.max(0, n)) * 20)
 }
 
-export function scoreBarsFromInput(input: ReachScoreInput): ScoreBar[] {
+export function scoreBarsFromInput(
+  input: ReachScoreInput,
+  opts?: { engagementKnown?: boolean; networkKnown?: boolean; lookupOk?: boolean },
+): ScoreBar[] {
+  const lookupOk = opts?.lookupOk !== false
+  const engagementKnown = lookupOk && opts?.engagementKnown !== false
+  const networkKnown = lookupOk && opts?.networkKnown !== false
   const caps = REACH_FORMULA_DOC.caps
   const engagement = Math.min(
     100,
@@ -58,12 +70,24 @@ export function scoreBarsFromInput(input: ReachScoreInput): ScoreBar[] {
   const ageYears = Math.min(caps.accountAgeYears, Math.max(0, input.accountAgeDays) / 365)
   const accountAge = Math.round((ageYears / caps.accountAgeYears) * 100)
   return [
-    { label: 'Engagement', value: Math.round(engagement) },
-    { label: 'Reach', value: Math.round(reach) },
-    { label: 'Followers', value: Math.round(followers) },
-    { label: 'Content quality', value: Math.round(content) },
-    { label: 'Network', value: Math.round(network) },
-    { label: 'Account age', value: Math.round(accountAge) },
+    {
+      label: 'Engagement',
+      value: engagementKnown ? Math.round(engagement) : null,
+      hint: engagementKnown ? undefined : 'Needs recent public posts',
+    },
+    { label: 'Reach', value: lookupOk ? Math.round(reach) : null },
+    { label: 'Followers', value: lookupOk ? Math.round(followers) : null },
+    {
+      label: 'Content quality',
+      value: engagementKnown ? Math.round(content) : null,
+      hint: engagementKnown ? undefined : 'Needs recent public posts',
+    },
+    {
+      label: 'Network',
+      value: networkKnown ? Math.round(network) : null,
+      hint: networkKnown ? undefined : 'After you claim',
+    },
+    { label: 'Account age', value: lookupOk ? Math.round(accountAge) : null },
   ]
 }
 
@@ -85,13 +109,16 @@ function blankCard(handle: string): PublicKolCard {
     referralUrl,
     cardUrl: `${base}/api/kol-program/card/${encodeURIComponent(h)}.png`,
     profileUrl: `${base}/kol/${encodeURIComponent(h)}`,
-    scoreBars: scoreBarsFromInput({
-      followers: 0,
-      avgImpressions: 0,
-      engagementRate: 0,
-      accountAgeDays: 0,
-      referralCount: 0,
-    }),
+    scoreBars: scoreBarsFromInput(
+      {
+        followers: 0,
+        avgImpressions: 0,
+        engagementRate: 0,
+        accountAgeDays: 0,
+        referralCount: 0,
+      },
+      { lookupOk: false, engagementKnown: false, networkKnown: false },
+    ),
     lookupOk: false,
     xVerified: false,
     followers: null,
@@ -163,10 +190,11 @@ export async function buildPublicKolCard(handle: string): Promise<PublicKolCard>
        WHERE lower(referrer_code) = lower($1) AND event_type = 'register'`,
       [code],
     )
+    const engagementKnown = member.engagement_rate != null && member.engagement_rate !== ''
     const reachInput: ReachScoreInput = {
       followers: Number(member.followers || 0),
       avgImpressions: Number(member.avg_impressions || 0),
-      engagementRate: Number(member.engagement_rate || 0),
+      engagementRate: engagementKnown ? Number(member.engagement_rate) : 0,
       accountAgeDays: accountAgeDays(
         member.x_account_created_at ? String(member.x_account_created_at) : null,
       ),
@@ -187,7 +215,7 @@ export async function buildPublicKolCard(handle: string): Promise<PublicKolCard>
       referralUrl,
       cardUrl: `${base}/api/kol-program/card/${encodeURIComponent(profileHandle)}.png`,
       profileUrl: `${base}/kol/${encodeURIComponent(profileHandle)}`,
-      scoreBars: scoreBarsFromInput(reachInput),
+      scoreBars: scoreBarsFromInput(reachInput, { engagementKnown, networkKnown: true }),
       lookupOk: true,
       xVerified: false,
       followers: Number(member.followers || 0),
@@ -205,12 +233,8 @@ export async function buildPublicKolCard(handle: string): Promise<PublicKolCard>
   const reachInput: ReachScoreInput = {
     followers: xUser.followers,
     avgImpressions: Math.max(100, xUser.followers * 2),
-    engagementRate: engagementRateFromTotals({
-      impressions: Math.max(1, xUser.followers * 3),
-      likes: 0,
-      replies: 0,
-      retweets: 0,
-    }),
+    // Public user lookup has followers/age, not recent-post engagement or referrals.
+    engagementRate: 0,
     accountAgeDays: ageDays,
     referralCount: 0,
   }
@@ -233,7 +257,7 @@ export async function buildPublicKolCard(handle: string): Promise<PublicKolCard>
     referralUrl,
     cardUrl: `${base}/api/kol-program/card/${encodeURIComponent(xUser.username)}.png`,
     profileUrl: `${base}/kol/${encodeURIComponent(xUser.username)}`,
-    scoreBars: scoreBarsFromInput(reachInput),
+    scoreBars: scoreBarsFromInput(reachInput, { engagementKnown: false, networkKnown: false }),
     lookupOk: true,
     xVerified: xUser.verified,
     followers: xUser.followers,
