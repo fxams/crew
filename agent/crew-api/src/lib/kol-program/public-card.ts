@@ -30,26 +30,37 @@ export type PublicKolCard = {
   lookupOk: boolean
   xVerified: boolean
   followers: number | null
+  seasonPoints: number
+  memberNumber: number | null
 }
 
-function scoreBarsFromInput(input: ReachScoreInput): ScoreBar[] {
+function logScale100(n: number): number {
+  return Math.min(100, Math.log10(1 + Math.max(0, n)) * 20)
+}
+
+export function scoreBarsFromInput(input: ReachScoreInput): ScoreBar[] {
   const caps = REACH_FORMULA_DOC.caps
-  const w = REACH_FORMULA_DOC.weights
-  const followers = Math.min(100, Math.log10(1 + Math.max(0, input.followers)) * 20)
-  const impressions = Math.min(100, Math.log10(1 + Math.max(0, input.avgImpressions)) * 20)
   const engagement = Math.min(
     100,
-    Math.min(caps.engagementRate, Math.max(0, input.engagementRate)) * 100,
+    (Math.min(caps.engagementRate, Math.max(0, input.engagementRate)) / caps.engagementRate) *
+      100,
+  )
+  const reach = logScale100(input.avgImpressions)
+  const followers = logScale100(input.followers)
+  const content = engagement
+  const network = Math.min(
+    100,
+    (Math.min(caps.referralCount, Math.max(0, input.referralCount)) / caps.referralCount) * 100,
   )
   const ageYears = Math.min(caps.accountAgeYears, Math.max(0, input.accountAgeDays) / 365)
-  const age = ageYears * 10
-  const refs = Math.min(caps.referralCount, Math.max(0, input.referralCount)) * 2
+  const accountAge = Math.round((ageYears / caps.accountAgeYears) * 100)
   return [
-    { label: 'Followers', value: Math.round(w.followers * followers) },
-    { label: 'Reach', value: Math.round(w.impressions * impressions) },
-    { label: 'Engage', value: Math.round(w.engagement * engagement) },
-    { label: 'Tenure', value: Math.round(w.accountAge * age) },
-    { label: 'Refs', value: Math.round(w.referrals * refs) },
+    { label: 'Engagement', value: Math.round(engagement) },
+    { label: 'Reach', value: Math.round(reach) },
+    { label: 'Followers', value: Math.round(followers) },
+    { label: 'Content quality', value: Math.round(content) },
+    { label: 'Network', value: Math.round(network) },
+    { label: 'Account age', value: Math.round(accountAge) },
   ]
 }
 
@@ -80,7 +91,24 @@ function blankCard(handle: string): PublicKolCard {
     lookupOk: false,
     xVerified: false,
     followers: null,
+    seasonPoints: 0,
+    memberNumber: null,
   }
+}
+
+async function memberNumberFor(xUserId: string): Promise<number | null> {
+  const { rows } = await query<{ n: string }>(
+    `SELECT sub.n::text FROM (
+       SELECT x_user_id,
+              ROW_NUMBER() OVER (ORDER BY enrolled_at ASC) AS n
+       FROM kol_program_profiles
+       WHERE revoked = false
+     ) sub
+     WHERE sub.x_user_id = $1`,
+    [xUserId],
+  )
+  const n = Number(rows[0]?.n)
+  return Number.isFinite(n) && n > 0 ? n : null
 }
 
 async function seasonRank(handle: string): Promise<number | null> {
@@ -104,8 +132,8 @@ async function seasonRank(handle: string): Promise<number | null> {
 async function loadMemberRow(handle: string) {
   const h = handle.replace(/^@+/, '').toLowerCase()
   const { rows } = await query<Record<string, unknown>>(
-    `SELECT p.x_username, p.reach_score, p.reach_tier, p.founder_number,
-            p.avg_impressions, p.engagement_rate, p.x_account_created_at,
+    `SELECT p.x_user_id, p.x_username, p.reach_score, p.reach_tier, p.founder_number,
+            p.season_points, p.avg_impressions, p.engagement_rate, p.x_account_created_at,
             r.referral_code, r.x_name, r.profile_image_url, r.followers
      FROM kol_program_profiles p
      JOIN kol_registrations r ON r.x_user_id = p.x_user_id
@@ -126,6 +154,11 @@ export async function buildPublicKolCard(handle: string): Promise<PublicKolCard>
     const code = String(member.referral_code || profileHandle)
     const base = siteUrl()
     const referralUrl = `${base}/ref/${encodeURIComponent(profileHandle)}`
+    const refCount = await query<{ n: string }>(
+      `SELECT COUNT(*)::text AS n FROM kol_referral_events
+       WHERE lower(referrer_code) = lower($1) AND event_type = 'register'`,
+      [code],
+    )
     const reachInput: ReachScoreInput = {
       followers: Number(member.followers || 0),
       avgImpressions: Number(member.avg_impressions || 0),
@@ -133,8 +166,9 @@ export async function buildPublicKolCard(handle: string): Promise<PublicKolCard>
       accountAgeDays: accountAgeDays(
         member.x_account_created_at ? String(member.x_account_created_at) : null,
       ),
-      referralCount: 0,
+      referralCount: Number(refCount.rows[0]?.n || 0),
     }
+    const memberNo = await memberNumberFor(String(member.x_user_id))
     return {
       handle: profileHandle,
       claimed: true,
@@ -152,6 +186,8 @@ export async function buildPublicKolCard(handle: string): Promise<PublicKolCard>
       lookupOk: true,
       xVerified: false,
       followers: Number(member.followers || 0),
+      seasonPoints: Number(member.season_points || 0),
+      memberNumber: memberNo,
     }
   }
 
@@ -195,6 +231,8 @@ export async function buildPublicKolCard(handle: string): Promise<PublicKolCard>
     lookupOk: true,
     xVerified: xUser.verified,
     followers: xUser.followers,
+    seasonPoints: 0,
+    memberNumber: null,
   }
 }
 

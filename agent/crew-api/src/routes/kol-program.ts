@@ -64,6 +64,11 @@ import {
 import { buildPoolManifest, eligiblePoolKols } from '../lib/kol-program/pool-allocations.js'
 import { buildUnsignedPoolPayouts } from '../lib/kol-program/pool-unsigned.js'
 import {
+  KOL_PROGRAM_REFERRAL_MILESTONES,
+  KOL_PROGRAM_REFERRAL_POINTS_REFERRED,
+  KOL_PROGRAM_REFERRAL_POINTS_REFERRER,
+} from '../lib/kol-program/referral-rewards.js'
+import {
   hofBadgesForHandle,
   hofBadgeLabel,
   listHallOfFameAll,
@@ -100,11 +105,11 @@ kolProgramRouter.get('/kol-program/hub', async (_req, res) => {
       showMemberCount: memberCount >= 10,
       foundingSnapshotAt: foundingAt?.toISOString() ?? null,
       recentJoiners,
-      referralMilestones: [
-        { referrals: 5, bonusPoints: 1000 },
-        { referrals: 25, bonusPoints: 5000 },
-        { referrals: 100, bonusPoints: 25000 },
-      ],
+      referralMilestones: [...KOL_PROGRAM_REFERRAL_MILESTONES],
+      referralRewards: {
+        perReferral: KOL_PROGRAM_REFERRAL_POINTS_REFERRER,
+        forReferred: KOL_PROGRAM_REFERRAL_POINTS_REFERRED,
+      },
       disclaimer: KOL_PROGRAM_POINTS_DISCLAIMER,
     })
   } catch (err) {
@@ -429,18 +434,27 @@ kolProgramRouter.get('/kol-program/tasks/today', async (req, res) => {
       )
       completed = done.rows.map((r) => r.task_id)
     }
-    const pick = rows.length ? [rows[day.charCodeAt(9) % rows.length]] : []
-    res.json({
-      ok: true,
-      dayUtc: day,
-      tasks: pick.map((t) => ({
-        id: String(t.id),
+    const ordered = rows.slice(0, 5)
+    let priorDone = true
+    const tasksOut = ordered.map((t) => {
+      const id = String(t.id)
+      const done = completed.includes(id)
+      const locked = !priorDone
+      if (!done) priorDone = false
+      return {
+        id,
         slug: String(t.slug),
         title: String(t.title),
         instructions: String(t.instructions),
         points: Number(t.points),
-        completed: completed.includes(String(t.id)),
-      })),
+        completed: done,
+        locked,
+      }
+    })
+    res.json({
+      ok: true,
+      dayUtc: day,
+      tasks: tasksOut,
       disclaimer: KOL_PROGRAM_POINTS_DISCLAIMER,
     })
   } catch (err) {

@@ -15,6 +15,8 @@ export async function cardSvgForAnyHandle(handle: string): Promise<string | null
     referralUrl: card.referralUrl,
     hallOfFameBadges: badges,
     rank: card.rank,
+    memberNumber: card.memberNumber,
+    seasonPoints: card.seasonPoints,
     unclaimed: card.unclaimed,
     scoreBars: card.scoreBars,
   })

@@ -47,7 +47,7 @@ test.describe('iOS Safari regressions (WebKit)', () => {
     await expect(page.locator('.form-error')).toContainText(/unavailable|Failed/i)
   })
 
-  test('/kol/VitalikButerin card img uses PNG and loads', async ({ page }) => {
+  test('/kol/VitalikButerin influence card renders', async ({ page }) => {
     await page.route('**/api/kol-program/public/VitalikButerin', (route) =>
       route.fulfill({
         status: 200,
@@ -67,9 +67,14 @@ test.describe('iOS Safari regressions (WebKit)', () => {
             referralUrl: 'https://crewpay.dev/ref/VitalikButerin',
             cardUrl: VITALIK_CARD,
             profileUrl: 'https://crewpay.dev/kol/VitalikButerin',
-            scoreBars: [],
+            scoreBars: [
+              { label: 'Engagement', value: 40 },
+              { label: 'Reach', value: 82 },
+            ],
             lookupOk: true,
             xVerified: true,
+            seasonPoints: 2250,
+            memberNumber: 20361,
           },
         }),
       }),
@@ -84,24 +89,10 @@ test.describe('iOS Safari regressions (WebKit)', () => {
     await page.route('**/api/kols/profile/VitalikButerin', (route) =>
       route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ ok: false }) }),
     )
-    await page.route('**/api/kol-program/card/VitalikButerin.png', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'image/png',
-        headers: { 'cross-origin-resource-policy': 'cross-origin' },
-        body: Buffer.from(
-          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
-          'base64',
-        ),
-      }),
-    )
-
     await page.goto('/kol/VitalikButerin', { waitUntil: 'domcontentloaded' })
-    const img = page.getByTestId('kol-public-card').locator('img')
-    await expect(img).toBeVisible()
-    await expect(img).toHaveAttribute('src', /VitalikButerin\.png/)
-    await expect
-      .poll(async () => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0))
-      .toBe(true)
+    const card = page.getByTestId('kol-influence-card')
+    await expect(card).toBeVisible()
+    await expect(card.getByText('REACH SCORE', { exact: false })).toBeVisible()
+    await expect(card.locator('.kol-influence-score')).toContainText('82')
   })
 })
