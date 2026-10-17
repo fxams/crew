@@ -1469,6 +1469,9 @@ export default function App() {
       isSuiPage ||
       isSuiPoolPage ||
       isTasksPage ||
+      isKolHubPage ||
+      isKolLeaderboardPage ||
+      isKolFoundersPage ||
       isAdminKickoffPage ||
       isAdminFarcasterPage ||
       isAdminOpsPage,
