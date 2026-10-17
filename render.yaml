@@ -22,7 +22,7 @@ services:
     branch: main
     # Prerender dist/kol/:handle/index.html + dist/ref/:handle/index.html at build (crawler OG).
     # Optional: switch runtime to node + scripts/crewpay-static-server.mjs for any handle.
-    buildCommand: npm ci --legacy-peer-deps && npm test && npm run build
+    buildCommand: npm ci --legacy-peer-deps && npm test && npm run build && test -f dist/kol/VitalikButerin.html
     staticPublishPath: dist
     healthCheckPath: /
     pullRequestPreviewsEnabled: false
