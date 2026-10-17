@@ -6,6 +6,7 @@ import { takeRateLimit } from '../lib/agent/rate-limit.js'
 import { sendInternalError } from '../lib/http-error.js'
 import { readKolSessionCookie } from '../lib/kol-session.js'
 import { kolProgramEnabled } from '../lib/kol-program/flags.js'
+import { KOL_PROGRAM_POINTS_DISCLAIMER } from '../lib/kol-program/copy.js'
 import { REACH_FORMULA_DOC } from '../lib/kol-program/reach-score.js'
 import {
   cardSvgForHandle,
@@ -49,8 +50,7 @@ kolProgramRouter.get('/kol-program/status', (_req, res) => {
   res.json({
     ok: true,
     enabled: true,
-    pointsDisclaimer:
-      'Program points have no monetary value. No token, airdrop, or cash redemption.',
+    pointsDisclaimer: KOL_PROGRAM_POINTS_DISCLAIMER,
     referralFeeMap:
       'When an agent key is bound with your referral code, launches use 60% crew / 15% agent / 5% referrer / 20% treasury. Non-referred launches stay 60/15/25. No earnings promises.',
     linkPattern: `${siteUrl()}/ref/<handle>`,
@@ -69,7 +69,7 @@ kolProgramRouter.get('/kol-program/leaderboard', async (req, res) => {
       ok: true,
       seasonId,
       rows,
-      disclaimer: 'Points have no monetary value.',
+      disclaimer: KOL_PROGRAM_POINTS_DISCLAIMER,
       crewPriorityCopy: 'Top KOLs by season points get first crew slots on new launches (when eligible).',
       pool: {
         poolBps: pool.poolBps,
@@ -225,7 +225,7 @@ kolProgramRouter.get('/kol-program/tasks/today', async (req, res) => {
         points: Number(t.points),
         completed: completed.includes(String(t.id)),
       })),
-      disclaimer: 'Points have no monetary value.',
+      disclaimer: KOL_PROGRAM_POINTS_DISCLAIMER,
     })
   } catch (err) {
     sendInternalError(res, err, 'kol-program tasks')

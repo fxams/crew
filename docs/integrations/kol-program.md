@@ -20,7 +20,7 @@ Frontend: `VITE_KOL_PROGRAM_ENABLED=1`
 
 ## Season pool (non-custodial)
 
-Treasury creator-fee receipts are indexed from locked-coin remits (Solana + Base platform/treasury wallets). The leaderboard shows **pool slice so far this season** from real receipts only — no projections.
+Treasury creator-fee receipts are indexed from locked-coin remits (Solana + Base platform/treasury wallets). The leaderboard shows an **estimated share if the season ended now (not guaranteed)** from real receipts only — no projections.
 
 At season end, `POST /api/kol-program/admin/pool/manifest/:seasonId` (with `CREW_API_KEY`) builds a payout manifest and **unsigned** Solana/EVM transactions. **Lex signs and broadcasts manually** — the API never holds keys or auto-sends.
 
@@ -32,7 +32,7 @@ Admin shoutout for @CrewPayHQ: `GET /api/kol-program/admin/season/:seasonId/shou
 
 ## Points disclaimer
 
-Program points have **no monetary value** (no token, airdrop, or cash). Referral **fee splits** on agent launches remain the existing on-chain map: **60% crew / 15% agent / 5% referrer / 20% treasury** when a referral code is bound (else 60/15/25).
+Points themselves have no cash value. The season pool shares 20% of the treasury's actual creator-fee income among the top 50 KOLs; amounts vary, depend on real fees, and aren't guaranteed. Referral **fee splits** on agent launches remain the existing on-chain map: **60% crew / 15% agent / 5% referrer / 20% treasury** when a referral code is bound (else 60/15/25).
 
 ## X API usage (estimate)
 
