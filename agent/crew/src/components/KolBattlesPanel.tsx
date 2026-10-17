@@ -5,6 +5,7 @@ import {
   stakeKolBattle,
   type KolBattle,
 } from '../lib/kol-program'
+import { openXUrl } from '../lib/x-links'
 
 export function KolBattlesPanel() {
   const [battles, setBattles] = useState<KolBattle[]>([])
@@ -34,7 +35,7 @@ export function KolBattlesPanel() {
     setTheme('')
     setOpponent('')
     void refresh()
-    if (out.shareIntent) window.open(out.shareIntent, '_blank', 'noopener,noreferrer')
+    if (out.shareIntent) openXUrl(out.shareIntent)
   }
 
   return (

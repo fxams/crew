@@ -33,6 +33,8 @@ import {
 import { evmAddressFieldError, isEvmAddress } from '../lib/evm-address'
 import { registerKolEvmWallet } from '../lib/kol-evm-wallet'
 import { isPayoutWallet } from '../lib/payout-wallet'
+import { openXUrl } from '../lib/x-links'
+import { XLink } from './XLink'
 import { resolvePrivyAppId } from '../lib/privy-app'
 import { useConnectModal } from './ConnectModal'
 import { TelegramDeskCard } from './TelegramDeskCard'
@@ -479,10 +481,8 @@ export function KolProfilePage() {
     if (!desk) return
     const url = `${window.location.origin}/kol/${desk.profile.xUsername}`
     const text = `@${desk.profile.xUsername} earned ${formatSol(desk.performance.solReceived)} SOL on @CrewPayHQ`
-    window.open(
+    openXUrl(
       `https://x.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,
-      '_blank',
-      'noopener,noreferrer',
     )
   }
 
@@ -627,20 +627,18 @@ export function KolProfilePage() {
                     ))}
                   </div>
                 ) : null}
-                <a
+                <XLink
                   className="desk-handle"
                   href={
                     desk.profile.telegramOnly && desk.profile.telegramUsername
                       ? `https://t.me/${desk.profile.telegramUsername}`
                       : `https://x.com/${desk.profile.xUsername}`
                   }
-                  target="_blank"
-                  rel="noreferrer"
                 >
                   @{desk.profile.telegramOnly && desk.profile.telegramUsername
                     ? desk.profile.telegramUsername
                     : desk.profile.xUsername}
-                </a>
+                </XLink>
                 <div className="desk-chain-eligibility" data-testid="desk-chain-eligibility">
                   <span
                     className={`desk-chain-chip${hasPayoutWallet ? ' is-on' : ' is-off'}`}
@@ -706,14 +704,12 @@ export function KolProfilePage() {
                       Telegram
                     </a>
                   ) : (
-                    <a
+                    <XLink
                       className="btn btn-ghost btn-sm"
                       href={`https://x.com/${desk.profile.xUsername}`}
-                      target="_blank"
-                      rel="noreferrer"
                     >
                       X
-                    </a>
+                    </XLink>
                   )}
                 </div>
               </div>

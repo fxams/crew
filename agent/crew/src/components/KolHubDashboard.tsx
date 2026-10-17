@@ -10,6 +10,7 @@ import { kolTierDisplayName } from '../lib/kol-tiers'
 import type { KolProgramHub, KolProgramProfile, KolProgramTask } from '../lib/kol-program'
 import { kolProgramCardUrl } from '../lib/kol-program'
 import { buildKolGrowthShareTweet } from '../lib/kol-share'
+import { XLink } from './XLink'
 
 type Props = {
   profile: KolProgramProfile
@@ -81,9 +82,9 @@ export function KolHubDashboard({
           </button>
         </div>
         <div className="kol-inf-share-actions">
-          <a className="btn btn-primary kol-inf-share-x" href={shareUrl} target="_blank" rel="noreferrer">
+          <XLink className="btn btn-primary kol-inf-share-x" href={shareUrl} data-testid="kol-hub-share-x">
             Share on X
-          </a>
+          </XLink>
           <a className="btn btn-ghost" href={png} download={`crewpay-kol-${profile.handle}.png`}>
             Download
           </a>

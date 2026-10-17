@@ -4,6 +4,7 @@ import {
   CREW_TELEGRAM_URL,
   CREW_X_URL,
 } from '../lib/config'
+import { XLink } from './XLink'
 
 /** Official X mark — same box as the Farcaster arch. */
 export function XIcon() {
@@ -41,19 +42,17 @@ export function TelegramIcon() {
   )
 }
 
-/** Header socials: X, Farcaster, Telegram — new-tab icon links. */
+/** Header socials: X (in-app on mobile), Farcaster, Telegram. */
 export function NavSocialLinks() {
   return (
     <span className="nav-socials">
-      <a
+      <XLink
         className="nav-icon-link nav-link-x"
         href={CREW_X_URL}
-        target="_blank"
-        rel="noopener noreferrer"
         aria-label="X @CrewPayHQ"
       >
         <XIcon />
-      </a>
+      </XLink>
       <a
         className="nav-icon-link nav-link-fc"
         href={CREW_FARCASTER_URL}
@@ -80,9 +79,9 @@ export function NavSocialLinks() {
 export function FooterSocials() {
   return (
     <>
-      <a href={CREW_X_URL} target="_blank" rel="noreferrer">
+      <XLink href={CREW_X_URL}>
         @CrewPayHQ
-      </a>
+      </XLink>
       {' · '}
       <a href={CREW_FARCASTER_URL} target="_blank" rel="noreferrer" aria-label="Farcaster @crewpay">
         @crewpay
