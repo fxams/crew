@@ -18,7 +18,8 @@ describe('renderKolCardSvg', () => {
       ],
     })
     expect(svg).toContain('width="1200" height="630"')
-    expect(svg).toContain('Season rank #3')
+    expect(svg).toContain('GLOBAL RANK #3')
+    expect(svg).toContain('REACH SCORE')
     expect(svg).not.toMatch(/\$[0-9]/)
   })
 
@@ -33,6 +34,6 @@ describe('renderKolCardSvg', () => {
       referralUrl: 'https://crewpay.dev/ref/bob',
       unclaimed: true,
     })
-    expect(svg).toContain('UNCLAIMED')
+    expect(svg).toContain('CLAIM YOUR CARD')
   })
 })

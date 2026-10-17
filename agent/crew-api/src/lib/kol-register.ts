@@ -748,6 +748,15 @@ export async function completeXCallback(
         accountCreatedAt: user.created_at || null,
         referralCount: Number(refCount.rows[0]?.n || 0),
       })
+      if (firstReferral && referredBy) {
+        const { awardKolProgramReferralSeasonPoints } = await import(
+          './kol-program/referral-rewards.js'
+        )
+        await awardKolProgramReferralSeasonPoints({
+          referrerCode: referredBy,
+          referredXUserId: user.id,
+        })
+      }
     }
   } catch (err) {
     console.warn('kol program enroll failed', err instanceof Error ? err.message : err)

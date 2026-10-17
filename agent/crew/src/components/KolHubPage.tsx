@@ -7,21 +7,23 @@ import {
   fetchKolProgramMe,
   fetchKolProgramTasksToday,
   fetchPublicKolCard,
-  kolProgramCardUrl,
   verifyKolProgramTask,
   KOL_PROGRAM_POINTS_DISCLAIMER,
   type KolProgramHub,
   type KolProgramProfile,
   type KolProgramTask,
+  type PublicKolCard,
 } from '../lib/kol-program'
-import { kolTierDisplayName, kolTierFrameClass } from '../lib/kol-tiers'
+import { kolTierDisplayName } from '../lib/kol-tiers'
 import { startKolHubXSignIn } from '../lib/kol-x-sign-in'
 import { kolProfilePath } from '../lib/routes'
 import { KolSampleCardPreview } from './KolSampleCardPreview'
-import { buildKolGrowthShareTweet } from '../lib/kol-share'
 import { KolOnboardingChecklist } from './KolOnboardingChecklist'
 import { KolBattlesPanel } from './KolBattlesPanel'
 import { fetchKolNotifications, markKolNotificationsRead } from '../lib/kol-program'
+import { KolInfluenceCard } from './KolInfluenceCard'
+import { KolHubDashboard } from './KolHubDashboard'
+import { KolMobileTabBar } from './KolMobileTabBar'
 
 function founderLabel(n: number | null): string | null {
   if (n == null || n < 1) return null
@@ -56,13 +58,12 @@ export function KolHubPage() {
   const [taskError, setTaskError] = useState<string | null>(null)
   const [tickerIdx, setTickerIdx] = useState(0)
   const [lookupHandle, setLookupHandle] = useState('')
-  const [shareTag, setShareTag] = useState('')
-  const [replyPinned, setReplyPinned] = useState(false)
   const [pinnedPostId, setPinnedPostId] = useState<string | null>(null)
   const [notifUnread, setNotifUnread] = useState(0)
   const [notifs, setNotifs] = useState<
     Array<{ id: string; title: string; body: string; href: string | null }>
   >([])
+  const [publicCard, setPublicCard] = useState<PublicKolCard | null>(null)
 
   const refresh = useCallback(async () => {
     const [h, me, today] = await Promise.all([
@@ -72,9 +73,10 @@ export function KolHubPage() {
     ])
     setHub(h)
     setProfile(me)
-    setTasks(today?.tasks?.filter((t) => !t.completed) ?? today?.tasks ?? [])
+    setTasks(today?.tasks ?? [])
     if (me?.handle) {
       const pub = await fetchPublicKolCard(me.handle)
+      setPublicCard(pub?.card ?? null)
       setPinnedPostId(pub?.pinnedPostId ?? null)
       const n = await fetchKolNotifications()
       if (n) {
@@ -100,20 +102,6 @@ export function KolHubPage() {
   const ticker = joiners.length ? joiners[tickerIdx % joiners.length] : null
   const memberLine = hubMemberLine(hub)
 
-  const milestones = useMemo(() => {
-    const count = profile?.referralCount ?? 0
-    const defs = hub?.referralMilestones ?? [
-      { referrals: 5, bonusPoints: 1000 },
-      { referrals: 25, bonusPoints: 5000 },
-      { referrals: 100, bonusPoints: 25000 },
-    ]
-    return defs.map((m) => ({
-      ...m,
-      done: count >= m.referrals,
-      progress: Math.min(100, Math.round((count / m.referrals) * 100)),
-    }))
-  }, [hub?.referralMilestones, profile?.referralCount])
-
   async function onSignIn() {
     setSignInBusy(true)
     try {
@@ -135,15 +123,6 @@ export function KolHubPage() {
     void refresh()
   }
 
-  async function copyReferral() {
-    if (!profile?.referralUrl) return
-    try {
-      await navigator.clipboard.writeText(profile.referralUrl)
-    } catch {
-      /* ignore */
-    }
-  }
-
   if (!KOL_PROGRAM_ENABLED) {
     return (
       <div className="app-shell page-kols">
@@ -156,16 +135,6 @@ export function KolHubPage() {
   }
 
   const disclaimer = hub?.disclaimer || KOL_PROGRAM_POINTS_DISCLAIMER
-  const tierClass = profile ? kolTierFrameClass(profile.tier) : 'kol-tier-spark'
-  const cardPng = profile ? kolProgramCardUrl(profile.handle, 'png') : ''
-  const shareUrl =
-    profile
-      ? buildKolGrowthShareTweet({
-          refLink: profile.referralUrl,
-          tagHandle: shareTag || undefined,
-          replyToPostId: replyPinned && pinnedPostId ? pinnedPostId : undefined,
-        })
-      : ''
 
   function onLookupSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -195,16 +164,10 @@ export function KolHubPage() {
         </form>
 
         <div className="kol-hub-showcase" data-testid="kol-hub-showcase">
-          {profile ? (
-            <div className={`kol-hub-card-frame kol-hub-card-frame-hero ${tierClass}`} data-testid="kol-hub-card">
-              <img
-                className="kol-hub-card-img kol-hub-card-img-hero"
-                src={cardPng}
-                alt={`KOL card for @${profile.handle}`}
-                width={600}
-                height={315}
-              />
-            </div>
+          {profile && publicCard ? (
+            <KolInfluenceCard card={publicCard} portrait />
+          ) : profile ? (
+            <p className="muted">Loading your card…</p>
           ) : (
             <KolSampleCardPreview />
           )}
@@ -224,31 +187,6 @@ export function KolHubPage() {
           </div>
         ) : (
           <div className="register-actions kol-hub-cta">
-            <label className="kol-share-tag">
-              Tag a friend
-              <input
-                type="text"
-                placeholder="@handle"
-                value={shareTag}
-                onChange={(e) => setShareTag(e.target.value)}
-              />
-            </label>
-            {pinnedPostId ? (
-              <label className="kol-share-reply">
-                <input
-                  type="checkbox"
-                  checked={replyPinned}
-                  onChange={(e) => setReplyPinned(e.target.checked)}
-                />
-                Reply under pinned post
-              </label>
-            ) : null}
-            <a className="btn btn-primary btn-sm" href={shareUrl} target="_blank" rel="noreferrer">
-              Share on X
-            </a>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => void copyReferral()}>
-              Copy link
-            </button>
             <Link className="btn btn-ghost btn-sm" to={kolProfilePath(profile.handle)}>Full desk</Link>
           </div>
         )}
@@ -310,7 +248,7 @@ export function KolHubPage() {
       </section>
 
       {profile && notifs.length ? (
-        <section className="section kol-notifications">
+        <section className="section kol-notifications" id="alerts">
           <p className="section-label">Notifications</p>
           <ul>
             {notifs.map((n) => (
@@ -323,63 +261,23 @@ export function KolHubPage() {
       ) : null}
 
       {profile ? (
-        <section className="section kol-hub-dashboard">
+        <section className="section kol-hub-dashboard-wrap" id="tasks">
           <KolOnboardingChecklist />
           <KolBattlesPanel />
-          <p className="section-label">Dashboard</p>
-          <div className="kol-hub-dash-grid">
-            <div className="kol-hub-dash-card">
-              <span className="kol-hub-dash-label">Season points</span>
-              <strong>{profile.seasonPoints}</strong>
-            </div>
-            <div className="kol-hub-dash-card">
-              <span className="kol-hub-dash-label">Rank</span>
-              <strong>{profile.rank ? `#${profile.rank}` : '—'}</strong>
-            </div>
-            <div className="kol-hub-dash-card">
-              <span className="kol-hub-dash-label">Referrals</span>
-              <strong>{profile.referralCount ?? 0}</strong>
-            </div>
-          </div>
-
-          {tasks[0] ? (
-            <div className="kol-hub-task">
-              <p className="section-label">Today&apos;s task</p>
-              <p><strong>{tasks[0].title}</strong> · {tasks[0].points} pts</p>
-              <p className="hint">{tasks[0].instructions}</p>
-              {tasks[0].completed ? (
-                <p className="register-ok">Completed today</p>
-              ) : (
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  disabled={taskBusy === tasks[0].id}
-                  onClick={() => void onVerify(tasks[0].id)}
-                >
-                  {taskBusy === tasks[0].id ? 'Checking X…' : 'Verify'}
-                </button>
-              )}
-              {taskError ? <p className="register-err">{taskError}</p> : null}
-            </div>
-          ) : null}
-
-          <div className="kol-hub-milestones">
-            <p className="section-label">Referral milestones</p>
-            <p className="hint">Bonus season points when you hit each tier (paid once).</p>
-            <ul className="kol-milestone-list">
-              {milestones.map((m) => (
-                <li key={m.referrals} className={m.done ? 'is-done' : ''}>
-                  <span>{m.referrals} referrals</span>
-                  <span>+{m.bonusPoints.toLocaleString()} pts</span>
-                  <div className="kol-milestone-bar" aria-hidden>
-                    <div style={{ width: `${m.progress}%` }} />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <KolHubDashboard
+            profile={profile}
+            hub={hub}
+            tasks={tasks}
+            taskBusy={taskBusy}
+            taskError={taskError}
+            onVerify={onVerify}
+            shareTag=""
+            replyPinned={false}
+            pinnedPostId={pinnedPostId}
+          />
         </section>
       ) : null}
+      <KolMobileTabBar />
     </div>
   )
 }
