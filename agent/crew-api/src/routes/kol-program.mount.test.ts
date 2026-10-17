@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import request from 'supertest'
 import { createApiApp } from '../api-app.js'
+import { resetSiteIndexCacheForTests } from '../lib/kol-program/share-html.js'
 
 vi.mock('../lib/kol-session.js', () => ({
   readKolSessionCookie: vi.fn(() => ({ u: 'u1', h: 'alice' })),
@@ -75,6 +76,8 @@ describe('kol-program routes on mounted API app', () => {
 
   afterEach(() => {
     process.env.KOL_PROGRAM_ENABLED = prev
+    resetSiteIndexCacheForTests()
+    vi.unstubAllGlobals()
   })
 
   it('GET /api/kol-program/hub is registered (not Express 404)', async () => {
@@ -108,5 +111,34 @@ describe('kol-program routes on mounted API app', () => {
     expect(res.status).toBe(200)
     expect(res.body.profile.rank).toBe(3)
     expect(res.body.profile.referralCount).toBe(4)
+  })
+
+  it('GET /kol/:handle and /ref/:handle return per-handle OG HTML', async () => {
+    const spa = `<!doctype html><html><head><title>CREW</title>
+      <meta property="og:image" content="https://crewpay.dev/brand/banner-og.jpg" />
+      <meta name="twitter:card" content="summary_large_image" />
+      </head><body><div id="root"></div></body></html>`
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(spa, { status: 200, headers: { 'content-type': 'text/html' } })),
+    )
+    const app = createApiApp()
+    const kol = await request(app).get('/kol/VitalikButerin').set('User-Agent', 'Twitterbot')
+    expect(kol.status).toBe(200)
+    expect(kol.headers['content-type']).toMatch(/html/)
+    expect(kol.text).toContain('api.crewpay.dev/api/kol-program/card/VitalikButerin.png')
+    expect(kol.text).toContain('twitter:card')
+    expect(kol.text).toContain('id="root"')
+    const ref = await request(app).get('/ref/VitalikButerin')
+    expect(ref.status).toBe(200)
+    expect(ref.text).toContain('https://crewpay.dev/ref/VitalikButerin')
+    expect(ref.text).toContain('card/VitalikButerin.png')
+    vi.unstubAllGlobals()
+  })
+
+  it('GET /kol/:handle rejects invalid handles', async () => {
+    const app = createApiApp()
+    const res = await request(app).get('/kol/not%20a%20handle!')
+    expect(res.status).toBe(404)
   })
 })
