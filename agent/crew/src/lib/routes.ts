@@ -1,3 +1,5 @@
+import { isKolReservedPathWord } from './kol-reserved-paths'
+
 function normalizePath(pathname: string): string {
   return (pathname || "/").replace(/\/+$/, "") || "/";
 }
@@ -26,6 +28,12 @@ export function isKolHubPath(pathname: string): boolean {
   return path === '/kol' || path.endsWith('/kol')
 }
 
+function kolSegmentFromPath(pathname: string): string | null {
+  const path = normalizePath(pathname)
+  const match = path.match(/(?:^|\/)kol\/([A-Za-z0-9_]{1,15})$/)
+  return match?.[1] ?? null
+}
+
 /** KOL program points leaderboard (not a profile handle). */
 export function isKolLeaderboardPath(pathname: string): boolean {
   const path = normalizePath(pathname)
@@ -37,13 +45,29 @@ export function isKolFoundersPath(pathname: string): boolean {
   return path === '/kol/founders' || path.endsWith('/kol/founders')
 }
 
+/** Influence task ladder (not an X handle named "tasks"). */
+export function isKolTasksPath(pathname: string): boolean {
+  const path = normalizePath(pathname)
+  return path === '/kol/tasks' || path.endsWith('/kol/tasks')
+}
+
+/** Reserved /kol/<word> with no dedicated page — bounce to the hub. */
+export function isKolReservedRedirectPath(pathname: string): boolean {
+  if (isKolLeaderboardPath(pathname) || isKolFoundersPath(pathname) || isKolTasksPath(pathname)) {
+    return false
+  }
+  const seg = kolSegmentFromPath(pathname)
+  return Boolean(seg && isKolReservedPathWord(seg))
+}
+
 /** Public desk for one registered KOL: `/kol/:handle`. */
 export function kolHandleFromPath(pathname: string): string | null {
   const path = normalizePath(pathname)
   if (isKolHubPath(path) || isKolFoundersPath(path)) return null
-  if (isKolLeaderboardPath(path)) return null
-  const match = path.match(/(?:^|\/)kol\/([A-Za-z0-9_]{1,15})$/)
-  return match?.[1] ?? null
+  if (isKolLeaderboardPath(path) || isKolTasksPath(path)) return null
+  const match = kolSegmentFromPath(path)
+  if (!match || isKolReservedPathWord(match)) return null
+  return match
 }
 
 export function kolProfilePath(username: string): string {

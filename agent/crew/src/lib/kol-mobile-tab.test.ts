@@ -15,6 +15,13 @@ describe('kolMobileTabActive', () => {
     expect(kolMobileTabActive('/kol', '#alerts', 'home')).toBe(false)
   })
 
+  it('marks Tasks on /kol/tasks', () => {
+    expect(kolMobileTabActive('/kol/tasks', '', 'tasks')).toBe(true)
+    expect(kolMobileTabActive('/kol', '#tasks', 'tasks')).toBe(true)
+    expect(kolMobileTabActive('/kol/tasks', '', 'home')).toBe(false)
+    expect(kolMobileTabActive('/kol/mubaraqabba', '', 'tasks')).toBe(false)
+  })
+
   it('marks My card on the signed-in profile', () => {
     expect(kolMobileTabActive('/kol/mubaraqabba', '', 'card', 'mubaraqabba')).toBe(true)
     expect(kolMobileTabActive('/kol/other', '', 'card', 'mubaraqabba')).toBe(false)

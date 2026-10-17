@@ -68,6 +68,34 @@ services:
         name: Cache-Control
         value: no-cache, no-store, must-revalidate
     routes:
+      # Product routes first so /kol/tasks is never rewritten as handle @tasks.
+      - type: rewrite
+        source: /kol/tasks
+        destination: /index.html
+      - type: rewrite
+        source: /kol/leaderboard
+        destination: /index.html
+      - type: rewrite
+        source: /kol/founders
+        destination: /index.html
+      - type: rewrite
+        source: /kol/alerts
+        destination: /index.html
+      - type: rewrite
+        source: /kol/battles
+        destination: /index.html
+      - type: rewrite
+        source: /kol/me
+        destination: /index.html
+      - type: rewrite
+        source: /kol/hub
+        destination: /index.html
+      - type: rewrite
+        source: /kol/card
+        destination: /index.html
+      - type: rewrite
+        source: /kol/settings
+        destination: /index.html
       # Per-handle OG + SPA shell from the API (any X handle, not just prerendered files).
       - type: rewrite
         source: /kol/*

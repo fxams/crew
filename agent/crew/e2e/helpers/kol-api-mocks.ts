@@ -96,7 +96,67 @@ export async function mockKolRegisterApis(
     route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ ok: false }) }),
   )
   await page.route('**/api/kol-program/tasks/today', (route: Route) =>
-    route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ ok: false }) }),
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        dayUtc: '2026-10-17',
+        tasks: [
+          {
+            id: 'today_like',
+            slug: 'today-like',
+            title: 'Like today’s @CrewPayHQ post',
+            instructions: 'Like the newest @CrewPayHQ post. Resets 00:00 UTC.',
+            points: 250,
+            completed: false,
+            locked: true,
+            kind: 'today',
+          },
+        ],
+        tweetId: null,
+        resetIn: '6h',
+        pointsToday: 0,
+        pointsCap: 5000,
+        disclaimer: 'Points have no cash value.',
+      }),
+    }),
+  )
+  await page.route('**/api/kol-program/onboarding', (route: Route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        signedIn: false,
+        steps: [
+          {
+            id: 'connect_x',
+            title: 'Connect X',
+            points: 0,
+            order: 1,
+            completed: false,
+            unlocked: true,
+            icon: '𝕏',
+            hint: 'Sign in with X to start the ladder.',
+          },
+          {
+            id: 'follow_hq',
+            title: 'Follow @CrewPayHQ',
+            points: 2000,
+            order: 2,
+            completed: false,
+            unlocked: false,
+            hint: 'Follow @CrewPayHQ on X, then verify.',
+          },
+        ],
+        nextStep: 'connect_x',
+        pointsToday: 0,
+        pointsCap: 5000,
+        referralUrl: '',
+        pinnedPostId: null,
+      }),
+    }),
   )
   await page.route('**/api/kol-program/leaderboard*', (route: Route) =>
     route.fulfill({

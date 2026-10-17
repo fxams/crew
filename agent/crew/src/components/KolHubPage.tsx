@@ -134,7 +134,7 @@ export function KolHubPage() {
             Leaderboard
           </Link>
           <Link className="btn btn-ghost btn-sm" to="/kol/founders">Founders</Link>
-          <Link className="btn btn-ghost btn-sm" to="/tasks">Tasks</Link>
+          <Link className="btn btn-ghost btn-sm" to="/kol/tasks">Tasks</Link>
           {profile ? (
             <Link className="btn btn-ghost btn-sm" to={kolProfilePath(profile.handle)} data-testid="kol-hub-my-card">
               My card

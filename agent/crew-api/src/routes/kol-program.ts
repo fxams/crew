@@ -33,6 +33,7 @@ import { verifyTaskFromTweets } from '../lib/kol-program/task-verify.js'
 import { siteUrl } from '../lib/kol-register.js'
 import { KOL_POOL_BPS, CREWPAY_HQ_X_HANDLE, kolPinnedPostId } from '../lib/kol-program/flags.js'
 import { buildPublicKolCard } from '../lib/kol-program/public-card.js'
+import { isKolReservedPathWord } from '../lib/kol-program/reserved-paths.js'
 import { cardPngForHandle } from '../lib/kol-program/card-png.js'
 import { sendKolSharePage } from '../lib/kol-program/share-page.js'
 import {
@@ -238,6 +239,10 @@ kolProgramRouter.get('/kol-program/public/:handle', async (req, res) => {
       res.status(429).json({ ok: false, error: 'Too many lookups — try again later.' })
       return
     }
+    if (isKolReservedPathWord(req.params.handle)) {
+      res.status(404).json({ ok: false, error: 'Reserved path — not a KOL handle.' })
+      return
+    }
     const card = await buildPublicKolCard(req.params.handle)
     res.json({
       ok: true,
@@ -252,6 +257,10 @@ kolProgramRouter.get('/kol-program/public/:handle', async (req, res) => {
 
 kolProgramRouter.get('/kol-program/profile/:handle', async (req, res) => {
   try {
+    if (isKolReservedPathWord(req.params.handle)) {
+      res.status(404).json({ ok: false, error: 'Reserved path — not a KOL handle.' })
+      return
+    }
     const profile = await getProgramProfileByHandle(req.params.handle)
     if (!profile) {
       res.status(404).json({ ok: false, error: 'KOL not enrolled in program.' })
@@ -265,6 +274,10 @@ kolProgramRouter.get('/kol-program/profile/:handle', async (req, res) => {
 
 kolProgramRouter.get('/kol-program/card/:handle.svg', async (req, res) => {
   try {
+    if (isKolReservedPathWord(req.params.handle)) {
+      res.status(404).send('Not found')
+      return
+    }
     const svg = await cardSvgForHandle(req.params.handle)
     if (!svg) {
       res.status(404).send('Not found')
@@ -288,6 +301,10 @@ kolProgramRouter.get('/kol-program/card/:handle.png', async (req, res) => {
       return
     }
     const handle = String(req.params.handle).replace(/\.png$/i, '')
+    if (isKolReservedPathWord(handle)) {
+      res.status(404).send('Not found')
+      return
+    }
     const png = await cardPngForHandle(handle)
     if (!png) {
       res.status(404).send('Not found')
@@ -312,7 +329,22 @@ kolProgramRouter.get('/kol-program/onboarding', async (req, res) => {
   try {
     const sess = sessionUser(req)
     if (!sess) {
-      res.status(401).json({ ok: false, error: 'KOL session required.' })
+      res.json({
+        ok: true,
+        signedIn: false,
+        steps: ONBOARDING_STEPS.map((s) => ({
+          ...s,
+          completed: false,
+          unlocked: s.id === 'connect_x',
+          hint: s.id === 'connect_x' ? 'Sign in with X to start the ladder.' : s.hint,
+        })),
+        nextStep: 'connect_x',
+        disclaimer: KOL_PROGRAM_POINTS_DISCLAIMER,
+        referralUrl: '',
+        pinnedPostId: kolPinnedPostId() || null,
+        pointsToday: 0,
+        pointsCap: kolDailyPointsCap(),
+      })
       return
     }
     const completed = await ensureConnectXComplete(sess.xUserId)
@@ -321,6 +353,7 @@ kolProgramRouter.get('/kol-program/onboarding', async (req, res) => {
     const cap = kolDailyPointsCap()
     res.json({
       ok: true,
+      signedIn: true,
       steps: ONBOARDING_STEPS.map((s) => ({
         ...s,
         completed: completed.has(s.id),
@@ -453,7 +486,7 @@ kolProgramRouter.get('/kol-program/tasks/today', async (req, res) => {
             instructions: 'Like the newest @CrewPayHQ post. Resets 00:00 UTC.',
             points: 250,
             completed: Boolean(sess && completed.includes('today_like')),
-            locked: false,
+            locked: !sess,
             kind: 'today' as const,
             tweetId: hqTweet.id,
           },
@@ -464,7 +497,7 @@ kolProgramRouter.get('/kol-program/tasks/today', async (req, res) => {
             instructions: 'Repost the newest @CrewPayHQ post. Resets 00:00 UTC.',
             points: 500,
             completed: Boolean(sess && completed.includes('today_repost')),
-            locked: false,
+            locked: !sess,
             kind: 'today' as const,
             tweetId: hqTweet.id,
           },
@@ -475,7 +508,7 @@ kolProgramRouter.get('/kol-program/tasks/today', async (req, res) => {
             instructions: 'Reply to today’s @CrewPayHQ post and tag someone. Resets 00:00 UTC.',
             points: 1000,
             completed: Boolean(sess && completed.includes('today_reply')),
-            locked: false,
+            locked: !sess,
             kind: 'today' as const,
             tweetId: hqTweet.id,
           },

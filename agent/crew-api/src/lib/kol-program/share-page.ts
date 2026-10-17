@@ -1,7 +1,8 @@
 import type { Response } from 'express'
 import { siteUrl } from '../kol-register.js'
 import { buildPublicKolCard } from './public-card.js'
-import { buildSharePageMeta, renderKolSharePageHtml } from './share-html.js'
+import { isKolReservedPathWord } from './reserved-paths.js'
+import { buildSharePageMeta, loadSiteIndexHtml, renderKolSharePageHtml, renderShareHtml } from './share-html.js'
 
 export const X_SHARE_HANDLE = /^[A-Za-z0-9_]{1,15}$/
 
@@ -9,6 +10,24 @@ function apiPublicUrl(): string {
   const u = (process.env.CREW_API_PUBLIC_URL || process.env.PUBLIC_API_URL || '').trim()
   if (u) return u.replace(/\/$/, '')
   return 'https://api.crewpay.dev'
+}
+
+async function sendReservedKolSpa(res: Response, segment: string): Promise<void> {
+  const site = siteUrl()
+  const pageUrl = `${site.replace(/\/$/, '')}/kol/${encodeURIComponent(segment.toLowerCase())}`
+  const title = segment.toLowerCase() === 'tasks' ? 'Tasks · CrewPay KOL' : 'CrewPay KOL'
+  const html =
+    (await loadSiteIndexHtml(site)) ||
+    renderShareHtml({
+      title,
+      description: 'CrewPay KOL program.',
+      pageUrl,
+      imageUrl: `${site.replace(/\/$/, '')}/brand/banner-og.jpg`,
+    })
+  res.setHeader('content-type', 'text/html; charset=utf-8')
+  res.setHeader('cache-control', 'public, max-age=60')
+  res.setHeader('cross-origin-resource-policy', 'cross-origin')
+  res.send(html)
 }
 
 export async function sendKolSharePage(
@@ -21,6 +40,10 @@ export async function sendKolSharePage(
     .trim()
   if (!X_SHARE_HANDLE.test(handle)) {
     res.status(404).type('html').send('Not found')
+    return
+  }
+  if (kind === 'kol' && isKolReservedPathWord(handle)) {
+    await sendReservedKolSpa(res, handle)
     return
   }
   const card = await buildPublicKolCard(handle)

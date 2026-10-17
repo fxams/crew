@@ -162,4 +162,39 @@ describe('kol-program routes on mounted API app', () => {
     const res = await request(app).get('/kol/not%20a%20handle!')
     expect(res.status).toBe(404)
   })
+
+  it('GET /kol/tasks serves the SPA shell, not an @tasks card', async () => {
+    const spa = `<!doctype html><html><head><title>CREW</title></head><body><div id="root"></div></body></html>`
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(spa, { status: 200, headers: { 'content-type': 'text/html' } })),
+    )
+    const app = createApiApp()
+    const res = await request(app).get('/kol/tasks')
+    expect(res.status).toBe(200)
+    expect(res.text).toContain('id="root"')
+    expect(res.text).not.toContain('@tasks')
+    expect(res.text).not.toContain('card/tasks.png')
+  })
+
+  it('GET /api/kol-program/public/tasks is reserved', async () => {
+    const app = createApiApp()
+    const res = await request(app).get('/api/kol-program/public/tasks')
+    expect(res.status).toBe(404)
+    expect(res.body.ok).toBe(false)
+  })
+
+  it('GET /api/kol-program/onboarding signed-out returns locked catalog and 5000 cap', async () => {
+    const { readKolSessionCookie } = await import('../lib/kol-session.js')
+    vi.mocked(readKolSessionCookie).mockReturnValueOnce(null)
+    const app = createApiApp()
+    const res = await request(app).get('/api/kol-program/onboarding')
+    expect(res.status).toBe(200)
+    expect(res.body.signedIn).toBe(false)
+    expect(res.body.pointsCap).toBe(5000)
+    expect(res.body.pointsToday).toBe(0)
+    expect(res.body.steps[0].id).toBe('connect_x')
+    expect(res.body.steps[0].unlocked).toBe(true)
+    expect(res.body.steps[1].unlocked).toBe(false)
+  })
 })

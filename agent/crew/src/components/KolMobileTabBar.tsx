@@ -41,7 +41,7 @@ export function KolMobileTabBar() {
         ]
       : []),
     { id: 'alerts', to: '/kol#alerts', label: 'Alerts', icon: '◉', testId: 'kol-tab-alerts' },
-    { id: 'tasks', to: '/kol#tasks', label: 'Tasks', icon: '≡', testId: 'kol-tab-tasks' },
+    { id: 'tasks', to: '/kol/tasks', label: 'Tasks', icon: '≡', testId: 'kol-tab-tasks' },
   ]
 
   return (

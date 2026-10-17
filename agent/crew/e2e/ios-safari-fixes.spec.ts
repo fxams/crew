@@ -351,4 +351,28 @@ test.describe('iOS Safari regressions (WebKit)', () => {
       path: '/opt/cursor/artifacts/screenshots/kol-mubaraqabba-claimed-card-390x700.png',
     })
   })
+
+  test('/kol/tasks is the ladder, not an @tasks card', async ({ page }) => {
+    await page.route('**/api/kol-program/public/tasks', (route) =>
+      route.fulfill({
+        status: 404,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: false, error: 'Reserved path — not a KOL handle.' }),
+      }),
+    )
+    await page.setViewportSize({ width: 390, height: 700 })
+    await page.goto('/kol/tasks', { waitUntil: 'domcontentloaded' })
+    await expect(page.getByTestId('kol-task-ladder')).toBeVisible()
+    await expect(page.getByTestId('kol-daily-cap')).toContainText('0 / 5,000 today')
+    await expect(page.getByTestId('kol-tasks-sign-in-x')).toBeVisible()
+    await expect(page.getByText('Get started, one step at a time')).toBeVisible()
+    await expect(page.getByText('Unlocks after the task above')).toBeVisible()
+    await expect(page.getByText('Claim your card')).toHaveCount(0)
+    await expect(page.getByText('@tasks')).toHaveCount(0)
+    await expect(page.getByTestId('kol-public-card')).toHaveCount(0)
+    await expect(page.getByTestId('kol-tab-tasks')).toHaveClass(/is-active/)
+    await page.screenshot({
+      path: '/opt/cursor/artifacts/screenshots/kol-tasks-signedout-ladder-390x700.png',
+    })
+  })
 })
