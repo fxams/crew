@@ -18,13 +18,12 @@ databases:
 services:
   - type: web
     name: crewpay
-    runtime: static
+    runtime: node
     branch: main
-    # No rootDir. Build + publish are repo-root relative.
-    # Output is copied to both dist/ and render-site/ so either dashboard
-    # publish directory picks up the same build (home has no launch form).
+    # Node host injects OG meta for /kol/:handle and /ref/:handle (crawlers skip JS).
     buildCommand: npm ci --legacy-peer-deps && npm test && npm run build
-    staticPublishPath: dist
+    startCommand: node scripts/crewpay-static-server.mjs
+    healthCheckPath: /
     pullRequestPreviewsEnabled: false
     renderSubdomainPolicy: disabled
     autoDeployTrigger: commit
@@ -67,12 +66,6 @@ services:
       - path: /index.html
         name: Cache-Control
         value: no-cache, no-store, must-revalidate
-    routes:
-      # Render serves real files first (/onepager.png, /onepager.pdf, /assets/*).
-      # Catch-all sends SPA paths such as /onepager to index.html.
-      - type: rewrite
-        source: /*
-        destination: /index.html
 
   - type: web
     name: crewpay-api

@@ -54,7 +54,7 @@ function renderBars(bars: ScoreBar[]): string {
     .map((b, i) => {
       const y = startY + i * gap
       const w = Math.max(4, Math.min(280, Math.round((b.value / 30) * 280)))
-      return `<text x="720" y="${y + 11}" fill="#9cb3a8" font-size="14" font-family="ui-monospace,monospace">${escapeXml(b.label)}</text>
+      return `<text x="720" y="${y + 11}" fill="#9cb3a8" font-size="14" font-family="Roboto,sans-serif">${escapeXml(b.label)}</text>
 <rect x="820" y="${y}" width="280" height="${barH}" rx="4" fill="#1a2e22"/>
 <rect x="820" y="${y}" width="${w}" height="${barH}" rx="4" fill="#c8ff3d" fill-opacity="0.85"/>`
     })
@@ -88,7 +88,7 @@ export function renderKolCardSvg(input: KolCardInput): string {
   const avatar = input.avatarUrl ? escapeXml(input.avatarUrl) : ''
   const avatarBlock = avatar
     ? `<image href="${avatar}" x="64" y="72" width="120" height="120" clip-path="url(#av)"/>`
-    : `<circle cx="124" cy="132" r="60" fill="#1a2e22"/><text x="124" y="148" text-anchor="middle" fill="#c8ff3d" font-size="48" font-family="system-ui,sans-serif">@</text>`
+    : `<circle cx="124" cy="132" r="60" fill="#1a2e22"/><text x="124" y="148" text-anchor="middle" fill="#c8ff3d" font-size="48" font-family="Roboto,sans-serif">@</text>`
 
   const bars = input.scoreBars?.length ? renderBars(input.scoreBars) : ''
 
@@ -104,17 +104,17 @@ export function renderKolCardSvg(input: KolCardInput): string {
   <rect width="1200" height="630" fill="url(#bg)"/>
   <rect x="24" y="24" width="1152" height="582" rx="24" fill="none" stroke="${frame}" stroke-opacity="0.9" stroke-width="4"/>
   ${avatarBlock}
-  <text x="220" y="110" fill="#e8f5e9" font-size="44" font-weight="700" font-family="system-ui,sans-serif">@${handle}</text>
-  <text x="220" y="156" fill="#9cb3a8" font-size="26" font-family="system-ui,sans-serif">${name}</text>
-  <text x="220" y="200" fill="#c8ff3d" font-size="22" font-family="ui-monospace,monospace">${escapeXml(founder)}</text>
-  ${rankLine ? `<text x="220" y="232" fill="#9cb3a8" font-size="18" font-family="ui-monospace,monospace">${rankLine}</text>` : ''}
-  ${hofLine ? `<text x="220" y="258" fill="#9cb3a8" font-size="16" font-family="ui-monospace,monospace">${hofLine}</text>` : ''}
-  <text x="220" y="320" fill="#e8f5e9" font-size="72" font-weight="800" font-family="system-ui,sans-serif">${score}</text>
-  <text x="340" y="320" fill="#9cb3a8" font-size="28" font-family="ui-monospace,monospace">reach</text>
-  <text x="220" y="372" fill="#c8ff3d" font-size="32" font-weight="600" font-family="ui-monospace,monospace">${tier}</text>
+  <text x="220" y="110" fill="#e8f5e9" font-size="44" font-weight="700" font-family="Roboto,sans-serif">@${handle}</text>
+  <text x="220" y="156" fill="#9cb3a8" font-size="26" font-family="Roboto,sans-serif">${name}</text>
+  <text x="220" y="200" fill="#c8ff3d" font-size="22" font-family="Roboto,sans-serif">${escapeXml(founder)}</text>
+  ${rankLine ? `<text x="220" y="232" fill="#9cb3a8" font-size="18" font-family="Roboto,sans-serif">${rankLine}</text>` : ''}
+  ${hofLine ? `<text x="220" y="258" fill="#9cb3a8" font-size="16" font-family="Roboto,sans-serif">${hofLine}</text>` : ''}
+  <text x="220" y="320" fill="#e8f5e9" font-size="72" font-weight="800" font-family="Roboto,sans-serif">${score}</text>
+  <text x="340" y="320" fill="#9cb3a8" font-size="28" font-family="Roboto,sans-serif">reach</text>
+  <text x="220" y="372" fill="#c8ff3d" font-size="32" font-weight="600" font-family="Roboto,sans-serif">${tier}</text>
   ${bars}
-  <text x="64" y="560" fill="#9cb3a8" font-size="22" font-family="ui-monospace,monospace">${url}</text>
-  <text x="64" y="598" fill="#6d8478" font-size="16" font-family="ui-monospace,monospace">Points have no cash value. Season pool varies with real fees — not guaranteed.</text>
+  <text x="64" y="560" fill="#9cb3a8" font-size="22" font-family="Roboto,sans-serif">${url}</text>
+  <text x="64" y="598" fill="#6d8478" font-size="16" font-family="Roboto,sans-serif">Points have no cash value. Season pool varies with real fees — not guaranteed.</text>
 </svg>`
 }
 

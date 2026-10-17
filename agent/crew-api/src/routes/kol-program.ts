@@ -28,6 +28,8 @@ import { verifyTaskFromTweets } from '../lib/kol-program/task-verify.js'
 import { siteUrl } from '../lib/kol-register.js'
 import { KOL_POOL_BPS, CREWPAY_HQ_X_HANDLE, kolPinnedPostId } from '../lib/kol-program/flags.js'
 import { buildPublicKolCard } from '../lib/kol-program/public-card.js'
+import { cardPngForHandle } from '../lib/kol-program/card-png.js'
+import { buildSharePageMeta, renderShareHtml } from '../lib/kol-program/share-html.js'
 import {
   ensureFoundingSnapshot,
   kolFoundingSnapshotAt,
@@ -190,6 +192,46 @@ kolProgramRouter.get('/kol-program/seasons', async (req, res) => {
   }
 })
 
+function apiPublicUrl(): string {
+  const u = (process.env.CREW_API_PUBLIC_URL || process.env.PUBLIC_API_URL || '').trim()
+  if (u) return u.replace(/\/$/, '')
+  return 'https://api.crewpay.dev'
+}
+
+async function shareHtmlResponse(
+  res: Response,
+  kind: 'kol' | 'ref',
+  handle: string,
+): Promise<void> {
+  const card = await buildPublicKolCard(handle)
+  const meta = buildSharePageMeta({
+    handle,
+    kind,
+    siteUrl: siteUrl(),
+    apiUrl: apiPublicUrl(),
+    card,
+  })
+  res.setHeader('content-type', 'text/html; charset=utf-8')
+  res.setHeader('cache-control', 'public, max-age=300')
+  res.send(renderShareHtml(meta))
+}
+
+kolProgramRouter.get('/kol-program/share/kol/:handle', async (req, res) => {
+  try {
+    await shareHtmlResponse(res, 'kol', String(req.params.handle))
+  } catch (err) {
+    sendInternalError(res, err, 'kol-program share kol')
+  }
+})
+
+kolProgramRouter.get('/kol-program/share/ref/:handle', async (req, res) => {
+  try {
+    await shareHtmlResponse(res, 'ref', String(req.params.handle))
+  } catch (err) {
+    sendInternalError(res, err, 'kol-program share ref')
+  }
+})
+
 kolProgramRouter.get('/kol-program/public/:handle', async (req, res) => {
   try {
     const ip = clientIp(req)
@@ -246,16 +288,17 @@ kolProgramRouter.get('/kol-program/card/:handle.png', async (req, res) => {
       res.status(429).send('Rate limited')
       return
     }
-    const svg = await cardSvgForHandle(req.params.handle)
-    if (!svg) {
+    const handle = String(req.params.handle).replace(/\.png$/i, '')
+    const png = await cardPngForHandle(handle)
+    if (!png) {
       res.status(404).send('Not found')
       return
     }
-    res.setHeader('content-type', 'image/svg+xml')
+    res.setHeader('content-type', 'image/png')
     res.setHeader('cache-control', 'public, max-age=86400')
-    res.send(svg)
+    res.send(png)
   } catch (err) {
-    sendInternalError(res, err, 'kol-program card png alias')
+    sendInternalError(res, err, 'kol-program card png')
   }
 })
 
