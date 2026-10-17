@@ -7450,7 +7450,7 @@ ol.coin-timeline.coin-panel {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin: 0.75rem 0 1rem;
+  margin: 0.35rem 0 0.55rem;
 }
 
 .kol-sample-card {
@@ -7783,16 +7783,35 @@ ol.coin-timeline.coin-panel {
 }
 
 .kol-leaderboard-empty {
-  margin: 0.75rem 0 1rem;
+  margin: 0.35rem 0 0.75rem;
+}
+
+.kol-leaderboard-empty .kol-podium {
+  margin: 0.4rem 0 0.55rem;
+}
+
+.kol-leaderboard-empty .kol-podium-slot {
+  padding: 0.35rem 0.25rem;
+}
+
+.kol-leaderboard-empty .kol-podium-placeholder {
+  aspect-ratio: 16 / 8;
+  max-height: 56px;
 }
 
 .kol-leaderboard-empty-copy {
-  margin: 0.35rem 0 0.75rem;
+  margin: 0.25rem 0 0.55rem;
   text-align: center;
 }
 
 .kol-hub-leaderboard {
-  margin-top: 0.25rem;
+  margin: 0.15rem 0 0.85rem;
+}
+
+.page-kol-hub,
+.page-kol-leaderboard,
+.page-kol-founders {
+  padding-bottom: 5.5rem;
 }
 
 .kol-leaderboard-tier.kol-tier-apex {
@@ -8257,7 +8276,7 @@ ol.coin-timeline.coin-panel {
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 40;
+  z-index: 50;
   display: flex;
   justify-content: space-around;
   padding: 0.35rem 0.25rem calc(0.35rem + env(safe-area-inset-bottom));
@@ -8283,6 +8302,11 @@ ol.coin-timeline.coin-panel {
 @media (min-width: 900px) {
   .kol-mobile-tabbar {
     display: none;
+  }
+  .page-kol-hub,
+  .page-kol-leaderboard,
+  .page-kol-founders {
+    padding-bottom: 2rem;
   }
   .kol-influence-dashboard {
     padding-bottom: 1rem;

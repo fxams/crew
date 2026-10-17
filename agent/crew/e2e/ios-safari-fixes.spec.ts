@@ -109,14 +109,26 @@ test.describe('iOS Safari regressions (WebKit)', () => {
   })
 
   test('/kol always shows leaderboard empty podium', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 700 })
     await page.goto('/kol', { waitUntil: 'domcontentloaded' })
     const board = page.getByTestId('kol-hub-leaderboard')
-    await expect(board).toBeVisible()
-    await expect(board.getByTestId('kol-leaderboard-empty')).toBeVisible()
+    await expect(board).toBeInViewport()
+    await expect(board.getByTestId('kol-leaderboard-empty')).toBeInViewport()
     await expect(board.getByText('Be the first')).toHaveCount(3)
-    await expect(board.getByTestId('kol-leaderboard-sign-in-x')).toBeVisible()
-    await page.goto('/kol/leaderboard', { waitUntil: 'domcontentloaded' })
-    await expect(page.getByTestId('kol-leaderboard-empty')).toBeVisible()
+    await expect(board.getByTestId('kol-leaderboard-sign-in-x')).toBeInViewport()
+    await expect(page.getByRole('navigation', { name: 'KOL area' }).getByText('Board')).toBeInViewport()
+    await expect(page.getByRole('button', { name: 'Launch Coin' })).toHaveCount(0)
+    await page.screenshot({
+      path: '/opt/cursor/artifacts/screenshots/kol-hub-empty-board-390x700.png',
+    })
+    await page.getByRole('navigation', { name: 'KOL area' }).getByText('Board').click()
+    await expect(page).toHaveURL(/\/kol\/leaderboard/)
+    await expect(page.getByTestId('kol-leaderboard-empty')).toBeInViewport()
     await expect(page.getByText('Be the first')).toHaveCount(3)
+    await expect(page.getByTestId('kol-leaderboard-sign-in-x')).toBeInViewport()
+    await expect(page.getByRole('button', { name: 'Launch Coin' })).toHaveCount(0)
+    await page.screenshot({
+      path: '/opt/cursor/artifacts/screenshots/kol-leaderboard-empty-board-390x700.png',
+    })
   })
 })
