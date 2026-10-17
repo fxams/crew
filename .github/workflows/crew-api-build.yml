@@ -1,0 +1,32 @@
+name: crew-api build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "agent/crew-api/**"
+      - ".github/workflows/crew-api-build.yml"
+  pull_request:
+    paths:
+      - "agent/crew-api/**"
+      - ".github/workflows/crew-api-build.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agent/crew-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: agent/crew-api/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
