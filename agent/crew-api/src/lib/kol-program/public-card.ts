@@ -1,7 +1,7 @@
 import { query } from '../db.js'
 import { siteUrl } from '../kol-register.js'
+import { accountAgeDays } from './anti-farm.js'
 import {
-  accountAgeDays,
   computeReachScore,
   engagementRateFromTotals,
   REACH_FORMULA_DOC,
