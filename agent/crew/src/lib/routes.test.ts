@@ -7,12 +7,16 @@ import {
   isClaimPath,
   isCoinsPath,
   isHomePath,
+  isKolLeaderboardPath,
+  isKolRefPath,
   isKolsPath,
   isLaunchPath,
   isOnepagerPath,
   isProofPath,
   isReferralPath,
   isRegisterPath,
+  kolHandleFromPath,
+  kolRefFromPath,
   referralCodeFromPath,
   referralInvitePath,
 } from "./routes";
@@ -82,6 +86,20 @@ describe("referral invite paths", () => {
     expect(referralCodeFromPath("/r/CoolKOL")).toBe("coolkol");
     expect(referralInvitePath("CoolKOL")).toBe("/r/coolkol");
     expect(isReferralPath("/register")).toBe(false);
+  });
+
+  it("parses /ref/<handle> for KOL program links", () => {
+    expect(isKolRefPath("/ref/coolkol")).toBe(true);
+    expect(kolRefFromPath("/ref/CoolKOL")).toBe("coolkol");
+    expect(isKolRefPath("/r/coolkol")).toBe(false);
+  });
+});
+
+describe("kol leaderboard path", () => {
+  it("does not treat leaderboard as a profile handle", () => {
+    expect(isKolLeaderboardPath("/kol/leaderboard")).toBe(true);
+    expect(kolHandleFromPath("/kol/leaderboard")).toBe(null);
+    expect(kolHandleFromPath("/kol/CrewPayHQ")).toBe("CrewPayHQ");
   });
 });
 

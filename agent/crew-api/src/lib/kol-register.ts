@@ -479,6 +479,7 @@ type XUser = {
   verified?: boolean
   description?: string
   profile_image_url?: string
+  created_at?: string
   public_metrics?: {
     followers_count?: number
     following_count?: number
@@ -615,7 +616,8 @@ export async function completeXCallback(
     if (ref && ref !== normalizeReferralCode(ownCode)) {
       const ok = await query<{ referral_code: string; wallet: string; x_user_id: string }>(
         `SELECT referral_code, wallet, x_user_id FROM kol_registrations
-         WHERE lower(referral_code) = $1 LIMIT 1`,
+         WHERE lower(referral_code) = $1 OR lower(x_username) = $1
+         LIMIT 1`,
         [ref],
       )
       const referrer = ok.rows[0]
@@ -715,6 +717,7 @@ export async function completeXCallback(
         referredHandle: user.username,
         referredXUserId: user.id,
         referredFollowers,
+        accountCreatedAt: user.created_at || null,
       })
     } catch (err) {
       console.warn(
@@ -726,6 +729,30 @@ export async function completeXCallback(
 
   const saved = await getRegistrationByX(user.id)
   if (!saved) throw new Error('Registration saved but could not be read back.')
+
+  try {
+    const { kolProgramEnabled } = await import('./kol-program/flags.js')
+    if (kolProgramEnabled()) {
+      const { enrollAfterRegistration, storeUserAccessToken } = await import('./kol-program/store.js')
+      await storeUserAccessToken(user.id, accessToken, 7200)
+      const refCount = await query<{ n: string }>(
+        `SELECT COUNT(*)::text AS n FROM kol_referral_events WHERE lower(referrer_code) = lower($1)`,
+        [saved.referralCode || ''],
+      )
+      await enrollAfterRegistration({
+        xUserId: user.id,
+        handle: user.username,
+        followers: Number(metrics.followers_count || 0),
+        following: Number(metrics.following_count || 0),
+        tweetCount: Number(metrics.tweet_count || 0),
+        accountCreatedAt: user.created_at || null,
+        referralCount: Number(refCount.rows[0]?.n || 0),
+      })
+    }
+  } catch (err) {
+    console.warn('kol program enroll failed', err instanceof Error ? err.message : err)
+  }
+
   await markOAuthCompleted(row.sid, saved.xUsername)
   return saved
 }
@@ -924,6 +951,7 @@ export async function awardReferralRegisterPoints(opts: {
   referredHandle: string
   referredXUserId: string
   referredFollowers: number
+  accountCreatedAt?: string | null
 }): Promise<boolean> {
   const referrerCode = normalizeReferralCode(opts.referrerCode)
   const handle = opts.referredHandle.replace(/^@+/, '').toLowerCase()
@@ -931,6 +959,22 @@ export async function awardReferralRegisterPoints(opts: {
   if (!referrerCode || !handle || !xUserId) return false
   // Sybil brake: tiny / brand-new X accounts do not mint airdrop weight.
   if (Number(opts.referredFollowers || 0) < REFERRAL_POINTS_MIN_FOLLOWERS) return false
+
+  const { kolProgramEnabled } = await import('./kol-program/flags.js')
+  if (kolProgramEnabled()) {
+    const { accountAgeDays, checkAntiFarm, MAX_REFERRALS_PER_DAY } = await import(
+      './kol-program/anti-farm.js'
+    )
+    const { referralsTodayForCode } = await import('./kol-program/store.js')
+    const refsToday = await referralsTodayForCode(referrerCode)
+    const farm = checkAntiFarm({
+      accountAgeDays: accountAgeDays(opts.accountCreatedAt),
+      followers: Number(opts.referredFollowers || 0),
+      referralsToday: refsToday,
+    })
+    if (!farm.ok) return false
+    if (refsToday >= MAX_REFERRALS_PER_DAY) return false
+  }
 
   const dayCount = await query<{ n: string }>(
     `SELECT COUNT(*)::text AS n FROM kol_referral_events

@@ -18,6 +18,8 @@ import { postLaunchRouter } from './routes/post-launch.js'
 import { farcasterRouter } from './routes/farcaster.js'
 import { adminOpsRouter } from './routes/admin-ops.js'
 import { suiLaunchpadRouter } from './routes/sui-launchpad.js'
+import { kolProgramRouter } from './routes/kol-program.js'
+import { kolProgramEnabled } from './lib/kol-program/flags.js'
 import { maybeStartAcpInProcess } from './lib/acp-inprocess.js'
 import { configureTrustProxy } from './lib/client-ip.js'
 import { probeJitoEngines } from './lib/agent/jito.js'
@@ -75,6 +77,9 @@ async function main() {
   app.use('/api', coinsRouter)
   app.use('/api', kolsRouter)
   app.use('/api', kolRegisterRouter)
+  if (kolProgramEnabled()) {
+    app.use('/api', kolProgramRouter)
+  }
   app.use('/api', walletConnectRouter)
   app.use('/api', telegramRouter)
   app.use('/api', agentRouter)
