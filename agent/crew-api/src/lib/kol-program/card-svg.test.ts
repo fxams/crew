@@ -8,6 +8,7 @@ describe('renderKolCardSvg', () => {
       displayName: 'Alice',
       avatarUrl: null,
       reachScore: 42,
+      notionalInfluenceValueUsd: 2357,
       tier: 'silver',
       founderNumber: 7,
       referralUrl: 'https://crewpay.dev/ref/alice',
@@ -19,8 +20,9 @@ describe('renderKolCardSvg', () => {
     })
     expect(svg).toContain('width="1200" height="630"')
     expect(svg).toContain('GLOBAL RANK #3')
-    expect(svg).toContain('REACH SCORE')
-    expect(svg).not.toMatch(/\$[0-9]/)
+    expect(svg).toContain('NOTIONAL INFLUENCE VALUE')
+    expect(svg).toContain('$2,357')
+    expect(svg).toContain('REACH SCORE 42')
   })
 
   it('marks unclaimed cards', () => {
@@ -29,6 +31,7 @@ describe('renderKolCardSvg', () => {
       displayName: 'Bob',
       avatarUrl: null,
       reachScore: 0,
+      notionalInfluenceValueUsd: 0,
       tier: 'bronze',
       founderNumber: null,
       referralUrl: 'https://crewpay.dev/ref/bob',

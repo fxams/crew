@@ -75,6 +75,7 @@ test.describe('iOS Safari regressions (WebKit)', () => {
             xVerified: true,
             seasonPoints: 2250,
             memberNumber: 20361,
+            notionalInfluenceValueUsd: 2357,
           },
         }),
       }),
@@ -92,7 +93,8 @@ test.describe('iOS Safari regressions (WebKit)', () => {
     await page.goto('/kol/VitalikButerin', { waitUntil: 'domcontentloaded' })
     const card = page.getByTestId('kol-influence-card')
     await expect(card).toBeVisible()
-    await expect(card.getByText('REACH SCORE', { exact: false })).toBeVisible()
-    await expect(card.locator('.kol-influence-score')).toContainText('82')
+    await expect(card.getByText('Notional influence value', { exact: false })).toBeVisible()
+    await expect(card.locator('.kol-influence-notional')).toContainText('$')
+    await expect(card.locator('.kol-influence-secondary-metrics')).toContainText('82')
   })
 })

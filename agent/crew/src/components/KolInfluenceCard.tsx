@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { kolTierDisplayName } from '../lib/kol-tiers'
 import type { PublicKolCard } from '../lib/kol-program'
 import { buildKolGrowthShareTweet } from '../lib/kol-share'
+import { formatNotionalUsd, NOTIONAL_VALUE_DISCLAIMER } from '../lib/kol-notional-value'
 
 type Props = {
   card: PublicKolCard
@@ -81,9 +82,14 @@ export function KolInfluenceCard({ card, portrait = true, showReplay = true }: P
         </header>
 
         <div className="kol-influence-hero">
-          <p className="kol-influence-kicker">Reach score</p>
-          <p className="kol-influence-score">{card.reachScore}</p>
-          <p className="kol-influence-points">{card.seasonPoints.toLocaleString()} season pts</p>
+          <p className="kol-influence-kicker">Notional influence value</p>
+          <p className="kol-influence-notional">{formatNotionalUsd(card.notionalInfluenceValueUsd)}</p>
+          <p className="kol-influence-notional-disclaimer">{NOTIONAL_VALUE_DISCLAIMER}</p>
+          <p className="kol-influence-secondary-metrics">
+            Reach score <strong>{card.reachScore}</strong>
+            <span aria-hidden> · </span>
+            {card.seasonPoints.toLocaleString()} season pts
+          </p>
         </div>
 
         <ul className="kol-influence-bars">

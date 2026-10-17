@@ -10,6 +10,7 @@ export async function cardSvgForAnyHandle(handle: string): Promise<string | null
     displayName: card.displayName,
     avatarUrl: card.avatarUrl,
     reachScore: card.reachScore,
+    notionalInfluenceValueUsd: card.notionalInfluenceValueUsd,
     tier: card.tier,
     founderNumber: card.founderNumber,
     referralUrl: card.referralUrl,

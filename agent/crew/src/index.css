@@ -7898,18 +7898,61 @@ ol.coin-timeline.coin-panel {
   opacity: 0.75;
 }
 
-.kol-influence-score {
+.kol-influence-notional {
   margin: 0;
-  font-size: clamp(2.8rem, 12vw, 3.6rem);
+  font-size: clamp(2.6rem, 11vw, 3.4rem);
   font-weight: 800;
   color: var(--accent);
   text-shadow: 0 0 20px rgba(200, 255, 61, 0.45);
   line-height: 1;
 }
 
-.kol-influence-points {
-  margin: 0.15rem 0 0;
-  font-size: 0.95rem;
+.kol-influence-notional-disclaimer {
+  margin: 0.25rem 0 0;
+  font-size: 0.62rem;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  opacity: 0.85;
+}
+
+.kol-influence-secondary-metrics {
+  margin: 0.45rem 0 0;
+  font-size: 0.88rem;
+  opacity: 0.92;
+}
+
+.kol-notional-formula {
+  max-width: 420px;
+  margin: 0.75rem auto 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid rgba(200, 255, 61, 0.2);
+  border-radius: var(--radius);
+  font-size: 0.78rem;
+}
+
+.kol-notional-formula-title {
+  margin: 0 0 0.35rem;
+  font-weight: 600;
+}
+
+.kol-notional-formula-disclaimer {
+  margin: 0 0 0.5rem;
+  color: var(--accent);
+}
+
+.kol-notional-formula-steps {
+  margin: 0 0 0.5rem;
+  padding-left: 1.1rem;
+}
+
+.kol-notional-formula-steps code {
+  font-size: 0.72rem;
+  word-break: break-word;
+}
+
+.kol-notional-formula-foot {
+  margin: 0;
+  font-size: 0.72rem;
 }
 
 .kol-influence-bars {
