@@ -33,7 +33,13 @@ export function createApiApp(): Express {
   const app = express()
   app.disable('x-powered-by')
   configureTrustProxy(app)
-  app.use(helmet({ contentSecurityPolicy: false }))
+  // Public card PNGs/SVGs are embedded on https://crewpay.dev — default CORP same-origin blocks <img>.
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  )
   app.use(
     cors({
       origin(origin, cb) {
@@ -78,9 +84,10 @@ export function createApiApp(): Express {
   const jobsEnabled =
     (process.env.JOBS_ENABLED || '').trim().toLowerCase() === '1' ||
     (process.env.JOBS_ENABLED || '').trim().toLowerCase() === 'true'
+  // Task list/claim must respond even when JOBS_ENABLED is off (empty in-memory list).
+  app.use('/api', tasksRouter)
   if (jobsEnabled) {
     app.use('/api', jobsRouter)
-    app.use('/api', tasksRouter)
   }
 
   app.get('/', (_req, res) => {

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useWallet } from '@solana/wallet-adapter-react'
 import bs58 from 'bs58'
-import { CREW_VERSION } from '../lib/config'
+import { CREW_AGENT_API_URL, CREW_VERSION } from '../lib/config'
 import { JoinTelegramBox } from './JoinTelegramBox'
 
 type TaskRow = {
@@ -19,9 +19,19 @@ type TaskRow = {
   status: string
 }
 
-const apiBase =
-  (import.meta.env.VITE_CREW_API_URL as string | undefined)?.replace(/\/$/, '') ||
-  'https://api.crewpay.dev'
+async function readJsonBody(res: Response): Promise<Record<string, unknown>> {
+  const text = await res.text()
+  if (!text.trim()) return {}
+  try {
+    return JSON.parse(text) as Record<string, unknown>
+  } catch {
+    throw new Error(
+      res.ok
+        ? 'Tasks API returned an invalid response.'
+        : 'Tasks API is unavailable (try again later).',
+    )
+  }
+}
 
 export function TasksPage() {
   const wallet = useWallet()
@@ -38,10 +48,14 @@ export function TasksPage() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`${apiBase}/api/tasks`)
-      const data = (await res.json()) as { ok?: boolean; tasks?: TaskRow[]; error?: string }
-      if (!res.ok || !data.ok) throw new Error(data.error || 'Failed to load tasks')
-      setTasks(data.tasks || [])
+      const res = await fetch(`${CREW_AGENT_API_URL}/api/tasks`)
+      const data = await readJsonBody(res)
+      if (!res.ok || !data.ok) {
+        throw new Error(
+          typeof data.error === 'string' ? data.error : 'Failed to load tasks',
+        )
+      }
+      setTasks((data.tasks as TaskRow[] | undefined) || [])
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Load failed')
     } finally {
@@ -81,7 +95,7 @@ export function TasksPage() {
     setNote(null)
     try {
       const { headers } = await signHeaders('claim', taskId)
-      const res = await fetch(`${apiBase}/api/tasks/${encodeURIComponent(taskId)}/claim`, {
+      const res = await fetch(`${CREW_AGENT_API_URL}/api/tasks/${encodeURIComponent(taskId)}/claim`, {
         method: 'POST',
         headers,
         body: JSON.stringify({}),
@@ -106,7 +120,7 @@ export function TasksPage() {
         .split(/[\n,]+/)
         .map((s) => s.trim())
         .filter(Boolean)
-      const res = await fetch(`${apiBase}/api/tasks/${encodeURIComponent(taskId)}/submit`, {
+      const res = await fetch(`${CREW_AGENT_API_URL}/api/tasks/${encodeURIComponent(taskId)}/submit`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ text: proofText.trim() || undefined, urls }),

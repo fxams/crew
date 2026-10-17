@@ -17,8 +17,11 @@ export default defineConfig({
   },
   projects: [
     { name: 'desktop-chrome', use: { ...devices['Desktop Chrome'] } },
-    // iOS Safari WebKit in CI cannot hydrate the Vite bundle (Privy/wagmi); use Pixel for mobile.
     { name: 'mobile-chrome', use: { ...devices['Pixel 5'] } },
+    {
+      name: 'mobile-safari',
+      use: { ...devices['iPhone 13'] },
+    },
   ],
   webServer: {
     command: `VITE_KOL_PROGRAM_ENABLED=1 npm run build && npm run preview -- --host 127.0.0.1 --port ${port}`,
