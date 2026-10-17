@@ -14,7 +14,14 @@ import {
 } from '../lib/config'
 import { formatSol } from '../lib/format-sol'
 import { useOwnRegisteredHandle } from '../lib/registered-kol'
-import { fetchKolProgramProfile, hofBadgeLabel, type HofBadge } from '../lib/kol-program'
+import {
+  fetchKolProgramProfile,
+  fetchPublicKolCard,
+  hofBadgeLabel,
+  type HofBadge,
+  type PublicKolCard,
+} from '../lib/kol-program'
+import { KolPublicCardView } from './KolPublicCardView'
 import { kolHandleFromPath, referralInvitePath } from '../lib/routes'
 import { PrivyPayoutWallet } from './PrivyPayoutWallet'
 import {
@@ -181,6 +188,10 @@ export function KolProfilePage() {
   const [evmMsg, setEvmMsg] = useState<string | null>(null)
   const [deskTick, setDeskTick] = useState(0)
   const [programHof, setProgramHof] = useState<HofBadge[]>([])
+  const [publicCard, setPublicCard] = useState<PublicKolCard | null>(null)
+  const [pinnedPostId, setPinnedPostId] = useState<string | null>(null)
+  const [shareTag, setShareTag] = useState('')
+  const [replyPinned, setReplyPinned] = useState(false)
   const justRegistered = params.get('registered') === '1'
   const fromXOauth = params.get('from') === 'x'
   const viewingOwnDesk =
@@ -199,6 +210,13 @@ export function KolProfilePage() {
         if (cancelled) return
         if (res.status === 404) {
           setMissing(true)
+          if (KOL_PROGRAM_ENABLED) {
+            const pub = await fetchPublicKolCard(handle)
+            if (!cancelled && pub) {
+              setPublicCard(pub.card)
+              setPinnedPostId(pub.pinnedPostId)
+            }
+          }
           // Unregistered but already paid by agents? Show that instead of a dead end.
           try {
             const pr = await fetch(`${API}/api/kols/claim/${encodeURIComponent(handle)}`)
@@ -550,7 +568,18 @@ export function KolProfilePage() {
           </div>
         ) : null}
 
-        {missing && !paidPitch ? (
+        {missing && !paidPitch && KOL_PROGRAM_ENABLED && publicCard ? (
+          <KolPublicCardView
+            card={publicCard}
+            pinnedPostId={pinnedPostId}
+            tagHandle={shareTag}
+            onTagHandleChange={setShareTag}
+            replyUnderPinned={replyPinned}
+            onReplyUnderPinnedChange={setReplyPinned}
+          />
+        ) : null}
+
+        {missing && !paidPitch && !(KOL_PROGRAM_ENABLED && publicCard) ? (
           <div className="desk-hero desk-hero-unclaimed">
             <div>
               <h1 className="section-title">No desk for @{handle}.</h1>
