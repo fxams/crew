@@ -18,11 +18,12 @@ databases:
 services:
   - type: web
     name: crewpay
-    runtime: node
+    runtime: static
     branch: main
-    # Node host injects OG meta for /kol/:handle and /ref/:handle (crawlers skip JS).
+    # Prerender dist/kol/:handle/index.html + dist/ref/:handle/index.html at build (crawler OG).
+    # Optional: switch runtime to node + scripts/crewpay-static-server.mjs for any handle.
     buildCommand: npm ci --legacy-peer-deps && npm test && npm run build
-    startCommand: node scripts/crewpay-static-server.mjs
+    staticPublishPath: dist
     healthCheckPath: /
     pullRequestPreviewsEnabled: false
     renderSubdomainPolicy: disabled
@@ -66,6 +67,16 @@ services:
       - path: /index.html
         name: Cache-Control
         value: no-cache, no-store, must-revalidate
+    routes:
+      - type: rewrite
+        source: /kol/:handle
+        destination: /kol/:handle/index.html
+      - type: rewrite
+        source: /ref/:handle
+        destination: /ref/:handle/index.html
+      - type: rewrite
+        source: /*
+        destination: /index.html
 
   - type: web
     name: crewpay-api
