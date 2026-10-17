@@ -686,7 +686,8 @@ kolProgramRouter.post('/kol-program/battles/:id/stake', async (req, res) => {
 
 kolProgramRouter.post('/kol-program/battles/:id/resolve', requireApiKey, async (req, res) => {
   try {
-    const battle = await resolveBattle(req.params.id, {
+    const battleId = String(req.params.id)
+    const battle = await resolveBattle(battleId, {
       challenger: { engagementRate: Number(req.body?.challengerEngagement || 0) },
       opponent: { engagementRate: Number(req.body?.opponentEngagement || 0) },
     })
