@@ -24,6 +24,13 @@ describe('headerKolLinks', () => {
       { label: 'Desk', to: '/kol/0x4dY' },
     ])
   })
+
+  it('adds Leaderboard when kol program flag is on', () => {
+    expect(headerKolLinks(null, { kolProgram: true })).toEqual([
+      { label: 'KOL', to: '/register' },
+      { label: 'Leaderboard', to: '/kol/leaderboard' },
+    ])
+  })
 })
 
 describe('mobileStickyCta', () => {

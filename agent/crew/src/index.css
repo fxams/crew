@@ -7303,3 +7303,88 @@ ol.coin-timeline.coin-panel {
 .mono {
   font-family: var(--font-mono);
 }
+
+.page-kol-leaderboard .kol-leaderboard-list {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.kol-leaderboard-row {
+  display: grid;
+  grid-template-columns: 2rem 1fr auto;
+  grid-template-areas:
+    "rank handle points"
+    "rank tier reach";
+  gap: 0.15rem 0.5rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  align-items: center;
+}
+
+.kol-leaderboard-rank {
+  grid-area: rank;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.kol-leaderboard-handle {
+  grid-area: handle;
+  min-width: 0;
+}
+
+.kol-founder-badge {
+  display: inline-block;
+  margin-left: 0.35rem;
+  font-size: 0.68rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.kol-leaderboard-tier {
+  grid-area: tier;
+  font-size: 0.75rem;
+  opacity: 0.8;
+  text-transform: capitalize;
+}
+
+.kol-leaderboard-points {
+  grid-area: points;
+  font-weight: 600;
+  text-align: right;
+}
+
+.kol-leaderboard-reach {
+  grid-area: reach;
+  font-size: 0.72rem;
+  opacity: 0.75;
+  text-align: right;
+}
+
+.register-kol-program {
+  margin-bottom: 1.25rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.kol-program-card-img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0.5rem 0;
+  border-radius: var(--radius);
+}
+
+@media (min-width: 640px) {
+  .kol-leaderboard-row {
+    grid-template-columns: 2.5rem 1fr 5rem 5rem 4rem;
+    grid-template-areas: "rank handle tier points reach";
+  }
+}

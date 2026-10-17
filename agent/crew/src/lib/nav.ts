@@ -1,10 +1,14 @@
 import { kolProfilePath } from './routes'
 
-export type HeaderKolLink = { label: 'KOL' | 'Desk'; to: string }
+export type HeaderKolLink = { label: 'KOL' | 'Desk' | 'Leaderboard'; to: string }
 
 /** KOL info stays in the header. Desk is added once a wallet is a registered KOL. */
-export function headerKolLinks(ownHandle: string | null | undefined): HeaderKolLink[] {
+export function headerKolLinks(
+  ownHandle: string | null | undefined,
+  opts?: { kolProgram?: boolean },
+): HeaderKolLink[] {
   const items: HeaderKolLink[] = [{ label: 'KOL', to: '/register' }]
+  if (opts?.kolProgram) items.push({ label: 'Leaderboard', to: '/kol/leaderboard' })
   const handle = ownHandle?.trim()
   if (handle) items.push({ label: 'Desk', to: kolProfilePath(handle) })
   return items

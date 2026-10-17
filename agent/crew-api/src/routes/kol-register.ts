@@ -40,6 +40,8 @@ import {
 import { kolEvmWalletFresh, kolReferralsWalletFresh } from '../lib/wallet-auth.js'
 import { clientIp } from '../lib/client-ip.js'
 import { sendInternalError } from '../lib/http-error.js'
+import { kolProgramEnabled } from '../lib/kol-program/flags.js'
+import { REACH_FORMULA_DOC } from '../lib/kol-program/reach-score.js'
 
 export const kolRegisterRouter = Router()
 
@@ -81,6 +83,15 @@ kolRegisterRouter.get('/kols/register/status', (_req, res) => {
         note: 'Points accrue for a future CREW token airdrop. Direct referrals only. Register awards require min followers and a per-referrer daily cap.',
       },
     },
+    kolProgram: kolProgramEnabled()
+      ? {
+          enabled: true,
+          linkPattern: `${siteUrl()}/ref/<handle>`,
+          reachFormula: REACH_FORMULA_DOC,
+          pointsDisclaimer:
+            'Program points have no monetary value. No token, airdrop, or cash redemption.',
+        }
+      : { enabled: false },
   })
 })
 

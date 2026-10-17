@@ -10,6 +10,11 @@ export const SHOW_SUI_LAUNCHPAD =
   import.meta.env.VITE_SHOW_SUI_LAUNCHPAD === '1' ||
   import.meta.env.VITE_SHOW_SUI_LAUNCHPAD === 'true'
 
+/** KOL program (leaderboard, X tasks, reach card). Off unless VITE_KOL_PROGRAM_ENABLED=1. */
+export const KOL_PROGRAM_ENABLED =
+  import.meta.env.VITE_KOL_PROGRAM_ENABLED === '1' ||
+  import.meta.env.VITE_KOL_PROGRAM_ENABLED === 'true'
+
 /** Official CREW / CrewPay HQ account on X. */
 export const CREW_X_URL = 'https://x.com/CrewPayHQ'
 

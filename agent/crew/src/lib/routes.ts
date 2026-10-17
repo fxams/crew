@@ -20,9 +20,16 @@ export function isKolsPath(pathname: string): boolean {
   return path === "/kols" || path.endsWith("/kols");
 }
 
+/** KOL program points leaderboard (not a profile handle). */
+export function isKolLeaderboardPath(pathname: string): boolean {
+  const path = normalizePath(pathname)
+  return path === '/kol/leaderboard' || path.endsWith('/kol/leaderboard')
+}
+
 /** Public desk for one registered KOL: `/kol/:handle`. */
 export function kolHandleFromPath(pathname: string): string | null {
   const path = normalizePath(pathname)
+  if (isKolLeaderboardPath(path)) return null
   const match = path.match(/(?:^|\/)kol\/([A-Za-z0-9_]{1,15})$/)
   return match?.[1] ?? null
 }
@@ -62,6 +69,21 @@ export function isReferralPath(pathname: string): boolean {
 
 export function referralInvitePath(code: string): string {
   return `/r/${encodeURIComponent(code.trim().replace(/^@+/, '').toLowerCase())}`
+}
+
+/** Public KOL referral landing (same code as /r/:code). */
+export function kolRefFromPath(pathname: string): string | null {
+  const path = normalizePath(pathname)
+  const match = path.match(/(?:^|\/)ref\/([A-Za-z0-9_]{2,24})$/)
+  return match?.[1]?.toLowerCase() ?? null
+}
+
+export function isKolRefPath(pathname: string): boolean {
+  return Boolean(kolRefFromPath(pathname))
+}
+
+export function kolRefPath(handle: string): string {
+  return `/ref/${encodeURIComponent(handle.trim().replace(/^@+/, '').toLowerCase())}`
 }
 
 /** Agent API / discovery docs page. */

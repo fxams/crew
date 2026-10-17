@@ -573,4 +573,120 @@ export async function migrate(): Promise<void> {
     `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
     ['024_register_src'],
   )
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS kol_program_seasons (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      starts_at TIMESTAMPTZ NOT NULL,
+      ends_at TIMESTAMPTZ,
+      archived_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await query(`
+    CREATE TABLE IF NOT EXISTS kol_program_profiles (
+      x_user_id TEXT PRIMARY KEY REFERENCES kol_registrations (x_user_id) ON DELETE CASCADE,
+      x_username TEXT NOT NULL,
+      reach_score INT NOT NULL DEFAULT 0,
+      reach_tier TEXT NOT NULL DEFAULT 'bronze',
+      founder_number INT,
+      season_id TEXT NOT NULL DEFAULT 'season_default',
+      season_points INT NOT NULL DEFAULT 0,
+      total_points INT NOT NULL DEFAULT 0,
+      flagged_reason TEXT,
+      revoked BOOLEAN NOT NULL DEFAULT false,
+      x_account_created_at TIMESTAMPTZ,
+      avg_impressions DOUBLE PRECISION NOT NULL DEFAULT 0,
+      engagement_rate DOUBLE PRECISION NOT NULL DEFAULT 0,
+      enrolled_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS kol_program_founder_number_idx
+      ON kol_program_profiles (founder_number) WHERE founder_number IS NOT NULL
+  `)
+  await query(`
+    CREATE TABLE IF NOT EXISTS kol_program_task_templates (
+      id TEXT PRIMARY KEY,
+      slug TEXT NOT NULL UNIQUE,
+      title TEXT NOT NULL,
+      instructions TEXT NOT NULL DEFAULT '',
+      task_type TEXT NOT NULL,
+      config JSONB NOT NULL DEFAULT '{}',
+      points INT NOT NULL DEFAULT 10,
+      active BOOLEAN NOT NULL DEFAULT true,
+      sort_order INT NOT NULL DEFAULT 0,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await query(`
+    CREATE TABLE IF NOT EXISTS kol_program_task_completions (
+      id TEXT PRIMARY KEY,
+      x_user_id TEXT NOT NULL REFERENCES kol_registrations (x_user_id) ON DELETE CASCADE,
+      task_id TEXT NOT NULL REFERENCES kol_program_task_templates (id) ON DELETE CASCADE,
+      day_utc DATE NOT NULL,
+      points INT NOT NULL,
+      tweet_id TEXT,
+      verified_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE (x_user_id, task_id, day_utc)
+    )
+  `)
+  await query(`
+    CREATE TABLE IF NOT EXISTS kol_program_point_events (
+      id TEXT PRIMARY KEY,
+      x_user_id TEXT NOT NULL,
+      season_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      points INT NOT NULL,
+      ref_id TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await query(`
+    CREATE TABLE IF NOT EXISTS kol_program_x_cache (
+      cache_key TEXT PRIMARY KEY,
+      body JSONB NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL
+    )
+  `)
+  await query(`
+    CREATE TABLE IF NOT EXISTS kol_program_user_tokens (
+      x_user_id TEXT PRIMARY KEY,
+      access_token TEXT NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL
+    )
+  `)
+  await query(
+    `INSERT INTO kol_program_task_templates (id, slug, title, instructions, task_type, config, points, sort_order)
+     VALUES
+       ('task_post_card', 'post-card', 'Post your KOL card', 'Share your CrewPay KOL card image or link (crewpay.dev/ref/yourhandle) in a post on X.', 'post_card', '{}', 15, 1),
+       ('task_reply_hq', 'reply-crewpayhq', 'Reply under @CrewPayHQ', 'Reply to a recent @CrewPayHQ post with your KOL card or referral link.', 'reply_crewpayhq', '{}', 12, 2),
+       ('task_quote_launch', 'quote-launch', 'Quote a crew launch', 'Quote-tweet a CrewPay coin launch (pump.fun or crewpay.dev/coin/…).', 'quote_launch', '{}', 12, 3),
+       ('task_follow_hq', 'follow-crewpayhq', 'Shout out @CrewPayHQ', 'Post that you follow @CrewPayHQ (public post mentioning @CrewPayHQ).', 'follow_crewpayhq', '{}', 8, 4)
+     ON CONFLICT (id) DO NOTHING`,
+  )
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['025_kol_program'],
+  )
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS kol_program_season_archive (
+      season_id TEXT NOT NULL,
+      rank INT NOT NULL,
+      handle TEXT NOT NULL,
+      season_points INT NOT NULL,
+      reach_score INT NOT NULL DEFAULT 0,
+      reach_tier TEXT NOT NULL DEFAULT '',
+      founder_number INT,
+      archived_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (season_id, rank)
+    )
+  `)
+  await query(
+    `INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    ['026_kol_program_season_archive'],
+  )
 }
