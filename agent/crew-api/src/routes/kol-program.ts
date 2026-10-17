@@ -33,7 +33,7 @@ import { siteUrl } from '../lib/kol-register.js'
 import { KOL_POOL_BPS, CREWPAY_HQ_X_HANDLE, kolPinnedPostId } from '../lib/kol-program/flags.js'
 import { buildPublicKolCard } from '../lib/kol-program/public-card.js'
 import { cardPngForHandle } from '../lib/kol-program/card-png.js'
-import { buildSharePageMeta, renderShareHtml } from '../lib/kol-program/share-html.js'
+import { sendKolSharePage } from '../lib/kol-program/share-page.js'
 import {
   ensureFoundingSnapshot,
   kolFoundingSnapshotAt,
@@ -203,33 +203,9 @@ kolProgramRouter.get('/kol-program/seasons', async (req, res) => {
   }
 })
 
-function apiPublicUrl(): string {
-  const u = (process.env.CREW_API_PUBLIC_URL || process.env.PUBLIC_API_URL || '').trim()
-  if (u) return u.replace(/\/$/, '')
-  return 'https://api.crewpay.dev'
-}
-
-async function shareHtmlResponse(
-  res: Response,
-  kind: 'kol' | 'ref',
-  handle: string,
-): Promise<void> {
-  const card = await buildPublicKolCard(handle)
-  const meta = buildSharePageMeta({
-    handle,
-    kind,
-    siteUrl: siteUrl(),
-    apiUrl: apiPublicUrl(),
-    card,
-  })
-  res.setHeader('content-type', 'text/html; charset=utf-8')
-  res.setHeader('cache-control', 'public, max-age=300')
-  res.send(renderShareHtml(meta))
-}
-
 kolProgramRouter.get('/kol-program/share/kol/:handle', async (req, res) => {
   try {
-    await shareHtmlResponse(res, 'kol', String(req.params.handle))
+    await sendKolSharePage(res, 'kol', String(req.params.handle))
   } catch (err) {
     sendInternalError(res, err, 'kol-program share kol')
   }
@@ -237,7 +213,7 @@ kolProgramRouter.get('/kol-program/share/kol/:handle', async (req, res) => {
 
 kolProgramRouter.get('/kol-program/share/ref/:handle', async (req, res) => {
   try {
-    await shareHtmlResponse(res, 'ref', String(req.params.handle))
+    await sendKolSharePage(res, 'ref', String(req.params.handle))
   } catch (err) {
     sendInternalError(res, err, 'kol-program share ref')
   }

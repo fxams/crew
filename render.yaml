@@ -68,12 +68,13 @@ services:
         name: Cache-Control
         value: no-cache, no-store, must-revalidate
     routes:
+      # Per-handle OG + SPA shell from the API (any X handle, not just prerendered files).
       - type: rewrite
-        source: /kol/:handle
-        destination: /kol/:handle.html
+        source: /kol/*
+        destination: https://api.crewpay.dev/kol/*
       - type: rewrite
-        source: /ref/:handle
-        destination: /ref/:handle.html
+        source: /ref/*
+        destination: https://api.crewpay.dev/ref/*
       - type: rewrite
         source: /*
         destination: /index.html

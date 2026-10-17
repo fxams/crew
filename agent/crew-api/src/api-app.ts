@@ -18,6 +18,7 @@ import { farcasterRouter } from './routes/farcaster.js'
 import { adminOpsRouter } from './routes/admin-ops.js'
 import { suiLaunchpadRouter } from './routes/sui-launchpad.js'
 import { kolProgramRouter } from './routes/kol-program.js'
+import { kolSharePagesRouter } from './routes/kol-share-pages.js'
 import { configureTrustProxy } from './lib/client-ip.js'
 
 const defaultOrigins =
@@ -66,6 +67,7 @@ export function createApiApp(): Express {
 
   app.use(healthRouter)
   app.use(discoveryRouter)
+  app.use(kolSharePagesRouter)
   app.use('/api', healthRouter)
   app.use('/api', postLaunchRouter)
   app.use('/api', farcasterRouter)
