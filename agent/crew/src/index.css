@@ -7561,6 +7561,90 @@ ol.coin-timeline.coin-panel {
   min-width: 12rem;
 }
 
+.kol-handle-lookup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-end;
+  margin: 0 0 1.25rem;
+  max-width: 28rem;
+}
+
+.kol-handle-lookup label {
+  flex: 1 1 12rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.kol-handle-lookup input {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.kol-share-row,
+.kol-share-tag,
+.kol-share-reply {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0.75rem 0;
+  font-size: 0.9rem;
+}
+
+.kol-share-tag input {
+  margin-left: 0.35rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.kol-onboarding-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.kol-onboarding-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.kol-onboarding-list li.is-locked {
+  opacity: 0.55;
+}
+
+.kol-onboarding-list li.is-done {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+.kol-onboarding-pts {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+  color: var(--accent);
+}
+
+.kol-onboarding-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
 .kol-hub-card-img {
   display: block;
   width: 100%;

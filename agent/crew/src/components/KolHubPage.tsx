@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { CREW_VERSION, KOL_PROGRAM_ENABLED } from '../lib/config'
 import { hubMemberLine, hubRecentJoiners } from '../lib/kol-hub-display'
 import {
   fetchKolProgramHub,
   fetchKolProgramMe,
   fetchKolProgramTasksToday,
+  fetchPublicKolCard,
   kolProgramCardUrl,
   verifyKolProgramTask,
   KOL_PROGRAM_POINTS_DISCLAIMER,
@@ -17,6 +18,8 @@ import { kolTierDisplayName, kolTierFrameClass } from '../lib/kol-tiers'
 import { startKolHubXSignIn } from '../lib/kol-x-sign-in'
 import { kolProfilePath } from '../lib/routes'
 import { KolSampleCardPreview } from './KolSampleCardPreview'
+import { buildKolGrowthShareTweet } from '../lib/kol-share'
+import { KolOnboardingChecklist } from './KolOnboardingChecklist'
 
 function founderLabel(n: number | null): string | null {
   if (n == null || n < 1) return null
@@ -32,16 +35,8 @@ function seasonCountdown(endsAt: string | null): string {
   return `${d}d ${h}h left`
 }
 
-function shareTweetUrl(referralUrl: string, cardUrl: string): string {
-  const text = `My CrewPay KOL card — reach score + season points. Join with my link (points have no cash value).`
-  const params = new URLSearchParams({
-    text: `${text}\n${referralUrl}\n`,
-    url: cardUrl,
-  })
-  return `https://twitter.com/intent/tweet?${params.toString()}`
-}
-
 export function KolHubPage() {
+  const navigate = useNavigate()
   const [hub, setHub] = useState<KolProgramHub | null>(null)
   const [profile, setProfile] = useState<KolProgramProfile | null>(null)
   const [tasks, setTasks] = useState<KolProgramTask[]>([])
@@ -49,6 +44,10 @@ export function KolHubPage() {
   const [taskBusy, setTaskBusy] = useState<string | null>(null)
   const [taskError, setTaskError] = useState<string | null>(null)
   const [tickerIdx, setTickerIdx] = useState(0)
+  const [lookupHandle, setLookupHandle] = useState('')
+  const [shareTag, setShareTag] = useState('')
+  const [replyPinned, setReplyPinned] = useState(false)
+  const [pinnedPostId, setPinnedPostId] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
     const [h, me, today] = await Promise.all([
@@ -59,6 +58,10 @@ export function KolHubPage() {
     setHub(h)
     setProfile(me)
     setTasks(today?.tasks?.filter((t) => !t.completed) ?? today?.tasks ?? [])
+    if (me?.handle) {
+      const pub = await fetchPublicKolCard(me.handle)
+      setPinnedPostId(pub?.pinnedPostId ?? null)
+    }
   }, [])
 
   useEffect(() => {
@@ -135,12 +138,41 @@ export function KolHubPage() {
   const disclaimer = hub?.disclaimer || KOL_PROGRAM_POINTS_DISCLAIMER
   const tierClass = profile ? kolTierFrameClass(profile.tier) : 'kol-tier-spark'
   const cardPng = profile ? kolProgramCardUrl(profile.handle, 'png') : ''
+  const shareUrl =
+    profile
+      ? buildKolGrowthShareTweet({
+          refLink: profile.referralUrl,
+          tagHandle: shareTag || undefined,
+          replyToPostId: replyPinned && pinnedPostId ? pinnedPostId : undefined,
+        })
+      : ''
+
+  function onLookupSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const h = lookupHandle.replace(/^@+/, '').trim()
+    if (h.length < 1) return
+    navigate(kolProfilePath(h))
+  }
 
   return (
     <div className="app-shell page-kol-hub">
       <section className="section kol-hub-hero">
         <p className="section-label">CrewPay KOL · v{CREW_VERSION}</p>
         <h1 className="kol-hub-title">Your reach has a season.</h1>
+
+        <form className="kol-handle-lookup" onSubmit={onLookupSubmit} data-testid="kol-handle-lookup">
+          <label>
+            Check any handle
+            <input
+              type="search"
+              placeholder="@username"
+              value={lookupHandle}
+              onChange={(e) => setLookupHandle(e.target.value)}
+              autoComplete="off"
+            />
+          </label>
+          <button type="submit" className="btn btn-ghost btn-sm">Go</button>
+        </form>
 
         <div className="kol-hub-showcase" data-testid="kol-hub-showcase">
           {profile ? (
@@ -172,12 +204,26 @@ export function KolHubPage() {
           </div>
         ) : (
           <div className="register-actions kol-hub-cta">
-            <a
-              className="btn btn-primary btn-sm"
-              href={shareTweetUrl(profile.referralUrl, cardPng)}
-              target="_blank"
-              rel="noreferrer"
-            >
+            <label className="kol-share-tag">
+              Tag a friend
+              <input
+                type="text"
+                placeholder="@handle"
+                value={shareTag}
+                onChange={(e) => setShareTag(e.target.value)}
+              />
+            </label>
+            {pinnedPostId ? (
+              <label className="kol-share-reply">
+                <input
+                  type="checkbox"
+                  checked={replyPinned}
+                  onChange={(e) => setReplyPinned(e.target.checked)}
+                />
+                Reply under pinned post
+              </label>
+            ) : null}
+            <a className="btn btn-primary btn-sm" href={shareUrl} target="_blank" rel="noreferrer">
               Share on X
             </a>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => void copyReferral()}>
@@ -231,6 +277,7 @@ export function KolHubPage() {
 
       {profile ? (
         <section className="section kol-hub-dashboard">
+          <KolOnboardingChecklist />
           <p className="section-label">Dashboard</p>
           <div className="kol-hub-dash-grid">
             <div className="kol-hub-dash-card">

@@ -9,6 +9,11 @@ export const CREWPAY_HQ_X_HANDLE = (
   process.env.CREWPAY_HQ_X_HANDLE || 'CrewPayHQ'
 ).replace(/^@+/, '')
 
+/** Pinned @CrewPayHQ post id for onboarding + share reply intents. */
+export function kolPinnedPostId(): string {
+  return (process.env.KOL_PINNED_POST_ID || '').trim()
+}
+
 /** Share of indexed treasury fee receipts reserved for the KOL season pool (bps). Default 2000 = 20%. */
 export const KOL_POOL_BPS = Math.min(
   10_000,
