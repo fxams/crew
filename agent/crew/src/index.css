@@ -7414,3 +7414,184 @@ ol.coin-timeline.coin-panel {
     grid-template-areas: "rank handle tier points reach";
   }
 }
+
+.page-kol-hub .kol-hub-title {
+  font-size: clamp(1.85rem, 6vw, 2.75rem);
+  line-height: 1.1;
+  margin: 0.35rem 0 0.5rem;
+}
+
+.kol-hub-lead {
+  max-width: 38rem;
+}
+
+.kol-hub-stats {
+  display: flex;
+  gap: 1.25rem;
+  margin: 1rem 0;
+}
+
+.kol-hub-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0;
+}
+
+.kol-hub-stat strong {
+  font-size: 1.35rem;
+}
+
+.kol-hub-ticker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+}
+
+.kol-hub-signin {
+  min-width: 12rem;
+}
+
+.kol-hub-card-img {
+  display: block;
+  width: 100%;
+  max-width: 600px;
+  height: auto;
+  border-radius: 12px;
+}
+
+.kol-hub-card-frame {
+  padding: 4px;
+  border-radius: 14px;
+  max-width: 608px;
+}
+
+.kol-tier-spark .kol-hub-card-frame {
+  box-shadow: 0 0 0 2px #9cb3a8;
+}
+.kol-tier-pulse .kol-hub-card-frame {
+  box-shadow: 0 0 0 2px #7eb8ff;
+}
+.kol-tier-surge .kol-hub-card-frame {
+  box-shadow: 0 0 0 2px #ffb84d;
+}
+.kol-tier-apex .kol-hub-card-frame {
+  box-shadow: 0 0 0 2px #c8ff3d;
+}
+.kol-tier-legend .kol-hub-card-frame {
+  box-shadow: 0 0 0 2px #ff6bcb;
+}
+
+.kol-hub-dash-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.kol-hub-dash-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.65rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.kol-hub-dash-label {
+  font-size: 0.72rem;
+  opacity: 0.75;
+}
+
+.kol-milestone-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.kol-milestone-list li {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.65rem;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.25rem 0.5rem;
+}
+
+.kol-milestone-list li.is-done {
+  border-color: rgba(200, 255, 61, 0.35);
+}
+
+.kol-milestone-bar {
+  grid-column: 1 / -1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.kol-milestone-bar div {
+  height: 100%;
+  background: var(--accent);
+}
+
+.kol-podium {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr 1fr;
+  gap: 0.5rem;
+  align-items: end;
+  margin: 1rem 0 1.25rem;
+}
+
+.kol-podium-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.kol-podium-first {
+  order: 2;
+  transform: translateY(-0.35rem);
+}
+
+.kol-podium-side:first-child {
+  order: 1;
+}
+
+.kol-podium-side:last-child {
+  order: 3;
+}
+
+.kol-podium-card {
+  width: 100%;
+  max-width: 200px;
+  border-radius: 8px;
+}
+
+.kol-leaderboard-tier.kol-tier-apex {
+  color: #c8ff3d;
+}
+
+.page-kol-ref .kol-ref-card {
+  margin: 1rem 0;
+}
+
+.kol-ref-card-placeholder {
+  height: 160px;
+  margin: 1rem 0;
+  border-radius: var(--radius);
+  border: 1px dashed var(--border);
+}

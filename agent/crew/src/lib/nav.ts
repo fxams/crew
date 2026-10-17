@@ -7,7 +7,7 @@ export function headerKolLinks(
   ownHandle: string | null | undefined,
   opts?: { kolProgram?: boolean },
 ): HeaderKolLink[] {
-  const items: HeaderKolLink[] = [{ label: 'KOL', to: '/register' }]
+  const items: HeaderKolLink[] = [{ label: 'KOL', to: opts?.kolProgram ? '/kol' : '/register' }]
   if (opts?.kolProgram) items.push({ label: 'Leaderboard', to: '/kol/leaderboard' })
   const handle = ownHandle?.trim()
   if (handle) items.push({ label: 'Desk', to: kolProfilePath(handle) })

@@ -27,6 +27,8 @@ import { HomeFeeMap } from "./components/HomeFeeMap";
 import { KolProfilePage } from "./components/KolProfilePage";
 import { KolRegisterPage } from "./components/KolRegisterPage";
 import { KolLeaderboardPage } from "./components/KolLeaderboardPage";
+import { KolHubPage } from "./components/KolHubPage";
+import { KolRefPage } from "./components/KolRefPage";
 import { TopKolsPage } from "./components/TopKolsPage";
 import { PlatformBadge } from "./components/PlatformBadge";
 import { PlatformChipRow } from "./components/PlatformChipRow";
@@ -93,7 +95,7 @@ import { launchCrew } from "./lib/launch";
 import { useOwnRegisteredHandle } from "./lib/registered-kol";
 import { NO_CRYPTO_NEEDED } from "./lib/kol-onboarding";
 import { headerKolLinks, mobileStickyCta } from "./lib/nav";
-import { isAdminFarcasterPath, isAdminKickoffPath, isAdminOpsPath, isAgentsPath, isApprovePath, isClaimPath, isCoinPath, isCoinsPath, isHomePath, isKolLeaderboardPath, isKolRefPath, isKolsPath, isLaunchPath, isOnepagerPath, isProofPath, isReferralPath, isRegisterPath, isSuiLaunchpadPath, isSuiPoolDetailPath, isTasksPath, kolHandleFromPath, kolRefFromPath, referralCodeFromPath } from "./lib/routes";
+import { isAdminFarcasterPath, isAdminKickoffPath, isAdminOpsPath, isAgentsPath, isApprovePath, isClaimPath, isCoinPath, isCoinsPath, isHomePath, isKolHubPath, isKolLeaderboardPath, isKolRefPath, isKolsPath, isLaunchPath, isOnepagerPath, isProofPath, isReferralPath, isRegisterPath, isSuiLaunchpadPath, isSuiPoolDetailPath, isTasksPath, kolHandleFromPath, kolRefFromPath, referralCodeFromPath } from "./lib/routes";
 import { SuiLaunchpadPage } from "./components/sui/SuiLaunchpadPage";
 import { SuiPoolDetailPage } from "./components/sui/SuiPoolDetailPage";
 import { ApprovePage } from "./components/ApprovePage";
@@ -200,9 +202,14 @@ export default function App() {
   const isKolsPage = isKolsPath(path);
   const referralInviteCode = referralCodeFromPath(path);
   const kolRefHandle = kolRefFromPath(path);
-  const isRegisterPage = isRegisterPath(path) || Boolean(referralInviteCode) || Boolean(kolRefHandle);
+  const isRegisterPage =
+    isRegisterPath(path) ||
+    Boolean(referralInviteCode) ||
+    (Boolean(kolRefHandle) && !KOL_PROGRAM_ENABLED);
+  const isKolHubPage = isKolHubPath(path);
   const isKolLeaderboardPage = isKolLeaderboardPath(path);
   const isKolProfilePage = Boolean(kolHandleFromPath(path));
+  const isKolRefPage = isKolRefPath(path);
   const isClaimPage = isClaimPath(path);
   const isAgentsPage = isAgentsPath(path);
   const isProofPage = isProofPath(path);
@@ -226,6 +233,7 @@ export default function App() {
 
   useEffect(() => {
     if (!kolRefHandle || !isKolRefPath(path)) return
+    if (KOL_PROGRAM_ENABLED) return
     navigate(`/register?ref=${encodeURIComponent(kolRefHandle)}`, { replace: true })
   }, [kolRefHandle, path, navigate]);
   const ownRegisteredHandle = useOwnRegisteredHandle(wallet.publicKey?.toBase58());
@@ -1469,7 +1477,7 @@ export default function App() {
                     ? isOwnDeskPage
                       ? "is-active-nav-text"
                       : undefined
-                    : isRegisterPage || isKolsPage
+                    : isRegisterPage || isKolsPage || isKolHubPage
                       ? "is-active-nav-text"
                       : undefined
                 }
@@ -1527,6 +1535,10 @@ export default function App() {
 
       {isKolsPage ? <TopKolsPage /> : null}
       {isRegisterPage ? <KolRegisterPage /> : null}
+      {isKolHubPage ? <KolHubPage /> : null}
+      {isKolRefPage && kolRefHandle && KOL_PROGRAM_ENABLED ? (
+        <KolRefPage handle={kolRefHandle} />
+      ) : null}
       {isKolLeaderboardPage ? <KolLeaderboardPage /> : null}
       {isKolProfilePage ? <KolProfilePage /> : null}
       {isClaimPage ? <ClaimPage /> : null}
@@ -1543,7 +1555,7 @@ export default function App() {
       {isAdminFarcasterPage ? <AdminFarcasterPage /> : null}
       {isAdminOpsPage ? <AdminOpsPage /> : null}
 
-      {!isLaunchPage && !isKolsPage && !isRegisterPage && !isKolLeaderboardPage && !isKolProfilePage && !isClaimPage && !isAgentsPage && !isProofPage && !isOnepagerPage && !isApprovePage && !isCoinPage && !isCoinsPage && !isSuiPage && !isTasksPage && !isAdminKickoffPage && !isAdminFarcasterPage && !isAdminOpsPage ? (
+      {!isLaunchPage && !isKolsPage && !isRegisterPage && !isKolHubPage && !isKolRefPage && !isKolLeaderboardPage && !isKolProfilePage && !isClaimPage && !isAgentsPage && !isProofPage && !isOnepagerPage && !isApprovePage && !isCoinPage && !isCoinsPage && !isSuiPage && !isTasksPage && !isAdminKickoffPage && !isAdminFarcasterPage && !isAdminOpsPage ? (
         <>
       <div className="app-shell">
         <main id="top">
@@ -3055,7 +3067,7 @@ export default function App() {
           </div>
         </footer>
       </div>
-      ) : isAgentsPage || isKolsPage || isRegisterPage || isKolLeaderboardPage || isKolProfilePage || isClaimPage || isProofPage || isOnepagerPage || isApprovePage || isCoinPage || isCoinsPage || isSuiPage || isSuiPoolPage || isTasksPage || isAdminKickoffPage || isAdminFarcasterPage || isAdminOpsPage ? null : (
+      ) : isAgentsPage || isKolsPage || isRegisterPage || isKolHubPage || isKolRefPage || isKolLeaderboardPage || isKolProfilePage || isClaimPage || isProofPage || isOnepagerPage || isApprovePage || isCoinPage || isCoinsPage || isSuiPage || isSuiPoolPage || isTasksPage || isAdminKickoffPage || isAdminFarcasterPage || isAdminOpsPage ? null : (
       <div className="app-shell">
         <section className="section" id="brand">
           <p className="section-label">Assets</p>

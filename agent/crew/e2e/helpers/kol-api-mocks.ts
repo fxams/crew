@@ -65,6 +65,25 @@ export async function mockKolRegisterApis(
   await page.route('**/api/proof', (route: Route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ leaderboard: [] }) }),
   )
+  await page.route('**/api/kol-program/hub', (route: Route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        seasonId: 'season_test',
+        seasonEndsAt: new Date(Date.now() + 86400000 * 12).toISOString(),
+        memberCount: 21710,
+        recentJoiners: [{ handle: 'CrewPayHQ', enrolledAt: new Date().toISOString(), founderNumber: 1 }],
+        referralMilestones: [
+          { referrals: 5, bonusPoints: 1000 },
+          { referrals: 25, bonusPoints: 5000 },
+          { referrals: 100, bonusPoints: 25000 },
+        ],
+        disclaimer: 'Points have no cash value.',
+      }),
+    }),
+  )
   await page.route('**/api/kol-program/status', (route: Route) =>
     route.fulfill({
       status: 200,
@@ -96,6 +115,21 @@ export async function mockKolRegisterApis(
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ ok: true, seasons: [] }),
+    }),
+  )
+  await page.route('**/api/kol-program/profile/**', (route: Route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        profile: {
+          handle: 'CrewPayHQ',
+          reachScore: 88,
+          tier: 'platinum',
+          founderNumber: 1,
+        },
+      }),
     }),
   )
   await page.route('**/api/kol-program/seasons*', (route: Route) =>

@@ -35,6 +35,23 @@ export type KolProgramProfile = {
   revoked: boolean
   referralCode: string
   referralUrl: string
+  rank?: number | null
+  referralCount?: number
+}
+
+export type KolHubRecentJoiner = {
+  handle: string
+  enrolledAt: string
+  founderNumber: number | null
+}
+
+export type KolProgramHub = {
+  seasonId: string
+  seasonEndsAt: string | null
+  memberCount: number
+  recentJoiners: KolHubRecentJoiner[]
+  referralMilestones: Array<{ referrals: number; bonusPoints: number }>
+  disclaimer: string
 }
 
 export type KolProgramTask = {
@@ -86,6 +103,16 @@ export type KolProgramSeason = {
   endsAt: string | null
   archivedAt: string | null
   current: boolean
+}
+
+export async function fetchKolProgramHub(): Promise<KolProgramHub | null> {
+  try {
+    const res = await fetch(`${API}/api/kol-program/hub`)
+    if (!res.ok) return null
+    return (await res.json()) as KolProgramHub
+  } catch {
+    return null
+  }
 }
 
 export async function fetchKolProgramStatus(): Promise<{
