@@ -1,5 +1,5 @@
 /**
- * Write dist/kol/:handle/index.html and dist/ref/:handle/index.html with OG meta
+ * Write dist/kol/:handle.html and dist/ref/:handle.html with OG meta
  * so Render static (real files before SPA rewrite) serves crawler tags without JS.
  */
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs'
@@ -109,9 +109,9 @@ function extraHandles() {
 async function writePage(relDir, handle, kind) {
   const meta = await metaFor(handle, kind)
   const html = injectMeta(indexTemplate, meta)
-  const dir = join(dist, relDir, handle)
+  const dir = join(dist, relDir)
   mkdirSync(dir, { recursive: true })
-  writeFileSync(join(dir, 'index.html'), html)
+  writeFileSync(join(dir, `${handle}.html`), html)
 }
 
 const handles = [...new Set([...kolDbHandles(), ...extraHandles()])]
