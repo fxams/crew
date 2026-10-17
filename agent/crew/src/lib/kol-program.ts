@@ -4,6 +4,20 @@ export const KOL_PROGRAM_POINTS_DISCLAIMER =
 export const KOL_PROGRAM_POOL_SHARE_LABEL =
   'Estimated share if the season ended now (not guaranteed)'
 
+/** API may return REACH_FORMULA_DOC as JSON; never render objects as React children. */
+export function formatReachFormulaDoc(value: unknown): string | null {
+  if (value == null) return null
+  if (typeof value === 'string') return value.trim() || null
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value, null, 2)
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
 const API = (
   (import.meta.env.VITE_CREW_API_URL as string | undefined)?.replace(/\/$/, '') ||
   'https://api.crewpay.dev'
@@ -91,7 +105,7 @@ export async function fetchKolProgramStatus(): Promise<{
     }
     return {
       enabled: Boolean(body.enabled),
-      reachFormula: body.reachFormula,
+      reachFormula: formatReachFormulaDoc(body.reachFormula) ?? undefined,
       pointsDisclaimer: body.pointsDisclaimer,
       referralFeeMap: body.referralFeeMap,
     }
