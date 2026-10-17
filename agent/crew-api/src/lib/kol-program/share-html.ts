@@ -69,6 +69,13 @@ export function renderShareHtml(meta: SharePageMeta): string {
 </html>`
 }
 
+const META_ATTR = `(?:[\\s\\S]*?\\s)`
+
+function stripMeta(html: string, attr: 'name' | 'property', key: string): string {
+  const re = new RegExp(`<meta\\s+${META_ATTR}?${attr}="${key}"[\\s\\S]*?\\/>`, 'i')
+  return html.replace(re, '')
+}
+
 /** Inject OG tags into the built SPA index.html shell (humans + crawlers on crewpay.dev). */
 export function injectSpaIndexMeta(indexHtml: string, meta: SharePageMeta): string {
   const t = escapeAttr(meta.title)
@@ -77,29 +84,69 @@ export function injectSpaIndexMeta(indexHtml: string, meta: SharePageMeta): stri
   const img = escapeAttr(meta.imageUrl)
   let h = indexHtml
   h = h.replace(/<title>[\s\S]*?<\/title>/, `<title>${t}</title>`)
-  h = h.replace(
-    /<meta name="description"[\s\S]*?\/>/,
-    `<meta name="description" content="${d}" />`,
-  )
-  h = h.replace(/<meta property="og:title"[\s\S]*?\/>/m, `<meta property="og:title" content="${t}" />`)
-  h = h.replace(
-    /<meta property="og:description"[\s\S]*?\/>/m,
-    `<meta property="og:description" content="${d}" />`,
-  )
-  h = h.replace(/<meta property="og:url"[\s\S]*?\/>/m, `<meta property="og:url" content="${u}" />`)
-  h = h.replace(
-    /<meta property="og:image"[\s\S]*?\/>/m,
-    `<meta property="og:image" content="${img}" />\n    <meta property="og:image:width" content="1200" />\n    <meta property="og:image:height" content="630" />\n    <meta property="og:image:type" content="image/png" />`,
-  )
-  h = h.replace(/<meta name="twitter:title"[\s\S]*?\/>/m, `<meta name="twitter:title" content="${t}" />`)
-  h = h.replace(
-    /<meta name="twitter:description"[\s\S]*?\/>/m,
-    `<meta name="twitter:description" content="${d}" />`,
-  )
-  h = h.replace(/<meta name="twitter:image"[\s\S]*?\/>/m, `<meta name="twitter:image" content="${img}" />`)
-  h = h.replace(
-    /<meta name="twitter:card"[\s\S]*?\/>/m,
-    `<meta name="twitter:card" content="summary_large_image" />`,
-  )
+  for (const [attr, key] of [
+    ['name', 'description'],
+    ['property', 'og:title'],
+    ['property', 'og:description'],
+    ['property', 'og:url'],
+    ['property', 'og:image'],
+    ['property', 'og:image:width'],
+    ['property', 'og:image:height'],
+    ['property', 'og:image:type'],
+    ['name', 'twitter:title'],
+    ['name', 'twitter:description'],
+    ['name', 'twitter:image'],
+    ['name', 'twitter:card'],
+  ] as const) {
+    h = stripMeta(h, attr, key)
+  }
+  const block = `    <meta name="description" content="${d}" />
+    <link rel="canonical" href="${u}" />
+    <meta property="og:title" content="${t}" />
+    <meta property="og:description" content="${d}" />
+    <meta property="og:url" content="${u}" />
+    <meta property="og:image" content="${img}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:type" content="image/png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${t}" />
+    <meta name="twitter:description" content="${d}" />
+    <meta name="twitter:image" content="${img}" />`
+  h = h.replace(/<\/title>/i, `</title>\n${block}`)
   return h
+}
+
+const SITE_INDEX_TTL_MS = 60_000
+let siteIndexCache: { html: string; at: number } | null = null
+
+export function resetSiteIndexCacheForTests(): void {
+  siteIndexCache = null
+}
+
+/** Live SPA shell from crewpay.dev — relative /assets stay valid when Render rewrites /kol/* here. */
+export async function loadSiteIndexHtml(siteOrigin: string): Promise<string | null> {
+  const now = Date.now()
+  if (siteIndexCache && now - siteIndexCache.at < SITE_INDEX_TTL_MS) return siteIndexCache.html
+  const origin = siteOrigin.replace(/\/$/, '')
+  try {
+    const res = await fetch(`${origin}/`, {
+      headers: { Accept: 'text/html', 'User-Agent': 'CrewPayShareBot/1' },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(4000),
+    })
+    if (!res.ok) return siteIndexCache?.html ?? null
+    const html = await res.text()
+    if (!html.includes('id="root"')) return siteIndexCache?.html ?? null
+    siteIndexCache = { html, at: now }
+    return html
+  } catch {
+    return siteIndexCache?.html ?? null
+  }
+}
+
+export async function renderKolSharePageHtml(meta: SharePageMeta, siteOrigin: string): Promise<string> {
+  const index = await loadSiteIndexHtml(siteOrigin)
+  if (index) return injectSpaIndexMeta(index, meta)
+  return renderShareHtml(meta)
 }
