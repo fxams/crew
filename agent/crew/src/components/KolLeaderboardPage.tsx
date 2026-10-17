@@ -10,6 +10,8 @@ import {
   type KolPoolStatus,
   type KolProgramSeason,
   hofBadgeLabel,
+  KOL_PROGRAM_POINTS_DISCLAIMER,
+  KOL_PROGRAM_POOL_SHARE_LABEL,
 } from '../lib/kol-program'
 import { kolProfilePath } from '../lib/routes'
 
@@ -104,7 +106,7 @@ export function KolLeaderboardPage() {
           </div>
           <h1 className="section-title">Leaderboard</h1>
           <p className="section-sub">
-            Monthly season points from daily X tasks. {disclaimer || 'Points have no monetary value.'}
+            Monthly season points from daily X tasks. {disclaimer || KOL_PROGRAM_POINTS_DISCLAIMER}
           </p>
           {crewPriorityCopy ? <p className="hint kol-priority-copy">{crewPriorityCopy}</p> : null}
           {seasonId && !archiveSeason ? (
@@ -114,16 +116,17 @@ export function KolLeaderboardPage() {
 
         {pool && !archiveSeason ? (
           <div className="kol-pool-status" aria-label="Season treasury pool">
-            <p className="section-label">Treasury pool (so far this season)</p>
+            <p className="section-label">Season treasury pool</p>
             <p className="hint">{pool.copy}</p>
             <p className="hint">
               Indexed receipts: {formatPoolSol(pool.receipts.solana.sol)}
               {pool.receipts.base.eth > 0 ? ` · ${pool.receipts.base.eth.toFixed(4)} ETH` : ''}
-              {' · '}
-              Pool slice ({pool.poolBps / 100}%): {formatPoolSol(pool.poolSlice.solana.sol)}
+            </p>
+            <p className="hint">
+              {KOL_PROGRAM_POOL_SHARE_LABEL}: {formatPoolSol(pool.poolSlice.solana.sol)}
               {pool.poolSlice.base.eth > 0 ? ` · ${pool.poolSlice.base.eth.toFixed(4)} ETH` : ''}
             </p>
-            <p className="hint kol-program-disclaimer">{pool.disclaimer}</p>
+            <p className="hint kol-program-disclaimer">{pool.disclaimer || KOL_PROGRAM_POINTS_DISCLAIMER}</p>
           </div>
         ) : null}
 
