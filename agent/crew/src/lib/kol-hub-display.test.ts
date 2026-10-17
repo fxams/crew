@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hubMemberLine, hubRecentJoiners, hubStatTiles, podiumSlots } from './kol-hub-display'
+import { hubMemberLine, hubRecentJoiners, hubStatTiles, podiumSlots, seasonChipLabel, seasonMonthLabel } from './kol-hub-display'
 import type { KolLeaderboardRow } from './kol-program'
 
 const emptyHub = {
@@ -49,6 +49,15 @@ describe('hubStatTiles', () => {
     expect(tiles[1]?.value).toMatch(/^\d+d \d+h$/)
     expect(tiles[2]?.label).toBe('Founding snapshot')
     expect(tiles[2]?.value).toMatch(/^\d+d \d+h$/)
+  })
+})
+
+describe('seasonChipLabel', () => {
+  it('builds a one-line season chip', () => {
+    expect(seasonMonthLabel('season_2026-10')).toBe('Oct')
+    expect(seasonChipLabel('season_2026-10', '2026-11-01T00:00:00.000Z', Date.parse('2026-10-17T17:00:00.000Z'))).toBe(
+      'Season Oct · ends in 14d',
+    )
   })
 })
 

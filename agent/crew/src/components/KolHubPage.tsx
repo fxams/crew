@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { CREW_VERSION, KOL_PROGRAM_ENABLED } from '../lib/config'
 import { founderLabel, hubRecentJoiners, hubStatTiles } from '../lib/kol-hub-display'
 import {
@@ -21,7 +21,7 @@ import { kolProfilePath } from '../lib/routes'
 import { KolSampleCardPreview } from './KolSampleCardPreview'
 import { KolBattlesPanel } from './KolBattlesPanel'
 import { KolTaskLadder } from './KolTaskLadder'
-import { fetchKolNotifications, markKolNotificationsRead } from '../lib/kol-program'
+import { fetchKolNotifications } from '../lib/kol-program'
 import { KolInfluenceCard } from './KolInfluenceCard'
 import { KolMobileTabBar } from './KolMobileTabBar'
 import { KolNotionalFormulaNote } from './KolNotionalFormulaNote'
@@ -31,6 +31,7 @@ import { KolSeasonPodium } from './KolSeasonPodium'
 
 export function KolHubPage() {
   const navigate = useNavigate()
+  const loc = useLocation()
   const [hub, setHub] = useState<KolProgramHub | null>(null)
   const [profile, setProfile] = useState<KolProgramProfile | null>(null)
   const [tasks, setTasks] = useState<KolProgramTask[]>([])
@@ -90,6 +91,10 @@ export function KolHubPage() {
     void refresh()
   }, [refresh])
 
+  useEffect(() => {
+    if (loc.hash === '#alerts') navigate('/kol/alerts', { replace: true })
+  }, [loc.hash, navigate])
+
   const joiners = useMemo(() => hubRecentJoiners(hub?.recentJoiners), [hub?.recentJoiners])
   const statTiles = useMemo(() => hubStatTiles(hub), [hub])
   const ownHandle = profile?.handle ?? null
@@ -141,13 +146,9 @@ export function KolHubPage() {
             </Link>
           ) : null}
           {profile && notifUnread > 0 ? (
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm kol-notif-badge"
-              onClick={() => void markKolNotificationsRead().then(() => setNotifUnread(0))}
-            >
+            <Link className="btn btn-ghost btn-sm kol-notif-badge" to="/kol/alerts">
               Alerts ({notifUnread})
-            </button>
+            </Link>
           ) : null}
         </nav>
 
@@ -268,13 +269,9 @@ export function KolHubPage() {
       {profile && notifs.length ? (
         <section className="section kol-notifications" id="alerts">
           <p className="section-label">Notifications</p>
-          <ul>
-            {notifs.map((n) => (
-              <li key={n.id}>
-                <strong>{n.title}</strong> — {n.body}
-              </li>
-            ))}
-          </ul>
+          <p className="hint">
+            <Link to="/kol/alerts">Open alerts</Link>
+          </p>
         </section>
       ) : null}
 

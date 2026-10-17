@@ -1,5 +1,10 @@
 import { randomBytes } from 'node:crypto'
 import { query } from '../db.js'
+import {
+  handlesFromNotificationText,
+  presentNotificationFeed,
+  type PresentedNotification,
+} from './notification-feed.js'
 
 export type KolNotification = {
   id: string
@@ -47,6 +52,26 @@ export async function listNotifications(xUserId: string, limit = 40): Promise<Ko
     createdAt: new Date(r.created_at as Date).toISOString(),
     readAt: r.read_at ? new Date(r.read_at as Date).toISOString() : null,
   }))
+}
+
+async function avatarsForHandles(handles: string[]): Promise<Record<string, string | null>> {
+  const unique = [...new Set(handles.map((h) => h.toLowerCase()).filter(Boolean))]
+  if (!unique.length) return {}
+  const { rows } = await query<{ x_username: string; profile_image_url: string | null }>(
+    `SELECT lower(x_username) AS x_username, profile_image_url
+     FROM kol_registrations
+     WHERE lower(x_username) = ANY($1::text[])`,
+    [unique],
+  )
+  const map: Record<string, string | null> = {}
+  for (const r of rows) map[String(r.x_username)] = r.profile_image_url
+  return map
+}
+
+export async function listPresentedNotifications(xUserId: string, limit = 40): Promise<PresentedNotification[]> {
+  const items = await listNotifications(xUserId, limit)
+  const handles = items.flatMap((n) => handlesFromNotificationText(n.title, n.body))
+  return presentNotificationFeed(items, await avatarsForHandles(handles))
 }
 
 export async function unreadNotificationCount(xUserId: string): Promise<number> {

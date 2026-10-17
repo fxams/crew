@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { kolMobileTabActive, type KolMobileTabId } from '../lib/kol-mobile-tab'
-import { fetchKolProgramMe } from '../lib/kol-program'
+import { fetchKolNotifications, fetchKolProgramMe } from '../lib/kol-program'
 import { kolProfilePath } from '../lib/routes'
 
 type Tab = {
@@ -15,16 +15,25 @@ type Tab = {
 export function KolMobileTabBar() {
   const loc = useLocation()
   const [ownHandle, setOwnHandle] = useState<string | null>(null)
+  const [unread, setUnread] = useState(0)
 
   useEffect(() => {
     let cancelled = false
-    void fetchKolProgramMe().then((me) => {
-      if (!cancelled) setOwnHandle(me?.handle ?? null)
-    })
+    void (async () => {
+      const me = await fetchKolProgramMe()
+      if (cancelled) return
+      setOwnHandle(me?.handle ?? null)
+      if (!me) {
+        setUnread(0)
+        return
+      }
+      const n = await fetchKolNotifications()
+      if (!cancelled) setUnread(n?.unread ?? 0)
+    })()
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [loc.pathname])
 
   const tabs: Tab[] = [
     { id: 'home', to: '/kol', label: 'Home', icon: '⌂', testId: 'kol-tab-home' },
@@ -40,7 +49,7 @@ export function KolMobileTabBar() {
           },
         ]
       : []),
-    { id: 'alerts', to: '/kol#alerts', label: 'Alerts', icon: '◉', testId: 'kol-tab-alerts' },
+    { id: 'alerts', to: '/kol/alerts', label: 'Alerts', icon: '◉', testId: 'kol-tab-alerts' },
     { id: 'tasks', to: '/kol/tasks', label: 'Tasks', icon: '≡', testId: 'kol-tab-tasks' },
   ]
 
@@ -55,6 +64,11 @@ export function KolMobileTabBar() {
         >
           <span aria-hidden>{t.icon}</span>
           <span>{t.label}</span>
+          {t.id === 'alerts' && unread > 0 ? (
+            <span className="kol-tab-badge" data-testid="kol-tab-alerts-badge">
+              {unread > 9 ? '9+' : unread}
+            </span>
+          ) : null}
         </Link>
       ))}
     </nav>

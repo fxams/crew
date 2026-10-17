@@ -515,15 +515,31 @@ export async function stakeKolBattle(
   return { ok: true }
 }
 
+export type KolNotificationItem = {
+  id: string
+  kind?: string
+  tab?: 'replies' | 'points'
+  icon?: 'check' | 'person' | 'heart' | 'trophy' | 'key'
+  title: string
+  body: string
+  href: string | null
+  createdAt?: string
+  readAt: string | null
+  timeAgo?: string
+  points?: number | null
+  avatars?: Array<{ handle: string; url: string | null }>
+  extraCount?: number
+}
+
 export async function fetchKolNotifications(): Promise<{
   unread: number
-  items: Array<{ id: string; title: string; body: string; href: string | null; readAt: string | null }>
+  items: KolNotificationItem[]
 } | null> {
   const res = await fetch(`${API}/api/kol-program/notifications`, { credentials: 'include' })
   if (!res.ok) return null
   return (await res.json()) as {
     unread: number
-    items: Array<{ id: string; title: string; body: string; href: string | null; readAt: string | null }>
+    items: KolNotificationItem[]
   }
 }
 

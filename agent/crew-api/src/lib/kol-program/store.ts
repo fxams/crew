@@ -361,6 +361,12 @@ export async function creditProgramPointsCapped(
     }
   }
   const season = await getCurrentSeasonId()
+  const { rows: before } = await query<{ x_username: string }>(
+    `SELECT x_username FROM kol_program_profiles WHERE x_user_id = $1`,
+    [xUserId],
+  )
+  const handle = before[0]?.x_username || ''
+  const beforeRank = handle ? await seasonRankForHandle(handle) : null
   await query(
     `INSERT INTO kol_program_point_events (id, x_user_id, season_id, kind, points, ref_id)
      VALUES ($1,$2,$3,$4,$5,$6)`,
@@ -372,6 +378,34 @@ export async function creditProgramPointsCapped(
      WHERE x_user_id = $1`,
     [xUserId, grant],
   )
+  if (grant > 0) {
+    try {
+      const { pushNotification } = await import('./notifications.js')
+      if (isCappedTaskKind(kind)) {
+        await pushNotification(
+          xUserId,
+          'task_verified',
+          `Task verified: +${grant.toLocaleString()} pts`,
+          kind,
+          '/kol/tasks',
+        )
+      }
+      if (handle && beforeRank != null) {
+        const afterRank = await seasonRankForHandle(handle)
+        if (afterRank != null && afterRank < beforeRank) {
+          await pushNotification(
+            xUserId,
+            'rank_change',
+            `You moved to #${afterRank}`,
+            `Season rank ${beforeRank} → ${afterRank}`,
+            '/kol/leaderboard',
+          )
+        }
+      }
+    } catch {
+      /* notifications are best-effort */
+    }
+  }
   return { credited: grant, capped, usedToday: usedToday + grant, cap }
 }
 
