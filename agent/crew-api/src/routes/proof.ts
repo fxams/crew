@@ -3,6 +3,7 @@ import { sendInternalError } from '../lib/http-error.js'
 import { buybackStats, listBuybackRuns, runCrewBuyback } from '../lib/buyback-exec.js'
 import { requireAgentApiKey } from '../lib/auth.js'
 import { getProofBundle, recordModeAction } from '../lib/proof.js'
+import { getAgentLeaderboard } from '../lib/agent-leaderboard.js'
 import { emitWebhookEvent } from '../lib/webhooks.js'
 import { z } from 'zod'
 
@@ -16,6 +17,18 @@ proofRouter.get('/proof', async (req, res) => {
     res.json(bundle)
   } catch (err) {
     sendInternalError(res, err, 'proof')
+  }
+})
+
+/** Launching-agent (role desk, 15%) board from cranked remits + locked launches. Real tape only. */
+proofRouter.get('/agents/leaderboard', async (req, res) => {
+  try {
+    const limit = Number(req.query.limit || 20)
+    const bundle = await getAgentLeaderboard(Number.isFinite(limit) ? limit : 20)
+    res.setHeader('Cache-Control', 'public, max-age=30')
+    res.json(bundle)
+  } catch (err) {
+    sendInternalError(res, err, 'agents leaderboard')
   }
 })
 

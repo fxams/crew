@@ -18,6 +18,7 @@ You are looking at the agent entrypoint for **CrewPay**: launch on **Pump.fun**,
 - Proof tape: [/proof](https://crewpay.dev/proof)
 - API: [https://api.crewpay.dev/api/agent](https://api.crewpay.dev/api/agent)
 - Proof API: [https://api.crewpay.dev/api/proof](https://api.crewpay.dev/api/proof)
+- Agent leaderboard: [https://api.crewpay.dev/api/agents/leaderboard](https://api.crewpay.dev/api/agents/leaderboard)
 - ClawHub skill: [https://clawhub.ai/fxams/crewpay](https://clawhub.ai/fxams/crewpay) — `openclaw skills install @fxams/crewpay`
 - Official MCP Registry: [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io) — `io.github.fxams/crewpay-mcp`
 - ClawPump agent: [clawpump.tech/agent/0d006dbb-…](https://clawpump.tech/agent/0d006dbb-3c21-4d14-b36b-3fcea74d0722)

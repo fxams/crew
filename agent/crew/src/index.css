@@ -425,9 +425,70 @@ a {
   text-underline-offset: 2px;
 }
 
+.agent-leaderboard {
+  padding-block: 1.15rem;
+}
+
+.agent-board-head .section-title {
+  margin-bottom: 0.25rem;
+}
+
+.agent-board-list {
+  margin-top: 0.55rem;
+}
+
+.agent-board-coins {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  padding: 0.08rem 0.35rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--acid) 35%, var(--line));
+  color: var(--acid);
+  white-space: nowrap;
+}
+
+.agent-board-row .kol-leaderboard-points a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.agent-board-empty,
+.agent-board-disclaimer,
+.agent-board-more {
+  margin: 0.55rem 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.agent-board-more a,
+.agent-board-empty a {
+  color: var(--acid);
+  text-underline-offset: 2px;
+}
+
+.coin-agent-earned {
+  margin: 0 0 1rem;
+  box-shadow: inset 2px 0 0 var(--acid);
+}
+
+.coin-agent-earned-amt {
+  margin: 0.2rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--acid);
+}
+
 @media (max-width: 430px) {
   .page-agents-earn .agents-brand {
     font-size: clamp(2.1rem, 12vw, 2.6rem);
+  }
+
+  .agent-board-row.kol-leaderboard-row {
+    height: 56px;
+    max-height: 56px;
   }
 
   .page-agents-earn .earn-path,

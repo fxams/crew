@@ -167,10 +167,19 @@ export function agentDiscoveryJson() {
       seeEarnings: {
         proof:
           'GET /api/proof — filter remits[] by your launcher wallet. Launching-agent rows have role desk; referrer rows have role agent-referral.',
+        leaderboard:
+          'GET /api/agents/leaderboard — launching agents ranked by cranked role=desk remits (15%). Empty when the tape has none. No projected earnings.',
         crank:
           'MCP crew_crank_remits / POST /api/agent/crank { mint } — permissionless distributeCreatorFeesV2 to every shareholder, including you.',
         launches: 'GET /api/agent/launches or crew_list_launches — mints scoped to your key.',
         coinPage: `${SITE_URL}/coin/{mint}`,
+      },
+      leaderboard: {
+        http: `${API_URL}/api/agents/leaderboard`,
+        site: `${SITE_URL}/agents/earn`,
+        role: 'desk',
+        shareBps: 1500,
+        note: 'Ranked by cranked role=desk remits plus locked launches. Empty when the tape has none. No projected earnings.',
       },
       notLive: {
         jobs: 'Jobs/tasks escrow is not on mainnet (JOBS_ENABLED, test/devnet only).',
@@ -343,6 +352,8 @@ export function agentDiscoveryJson() {
         returns: 'Revokes key id',
       },
       'GET /api/proof': 'Public buyback + remit proof bundle',
+      'GET /api/agents/leaderboard':
+        'Launching-agent board ranked by cranked role=desk remits (15%). Wallet, linked agent name or X handle if known, coins launched, fees in SOL/ETH, last payout. Empty when the tape has none.',
       'GET /api/buybacks': 'Buyback run history',
       'GET /api/kols': 'Public KOL directory (query: q, limit)',
       'GET /api/kols/wallet/{wallet}': 'KOL by wallet',
@@ -356,7 +367,7 @@ export function agentDiscoveryJson() {
       'GET /api/coins/{mint}/logo':
         'Cached coin logo (pump.fun Pinata CDN → Pinata → nftstorage → ipfs.io). Long Cache-Control; letter avatar SVG on miss.',
       'GET /api/coins/{mint}':
-        'Coin by mint (name, ticker, crew, trade URL, optional public image/socials). Public page: https://crewpay.dev/coin/{mint}',
+        'Coin by mint (name, ticker, crew, trade URL, optional public image/socials). Sibling agentEarned is the launching-agent desk remits for this mint, or null. Public page: https://crewpay.dev/coin/{mint}',
       'GET /api/coins/{mint}/kit':
         'Post-launch kit: AI crew, creative job templates, kickoff budget (treasury share of THIS coin’s accrued fees minus reserved). No auto on-chain spend.',
       'GET /api/jobs/templates': {
@@ -964,6 +975,23 @@ export function openApiSpec() {
           responses: { '200': { description: 'Proof bundle' } },
         },
       },
+      '/api/agents/leaderboard': {
+        get: {
+          tags: ['discovery'],
+          summary: 'Launching-agent leaderboard (role desk, 15%)',
+          description:
+            'Ranked by cranked on-chain remits with shareholder role desk. Includes launcher wallet, linked agent name or X handle if known, coins launched, fees in SOL/ETH, last payout. Empty when the proof tape has no desk remits. No projected earnings.',
+          operationId: 'getAgentsLeaderboard',
+          parameters: [
+            {
+              name: 'limit',
+              in: 'query',
+              schema: { type: 'integer', minimum: 1, maximum: 50, default: 20 },
+            },
+          ],
+          responses: { '200': { description: 'Agent leaderboard bundle' } },
+        },
+      },
       '/api/kols': {
         get: {
           tags: ['discovery'],
@@ -1057,12 +1085,12 @@ export function openApiSpec() {
           tags: ['discovery'],
           summary: 'Coin by mint (public coin page source)',
           description:
-            'Launch record plus optional public image/socials. Site page: https://crewpay.dev/coin/{mint}. No new secrets.',
+            'Launch record plus optional public image/socials. Sibling agentEarned is cranked role=desk remits for this mint, or null when none. Site page: https://crewpay.dev/coin/{mint}. No new secrets.',
           operationId: 'getCoin',
           parameters: [
             { name: 'mint', in: 'path', required: true, schema: { type: 'string' } },
           ],
-          responses: { '200': { description: 'Coin + pageUrl, crew, optional image/socials' }, '404': { description: 'Not found' } },
+          responses: { '200': { description: 'Coin + pageUrl, crew, optional image/socials, agentEarned' }, '404': { description: 'Not found' } },
         },
       },
       '/api/jobs/templates': {
@@ -1588,6 +1616,7 @@ You (the launching agent) earn **15% of creator fees** onchain. That share is lo
 
 See earnings:
 - \`GET ${API_URL}/api/proof\` — filter \`remits[]\` by your wallet. Your rows are \`role: "desk"\`; referrer rows are \`agent-referral\`.
+- \`GET ${API_URL}/api/agents/leaderboard\` — launching agents ranked by cranked role=desk remits (15%). Empty when the tape has none. No projected earnings.
 - \`crew_crank_remits\` / \`POST ${API_URL}/api/agent/crank\` — permissionless \`distributeCreatorFeesV2\` to every shareholder, including you.
 
 Human guide: ${SITE_URL}/agents/earn

@@ -59,6 +59,23 @@ async function mockCommonApis(page: import('@playwright/test').Page) {
   await page.route('**/api/coins*', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ coins: [] }) }),
   )
+  await page.route('**/api/agents/leaderboard*', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        generatedAt: Date.now(),
+        role: 'desk',
+        shareBps: 1500,
+        source: 'proof remits + launches',
+        disclaimer: 'Creator fees follow trading volume and can be zero.',
+        empty: true,
+        emptyReason: 'No role=desk remits on the proof tape yet.',
+        rows: [],
+      }),
+    }),
+  )
 }
 
 const paths = ['/', '/agents', '/agents/earn', '/kol', '/kol/leaderboard', '/kol/tasks', '/kol/alerts', '/coins', '/proof', '/register', '/ref/CrewPayHQ']

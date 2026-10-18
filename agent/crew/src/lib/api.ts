@@ -153,6 +153,47 @@ export async function fetchProof(limit = 40): Promise<ProofBundle> {
   return apiFetch(`/api/proof?${params}`)
 }
 
+export type AgentLeaderboardRow = {
+  rank: number
+  wallet: string
+  agentName: string | null
+  xHandle: string | null
+  coinsLaunched: number
+  earnedSol: number
+  earnedEth: number
+  lastPayoutAt: number | null
+  lastPayoutSignature: string | null
+  lastPayoutMint: string | null
+}
+
+export type AgentEarnedOnCoin = {
+  wallet: string
+  agentName: string | null
+  xHandle: string | null
+  earnedSol: number
+  earnedEth: number
+  lastPayoutAt: number | null
+  lastPayoutSignature: string | null
+  remitCount: number
+}
+
+export type AgentLeaderboardBundle = {
+  ok: boolean
+  generatedAt: number
+  role: 'desk'
+  shareBps: number
+  source: string
+  disclaimer: string
+  empty: boolean
+  emptyReason: string | null
+  rows: AgentLeaderboardRow[]
+}
+
+export async function fetchAgentLeaderboard(limit = 20): Promise<AgentLeaderboardBundle> {
+  const params = new URLSearchParams({ limit: String(limit) })
+  return apiFetch(`/api/agents/leaderboard?${params}`)
+}
+
 export async function pushModeAction(action: {
   id: string
   mint: string
