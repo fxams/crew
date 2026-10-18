@@ -19,10 +19,10 @@ Works with **Cursor**, **Claude Desktop**, **Claude Code**, **ChatGPT MCP**, **G
 | `crew_submit_signed` | Broadcast signed txs |
 | `crew_launch` | MAINNET Pump create + CREW fee-shares |
 | `crew_status` | feeShareLocked / Holder KOL status |
-| `crew_wire_fees` | Repair / lock fee-shares |
+| `crew_wire_fees` | Repair / lock fee-shares (unsigned + launcher signer, non-custodial) |
 | `crew_lock_holder_kol` | Lock top holders ∩ KOL DB |
 | `crew_crank_remits` | distributeCreatorFeesV2 |
-| `crew_proof` | Public buyback + remit proof tape |
+| `crew_proof` | Public proof tape (launches, remits, buybacks) |
 | `post_coin_job` | Post-launch kit: meme-pack / banner-logo / x-upkeep / website-polish on jobs+escrow (`JOBS_ENABLED`, test/devnet) |
 | `crew_job_templates` | List creative job presets |
 | `crew_job_list` | Open jobs (optional `mint`) |
