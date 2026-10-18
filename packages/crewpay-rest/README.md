@@ -6,4 +6,4 @@ Shared CrewPay REST client for framework plugins.
 - Operator opens `approvalUrl` and wallet-signs
 - `launch` / `wireFees`: dryRunId optional unless requireApproval
 
-Prefer MCP: `npx -y crewpay-mcp@1.2.11`
+Prefer MCP: `npx -y crewpay-mcp@1.2.12`

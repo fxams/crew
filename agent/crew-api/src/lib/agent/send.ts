@@ -79,7 +79,7 @@ async function confirmSignature(connection: Connection, signature: string, timeo
   throw new Error(`Confirmation timed out: https://solscan.io/tx/${signature}`)
 }
 
-async function loadLookupTables(
+export async function loadLookupTables(
   connection: Connection,
 ): Promise<AddressLookupTableAccount[]> {
   const raw = process.env.CREW_LOOKUP_TABLE?.trim() || ''

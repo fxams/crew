@@ -106,7 +106,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Build UNSIGNED launch transactions',
       description:
-        'The launching agent earns 15% of creator fees onchain. Creator fees follow trading volume and can be zero. Create UNSIGNED launch transactions. platform defaults to pumpfun (Solana v0 messages). bags = Bags.fm Solana fee-claimers (needs BAGS_API_KEY). zora = Zora content coins on Base (EIP-1559; needs ZORA_ENABLED). clanker = Clanker v4 on Base (EIP-1559; needs CLANKER_ENABLED). vibevibe = vibe/vibe on Robinhood Chain (EIP-1559; needs VIBEVIBE_ENABLED). sui = Memez.gg / Blast.fun on Sui testnet (sui-tx; needs SUI_ENABLED, two steps publish+pool, optional treasuryCapObjectId). Prefer explicit crew[] from crew_list_kols; Autohire is fallback. optInOnly default off. Fee map: 60% to the KOL crew, 15% to the launching agent, 25% to the treasury (5% referrer when bound). Optional treasuryBps 2000–3000.',
+        'The launching agent earns 15% of creator fees onchain. Creator fees follow trading volume and can be zero. Create UNSIGNED launch transactions. For Pump.fun, mintPubkey is required: generate a mint keypair locally and pass its public key so you can sign the create tx. The API does not keep a server-side mint secret. Pump.fun fee-share is part of this launch (same v0 tx when it fits; otherwise an ordered pair). Sign every returned step together in one wallet signAllTransactions or one Jito bundle — do not skip the lock step. crew_wire_fees is repair-only. platform defaults to pumpfun (Solana v0 messages). bags = Bags.fm Solana fee-claimers (needs BAGS_API_KEY). zora = Zora content coins on Base (EIP-1559; needs ZORA_ENABLED). clanker = Clanker v4 on Base (EIP-1559; needs CLANKER_ENABLED). vibevibe = vibe/vibe on Robinhood Chain (EIP-1559; needs VIBEVIBE_ENABLED). sui = Memez.gg / Blast.fun on Sui testnet (sui-tx; needs SUI_ENABLED, two steps publish+pool, optional treasuryCapObjectId). Prefer explicit crew[] from crew_list_kols; Autohire is fallback. optInOnly default off. Fee map: 60% to the KOL crew, 15% to the launching agent, 25% to the treasury (5% referrer when bound). Optional treasuryBps 2000–3000.',
       inputSchema: {
         name: z.string().min(2).max(32),
         ticker: z.string().min(2).max(13),
@@ -119,7 +119,14 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         twitter: z.string().max(128).optional(),
         website: z.string().url().optional(),
         launcherPubkey: z.string().min(20).max(64),
-        mintPubkey: z.string().min(20).max(64).optional(),
+        mintPubkey: z
+          .string()
+          .min(20)
+          .max(64)
+          .optional()
+          .describe(
+            'Required for Pump.fun. Caller-generated mint public key. The API never invents or stores a mint secret.',
+          ),
         optInOnly: z.boolean().optional(),
         treasuryBps: z.number().int().min(2000).max(3000).optional(),
         platform: z
@@ -135,6 +142,11 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
       assertNoSecretToolArgs(input as Record<string, unknown>)
       if (!input.imageUrl && !input.imageBase64) {
         throw new Error('Provide imageUrl or imageBase64')
+      }
+      if ((input.platform || 'pumpfun') === 'pumpfun' && !input.mintPubkey) {
+        throw new Error(
+          'mintPubkey is required for Pump.fun unsigned builds. Generate a mint keypair locally and pass its public key so you can sign the create tx. The API does not keep a server-side mint secret.',
+        )
       }
       const body: Record<string, unknown> = {
         name: input.name,
@@ -169,7 +181,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Submit signed CREW launch transactions',
       description:
-        'Submit signed transactions from crew_build_unsigned. Pump.fun/Bags: Solana base64 (create then lock / fee-share then create). Zora: EIP-1559 hex (0xSplits then coin create). Pass platform to match the builder.',
+        'Submit signed transactions from crew_build_unsigned. Pump.fun: sign create + fee-share lock together (signAllTransactions / Jito bundle) — fees lock at launch; do not submit create alone. Bags: Solana base64 (fee-share then create). Zora: EIP-1559 hex (0xSplits then coin create). Pass platform to match the builder.',
       inputSchema: {
         signed: z.array(z.string().min(64)).min(1).max(8),
         platform: z.enum(['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe', 'sui']).optional(),

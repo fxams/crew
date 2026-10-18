@@ -136,6 +136,75 @@
         }
       }
     },
+    "/api/agent/coin-metadata": {
+      "get": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Pump.fun-shaped coin metadata JSON (IPFS fallback)",
+        "description": "Public fallback when pump.fun/api/ipfs is down. Returns {name,symbol,description,image,showName,createdOn}.",
+        "operationId": "getAgentCoinMetadata",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "symbol",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "image",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          {
+            "name": "description",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "twitter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "website",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pump metadata JSON"
+          },
+          "400": {
+            "description": "Missing name, symbol, or https image"
+          }
+        }
+      }
+    },
     "/api/agent/autohire": {
       "post": {
         "tags": [
@@ -368,7 +437,7 @@
           "agent"
         ],
         "summary": "Build UNSIGNED launch transactions (no secrets)",
-        "description": "platform defaults to pumpfun. bags = Bags.fm Solana (BAGS_API_KEY). zora = Zora coins on Base (ZORA_ENABLED, EIP-1559). Same KOL order: crew[] first, Autohire second. Fee map 60% to the KOL crew, 15% to the launching agent, 25% to the treasury.",
+        "description": "platform defaults to pumpfun. Pump.fun requires mintPubkey (caller-generated mint public key — the API never invents or stores a mint secret). Pump fee-share is included in the launch (same v0 tx when it fits; else signAllTransactions pair). feesLockedAtLaunch is true. bags = Bags.fm Solana (BAGS_API_KEY). zora = Zora coins on Base (ZORA_ENABLED, EIP-1559). Same KOL order: crew[] first, Autohire second. Fee map 60% to the KOL crew, 15% to the launching agent, 25% to the treasury.",
         "operationId": "postAgentLaunchUnsigned",
         "security": [
           {
@@ -1828,6 +1897,10 @@
           "launcherPubkey": {
             "type": "string",
             "description": "Required on dry-run. Burner pubkey that must match x-launcher-key at spend time. Cannot approve. EVM 0x address when platform=zora."
+          },
+          "mintPubkey": {
+            "type": "string",
+            "description": "Required for Pump.fun unsigned builds. Caller-generated mint public key. The API does not invent or store a mint secret."
           },
           "dryRunId": {
             "type": "string",

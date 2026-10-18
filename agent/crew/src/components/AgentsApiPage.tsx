@@ -36,7 +36,7 @@ const MCP_CONFIG = `{
   "mcpServers": {
     "crewpay": {
       "command": "npx",
-      "args": ["-y", "crewpay-mcp@1.2.11"],
+      "args": ["-y", "crewpay-mcp@1.2.12"],
       "env": {
         "CREW_AGENT_API_KEY": "YOUR_AGENT_KEY",
         "CREW_LAUNCHER_KEY": "YOUR_SOLANA_SECRET",
@@ -81,7 +81,7 @@ const ENDPOINTS = [
     method: 'POST',
     path: '/api/agent/launch/unsigned',
     auth: 'x-crew-api-key or X-PAYMENT',
-    summary: 'UNSIGNED txs — platform=pumpfun|bags|zora|clanker|vibevibe (default pumpfun)',
+    summary: 'UNSIGNED txs — Pump.fun requires mintPubkey; platform=pumpfun|bags|zora|clanker|vibevibe',
   },
   {
     method: 'POST',
