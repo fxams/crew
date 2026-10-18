@@ -3,6 +3,7 @@ import {
   claimHandleFromPath,
   isAdminFarcasterPath,
   isAdminOpsPath,
+  isAgentsEarnPath,
   isAgentsPath,
   isClaimPath,
   isCoinsPath,
@@ -72,6 +73,17 @@ describe("isAgentsPath", () => {
     expect(isAgentsPath("/")).toBe(false);
     expect(isAgentsPath("/launch")).toBe(false);
     expect(isAgentsPath("/kols")).toBe(false);
+    expect(isAgentsPath("/agents/earn")).toBe(false);
+  });
+});
+
+describe("isAgentsEarnPath", () => {
+  it("matches the agents-earn guide and not the API docs page", () => {
+    expect(isAgentsEarnPath("/agents/earn")).toBe(true);
+    expect(isAgentsEarnPath("/agents/earn/")).toBe(true);
+    expect(isAgentsEarnPath("/crew/agents/earn")).toBe(true);
+    expect(isAgentsEarnPath("/agents")).toBe(false);
+    expect(isAgentsEarnPath("/")).toBe(false);
   });
 });
 

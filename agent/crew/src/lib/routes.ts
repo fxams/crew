@@ -144,6 +144,12 @@ export function isAgentsPath(pathname: string): boolean {
   );
 }
 
+/** First-person guide: how launching agents earn the 15% desk share. */
+export function isAgentsEarnPath(pathname: string): boolean {
+  const path = normalizePath(pathname);
+  return path === "/agents/earn" || path.endsWith("/agents/earn");
+}
+
 /** Public buyback + remit proof page. */
 export function isProofPath(pathname: string): boolean {
   const path = normalizePath(pathname);

@@ -106,7 +106,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Build UNSIGNED launch transactions',
       description:
-        'Create UNSIGNED launch transactions. platform defaults to pumpfun (Solana v0 messages). bags = Bags.fm Solana fee-claimers (needs BAGS_API_KEY). zora = Zora content coins on Base (EIP-1559; needs ZORA_ENABLED). clanker = Clanker v4 on Base (EIP-1559; needs CLANKER_ENABLED). vibevibe = vibe/vibe on Robinhood Chain (EIP-1559; needs VIBEVIBE_ENABLED). sui = Memez.gg / Blast.fun on Sui testnet (sui-tx; needs SUI_ENABLED, two steps publish+pool, optional treasuryCapObjectId). Prefer explicit crew[] from crew_list_kols; Autohire is fallback. optInOnly default off. Fee map: 60% to the KOL crew, 15% to the launching agent, 25% to the treasury (5% referrer when bound). Optional treasuryBps 2000–3000.',
+        'The launching agent earns 15% of creator fees onchain. Creator fees follow trading volume and can be zero. Create UNSIGNED launch transactions. platform defaults to pumpfun (Solana v0 messages). bags = Bags.fm Solana fee-claimers (needs BAGS_API_KEY). zora = Zora content coins on Base (EIP-1559; needs ZORA_ENABLED). clanker = Clanker v4 on Base (EIP-1559; needs CLANKER_ENABLED). vibevibe = vibe/vibe on Robinhood Chain (EIP-1559; needs VIBEVIBE_ENABLED). sui = Memez.gg / Blast.fun on Sui testnet (sui-tx; needs SUI_ENABLED, two steps publish+pool, optional treasuryCapObjectId). Prefer explicit crew[] from crew_list_kols; Autohire is fallback. optInOnly default off. Fee map: 60% to the KOL crew, 15% to the launching agent, 25% to the treasury (5% referrer when bound). Optional treasuryBps 2000–3000.',
       inputSchema: {
         name: z.string().min(2).max(32),
         ticker: z.string().min(2).max(13),
@@ -675,7 +675,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Narrative Autohire KOLs',
       description:
-        'Preview convenience Autohire: match a token name/ticker/vibe to a candidate KOL pack. Prefer explicit crew selection via crew_list_kols; Autohire is a fallback. Works keyless for previews.',
+        'The launching agent earns 15% of creator fees onchain. Creator fees follow trading volume and can be zero. Preview convenience Autohire: match a token name/ticker/vibe to a candidate KOL pack. Prefer explicit crew selection via crew_list_kols; Autohire is a fallback. Works keyless for previews.',
       inputSchema: {
         name: z.string().max(32).optional().describe('Token name (2–32 on launch)'),
         ticker: z.string().max(13).optional().describe('Token ticker (2–13 on launch)'),
@@ -756,7 +756,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Dry-run a CREW launch (no chain tx)',
       description:
-        'Dry-run a launch (default) or wire-fees (intent=wire-fees). platform defaults to pumpfun; bags/zora check enablement (BAGS_API_KEY / ZORA_ENABLED) without sending chain txs. Prefer explicit crew[] from crew_list_kols; Autohire is a fallback. Returns dryRunId + approvalUrl. Requires CREW_AGENT_API_KEY.',
+        'The launching agent earns 15% of creator fees onchain. Creator fees follow trading volume and can be zero. Dry-run a launch (default) or wire-fees (intent=wire-fees). platform defaults to pumpfun; bags/zora check enablement (BAGS_API_KEY / ZORA_ENABLED) without sending chain txs. Prefer explicit crew[] from crew_list_kols; Autohire is a fallback. Returns dryRunId + approvalUrl. Requires CREW_AGENT_API_KEY.',
       inputSchema: {
         intent: z
           .enum(['launch', 'wire-fees'])
@@ -1065,7 +1065,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Launch Pump coin via CrewPay (MAINNET)',
       description:
-        'MAINNET launch: Prefer explicit crew[] (from crew_list_kols). Autohire is a fallback convenience. Creates a Pump.fun coin with on-chain fee-shares (60/15/25 default; 60/15/5/20 with referral). Approval optional; requires CREW_AGENT_API_KEY + CREW_LAUNCHER_KEY. Check feeShareLocked.',
+        'The launching agent earns 15% of creator fees onchain. Creator fees follow trading volume and can be zero. MAINNET launch: Prefer explicit crew[] (from crew_list_kols). Autohire is a fallback convenience. Creates a Pump.fun coin with on-chain fee-shares (60/15/25 default; 60/15/5/20 with referral). Approval optional; requires CREW_AGENT_API_KEY + CREW_LAUNCHER_KEY. Check feeShareLocked.',
       inputSchema: {
         dryRunId: z
           .string()

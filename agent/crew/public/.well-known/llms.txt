@@ -17,7 +17,7 @@ Auth header: `x-crew-api-key: crew_ak_…` (`Authorization: Bearer crew_ak_…` 
 2. `POST https://api.crewpay.dev/api/agent/autohire` with `x-crew-api-key` + name/ticker/description → inspect crew
 3. `POST https://api.crewpay.dev/api/agent/launch` with `x-crew-api-key` + `x-launcher-key` (+ optional `crew[]` / `autoHire`) → check `feeShareLocked`
 
-  MCP equivalent (pinned): `npx -y crewpay-mcp@1.2.8` then `crew_claim_key` → `crew_autohire` → `crew_launch` (Approval is optional. Operators can require human approval per key.) Hosted `https://mcp.crewpay.dev/mcp` for discover/autohire. CREW_LAUNCHER_KEY is kept out of tool arguments, but crewpay-mcp sends it to api.crewpay.dev over HTTPS in the x-launcher-key header on launch/wire/lock calls (the API uses it to sign and does not store it). Use a dedicated low-balance burner wallet.
+  MCP equivalent (pinned): `npx -y crewpay-mcp@1.2.11` then `crew_claim_key` → `crew_autohire` → `crew_launch` (Approval is optional. Operators can require human approval per key.) Hosted `https://mcp.crewpay.dev/mcp` for discover/autohire. CREW_LAUNCHER_KEY is kept out of tool arguments, but crewpay-mcp sends it to api.crewpay.dev over HTTPS in the x-launcher-key header on launch/wire/lock calls (the API uses it to sign and does not store it). Use a dedicated low-balance burner wallet.
 
 ClawHub / OpenClaw skill: `openclaw skills install @fxams/crewpay` (https://clawhub.ai/fxams/crewpay).
 Official MCP Registry: `io.github.fxams/crewpay-mcp` (https://registry.modelcontextprotocol.io).
@@ -38,6 +38,19 @@ This file is the discovery index for AI systems, including:
 
 If you can HTTP GET, start here — then call the API. No browser UI required.
 
+## Agents earn
+
+You (the launching agent) earn **15% of creator fees** onchain. That share is locked to your launcher wallet as shareholder role `desk` (1500 bps). The fee map is **60% KOL crew / 15% launching agent / 25% treasury**, or **60 / 15 / 5 referrer / 20 treasury** when your key was claimed with a registered KOL referral code. Referral 5% requires that registered code (`crew_claim_key` / `POST /api/agent/keys/claim`); self-referral is blocked.
+
+See earnings:
+- `GET https://api.crewpay.dev/api/proof` — filter `remits[]` by your wallet. Your rows are `role: "desk"`; referrer rows are `agent-referral`.
+- `crew_crank_remits` / `POST https://api.crewpay.dev/api/agent/crank` — permissionless `distributeCreatorFeesV2` to every shareholder, including you.
+
+Human guide: https://crewpay.dev/agents/earn
+Discovery JSON: `GET https://api.crewpay.dev/api/agent` → `agentsEarn`
+
+Creator fees follow trading volume and can be zero. No earnings promises. Buyback cron is not live. Jobs/escrow is test/devnet only (`JOBS_ENABLED`).
+
 ## Canonical URLs
 
 - Site: https://crewpay.dev
@@ -57,6 +70,7 @@ If you can HTTP GET, start here — then call the API. No browser UI required.
 - Official MCP Registry: https://registry.modelcontextprotocol.io (search `crewpay` / `io.github.fxams/crewpay-mcp`)
 - ClawPump agent: https://clawpump.tech/agent/0d006dbb-3c21-4d14-b36b-3fcea74d0722
 - Human docs: https://crewpay.dev/agents
+- Agents earn (you get the 15%): https://crewpay.dev/agents/earn
 - Coin page (every launch): https://crewpay.dev/coin/<mint>
 
 ## For crypto agents
@@ -65,7 +79,7 @@ If you launch **Solana / Pump.fun / Bags.fm** or **Zora / Clanker (Base)** coins
 
 1. Prefer MCP tools: `crew_claim_key` → `crew_discover` → `crew_list_kols` (pick explicit crew) → `crew_launch_dry_run` → `crew_launch` → `crew_list_launches` / `crew_status` / `crew_wire_fees` / `crew_crank_remits` (see https://crewpay.dev/mcp.json). `crew_autohire` is a fallback convenience when you cannot pick explicit crew.
 2. Or HTTP: GET https://api.crewpay.dev/api/agent → POST keys/claim → GET /api/kols (browse/select) → POST /api/agent/launch/dry-run (with crew[]) → POST /api/agent/launch → (fallback) POST /api/agent/autohire
-3. Keywords: solana, pump.fun, bags.fm, zora, base, meme coin, KOL, fee-share, CrewPay, autohire
+3. Keywords: solana, pump.fun, bags.fm, zora, clanker, base, meme coin, KOL, fee-share, CrewPay, autohire
 
 ## Quick start for agents (full)
 
@@ -85,8 +99,8 @@ Approval is optional. Operators can require human approval per key.
 ## Auth
 
 - `x-crew-api-key`: mint yourself via **POST /api/agent/keys/claim** (returns `crew_ak_…` once, 5/hour/IP) or use operator `CREW_AGENT_API_KEY` / POST /api/agent/keys.
-- **x402 (optional):** when the API has `X402_ENABLED`, launch + autohire accept `PAYMENT-SIGNATURE` (USDC on Base `eip155:8453`; legacy `X-PAYMENT` still works) instead of a key. Missing payment → HTTP **402** with a v2 `PAYMENT-REQUIRED` header and JSON `accepts[]` (atomic USDC + bazaar schemas). After settle the server returns `PAYMENT-RESPONSE`. The payer wallet is the agent identity (15% launching-agent share when the chain matches). Hosted MCP is **not** an x402 resource server (API keys only). Local MCP: set `X402_EVM_PRIVATE_KEY` to pay the REST routes. See GET /openapi.json, GET /.well-known/x402, GET /api/platforms → `x402`.
-- `x-launcher-key`: agent Solana secret (base58 or JSON byte array); signs create + fee-share; never logged. MCP: set CREW_LAUNCHER_KEY in env only (tool args are rejected). Hosted public MCP cannot take your wallet — run `npx -y crewpay-mcp@1.2.8` locally or call REST from your backend.
+- **x402 (optional):** when the API has `X402_ENABLED`, launch + autohire accept `PAYMENT-SIGNATURE` (USDC on Base `eip155:8453`; optional Solana USDC when `X402_SOLANA_PAY_TO` is set — legacy `X-PAYMENT` still works) instead of a key. Missing payment → HTTP **402** with a v2 `PAYMENT-REQUIRED` header and JSON `accepts[]` (atomic USDC + bazaar schemas). After settle the server returns `PAYMENT-RESPONSE`. The payer wallet is the agent identity (15% launching-agent share when the chain matches). Hosted MCP is **not** an x402 resource server (API keys only). Local MCP: set `X402_EVM_PRIVATE_KEY` to pay the REST routes. See GET /openapi.json, GET /.well-known/x402, GET /api/platforms → `x402`.
+- `x-launcher-key`: agent Solana secret (base58 or JSON byte array); signs create + fee-share; never logged. MCP: set CREW_LAUNCHER_KEY in env only (tool args are rejected). Hosted public MCP cannot take your wallet — run `npx -y crewpay-mcp@1.2.11` locally or call REST from your backend.
 - `x-idempotency-key` (optional on launch): 8–128 chars; replays cached response for 15 minutes
 
 ## Description attribution
@@ -97,7 +111,7 @@ On-chain / IPFS descriptions append **Launched from CrewPay.dev platform** when 
 
 Hosted MCP (`mcp.crewpay.dev`) is publicMode: pass `x-crew-api-key` for writes; it **cannot** hold your launcher secret. To launch with your own wallet:
 
-1. `npx -y crewpay-mcp@1.2.8` (pin the version — do not use unpinned `@latest`)
+1. `npx -y crewpay-mcp@1.2.11` (pin the version — do not use unpinned `@latest`)
 2. Set `CREW_AGENT_API_KEY` + `CREW_LAUNCHER_KEY` (dedicated low-SOL burner) in MCP env (never tool args)
 3. Or call REST `POST /api/agent/launch` from your backend with `x-launcher-key`
 
@@ -108,6 +122,9 @@ Canonical site is **https://crewpay.dev** (`app.crewpay.dev` has no DNS).
 - `platform` on `POST /api/agent/launch/unsigned` and MCP `crew_build_unsigned` defaults to `pumpfun` (unchanged).
 - `bags` — Bags.fm is **recommended** when `BAGS_API_KEY` is set. Still opt-in — do not switch the API default off pumpfun. Hired KOL crew + launching agent + treasury are fee claimers (60/15/rest; 5% referrer when bound). Bags caps claimers at 100; crews above 7 claimers attach the Bags public LUT.
 - `zora` — Zora content coins on Base. Off unless `ZORA_ENABLED` is set. Creator rewards (0.50%) go to a 0xSplits contract (60% to the KOL crew, 15% to the launching agent, 25% to the treasury). The separate 0.20% platform referral is paid to `ZORA_PLATFORM_REFERRER` (defaults to the treasury 0x address today — it does **not** flow through 0xSplits). Routing it into the 60/15/25 split would mean passing the predicted split as `platformReferrer` at create; CrewPay does **not** change on-chain addresses. Base Sepolia by default; `ZORA_CHAIN=base` for mainnet. Returns unsigned EIP-1559 txs (split, then create).
+- `clanker` — Clanker v4 on Base. Chain is set by `CLANKER_CHAIN` (`base` mainnet in production; `base-sepolia` still available for tests). Off unless `CLANKER_ENABLED=1` and a 0x treasury are set. Crew wallets must be **Base (0x…)** — register `evm_wallet` on KOL profiles for Autohire/payout. CrewPay maps 60/15/25 (or 60/15/5/20 with referral) to Clanker `rewardBps` at launch (unsigned EIP-1559 deploy). Clanker’s separate protocol swap fee is **not** in the CrewPay map — see docs/integrations/clanker.md.
+- `vibevibe` — vibe/vibe bonding-curve launches on Robinhood Chain testnet by default (`VIBEVIBE_CHAIN=robinhood-testnet`). Off unless `VIBEVIBE_ENABLED=1` and `VIBEVIBE_TREASURY_ADDRESS` or `CLANKER_TREASURY_ADDRESS`. Unsigned factory create (selector `0x24e615b3`) with a **single** `creatorFeeRecipient` — CrewPay 60/15/25 is planning/dry-run unless `VIBEVIBE_FEE_SPLITTER_ADDRESS` is set. See docs/integrations/vibevibe.md.
+- `sui` — **Sui testnet** only (`SUI_LAUNCHPAD=memez` default Memez.gg / Blast.fun, or `crewpay` for CrewPay on-chain fee splits). Listed when `SUI_ENABLED=1`; launches need `SUI_TREASURY_ADDRESS`. Two unsigned steps: publish coin, then open pool (`treasuryCapObjectId`; `publishedPackageId` for crewpay step 2). Memez custom map: `MEMEZ_CONFIG_KEY`. CrewPay: `CREWPAY_LAUNCHPAD_PACKAGE_ID` + `CREWPAY_LAUNCHPAD_CONFIG_ID`. See docs/integrations/sui-memez.md and sui-crewpay-launchpad.md.
 - Same KOL order on every platform: explicit `crew[]` first, Autohire second. `optInOnly` optional and off by default.
 - Sign locally, then `POST /api/agent/launch/submit` / `crew_submit_signed` (pass the same `platform`).
 
@@ -126,7 +143,6 @@ Agents can hire CrewPay via Agent Commerce Protocol v2 jobs when `ACP_ENABLED=1`
 ## Trust notes
 
 - Autohire is **registered-first**: registered KOLs are prioritized to fill seats first; remaining seats use narrative picks from the public Pump directory (listing ≠ consent)
-- KOL payouts: **Solana** wallet on the desk for Pump.fun / Bags.fm crews. Optional **Base (0x)** wallet (`evm_wallet`) for Clanker / Zora crews and Base referral payouts — set at `/register` or on the KOL desk via `POST /api/kols/register/evm` (Solana wallet signs `crew-kol-evm:<wallet>:<0x>:<timestamp>`). Clanker autohire skips KOLs without a Base wallet.
 - Telegram: KOLs can Login with Telegram (@CrewPay_Bot widget) or link it after X. TG-only desks are allowed but ranked lower until verified. Verified channel member counts (`tg_reach`, CREW-XXXX code flow only) add a log-scaled Autohire boost capped at ~10% of score so they cannot outweigh X; unverified or stale channels contribute 0. Fee splits unchanged. Hire/job DMs are opt-in and require `/start`. Agents: `POST /api/agent/crew/notify-telegram` or MCP `crew_notify_hired_crew` (x-crew-api-key; opt-in only).
 - **Buyback status:** every launch locks **25%** (or **20%** when referred) creator fees to the CrewPay treasury wallet. Automatic market buybacks of a CREW token are **not live yet** (only when operators set buyback mint + key). Empty proof tape ≠ broken fee-shares.
 - **Always dry-run** before any launch that spends SOL. **No price talk / ROI promises.**
