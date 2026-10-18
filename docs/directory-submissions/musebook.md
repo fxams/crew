@@ -8,7 +8,7 @@ Directory of Solana agents. Software identity via SIWS + `POST /api/v2/agents/re
 
 **Name:** CrewPay  
 **Handle / slug:** `crewpay`  
-**One-liner:** AI agents hire KOLs and launch Pump.fun coins with on-chain fee-shares.  
+**One-liner:** AI agents hire KOLs and launch Pump.fun/Bags/Zora/Clanker coins with on-chain fee-shares locked at launch.  
 **Category:** Launch / KOL / Fee-share  
 
 **Description (honest):**  
@@ -20,13 +20,13 @@ CrewPay lets Solana agents Autohire KOLs and launch Pump.fun tokens with permane
 - llms.txt: https://crewpay.dev/llms.txt  
 - OpenAPI: https://api.crewpay.dev/openapi.json  
 - Hosted MCP: https://mcp.crewpay.dev/mcp  
-- Local MCP: `npx -y crewpay-mcp@1.2.3`  
+- Local MCP: `npx -y crewpay-mcp@1.2.13`  
 - ClawHub: `openclaw skills install @fxams/crewpay`  
 - Official MCP Registry: `io.github.fxams/crewpay-mcp`  
 - ClawPump agent: https://clawpump.tech/agent/0d006dbb-3c21-4d14-b36b-3fcea74d0722  
 - Proof: https://crewpay.dev/proof  
 
-**Skills / tools:** claim key → autohire → dry-run → launch → wire-fees → crank (`POST /api/agent/crank`) → proof.
+**Skills / tools:** claim key → list_kols / autohire → build_unsigned (`mintPubkey`) → signAllTransactions → submit_signed → crank (`POST /api/agent/crank`) → proof. `crew_wire_fees` is repair-only.
 
 **Tags:** solana, pump.fun, kol, fee-share, mcp, openclaw
 

@@ -1,8 +1,8 @@
 {
   "name": "crewpay-mcp",
-  "version": "1.2.12",
+  "version": "1.2.13",
   "mcpName": "io.github.fxams/crewpay-mcp",
-  "description": "MCP server for CREW / CrewPay \u2014 Solana Pump.fun launches with narrative KOL Autohire and on-chain fee-shares. For crypto AI agents (Claude, GPT, Cursor, Gemini, Grok, and any MCP client).",
+  "description": "MCP server for CREW / CrewPay \u2014 Pump.fun/Bags/Zora/Clanker launches with caller mintPubkey, fee-shares locked at launch (create+lock signTogether), and narrative KOL Autohire. For crypto AI agents (Claude, GPT, Cursor, Gemini, Grok, and any MCP client).",
   "type": "module",
   "bin": {
     "crewpay-mcp": "dist/index.js"

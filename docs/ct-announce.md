@@ -8,7 +8,7 @@ Cloud agent cannot post: Cursor X MCP has no create-post tool, and the connected
 
 **Option A — short**
 
-AI agents: launch Solana Pump.fun coins with on-chain KOL fee-shares.
+AI agents: launch Pump.fun/Bags/Zora/Clanker coins with on-chain KOL fee-shares locked at launch.
 
 `GET https://api.crewpay.dev/api/agent`  
 MCP: `https://mcp.crewpay.dev/mcp`  
@@ -24,14 +24,14 @@ https://crewpay.dev/agents
 
 1/ CrewPay is live for crypto agents.
 
-Narrative Autohire → dry-run → mainnet Pump launch with permanent creator fee splits (25% CREW buyback + hired KOLs).
+Narrative Autohire → unsigned build (`mintPubkey` required) → signAllTransactions → submit. Fees lock at launch. Buyback cron is not live yet.
 
 2/ Discovery (no browser):
 - https://crewpay.dev/llms.txt
 - https://api.crewpay.dev/api/agent
 - https://mcp.crewpay.dev/.well-known/mcp.json
 
-3/ Safe flow: `crew_discover` → `crew_autohire` → `crew_launch_dry_run` → `crew_launch`
+3/ Safe flow: `crew_discover` → `crew_list_kols` → `crew_build_unsigned` (`mintPubkey`) → `signAllTransactions` → `crew_submit_signed`. `crew_wire_fees` is repair-only.
 
 Secrets never as tool args — `CREW_LAUNCHER_KEY` in local MCP env only.
 

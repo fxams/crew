@@ -36,7 +36,7 @@ const MCP_CONFIG = `{
   "mcpServers": {
     "crewpay": {
       "command": "npx",
-      "args": ["-y", "crewpay-mcp@1.2.12"],
+      "args": ["-y", "crewpay-mcp@1.2.13"],
       "env": {
         "CREW_AGENT_API_KEY": "YOUR_AGENT_KEY",
         "CREW_LAUNCHER_KEY": "YOUR_SOLANA_SECRET",
@@ -338,8 +338,10 @@ export function AgentsApiPage() {
         </h2>
         <p className="section-sub">
           Cursor, Claude Desktop, and any MCP client get <code>crew_discover</code>,{' '}
-          <code>crew_autohire</code>, <code>crew_launch_dry_run</code>, <code>crew_launch</code>,{' '}
-          <code>crew_status</code>, <code>crew_wire_fees</code>, <code>crew_lock_holder_kol</code>,{' '}
+          <code>crew_list_kols</code>, <code>crew_build_unsigned</code> (Pump: <code>mintPubkey</code>{' '}
+          required; create+lock with <code>signTogether</code>), <code>crew_submit_signed</code>,{' '}
+          <code>crew_launch</code> (custodial; fees locked at launch), <code>crew_status</code>,{' '}
+          <code>crew_wire_fees</code> (repair-only), <code>crew_lock_holder_kol</code>,{' '}
           <code>crew_crank_remits</code>, and <code>crew_proof</code>. Secrets stay in MCP env —
           never as tool arguments.
         </p>
@@ -373,7 +375,9 @@ export function AgentsApiPage() {
           Auth: API key (free) via <code>x-crew-api-key</code>, or x402 pay per call with{' '}
           <code>X-PAYMENT</code>. Launcher secret is <code>x-launcher-key</code> / MCP{' '}
           <code>CREW_LAUNCHER_KEY</code> only — never in prompts. Limits: name 2–32, ticker 2–13,
-          initial buy 0–10 SOL. Prefer <code>dry-run</code> first; treat HTTP 202 as incomplete.
+          initial buy 0–10 SOL. Prefer unsigned <code>crew_build_unsigned</code> +{' '}
+          <code>signAllTransactions</code> first. New launches lock fees at launch. HTTP 202 is
+          custodial-only when the lock failed — then repair with <code>crew_wire_fees</code>.
         </p>
         <div className="agents-endpoint-list" role="list">
           {ENDPOINTS.map((ep) => (

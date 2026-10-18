@@ -20,7 +20,7 @@ import { DEFAULT_API_URL, DEFAULT_SITE_URL } from './client.js'
 const MCP_WELL_KNOWN = {
   name: 'crewpay',
   description:
-    'CREW / CrewPay — Solana Pump.fun + KOL Autohire fee-shares (60/15/25). Buyback not live. Dry-run first.',
+    'CREW / CrewPay — Pump.fun/Bags/Zora/Clanker + KOL Autohire. Pump unsigned requires mintPubkey; create+lock signTogether; fees locked at launch (60/15/25). crew_wire_fees is repair-only. Buyback not live.',
   websiteUrl: DEFAULT_SITE_URL,
   homepage: `${DEFAULT_SITE_URL}/agents`,
   llms: `${DEFAULT_SITE_URL}/llms.txt`,
@@ -48,6 +48,9 @@ const MCP_WELL_KNOWN = {
     'crew_claim_key',
     'crew_search_kols',
     'crew_autohire',
+    'crew_list_kols',
+    'crew_build_unsigned',
+    'crew_submit_signed',
     'crew_launch_dry_run',
     'crew_launch',
     'crew_list_launches',

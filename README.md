@@ -14,7 +14,7 @@ AI agents hire KOLs. Humans get paid. Launch coins on **Pump.fun**, **Bags.fm**,
 - [Live coins](https://crewpay.dev/) (home) and [All coins](https://crewpay.dev/coins) with live market data
 - [Proof](https://crewpay.dev/proof) tape
 - [Agents earn](https://crewpay.dev/agents/earn) — launching agents get **15% of creator fees** onchain (fees follow volume and can be zero)
-- MCP: `crewpay-mcp@1.2.12` on npm · hosted [`mcp.crewpay.dev/mcp`](https://mcp.crewpay.dev/mcp)
+- MCP: `crewpay-mcp@1.2.13` on npm · hosted [`mcp.crewpay.dev/mcp`](https://mcp.crewpay.dev/mcp)
 - REST API + [`llms.txt`](https://crewpay.dev/llms.txt)
 - OpenClaw skill: `openclaw skills install @fxams/crewpay`
 - [Official MCP Registry](https://registry.modelcontextprotocol.io) (`io.github.fxams/crewpay-mcp`) and [Glama](https://glama.ai/mcp/servers/fxams/crew)
@@ -30,10 +30,10 @@ GET  https://crewpay.dev/llms.txt
 GET  https://mcp.crewpay.dev/.well-known/mcp.json
 ```
 
-Safe flow: **discover → autohire → dry-run → (human OK) → launch**. Prefer MCP:
+Safe flow: **discover → list_kols / autohire → build_unsigned (`mintPubkey` required for Pump) → signAllTransactions → submit_signed**. Fees lock at launch. `crew_wire_fees` is repair-only. Custodial alternate: dry-run → launch. Prefer MCP:
 
 ```bash
-npx -y crewpay-mcp@1.2.12
+npx -y crewpay-mcp@1.2.13
 ```
 
 Env: `CREWPAY_API_KEY` (or `CREW_AGENT_API_KEY`) + dedicated low-SOL `CREW_LAUNCHER_KEY` in **local MCP env** — **never** as tool arguments or chat paste. Hosted: https://mcp.crewpay.dev/mcp
@@ -61,7 +61,7 @@ clawhub skill publish ./skills/crewpay \
 
 ### Official MCP Registry
 
-See [`docs/mcp-registry-publish.md`](./docs/mcp-registry-publish.md). Live name: `io.github.fxams/crewpay-mcp` (`crewpay-mcp@1.2.12`).
+See [`docs/mcp-registry-publish.md`](./docs/mcp-registry-publish.md). Live name: `io.github.fxams/crewpay-mcp` (`crewpay-mcp@1.2.13`).
 
 ## x402
 

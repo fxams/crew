@@ -32,13 +32,14 @@ Legacy aliases (still valid): `https://crewpay-api.onrender.com` · `https://cre
 
 1. `crew_claim_key` / `POST /api/agent/keys/claim` — self-serve `crew_ak_…` (no operator signup)
 2. `crew_discover` / `GET /api/agent`
-3. `crew_autohire` — preview public Pump profiles (not opt-in partners)
-4. `crew_launch_dry_run` / `POST /api/agent/launch/dry-run` — validate + estimate SOL (no mint)
-5. **Stop for human approval** before any SOL spend
-6. `crew_launch` — **mainnet**; prefers atomic create+fee-lock; secrets only in MCP env (`CREW_AGENT_API_KEY`, dedicated low-SOL `CREW_LAUNCHER_KEY`)
-7. If `feeShareLocked=false` (HTTP 202) → `crew_wire_fees` or `crew_lock_holder_kol`
-8. Optional crank: MCP `crew_crank_remits` / REST `POST /api/agent/crank` with `{ "mint" }`
-9. `crew_proof` / `GET /api/proof` to verify the tape
+3. `crew_list_kols` (preferred) or `crew_autohire` — preview public Pump profiles (not opt-in partners)
+4. Generate a mint keypair locally. Pump unsigned builds **require** `mintPubkey`.
+5. `crew_build_unsigned` / `POST /api/agent/launch/unsigned` — Pump returns create+lock (`signTogether: true`) or one atomic-v0 tx; `feesLockedAtLaunch: true`
+6. Sign every returned step together (`signAllTransactions` / one Jito bundle), then `crew_submit_signed` / `POST /api/agent/launch/submit`
+7. Custodial alternate (operator burner): `crew_launch_dry_run` then `crew_launch` — fees lock at launch. Secrets only in MCP env (`CREW_AGENT_API_KEY`, dedicated low-SOL `CREW_LAUNCHER_KEY`)
+8. `crew_wire_fees` is **repair-only** for older launches or a failed lock (custodial HTTP 202). Not a normal launch step.
+9. Optional crank: MCP `crew_crank_remits` / REST `POST /api/agent/crank` with `{ "mint" }`
+10. `crew_proof` / `GET /api/proof` to verify the tape
 
 ## Description attribution
 
@@ -49,7 +50,7 @@ Every launch appends **Launched from CrewPay.dev platform** when missing. Keep u
 Hosted MCP `https://mcp.crewpay.dev/mcp` is **publicMode**: pass `x-crew-api-key` for writes; it cannot hold your launcher secret.
 
 ```bash
-npx -y crewpay-mcp@1.2.12
+npx -y crewpay-mcp@1.2.13
 ```
 
 Point your MCP client at the pinned package with env:
@@ -62,9 +63,9 @@ REST alternative: `POST https://api.crewpay.dev/api/agent/launch` with `x-launch
 
 ## MCP tools
 
-Install pinned `crewpay-mcp@1.2.12` as above, or connect HTTP MCP at `https://mcp.crewpay.dev/mcp`. Pump.fun unsigned builds (`crew_build_unsigned`) require `mintPubkey`.
+Install pinned `crewpay-mcp@1.2.13` as above, or connect HTTP MCP at `https://mcp.crewpay.dev/mcp`. Pump.fun unsigned builds (`crew_build_unsigned`) require `mintPubkey`. Fees lock at launch. `crew_wire_fees` is repair-only.
 
-Tools: `crew_discover` · `crew_claim_key` · `crew_search_kols` · `crew_autohire` · `crew_launch_dry_run` · `crew_launch` · `crew_list_launches` · `crew_status` · `crew_wire_fees` · `crew_lock_holder_kol` · `crew_crank_remits` · `crew_proof`
+Tools: `crew_discover` · `crew_claim_key` · `crew_list_kols` · `crew_search_kols` · `crew_autohire` · `crew_build_unsigned` · `crew_submit_signed` · `crew_launch_dry_run` · `crew_launch` · `crew_list_launches` · `crew_status` · `crew_wire_fees` · `crew_lock_holder_kol` · `crew_crank_remits` · `crew_proof`
 
 ## Auth + keys
 

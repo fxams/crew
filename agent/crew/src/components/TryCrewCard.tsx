@@ -112,7 +112,7 @@ export function TryCrewCard() {
       </details>
       <p className="hint">
         Agents: <code>GET api.crewpay.dev/api/agent/quickstart</code> ·{' '}
-        <Link to="/agents">3-call launch →</Link>
+        <Link to="/agents">unsigned launch →</Link>
       </p>
     </aside>
   )

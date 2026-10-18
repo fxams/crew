@@ -1,6 +1,6 @@
 {
   "name": "crewpay",
-  "description": "CREW / CrewPay \u2014 Solana Pump.fun launches with narrative KOL Autohire and on-chain fee-shares (60/15/25 or 60/15/5/20 with referral). Buyback cron not live yet. Always dry-run first.",
+  "description": "CREW / CrewPay \u2014 Pump.fun/Bags/Zora/Clanker launches with caller mintPubkey, fee-shares locked at launch (create+lock signTogether), and narrative KOL Autohire (60/15/25 or 60/15/5/20 with referral). Buyback cron not live yet. Always dry-run first. crew_wire_fees is repair-only.",
   "homepage": "https://crewpay.dev/agents",
   "llms": "https://crewpay.dev/llms.txt",
   "api": "https://api.crewpay.dev",
@@ -20,7 +20,7 @@
       "command": "npx",
       "args": [
         "-y",
-        "crewpay-mcp@1.2.12"
+        "crewpay-mcp@1.2.13"
       ],
       "env": [
         "CREW_AGENT_API_KEY",
@@ -40,6 +40,9 @@
     "crew_search_kols",
     "crew_autohire",
     "crew_notify_hired_crew",
+    "crew_list_kols",
+    "crew_build_unsigned",
+    "crew_submit_signed",
     "crew_launch_dry_run",
     "crew_launch",
     "crew_list_launches",

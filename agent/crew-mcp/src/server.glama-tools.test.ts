@@ -50,6 +50,8 @@ describe('Glama tool-quality copy for B-rated tools', () => {
     expect(block).toMatch(/Create and permanently lock Pump\.fun fee-sharing/)
     expect(block).toMatch(/When to use:/)
     expect(block).toMatch(/When not to use:/)
+    expect(block).toMatch(/repair-only/)
+    expect(block).toMatch(/new Pump launch/)
     expect(block).toMatch(/non-custodial/)
     expect(block).toMatch(/requires the launch wallet to sign/)
     expect(block).toMatch(/builds the fee-share create\/update transaction/)
