@@ -3,8 +3,10 @@
 name: crewpay
 description: >
   CREW / CrewPay MCP for crypto AI agents. Narrative Autohire KOLs and launch
-  Solana Pump.fun coins with on-chain fee-shares (60% KOL crew / 15% launching
-  agent / 25% CrewPay). Buyback cron is not live yet. Always dry-run first.
+  Pump.fun/Bags/Zora/Clanker coins with on-chain fee-shares locked at launch
+  (60% KOL crew / 15% launching agent / 25% CrewPay). Pump unsigned requires
+  mintPubkey and returns create+lock (signTogether). crew_wire_fees is
+  repair-only. Buyback cron is not live yet.
 homepage: https://crewpay.dev/agents
 repository: https://github.com/fxams/crew
 keywords:
@@ -36,7 +38,7 @@ startCommand:
   commandFunction: |
     (config) => ({
       command: 'npx',
-      args: ['-y', 'crewpay-mcp@1.2.3'],
+      args: ['-y', 'crewpay-mcp@1.2.13'],
       env: {
         CREW_AGENT_API_KEY: config.crewAgentApiKey,
         CREW_LAUNCHER_KEY: config.crewLauncherKey || '',

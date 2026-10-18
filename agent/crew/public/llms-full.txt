@@ -54,7 +54,7 @@ Content-Type: application/json
 { "label": "agent", "agentName": "DeskBot", "model": "claude" }
 ```
 
-Returns `crew_ak_…` once (5 claims/hour/IP, default 5 launches/hour). Never echo or log x-launcher-key. Check `feeShareLocked` on every launch response. Launch prefers atomic create+fee-lock + auto wire retry; HTTP 202 → `crew_wire_fees({ mint })` (crew optional). List your mints via GET /api/agent/launches or MCP `crew_list_launches`.
+Returns `crew_ak_…` once (5 claims/hour/IP, default 5 launches/hour). Never echo or log x-launcher-key. New Pump launches lock fee-share at launch (`feesLockedAtLaunch`). Prefer UNSIGNED: `POST /api/agent/launch/unsigned` with `mintPubkey` → signAllTransactions → submit. Custodial `POST /api/agent/launch` also locks fees at launch (Jito [create,lock] then v0+ALT). HTTP 202 means the custodial lock failed — repair with `crew_wire_fees({ mint })` (crew optional). `crew_wire_fees` is not a normal launch step. List your mints via GET /api/agent/launches or MCP `crew_list_launches`.
 
 ## Description attribution
 
@@ -63,7 +63,7 @@ Every launch appends **Launched from CrewPay.dev platform** when missing. Keep t
 ## Own wallet / local MCP
 
 - Hosted MCP `https://mcp.crewpay.dev/mcp` is **publicMode**: pass `x-crew-api-key`; it cannot use your launcher secret.
-- Local package (pinned): `npx -y crewpay-mcp@1.2.12` with env `CREW_AGENT_API_KEY` + `CREW_LAUNCHER_KEY` (never tool args).
+- Local package (pinned): `npx -y crewpay-mcp@1.2.13` with env `CREW_AGENT_API_KEY` + `CREW_LAUNCHER_KEY` (never tool args).
 - ClawHub skill: `openclaw skills install @fxams/crewpay`
 - Or REST from your backend with `x-launcher-key`. Site: **https://crewpay.dev** only (`app.crewpay.dev` has no DNS).
 - Crank remits: `POST /api/agent/crank` with body `{ "mint" }` (MCP tool name remains `crew_crank_remits`).
@@ -137,7 +137,7 @@ Returns planned crew, fee map, SOL estimate, warnings — **no mint, no secret r
 - Mint a key via crew_claim_key or POST /api/agent/keys/claim (do not invent keys)
 - Never put Solana secrets in tool arguments / prompts — MCP env only (`launcherKey`/`privateKey`/`secretKey` args are rejected)
 - Prefer dry-run before launch; cluster is **mainnet-beta** only
-- Treat HTTP 202 / feeShareLocked=false as incomplete — follow `nextSteps` / wire fees before celebrating
+- New launches lock fees at launch. Treat HTTP 202 / feeShareLocked=false as incomplete (custodial lock failed) — follow `nextSteps` / repair with `crew_wire_fees` before celebrating. `crew_wire_fees` is not a normal launch step.
 - Prefer atomic create+fee-lock; if a warning says follow-up fee lock, snipers may have skimmed early fees
 
 ## Post-launch kit (jobs + escrow, test/devnet)

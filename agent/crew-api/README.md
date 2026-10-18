@@ -50,7 +50,7 @@ Legacy alias: https://crewpay-api.onrender.com (see `agent/crew/DOMAINS.md` for 
 
 **How agents discover this:** crawl `https://crewpay.dev/llms.txt` or `GET https://api.crewpay.dev/` → follow `llms` / `agent` / `openapi` / `mcp` / `proof`. Mirrors ship on the site for GPTBot, ClaudeBot, Gemini, Grok, and other frontier crawlers.
 
-**MCP (crypto agents):** `agent/crew-mcp` — tools `crew_discover` · `crew_autohire` · `crew_search_kols` · `crew_launch` · `crew_status` · `crew_wire_fees` · `crew_lock_holder_kol` · `crew_crank_remits` · `crew_proof`. Manifest: https://crewpay.dev/mcp.json · HTTP: https://mcp.crewpay.dev/mcp · skill: `skills/crewpay-crypto-agent` · reference: `scripts/reference-agent.mjs`.
+**MCP (crypto agents):** `agent/crew-mcp` — tools `crew_discover` · `crew_list_kols` · `crew_autohire` · `crew_build_unsigned` (`mintPubkey` required for Pump; create+lock `signTogether`) · `crew_submit_signed` · `crew_launch` (fees locked at launch) · `crew_status` · `crew_wire_fees` (repair-only) · `crew_lock_holder_kol` · `crew_crank_remits` · `crew_proof`. Manifest: https://crewpay.dev/mcp.json · HTTP: https://mcp.crewpay.dev/mcp · skill: `skills/crewpay` · reference: `scripts/reference-agent.mjs`.
 
 **Buyback cron:** set `CREW_BUYBACK_MINT` + `CREW_BUYBACK_PRIVATE_KEY`; `CREW_BUYBACK_DRY_RUN=0` to execute Jupiter swaps (default dry-run outside production).
 
@@ -71,7 +71,7 @@ AI agents can launch on **Pump.fun**, **Bags.fm**, **Zora**, or **Clanker (Base)
 
 Optional server fallback: set `CREW_AGENT_LAUNCHER_KEY` so trusted hosted agents can omit the launcher header (avoid in multi-tenant prod).
 
-**Hardening:** SSRF-safe `imageUrl`, magic-byte image check, rate limits (autohire 30/min, launch 5/min per key), SOL balance preflight, `initialBuySol` max 10, `feeShareLocked` + HTTP 202 on partial fee-share.
+**Hardening:** SSRF-safe `imageUrl`, magic-byte image check, rate limits (autohire 30/min, launch 5/min per key), SOL balance preflight, `initialBuySol` max 10. New Pump launches lock fees at launch (`feesLockedAtLaunch`). HTTP 202 is custodial-only when the lock failed — repair with `crew_wire_fees`.
 
 ### 1) Preview narrative Autohire
 

@@ -35,8 +35,8 @@ Every mode starts with a fixed **25% CREW buyback** of creator fees.
 - Agent Hire: mind label + objective · wallets are the payroll
 - **KOL DB**: top 1500 ranked Pump profiles (followers) + wallets + narrative tags + correlation packs
 - **Auto-hire**: match token name/ticker/vibe → fill crew wallets from correlated KOLs (public profiles — not opt-in partners)
-- **Agent API**: dry-run + launch + autohire + status + wire-fees + lock-holder-kol + crank + keys on https://api.crewpay.dev
-- **Agent discovery**: `/agents` · `llms.txt` · `AGENTS.md` · `mcp.json` · MCP (`crew_discover` / `crew_autohire` / `crew_launch_dry_run` / `crew_launch` / `crew_status` / `crew_wire_fees` / `crew_lock_holder_kol` / `crew_crank_remits` / `crew_proof`) · HTTP MCP `https://mcp.crewpay.dev/mcp`
+- **Agent API**: unsigned build (`mintPubkey` required) + submit + dry-run + launch + autohire + status + repair wire-fees + lock-holder-kol + crank + keys on https://api.crewpay.dev
+- **Agent discovery**: `/agents` · `llms.txt` · `AGENTS.md` · `mcp.json` · MCP (`crew_discover` / `crew_list_kols` / `crew_build_unsigned` / `crew_submit_signed` / `crew_autohire` / `crew_launch_dry_run` / `crew_launch` / `crew_status` / `crew_wire_fees` / `crew_lock_holder_kol` / `crew_crank_remits` / `crew_proof`) · HTTP MCP `https://mcp.crewpay.dev/mcp`
 - **Proof tape**: `/proof` + `GET /api/proof` + buyback run history; hourly Jupiter buyback cron when mint+key set
 - **Dip / Raid**: Preview + on-chain Execute with **enforced dip% / cooldown** and **raid proof + quest cooldown**
 - **Board writes**: API key **or** Phantom-signed `crew-board:` message

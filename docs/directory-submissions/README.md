@@ -5,10 +5,10 @@ Also refresh Glama / mcp.so / awesome-mcp with honest 60/15/25 + dryRunId approv
 
 | Channel | Status | Doc |
 |---------|--------|-----|
-| Official MCP Registry | Live — `server.json` / remote `crewpay-mcp@1.2.3` | [../mcp-registry-publish.md](../mcp-registry-publish.md) |
-| Smithery | Live — refresh description + pin `1.2.2` | [smithery.md](./smithery.md) |
+| Official MCP Registry | Live — `server.json` / remote `crewpay-mcp@1.2.13` | [../mcp-registry-publish.md](../mcp-registry-publish.md) |
+| Smithery | Live — refresh description + pin `1.2.13` | [smithery.md](./smithery.md) |
 | ClawHub skill | Publish `@fxams/crewpay` **1.1.2** | repo `skills/crewpay/` |
-| mcp.so | Draft updated for `1.2.2` | [mcp-so.md](./mcp-so.md) |
+| mcp.so | Draft updated for `1.2.13` | [mcp-so.md](./mcp-so.md) |
 | Musebook | SIWS register via ops wallet (`slug=crewpay`) | [musebook.md](./musebook.md) |
 | ClawPump | **Live agent** — marketplace listing optional | [clawpump.md](./clawpump.md) |
 | Glama | Resubmit with honest copy | [glama.md](./glama.md) |

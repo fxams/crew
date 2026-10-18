@@ -2,13 +2,13 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.fxams/crewpay-mcp",
   "title": "CREW / CrewPay",
-  "description": "CrewPay MCP: Pump.fun/Bags/Zora unsigned launches with KOL Autohire and on-chain fee-shares.",
+  "description": "CrewPay MCP: Pump.fun/Bags/Zora/Clanker unsigned launches (mintPubkey required; create+lock signTogether; fees locked at launch) with KOL Autohire.",
   "repository": {
     "url": "https://github.com/fxams/crew",
     "source": "github",
     "subdirectory": "agent/crew-mcp"
   },
-  "version": "1.2.12",
+  "version": "1.2.13",
   "remotes": [
     {
       "type": "streamable-http",
@@ -27,7 +27,7 @@
     {
       "registryType": "npm",
       "identifier": "crewpay-mcp",
-      "version": "1.2.12",
+      "version": "1.2.13",
       "transport": {
         "type": "stdio"
       },

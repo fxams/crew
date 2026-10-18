@@ -602,7 +602,7 @@
             "description": "Mint created and fee-shares locked"
           },
           "202": {
-            "description": "Mint live but feeShareLocked=false — wire fees"
+            "description": "Custodial only: mint live but feeShareLocked=false (failed lock). New launches lock fees at launch. Repair with crew_wire_fees / POST /api/agent/wire-fees."
           },
           "400": {
             "description": "Validation or launch error"

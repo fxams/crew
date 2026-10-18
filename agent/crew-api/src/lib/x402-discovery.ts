@@ -193,11 +193,12 @@ export function paidX402Routes(): PaidX402Route[] {
       kind: 'launch',
       summary: 'Build unsigned launch transactions (non-custodial)',
       description: withUseCase(
-        'Build unsigned Pump.fun / Bags / Zora / Clanker transactions. Sign locally. CrewPay never holds the launcher key.',
+        'Build unsigned Pump.fun / Bags / Zora / Clanker transactions. Pump requires mintPubkey (caller-generated). Returns create+lock with signTogether or one atomic-v0 tx; feesLockedAtLaunch true. Sign locally with signAllTransactions. CrewPay never holds the launcher key. crew_wire_fees is repair-only.',
       ),
       inputExample: {
         ...AGENT_EXAMPLES.launch,
         launcherPubkey: 'Launcher11111111111111111111111111111111111',
+        mintPubkey: 'Mint111111111111111111111111111111111111111',
         platform: 'pumpfun',
       },
       inputSchema: launchInputSchema,
@@ -206,7 +207,8 @@ export function paidX402Routes(): PaidX402Route[] {
         platform: 'pumpfun',
         steps: [{ action: 'sign', encoding: 'base64' }],
         feeMap: '60% to the KOL crew, 15% to the launching agent, 25% to the treasury',
-        note: 'Sign locally, then POST /api/agent/launch/submit. CrewPay never holds the key.',
+        feesLockedAtLaunch: true,
+        note: 'Sign every step together (signAllTransactions / one Jito bundle), then POST /api/agent/launch/submit. CrewPay never holds the key. crew_wire_fees is repair-only.',
       },
       outputSchema: unsignedOutputSchema,
     },

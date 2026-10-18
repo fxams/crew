@@ -88,7 +88,7 @@ Do **not** use `app.crewpay.dev` (no DNS).
 Install/run the **pinned** npm package (do not use `@latest` or unpinned `-y crewpay-mcp`):
 
 ```bash
-npx -y crewpay-mcp@1.2.12
+npx -y crewpay-mcp@1.2.13
 ```
 
 Configure MCP **env** (not tool args):
@@ -99,16 +99,18 @@ Configure MCP **env** (not tool args):
 | `CREW_LAUNCHER_KEY` | dedicated low-SOL burner secret (launch path only) |
 | `CREW_API_URL` | `https://api.crewpay.dev` (optional) |
 
-Tools: `crew_discover` · `crew_claim_key` · `crew_search_kols` · `crew_autohire` · `crew_launch_dry_run` · `crew_launch` · `crew_list_launches` · `crew_status` · `crew_wire_fees` · `crew_lock_holder_kol` · `crew_crank_remits` · `crew_proof`
+Tools: `crew_discover` · `crew_claim_key` · `crew_list_kols` · `crew_search_kols` · `crew_autohire` · `crew_build_unsigned` · `crew_submit_signed` · `crew_launch_dry_run` · `crew_launch` · `crew_list_launches` · `crew_status` · `crew_wire_fees` · `crew_lock_holder_kol` · `crew_crank_remits` · `crew_proof`
 
 **Launch flow via MCP**
 
 1. `crew_claim_key` if `CREWPAY_API_KEY` / `CREW_AGENT_API_KEY` unset → store once in env.
-2. `crew_autohire` (or pass an explicit crew totaling **100%** shares).
-3. `crew_launch_dry_run` → review costs, crew, fee map, warnings; note `dryRunId` + `approvalUrl`.
-4. **Stop — human opens `approvalUrl` and approves.**
-5. `crew_launch` with the same body + `dryRunId` → expect `feeShareLocked=true`; if false, `crew_wire_fees`.
-6. Optional: `crew_crank_remits` · `crew_proof`.
+2. `crew_list_kols` (preferred) or `crew_autohire` (or pass an explicit crew totaling **100%** shares).
+3. Generate a mint keypair locally. Pump unsigned builds **require** `mintPubkey`.
+4. `crew_build_unsigned` → Pump returns create+lock (`signTogether: true`) or one atomic-v0 tx; `feesLockedAtLaunch: true`.
+5. Sign every returned step together (`signAllTransactions` / one Jito bundle), then `crew_submit_signed`.
+6. Custodial alternate (operator burner + optional approval): `crew_launch_dry_run` → human opens `approvalUrl` → `crew_launch` with `dryRunId`. Fees lock at launch.
+7. `crew_wire_fees` is **repair-only** for older launches or a failed lock — not a normal launch step.
+8. Optional: `crew_crank_remits` · `crew_proof`.
 
 Images: PNG/JPEG/WebP/GIF only (SVG rejected). User description ≤**204** chars (final ≤240 with `Launched from CrewPay.dev platform`).
 
@@ -206,4 +208,4 @@ Bind a referrer at key claim (`referralCode` / MCP `referral_code` / env `CREWPA
 - Full discovery: https://crewpay.dev/llms-full.txt
 - Agents.md: https://crewpay.dev/AGENTS.md
 - Source skill path in repo: `skills/crewpay/`
-- MCP package (pinned): `crewpay-mcp@1.2.12` on npm. Pump.fun `crew_build_unsigned` requires `mintPubkey` (caller-generated mint public key).
+- MCP package (pinned): `crewpay-mcp@1.2.13` on npm. Pump.fun `crew_build_unsigned` requires `mintPubkey` (caller-generated mint public key). Fees lock at launch. `crew_wire_fees` is repair-only.
