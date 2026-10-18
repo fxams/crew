@@ -30,6 +30,7 @@ import { featuredPublic, listGraduatedUnfeatured, setCoinFeaturedX } from '../li
 import { detectGraduation, recordGraduationIfNew } from '../lib/graduation.js'
 import { fetchPumpBondingCurveCreator } from '../lib/pump-creator.js'
 import { assertRemitOnChain } from '../lib/remits-chain.js'
+import { getAgentEarnedForMint } from '../lib/agent-leaderboard.js'
 
 const writeAuth = requireApiKeyOrWallet(requireApiKey)
 const walletOnly = requireWalletSignatureOnly()
@@ -214,7 +215,8 @@ coinsRouter.get('/coins/:mint', async (req, res) => {
         coin.graduatedVia = rec.via || coin.graduatedVia
       }
     }
-    res.json({ coin: toPublicCoinPage(coin, meta) })
+    const agentEarned = await getAgentEarnedForMint(coin.mint).catch(() => null)
+    res.json({ coin: toPublicCoinPage(coin, meta), agentEarned })
   } catch (err) {
     sendInternalError(res, err, 'get coin')
   }

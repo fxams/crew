@@ -464,8 +464,8 @@
                       "bags",
                       "zora",
                       "clanker",
-              "vibevibe",
-                      "vibevibe"
+                      "vibevibe",
+                      "sui"
                     ],
                     "default": "pumpfun"
                   }
@@ -949,6 +949,33 @@
         }
       }
     },
+    "/api/agents/leaderboard": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Launching-agent leaderboard (role desk, 15%)",
+        "description": "Ranked by cranked on-chain remits with shareholder role desk. Includes launcher wallet, linked agent name or X handle if known, coins launched, fees in SOL/ETH, last payout. Empty when the proof tape has no desk remits. No projected earnings.",
+        "operationId": "getAgentsLeaderboard",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent leaderboard bundle"
+          }
+        }
+      }
+    },
     "/api/kols": {
       "get": {
         "tags": [
@@ -1149,7 +1176,7 @@
           "discovery"
         ],
         "summary": "Coin by mint (public coin page source)",
-        "description": "Launch record plus optional public image/socials. Site page: https://crewpay.dev/coin/{mint}. No new secrets.",
+        "description": "Launch record plus optional public image/socials. Sibling agentEarned is cranked role=desk remits for this mint, or null when none. Site page: https://crewpay.dev/coin/{mint}. No new secrets.",
         "operationId": "getCoin",
         "parameters": [
           {
@@ -1163,7 +1190,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Coin + pageUrl, crew, optional image/socials"
+            "description": "Coin + pageUrl, crew, optional image/socials, agentEarned"
           },
           "404": {
             "description": "Not found"
@@ -1501,7 +1528,8 @@
               "bags",
               "zora",
               "clanker",
-              "vibevibe"
+              "vibevibe",
+              "sui"
             ]
           },
           "name": {
@@ -1512,7 +1540,9 @@
             "enum": [
               "solana",
               "base",
-              "base-sepolia"
+              "base-sepolia",
+              "robinhood-testnet",
+              "robinhood"
             ]
           },
           "enabled": {
@@ -1528,7 +1558,7 @@
           },
           "caption": {
             "type": "string",
-            "description": "Zora: Base (mainnet), testnet (Sepolia), soon (off)."
+            "description": "Zora: Base (mainnet), testnet (Sepolia), soon (off). Clanker: Base (mainnet) or Base Sepolia (testnet) per CLANKER_CHAIN."
           },
           "tradeHost": {
             "type": "string"
@@ -1789,7 +1819,8 @@
               "bags",
               "zora",
               "clanker",
-              "vibevibe"
+              "vibevibe",
+              "sui"
             ],
             "default": "pumpfun",
             "description": "Launch venue. pumpfun (default) = Pump.fun Solana. bags = Bags.fm Solana (BAGS_API_KEY). zora = Zora coins on Base (ZORA_ENABLED). Existing clients omit this."

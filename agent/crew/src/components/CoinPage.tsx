@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { CREW_AGENT_API_URL, CREW_VERSION } from '../lib/config'
+import { CREW_AGENT_API_URL, CREW_VERSION, SOLSCAN_TX_URL } from '../lib/config'
+import type { AgentEarnedOnCoin } from '../lib/api'
+import {
+  agentBoardIdentity,
+  formatAgentFees,
+  formatPayoutDay,
+  hasAgentEarned,
+} from '../lib/agent-leaderboard'
 import { coinMintFromPath, kolProfilePath } from '../lib/routes'
 import { COIN_JOB_TEMPLATES } from '../lib/coin-jobs'
 import { loadBoard } from '../lib/store'
@@ -105,6 +112,7 @@ export function CoinPage() {
   const { pathname } = useLocation()
   const mint = coinMintFromPath(pathname) || ''
   const [coin, setCoin] = useState<Coin | null>(null)
+  const [agentEarned, setAgentEarned] = useState<AgentEarnedOnCoin | null>(null)
   const [kit, setKit] = useState<Kit | null>(null)
   const [missing, setMissing] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -123,10 +131,12 @@ export function CoinPage() {
         ])
         if (cancelled) return
         if (coinRes.ok) {
-          const data = (await coinRes.json()) as { coin: Coin }
+          const data = (await coinRes.json()) as { coin: Coin; agentEarned?: AgentEarnedOnCoin | null }
           setCoin(data.coin)
+          setAgentEarned(hasAgentEarned(data.agentEarned) ? data.agentEarned : null)
         } else if (coinRes.status === 404) {
           const local = loadBoard().coins.find((c) => c.mint === mint)
+          setAgentEarned(null)
           if (local) {
             setCoin(local)
           } else {
@@ -236,6 +246,30 @@ export function CoinPage() {
                 ))}
               </div>
             </div>
+
+            {hasAgentEarned(agentEarned) ? (
+              <div className="coin-panel coin-agent-earned" data-testid="coin-agent-earned">
+                <p className="section-label">Agent earned</p>
+                <p className="coin-agent-earned-amt">{formatAgentFees(agentEarned)}</p>
+                <p className="hint">
+                  {agentBoardIdentity(agentEarned).title}
+                  {formatPayoutDay(agentEarned.lastPayoutAt)
+                    ? ` · last crank ${formatPayoutDay(agentEarned.lastPayoutAt)}`
+                    : ''}
+                  {agentEarned.remitCount > 0 ? ` · ${agentEarned.remitCount} desk remits` : ''}
+                </p>
+                {agentEarned.lastPayoutSignature ? (
+                  <a
+                    className="btn btn-ghost btn-sm"
+                    href={SOLSCAN_TX_URL(agentEarned.lastPayoutSignature)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Last payout tx
+                  </a>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="coin-split">
               {coin.crew?.length ? (
