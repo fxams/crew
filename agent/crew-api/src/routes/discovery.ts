@@ -11,6 +11,7 @@ import {
   llmsTxt,
   MCP_HTTP_URL,
   MCP_MANIFEST_URL,
+  MCP_PACKAGE_VERSION,
   openApiSpec,
   robotsTxt,
   SITE_URL,
@@ -104,9 +105,9 @@ discoveryRouter.get('/mcp.json', (_req, res) =>
     },
     mcp: {
       stdio: {
-        package: 'crewpay-mcp@1.2.8',
+        package: `crewpay-mcp@${MCP_PACKAGE_VERSION}`,
         command: 'npx',
-        args: ['-y', 'crewpay-mcp@1.2.8'],
+        args: ['-y', `crewpay-mcp@${MCP_PACKAGE_VERSION}`],
         env: ['CREW_AGENT_API_KEY', 'CREW_LAUNCHER_KEY', 'CREW_API_URL'],
       },
       http: { url: MCP_HTTP_URL, transport: 'streamable-http' },

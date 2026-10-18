@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   FRONTIER_MODELS,
+  MCP_PACKAGE_VERSION,
   agentCard,
   agentDiscoveryJson,
   aiPluginManifest,
@@ -122,8 +123,24 @@ describe('agent discovery docs', () => {
     expect(llmsTxt()).toContain('≤204')
     expect(llmsFullTxt()).toContain('Never put Solana secrets')
     expect(llmsFullTxt()).toContain('Launched from CrewPay.dev platform')
-    expect(llmsFullTxt()).toContain('npx -y crewpay-mcp@1.2.8')
-    expect(llmsTxt()).toContain('npx -y crewpay-mcp@1.2.8')
+    expect(llmsFullTxt()).toContain(`npx -y crewpay-mcp@${MCP_PACKAGE_VERSION}`)
+    expect(llmsTxt()).toContain(`npx -y crewpay-mcp@${MCP_PACKAGE_VERSION}`)
+    expect(llmsTxt()).toContain('## Agents earn')
+    expect(llmsTxt()).toContain('15% of creator fees')
+    expect(llmsTxt()).toContain('role: "desk"')
+    expect(llmsTxt()).toContain('crew_crank_remits')
+    expect(llmsTxt()).toContain('/agents/earn')
+    expect(llmsTxt()).toContain('can be zero')
+    expect(agentDiscoveryJson().agentsEarn.launcherShareBps).toBe(1500)
+    expect(agentDiscoveryJson().agentsEarn.launcherRole).toBe('desk')
+    expect(agentDiscoveryJson().agentsEarn.referral.bps).toBe(500)
+    expect(agentDiscoveryJson().agentsEarn.referral.role).toBe('agent-referral')
+    expect(agentDiscoveryJson().agentsEarn.seeEarnings.crank).toMatch(/crew_crank_remits/)
+    expect(agentDiscoveryJson().agentsEarn.seeEarnings.proof).toMatch(/\/api\/proof/)
+    expect(agentDiscoveryJson().agentsEarn.guide).toBe('https://crewpay.dev/agents/earn')
+    expect(agentDiscoveryJson().discovery.agents_earn).toBe('https://crewpay.dev/agents/earn')
+    expect(agentDiscoveryJson().mcp.package_version).toBe(MCP_PACKAGE_VERSION)
+    expect(MCP_PACKAGE_VERSION).toBe('1.2.11')
     expect(llmsTxt()).toContain('X-PAYMENT')
     expect(llmsTxt()).toContain('x402')
     expect(agentDiscoveryJson().auth.x402).toBeTruthy()

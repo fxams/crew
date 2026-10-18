@@ -28,6 +28,14 @@ describe('Glama tool-quality copy for B-rated tools', () => {
     expect(block).toMatch(/openWorldHint: true/)
   })
 
+  it('launch tools lead with the 15% onchain earn sentence', () => {
+    for (const name of ['crew_launch', 'crew_build_unsigned', 'crew_launch_dry_run', 'crew_autohire']) {
+      const block = toolBlock(name)
+      expect(block, name).toMatch(/^[\s\S]*description:\s*\n\s*'The launching agent earns 15% of creator fees onchain\./)
+      expect(block, name).toMatch(/Creator fees follow trading volume and can be zero/)
+    }
+  })
+
   it('crew_wire_fees documents on-chain side effects, unsigned/signer, non-custodial, and destructive hints', () => {
     const block = toolBlock('crew_wire_fees')
     expect(block).toMatch(/Create and permanently lock Pump\.fun fee-sharing/)

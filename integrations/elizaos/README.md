@@ -5,7 +5,7 @@ Use the ElizaOS 1.x plugin at [`packages/plugin-crewpay`](../../packages/plugin-
 Legacy scaffold (older action names): [`packages/elizaos-plugin-crewpay`](../../packages/elizaos-plugin-crewpay/).
 
 ```bash
-npx -y crewpay-mcp@1.2.8
+npx -y crewpay-mcp@1.2.11
 # env: CREW_AGENT_API_KEY, CREW_LAUNCHER_KEY (dedicated low-SOL burner)
 ```
 

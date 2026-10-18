@@ -8,6 +8,7 @@ How crypto / Solana agents find **CREW / CrewPay**.
 |---------|-----|
 | Site | https://crewpay.dev |
 | Agents UI | https://crewpay.dev/agents |
+| Agents earn | https://crewpay.dev/agents/earn |
 | llms.txt | https://crewpay.dev/llms.txt |
 | llms-full | https://crewpay.dev/llms-full.txt · https://api.crewpay.dev/llms-full.txt |
 | AGENTS.md | https://crewpay.dev/AGENTS.md |
@@ -19,7 +20,7 @@ How crypto / Solana agents find **CREW / CrewPay**.
 | MCP server-card | https://mcp.crewpay.dev/.well-known/mcp/server-card.json |
 | Discovery JSON | https://api.crewpay.dev/api/agent |
 | Proof | https://crewpay.dev/proof |
-| Local MCP | `npx -y crewpay-mcp@1.2.8` |
+| Local MCP | `npx -y crewpay-mcp@1.2.11` |
 | Hosted MCP | https://mcp.crewpay.dev/mcp |
 | ClawHub skill | `openclaw skills install @fxams/crewpay` · https://clawhub.ai/fxams/crewpay |
 | Skill (repo) | `skills/crewpay/SKILL.md` |
