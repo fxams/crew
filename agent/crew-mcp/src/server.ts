@@ -29,13 +29,35 @@ const mintSchema = z
   .min(32)
   .max(64)
   .regex(/^[1-9A-HJ-NP-Za-km-z]{32,64}$/, 'Invalid Solana mint address')
+  .describe(
+    'Solana mint address (base58, 32–64 chars, alphabet without 0/O/I/l). Example: a Pump.fun mint from crew_list_launches or crew_status. Required unless noted.',
+  )
 
 const crewMemberSchema = z.object({
-  handle: z.string(),
-  wallet: z.string().min(20).max(64),
-  share: z.number().int().min(1).max(100),
-  hireRole: z.enum(['caller', 'chart', 'raid', 'kol', 'dev']).optional(),
-  evmWallet: z.string().min(42).max(42).optional(),
+  handle: z
+    .string()
+    .describe('X / Pump handle without @. Example: "crewpayhq". Required.'),
+  wallet: z
+    .string()
+    .min(20)
+    .max(64)
+    .describe('Solana payout wallet (base58). Required. Example: a KOL wallet from crew_list_kols.'),
+  share: z
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .describe('Integer percent of the crew slice (1–100). Crew shares must total 100.'),
+  hireRole: z
+    .enum(['caller', 'chart', 'raid', 'kol', 'dev'])
+    .optional()
+    .describe('Optional hire role label. One of caller | chart | raid | kol | dev.'),
+  evmWallet: z
+    .string()
+    .min(42)
+    .max(42)
+    .optional()
+    .describe('Optional 0x… Base address (42 chars) for Zora/Clanker payouts.'),
 })
 
 /** Declared so Zod does not strip them — handlers hard-reject if present. */
@@ -107,7 +129,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         crew: z.array(crewMemberSchema).min(1).max(100).optional(),
         ...forbiddenSecretFields,
       },
-      annotations: { readOnlyHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async (input) => {
       assertNoSecretToolArgs(input as Record<string, unknown>)
@@ -152,7 +174,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         signed: z.array(z.string().min(64)).min(1).max(8),
         platform: z.enum(['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe', 'sui']).optional(),
       },
-      annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: true },
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
     },
     async (input) => {
       const data = await crewFetch(cfg, '/api/agent/launch/submit', {
@@ -193,7 +215,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
       description:
         'Load CREW / CrewPay discovery for crypto agents: Autohire KOLs, launch Pump.fun coins, fee-shares, OpenAPI links. Use this first when working on Solana meme coins, KOLs, or CrewPay.',
       inputSchema: {},
-      annotations: { readOnlyHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async () => {
       const data = await crewFetch(cfg, '/api/agent')
@@ -244,7 +266,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
           requiredLink: z.string().url().optional(),
           minPostAgeHours: z.number().int().min(0).max(72).optional(),
         },
-        annotations: { readOnlyHint: true, openWorldHint: true },
+        annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       },
       async (input) => {
         const body: Record<string, unknown> = {
@@ -277,7 +299,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         inputSchema: {
           mint: z.string().min(32).max(64).optional().describe('Filter jobs for a CrewPay-launched mint'),
         },
-        annotations: { readOnlyHint: true, openWorldHint: true },
+        annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       },
       async (input) => {
         const q = input.mint ? `?mint=${encodeURIComponent(input.mint)}` : ''
@@ -292,7 +314,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         description:
           'Presets for a launched coin: meme-pack, banner-logo, x-upkeep (N posts/week), website-polish. Jobs + escrow, test/devnet. No earnings promises.',
         inputSchema: {},
-        annotations: { readOnlyHint: true, openWorldHint: true },
+        annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       },
       async () => {
         const data = await crewFetch(cfg, '/api/jobs/templates')
@@ -322,7 +344,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
           fund: z.boolean().optional().describe('If true, fund sim/flop-tclk escrow (never mainnet)'),
           dryRun: z.boolean().optional().describe('If true, plan only — do not persist'),
         },
-        annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: false },
+        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       },
       async (input) => {
         const body: Record<string, unknown> = {
@@ -396,7 +418,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
           rail: z.string().max(32).optional(),
           from: z.string().max(128).optional().describe('Funding wallet for non-custodial rails'),
         },
-        annotations: { readOnlyHint: false, openWorldHint: true },
+        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       },
       async (input) => {
         const data = await crewFetch(cfg, '/api/tasks', {
@@ -416,7 +438,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         inputSchema: {
           category: z.string().max(64).optional(),
         },
-        annotations: { readOnlyHint: true, openWorldHint: true },
+        annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       },
       async (input) => {
         const q = input.category ? `?category=${encodeURIComponent(input.category)}` : ''
@@ -438,7 +460,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
           timestamp: z.number().int().optional(),
           signature: z.string().min(20).optional(),
         },
-        annotations: { readOnlyHint: false, openWorldHint: true },
+        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       },
       async (input) => {
         if (!input.wallet || !input.timestamp || !input.signature) {
@@ -482,7 +504,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
           timestamp: z.number().int().optional(),
           signature: z.string().min(20).optional(),
         },
-        annotations: { readOnlyHint: false, openWorldHint: true },
+        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       },
       async (input) => {
         if (!input.wallet || !input.timestamp || !input.signature) {
@@ -513,7 +535,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
           object: z.boolean().optional(),
           from: z.string().max(128).optional(),
         },
-        annotations: { readOnlyHint: false, openWorldHint: true },
+        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       },
       async (input) => {
         const data = await crewFetch(cfg, `/api/tasks/${encodeURIComponent(input.taskId)}/approve`, {
@@ -543,7 +565,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
           timestamp: z.number().int().optional(),
           signature: z.string().optional(),
         },
-        annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: true },
+        annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
       },
       async (input) => {
         const headers: Record<string, string> = {}
@@ -582,7 +604,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
             'KOL referral code (crewpay.dev/r/<code>). Bound permanently on this key. Falls back to CREWPAY_REFERRAL_CODE env.',
           ),
       },
-      annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: false },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
     async (input) => {
       const body: Record<string, unknown> = {}
@@ -614,7 +636,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         q: z.string().min(1).max(64).describe('Handle, pump username, or wallet substring'),
         limit: z.number().int().min(1).max(50).optional().describe('Max results (default 20)'),
       },
-      annotations: { readOnlyHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async ({ q, limit }) => {
       const qs = new URLSearchParams({ q, limit: String(limit ?? 20) })
@@ -635,7 +657,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         limit: z.number().int().min(1).max(100).optional().describe('Max results (default 50)'),
         offset: z.number().int().min(0).optional().describe('Offset for pagination (default 0)'),
       },
-      annotations: { readOnlyHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async ({ q, limit, offset }) => {
       const params = new URLSearchParams()
@@ -666,7 +688,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
           ),
         seats: z.number().int().min(1).max(8).optional().describe('Crew seats 1–8 (default 5)'),
       },
-      annotations: { readOnlyHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async (input) => {
       if (!cfg.apiKey && !cfgCanX402Pay(cfg)) {
@@ -713,7 +735,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
           .describe('Optional hired handles if mint is omitted'),
         message: z.string().max(500).optional().describe('Optional short note (≤500)'),
       },
-      annotations: { readOnlyHint: false, openWorldHint: true },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
     async (input) => {
       const data = await crewFetch(cfg, '/api/agent/crew/notify-telegram', {
@@ -769,7 +791,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         platform: z.enum(['pumpfun', 'bags', 'zora', 'clanker', 'vibevibe', 'sui']).optional(),
         ...forbiddenSecretFields,
       },
-      annotations: { readOnlyHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async (input) => {
       assertNoSecretToolArgs(input as Record<string, unknown>)
@@ -842,9 +864,11 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
       description:
         'Check whether a CREW mint has fee-shares locked, Holder KOL open, and board presence. Use after launch (HTTP 202) or before wire/lock/crank.',
       inputSchema: {
-        mint: mintSchema.describe('Pump mint address'),
+        mint: mintSchema.describe(
+          'Required. Solana mint (base58, 32–64 chars). Example: from crew_list_launches or crew_launch.',
+        ),
       },
-      annotations: { readOnlyHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async ({ mint }) => {
       const data = await crewFetch(cfg, `/api/agent/status/${encodeURIComponent(mint)}`, {
@@ -858,28 +882,51 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     'crew_wire_fees',
     {
       title: 'Wire / repair CREW fee-shares',
-      description:
-        'Create + lock fee-sharing for an existing mint. Approval is optional. Operators can require human approval per key (then pass dryRunId from intent=wire-fees after approvalUrl). Requires CREW_LAUNCHER_KEY in MCP env.',
+      description: [
+        'Create and permanently lock Pump.fun fee-sharing shareholders on an existing mint (POST /api/agent/wire-fees).',
+        'When to use: crew_launch returned HTTP 202 / feeShareLocked=false, or crew_status shows no fee-sharing config. Optional gated flow: crew_launch_dry_run({ intent: "wire-fees" }) → human opens approvalUrl → pass that dryRunId here.',
+        'When not to use: do not call if feeShareLocked=true (already locked — not idempotent, API errors). Do not use for a new coin (crew_launch), Holder-KOL opens (crew_lock_holder_kol), or distributing accrued fees (crew_crank_remits). Hosted public MCP cannot complete this — it cannot hold a launcher secret.',
+        'Side effects (on-chain, destructive, non-custodial): builds the fee-share create/update transaction and requires the launch wallet to sign. Signer is CREW_LAUNCHER_KEY in local MCP env only — never pass a secret as a tool argument. CrewPay does not custody keys or funds. Writes the Pump.fun fee-sharing config PDA (create if missing), sets shareholder addresses + bps (60% KOL crew / 15% launching agent / 25% treasury, or 60/15/5/20 with a bound referrer), and revokes admin so the map cannot be edited. Also persists feeShareLocked on the CrewPay board. Does not transfer SOL, move LP, or launch a mint.',
+        'Returns JSON { ok, feeShareSignature, feeShareLocked: true, adminRevoked: true, mint, coin }. Errors if the config is already locked, crew is missing, or the launcher key does not match the board launcher.',
+        'Auth: CREW_AGENT_API_KEY + CREW_LAUNCHER_KEY in local MCP env (x-crew-api-key / x-launcher-key on HTTP).',
+      ].join(' '),
       inputSchema: {
+        mint: mintSchema.describe(
+          'Required. Solana Pump.fun mint (base58, 32–64 chars, no 0/O/I/l). Example: a mint from crew_list_launches or the crew_launch response.',
+        ),
         dryRunId: z
           .string()
           .min(16)
           .max(64)
           .optional()
-          .describe('Optional unless the API key has requireApproval=true'),
-        mint: mintSchema,
-        mode: z.enum(['agent', 'split', 'buyback', 'raid']).optional(),
-        name: z.string().max(32).optional(),
-        ticker: z.string().max(13).optional(),
+          .describe(
+            'Optional string (16–64 chars) unless the API key has requireApproval=true. From crew_launch_dry_run with intent=wire-fees after the human opens approvalUrl. Example: a 32-char opaque id.',
+          ),
+        mode: z
+          .enum(['agent', 'split', 'buyback', 'raid'])
+          .optional()
+          .describe('Optional desk mode. One of agent | split | buyback | raid. Default agent.'),
+        name: z
+          .string()
+          .max(32)
+          .optional()
+          .describe('Optional coin name (≤32 chars) if the mint is not already on the board. Example: "Desk Cat".'),
+        ticker: z
+          .string()
+          .max(13)
+          .optional()
+          .describe('Optional ticker (≤13 chars). Example: "DESK". Omit to reuse the board ticker.'),
         crew: z
           .array(crewMemberSchema)
           .min(1)
           .max(8)
           .optional()
-          .describe('Optional — omit to reuse board crew from launch'),
+          .describe(
+            'Optional array of 1–8 crew members {handle, wallet, share, hireRole?}. Shares must total 100. Omit to reuse the crew stored on the board from launch.',
+          ),
         ...forbiddenSecretFields,
       },
-      annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: true },
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
     },
     async (input) => {
       assertNoSecretToolArgs(input as Record<string, unknown>)
@@ -908,9 +955,15 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
       description:
         'Return launches attributed to your crew_ak_… key (mint, ticker, feeShareLocked, pumpUrl). Operator env keys see recent board launches. Use after crew_launch or to recover mint state across retries.',
       inputSchema: {
-        limit: z.number().int().min(1).max(100).optional(),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .optional()
+          .describe('Optional integer 1–100. Max launches to return. Example: 20. Default is the API default.'),
       },
-      annotations: { readOnlyHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async ({ limit }) => {
       const qs = limit ? `?limit=${limit}` : ''
@@ -932,7 +985,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         ticker: z.string().max(13).optional(),
         ...forbiddenSecretFields,
       },
-      annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: true },
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
     },
     async (input) => {
       assertNoSecretToolArgs(input as Record<string, unknown>)
@@ -961,7 +1014,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         mint: mintSchema,
         ...forbiddenSecretFields,
       },
-      annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: true },
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
     },
     async (input) => {
       assertNoSecretToolArgs(input as Record<string, unknown>)
@@ -980,12 +1033,25 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     'crew_proof',
     {
       title: 'Public CREW proof tape',
-      description:
-        'Load public proof tape: launches, remit totals, and buyback runs if any. Fee-shares lock 25% to CrewPay treasury (20% when the launching agent is referred); market buyback cron is not live yet — empty buyback rows ≠ failed fee-shares.',
+      description: [
+        'Read the public CrewPay proof tape (GET /api/proof): fee-share-locked launches, creator-fee remits, and buyback runs.',
+        'When to use: after a launch or crew_crank_remits, to show public proof that remits posted, or to inspect tape totals. No API key.',
+        'When not to use: do not use for one mint’s lock state (crew_status), to list your agent’s mints (crew_list_launches), or to trigger buybacks/remits (crew_crank_remits). Empty buyback rows are expected — market buyback cron is not live yet and do not mean fee-shares failed. Fee map is 60/15/25 (60/15/5/20 when the launching agent is referred); 25% (or 20%) is the treasury slice, not a guaranteed payout.',
+        'Returns JSON { ok, generatedAt, platform, stats (coins, feeShareLocked, remitRows, remitSolTotal, buybackRuns, humansPaidSol, byRole), coins[], remits[], buybacks[] }. Empty arrays mean no locked launches yet — not an error.',
+        'Side effects: none. Read-only public GET. Does not change chain, board, or keys.',
+      ].join(' '),
       inputSchema: {
-        limit: z.number().int().min(1).max(100).optional(),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .optional()
+          .describe(
+            'Optional integer 1–100 (default 40). Max tape rows for coins/remits/buybacks. Example: 20.',
+          ),
       },
-      annotations: { readOnlyHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async ({ limit }) => {
       const qs = limit ? `?limit=${limit}` : ''
@@ -1046,7 +1112,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
           .describe('Explicit crew (shares must total 100%) overrides Autohire when provided'),
         ...forbiddenSecretFields,
       },
-      annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: true },
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
     },
     async (input) => {
       assertNoSecretToolArgs(input as Record<string, unknown>)
