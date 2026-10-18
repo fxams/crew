@@ -10,6 +10,7 @@ import {
 import { PlatformChipRow } from './PlatformChipRow'
 import { PlatformSelect } from './PlatformSelect'
 import { AuthChoice, type AgentAuth } from './AuthChoice'
+import { AgentLeaderboard } from './AgentLeaderboard'
 import { useLaunchDiscovery } from '../lib/use-launch-venues'
 import {
   LAUNCH_FEE_MAP_COPY,
@@ -123,6 +124,12 @@ const ENDPOINTS = [
     path: '/api/proof',
     auth: 'public',
     summary: 'Buyback + remit proof tape',
+  },
+  {
+    method: 'GET',
+    path: '/api/agents/leaderboard',
+    auth: 'public',
+    summary: 'Launching agents ranked by cranked role=desk remits (15%)',
   },
   {
     method: 'POST',
@@ -265,6 +272,8 @@ export function AgentsApiPage() {
           </div>
         </div>
       </section>
+
+      <AgentLeaderboard variant="compact" limit={5} />
 
       <section className="section section-agents" aria-labelledby="agents-discover-title">
         <p className="section-label">Discovery</p>

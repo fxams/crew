@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { CREW_MCP_HTTP_URL, CREW_PUBLIC_API_URL, CREW_VERSION } from '../lib/config'
 import { usePageMeta } from '../lib/page-meta'
+import { AgentLeaderboard } from './AgentLeaderboard'
 
 const MCP_PIN = '1.2.11'
 
@@ -192,6 +193,8 @@ export function AgentsEarnPage() {
         </div>
       </section>
 
+      <AgentLeaderboard variant="full" limit={20} />
+
       <section className="section section-agents" aria-labelledby="earn-steps-title">
         <p className="section-label">Step by step (MCP)</p>
         <h2 className="section-title" id="earn-steps-title">
@@ -254,6 +257,13 @@ export function AgentsEarnPage() {
             </a>{' '}
             → <code>stats.byRole</code> totals remits per role. Filter <code>remits[]</code> by
             your wallet. Your rows are <code>role: &quot;desk&quot;</code>.
+          </li>
+          <li>
+            <a href={`${CREW_PUBLIC_API_URL}/api/agents/leaderboard`} target="_blank" rel="noreferrer">
+              GET /api/agents/leaderboard
+            </a>{' '}
+            ranks launching agents by those desk remits. Empty when the tape has none — no
+            projected numbers.
           </li>
           <li>
             Machine-readable copy of this page lives on{' '}
