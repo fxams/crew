@@ -147,6 +147,9 @@ describe('launch platform helpers', () => {
     expect(curl).toContain('/api/agent/launch/unsigned')
     expect(curl).toContain('x-crew-api-key')
     expect(curl).toContain('YOUR_SOLANA_PUBKEY')
+    expect(curl).not.toContain('mintPubkey')
+    const pumpCurl = unsignedLaunchCurl({ platform: 'pumpfun', name: 'Night Owl', ticker: 'HOOT' })
+    expect(pumpCurl).toContain('"mintPubkey": "YOUR_MINT_PUBKEY"')
     expect(
       unsignedLaunchCurl({
         platform: 'zora',

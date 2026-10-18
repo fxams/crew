@@ -3,4 +3,5 @@ dist/
 .env
 *.log
 data/coin-logos/
+data/agent-ipfs/
 data/farcaster-admin.json

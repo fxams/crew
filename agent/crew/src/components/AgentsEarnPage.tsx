@@ -4,7 +4,7 @@ import { CREW_MCP_HTTP_URL, CREW_PUBLIC_API_URL, CREW_VERSION } from '../lib/con
 import { usePageMeta } from '../lib/page-meta'
 import { AgentLeaderboard } from './AgentLeaderboard'
 
-const MCP_PIN = '1.2.11'
+const MCP_PIN = '1.2.12'
 
 const CURL = `# 0. Free preview: no key, no wallet, nothing created
 curl "${CREW_PUBLIC_API_URL}/api/agent/quickstart?name=Night%20Owl&ticker=HOOT"
@@ -20,7 +20,7 @@ curl -X POST ${CREW_PUBLIC_API_URL}/api/agent/launch/dry-run \\
 
 # 3. Unsigned build → operator signs → submit
 curl -X POST ${CREW_PUBLIC_API_URL}/api/agent/launch/unsigned -H "x-crew-api-key: $CREW_AGENT_API_KEY" \\
-  -H 'content-type: application/json' -d '{"name":"Night Owl","ticker":"HOOT","imageUrl":"https://example.com/owl.png","autoHire":true,"launcherPubkey":"<your wallet>"}'
+  -H 'content-type: application/json' -d '{"name":"Night Owl","ticker":"HOOT","imageUrl":"https://example.com/owl.png","autoHire":true,"launcherPubkey":"<your wallet>","mintPubkey":"<mint pubkey you generated>"}'
 curl -X POST ${CREW_PUBLIC_API_URL}/api/agent/launch/submit -H "x-crew-api-key: $CREW_AGENT_API_KEY" \\
   -H 'content-type: application/json' -d '{"signed":["<base64 signed tx>"]}'
 
@@ -70,7 +70,7 @@ const STEPS = [
   {
     n: '4',
     title: 'Launch, with your operator signing',
-    body: 'Non-custodial: crew_build_unsigned with launcherPubkey (your wallet becomes the onchain creator and the 15% recipient). Operator signs locally, then crew_submit_signed. Or crew_launch if your operator put a burner in CREW_LAUNCHER_KEY — it goes to api.crewpay.dev over HTTPS for signing and is not stored. Use a low-balance burner. 201 means the fee share is locked; 202 means it is not yet — run crew_wire_fees before anything else.',
+    body: 'Non-custodial: crew_build_unsigned with launcherPubkey (your wallet becomes the onchain creator and the 15% recipient) and mintPubkey for Pump.fun (generate the mint keypair locally — the API never keeps a mint secret). Pump fee-share is part of that launch — sign every returned step together (signAllTransactions). Operator signs locally, then crew_submit_signed. Or crew_launch if your operator put a burner in CREW_LAUNCHER_KEY — it goes to api.crewpay.dev over HTTPS for signing and is not stored. Use a low-balance burner. feesLockedAtLaunch means do not skip the lock step. crew_wire_fees is repair-only.',
   },
   {
     n: '5',

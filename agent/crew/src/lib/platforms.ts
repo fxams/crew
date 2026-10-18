@@ -501,6 +501,11 @@ export function unsignedLaunchCurl(opts: {
       ? '0xYOUR_EVM_PUBKEY'
       : 'YOUR_SOLANA_PUBKEY'
   const launcher = (opts.launcherPubkey || '').trim() || fallback
+  const mintLine =
+    opts.platform === 'pumpfun'
+      ? `
+    "mintPubkey": "YOUR_MINT_PUBKEY",`
+      : ''
   return `curl -sS ${CREW_PUBLIC_API_URL}/api/agent/launch/unsigned \\
   -H "content-type: application/json" \\
   ${authHeader}
@@ -511,7 +516,7 @@ export function unsignedLaunchCurl(opts: {
     "description": ${JSON.stringify(description)},
     "mode": "agent",
     "imageUrl": "https://example.com/cat.png",
-    "launcherPubkey": "${launcher}",
+    "launcherPubkey": "${launcher}",${mintLine}
     "autoHire": { "seats": 5 }
   }'`
 }
