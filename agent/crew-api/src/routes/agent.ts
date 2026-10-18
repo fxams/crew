@@ -44,6 +44,11 @@ import { awardReferralHirePointsForCrew } from '../lib/kol-register.js'
 import { listRegisteredHireBoosts } from '../lib/registered-hires.js'
 import { AUTOHIRE_DISCLAIMER, AUTOHIRE_SEATS_REQUEST_MAX, runAutohire } from '../lib/agent/autohire-run.js'
 import { runUnsignedLaunch } from '../lib/agent/unsigned-build.js'
+import { PUMP_MINT_REQUIRED, pumpUnsignedNeedsMint } from '../lib/agent/mint-required.js'
+import {
+  buildPumpMetadataJson,
+  readPersistedAgentImage,
+} from '../lib/agent/ipfs.js'
 import {
   approveDryRunWithWallet,
   createDryRun,
@@ -90,6 +95,52 @@ import {
 import { launchBodySchema, parseAgentStatusMint, refineLaunchBody } from '../lib/agent/launch-body.js'
 
 export const agentRouter = Router()
+
+/** Public Pump metadata JSON fallback when pump.fun/api/ipfs is down. */
+agentRouter.get('/agent/coin-metadata', (req, res) => {
+  try {
+    const name = String(req.query.name || '').trim().slice(0, 64)
+    const symbol = String(req.query.symbol || '').trim().slice(0, 16)
+    const description = String(req.query.description || '').trim().slice(0, 240)
+    const image = String(req.query.image || '').trim()
+    if (!name || !symbol || !image) {
+      res.status(400).json({ error: 'name, symbol, and image are required' })
+      return
+    }
+    const parsed = new URL(image)
+    if (parsed.protocol !== 'https:') {
+      res.status(400).json({ error: 'image must be an https URL' })
+      return
+    }
+    const twitter = String(req.query.twitter || '').trim().slice(0, 128)
+    const website = String(req.query.website || '').trim().slice(0, 256)
+    res.setHeader('Cache-Control', 'public, max-age=300')
+    res.json(
+      buildPumpMetadataJson({
+        name,
+        symbol,
+        description,
+        image,
+        twitter: twitter || undefined,
+        website: website || undefined,
+      }),
+    )
+  } catch {
+    res.status(400).json({ error: 'invalid metadata query' })
+  }
+})
+
+agentRouter.get('/agent/coin-image/:sha', async (req, res) => {
+  const sha = String(req.params.sha || '').trim().toLowerCase()
+  const stored = await readPersistedAgentImage(sha)
+  if (!stored) {
+    res.status(404).json({ error: 'Not found' })
+    return
+  }
+  res.setHeader('Content-Type', stored.contentType)
+  res.setHeader('Cache-Control', 'public, max-age=604800')
+  res.status(200).end(stored.buf)
+})
 
 const crewMemberSchema = z.object({
   handle: z.string().min(1).max(32),
@@ -141,6 +192,11 @@ const unsignedLaunchSchema = z
     publishedPackageId: z.string().min(42).max(90).optional(),
   })
   .superRefine(refineLaunchBody)
+  .superRefine((val, ctx) => {
+    if (pumpUnsignedNeedsMint(val.platform) && !val.mintPubkey?.trim()) {
+      ctx.addIssue({ code: 'custom', message: PUMP_MINT_REQUIRED, path: ['mintPubkey'] })
+    }
+  })
 
 agentRouter.post('/agent/launch/unsigned', requireAgentApiKeyOrX402, async (req, res) => {
   try {

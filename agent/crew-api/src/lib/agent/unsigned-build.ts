@@ -29,6 +29,7 @@ import { buildSuiLaunchpadUnsignedLaunch } from './sui-launchpad.js'
 import { buildSuiMemezUnsignedLaunch, resolveSuiCrewWallets } from './sui-memez.js'
 import { isSuiAddress } from './sui-address.js'
 import { applyRegisteredEvmWallets, buildZoraUnsignedLaunch, resolveZoraCrewWallets } from './zora.js'
+import { pumpUnsignedNeedsMint, resolveUnsignedPumpMint } from './mint-required.js'
 
 export type UnsignedLaunchInput = {
   name: string
@@ -146,6 +147,9 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
     } catch {
       throw new Error('launcherPubkey must be a Solana address for Pump.fun / Bags.fm.')
     }
+  }
+  if (pumpUnsignedNeedsMint(platform)) {
+    resolveUnsignedPumpMint(input.mintPubkey)
   }
 
   const imageSha256 = await resolveLaunchImageSha(input)

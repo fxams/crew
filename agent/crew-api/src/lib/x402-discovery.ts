@@ -100,7 +100,11 @@ const launchInputSchema = {
     initialBuySol: { type: 'number', minimum: 0, maximum: 10 },
     twitter: { type: 'string', maxLength: 128 },
     website: { type: 'string', maxLength: 256 },
-    mintPubkey: { type: 'string' },
+    mintPubkey: {
+      type: 'string',
+      description:
+        'Required for Pump.fun unsigned builds. Caller-generated mint public key. The API does not invent or store a mint secret.',
+    },
     treasuryBps: { type: 'integer', minimum: 2000, maximum: 3000 },
   },
 } as const

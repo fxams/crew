@@ -1,10 +1,11 @@
-import { Keypair, PublicKey, TransactionMessage, type TransactionInstruction } from '@solana/web3.js'
+import { PublicKey, TransactionMessage, type TransactionInstruction } from '@solana/web3.js'
 import { NATIVE_MINT, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import BN from 'bn.js'
 import { OnlinePumpSdk, PumpSdk, getBuyTokenAmountFromSolAmount } from './pump.js'
 import { getConnection } from './send.js'
 import { PUMP_COIN_URL } from './constants.js'
 import type { LaunchPlatform } from './platforms.js'
+import { resolveUnsignedPumpMint } from './mint-required.js'
 
 export type UnsignedStepKind =
   | 'create'
@@ -94,8 +95,7 @@ export async function buildUnsignedLaunchTransactions(opts: {
   const sdk = new PumpSdk()
   const global = await online.fetchGlobal()
   const launcher = new PublicKey(opts.launcherPubkey)
-  const mintKp = opts.mintPubkey ? null : Keypair.generate()
-  const mint = new PublicKey(opts.mintPubkey || mintKp!.publicKey.toBase58())
+  const mint = new PublicKey(resolveUnsignedPumpMint(opts.mintPubkey))
   const steps: UnsignedStep[] = []
   const createIxs: TransactionInstruction[] = []
   const initialBuySol = Math.max(0, Math.floor((opts.initialBuySol || 0) * 1e9))

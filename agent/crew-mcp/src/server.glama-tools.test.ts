@@ -36,6 +36,13 @@ describe('Glama tool-quality copy for B-rated tools', () => {
     }
   })
 
+  it('crew_build_unsigned requires mintPubkey for Pump.fun', () => {
+    const block = toolBlock('crew_build_unsigned')
+    expect(block).toMatch(/mintPubkey is required/)
+    expect(block).toMatch(/does not keep a server-side mint secret/)
+    expect(block).toMatch(/\(input\.platform \|\| 'pumpfun'\) === 'pumpfun' && !input\.mintPubkey/)
+  })
+
   it('crew_wire_fees documents on-chain side effects, unsigned/signer, non-custodial, and destructive hints', () => {
     const block = toolBlock('crew_wire_fees')
     expect(block).toMatch(/Create and permanently lock Pump\.fun fee-sharing/)

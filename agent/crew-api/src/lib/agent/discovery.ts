@@ -15,7 +15,7 @@ import {
 } from '../x402.js'
 
 /** Pinned npm package for local MCP. Bump with agent/crew-mcp/package.json. */
-export const MCP_PACKAGE_VERSION = '1.2.11'
+export const MCP_PACKAGE_VERSION = '1.2.12'
 
 export const SITE_URL = 'https://crewpay.dev'
 /** Canonical Agent API (custom domain). */
@@ -396,11 +396,17 @@ export function agentDiscoveryJson() {
       'GET /api/board': 'Coins + remits board snapshot',
       'GET /api/remits': 'Public remits (query: mint, limit)',
       'POST /api/webhooks': 'Register agent webhook (auth)',
+      'GET /api/agent/coin-metadata': {
+        auth: 'public',
+        query: 'name, symbol, image (https), optional description/twitter/website',
+        returns:
+          'Pump.fun-shaped metadata JSON fallback when pump.fun/api/ipfs is down (createdOn https://pump.fun).',
+      },
       'POST /api/agent/launch/unsigned': {
         auth: 'x-crew-api-key or X-PAYMENT (x402, when enabled)',
-        body: 'Same crew/image fields as launch + launcherPubkey + optional platform=pumpfun|bags|zora|clanker|vibevibe|sui (default pumpfun), treasuryCapObjectId + publishedPackageId for Sui CrewPay launchpad step 2, treasuryBps, optInOnly',
+        body: 'Same crew/image fields as launch + launcherPubkey + mintPubkey (required for Pump.fun) + optional platform=pumpfun|bags|zora|clanker|vibevibe|sui (default pumpfun), treasuryCapObjectId + publishedPackageId for Sui CrewPay launchpad step 2, treasuryBps, optInOnly',
         returns:
-          'UNSIGNED steps (Pump v0 messages; Bags partially-signed Solana txs; Zora EIP-1559 split + create). No secrets.',
+          'UNSIGNED steps (Pump v0 messages; Bags partially-signed Solana txs; Zora EIP-1559 split + create). No secrets. Pump.fun rejects builds that omit mintPubkey.',
       },
       'POST /api/agent/launch/submit': {
         auth: 'x-crew-api-key or X-PAYMENT (x402, when enabled)',
@@ -539,6 +545,27 @@ export function openApiSpec() {
                 },
               },
             },
+          },
+        },
+      },
+      '/api/agent/coin-metadata': {
+        get: {
+          tags: ['agent'],
+          summary: 'Pump.fun-shaped coin metadata JSON (IPFS fallback)',
+          description:
+            'Public fallback when pump.fun/api/ipfs is down. Returns {name,symbol,description,image,showName,createdOn}.',
+          operationId: 'getAgentCoinMetadata',
+          parameters: [
+            { name: 'name', in: 'query', required: true, schema: { type: 'string' } },
+            { name: 'symbol', in: 'query', required: true, schema: { type: 'string' } },
+            { name: 'image', in: 'query', required: true, schema: { type: 'string', format: 'uri' } },
+            { name: 'description', in: 'query', required: false, schema: { type: 'string' } },
+            { name: 'twitter', in: 'query', required: false, schema: { type: 'string' } },
+            { name: 'website', in: 'query', required: false, schema: { type: 'string' } },
+          ],
+          responses: {
+            '200': { description: 'Pump metadata JSON' },
+            '400': { description: 'Missing name, symbol, or https image' },
           },
         },
       },
@@ -697,7 +724,7 @@ export function openApiSpec() {
           tags: ['agent'],
           summary: 'Build UNSIGNED launch transactions (no secrets)',
           description:
-            'platform defaults to pumpfun. bags = Bags.fm Solana (BAGS_API_KEY). zora = Zora coins on Base (ZORA_ENABLED, EIP-1559). Same KOL order: crew[] first, Autohire second. Fee map 60% to the KOL crew, 15% to the launching agent, 25% to the treasury.',
+            'platform defaults to pumpfun. Pump.fun requires mintPubkey (caller-generated mint public key — the API never invents or stores a mint secret). bags = Bags.fm Solana (BAGS_API_KEY). zora = Zora coins on Base (ZORA_ENABLED, EIP-1559). Same KOL order: crew[] first, Autohire second. Fee map 60% to the KOL crew, 15% to the launching agent, 25% to the treasury.',
           operationId: 'postAgentLaunchUnsigned',
           security: [{ CrewApiKey: [] }, { X402Payment: [] }],
           'x-payment-info': openApiXPaymentInfo(x402PriceLaunchUsd()),
@@ -1407,6 +1434,11 @@ export function openApiSpec() {
               description:
                 'Required on dry-run. Burner pubkey that must match x-launcher-key at spend time. Cannot approve. EVM 0x address when platform=zora.',
             },
+            mintPubkey: {
+              type: 'string',
+              description:
+                'Required for Pump.fun unsigned builds. Caller-generated mint public key. The API does not invent or store a mint secret.',
+            },
             dryRunId: {
               type: 'string',
               description:
@@ -1693,6 +1725,8 @@ Canonical site is **https://crewpay.dev** (\`app.crewpay.dev\` has no DNS).
 ## Launch platforms (UNSIGNED)
 
 - \`platform\` on \`POST /api/agent/launch/unsigned\` and MCP \`crew_build_unsigned\` defaults to \`pumpfun\` (unchanged).
+- Pump.fun unsigned builds **require** \`mintPubkey\` (generate a mint keypair locally and pass its public key). The API will not invent a mint keypair — a server-generated mint cannot be signed. 400 if omitted.
+- Pump metadata: \`https://pump.fun/api/ipfs\` is tried first (it currently 500s). Fallback is Pinata when \`PINATA_JWT\` is set, then CrewPay-hosted metadata JSON at \`GET /api/agent/coin-metadata\`.
 - \`bags\` — Bags.fm is **recommended** when \`BAGS_API_KEY\` is set. Still opt-in — do not switch the API default off pumpfun. Hired KOL crew + launching agent + treasury are fee claimers (60/15/rest; 5% referrer when bound). Bags caps claimers at 100; crews above 7 claimers attach the Bags public LUT.
 - \`zora\` — Zora content coins on Base. Off unless \`ZORA_ENABLED\` is set. Creator rewards (0.50%) go to a 0xSplits contract (60% to the KOL crew, 15% to the launching agent, 25% to the treasury). The separate 0.20% platform referral is paid to \`ZORA_PLATFORM_REFERRER\` (defaults to the treasury 0x address today — it does **not** flow through 0xSplits). Routing it into the 60/15/25 split would mean passing the predicted split as \`platformReferrer\` at create; CrewPay does **not** change on-chain addresses. Base Sepolia by default; \`ZORA_CHAIN=base\` for mainnet. Returns unsigned EIP-1559 txs (split, then create).
 - \`clanker\` — Clanker v4 on Base. Chain is set by \`CLANKER_CHAIN\` (\`base\` mainnet in production; \`base-sepolia\` still available for tests). Off unless \`CLANKER_ENABLED=1\` and a 0x treasury are set. Crew wallets must be **Base (0x…)** — register \`evm_wallet\` on KOL profiles for Autohire/payout. CrewPay maps 60/15/25 (or 60/15/5/20 with referral) to Clanker \`rewardBps\` at launch (unsigned EIP-1559 deploy). Clanker’s separate protocol swap fee is **not** in the CrewPay map — see docs/integrations/clanker.md.
