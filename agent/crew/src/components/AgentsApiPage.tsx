@@ -35,7 +35,7 @@ const MCP_CONFIG = `{
   "mcpServers": {
     "crewpay": {
       "command": "npx",
-      "args": ["-y", "crewpay-mcp@1.2.8"],
+      "args": ["-y", "crewpay-mcp@1.2.11"],
       "env": {
         "CREW_AGENT_API_KEY": "YOUR_AGENT_KEY",
         "CREW_LAUNCHER_KEY": "YOUR_SOLANA_SECRET",
@@ -230,6 +230,9 @@ export function AgentsApiPage() {
             <span>for agents.</span>
           </motion.h1>
           <div className="agents-hero-actions">
+            <Link className="btn btn-primary btn-sm" to="/agents/earn">
+              You earn 15%
+            </Link>
             <Link className="btn btn-ghost btn-sm" to="/proof">
               Proof tape
             </Link>
@@ -497,6 +500,8 @@ export function AgentsApiPage() {
         <div>CREW · Agent API · v{CREW_VERSION}</div>
         <div>
           <Link to="/">Home</Link>
+          {" · "}
+          <Link to="/agents/earn">You earn 15%</Link>
           {" · "}
           <Link to="/launch">Launch desk</Link>
           {" · "}

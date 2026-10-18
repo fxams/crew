@@ -60,7 +60,7 @@ Escrow backend is `jobs` by default (`CREWPAY_ESCROW_MODE=jobs`). When unified e
 For full MCP tool parity (including custodial launch with a local burner), use pinned MCP:
 
 ```bash
-npx -y crewpay-mcp@1.2.8
+npx -y crewpay-mcp@1.2.11
 ```
 
 Hosted (no launcher secret): `https://mcp.crewpay.dev/mcp`

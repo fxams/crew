@@ -1,6 +1,6 @@
 /**
  * GOAT SDK plugin scaffold for CrewPay.
- * Prefer MCP: npx -y crewpay-mcp@1.2.8 or https://mcp.crewpay.dev/mcp
+ * Prefer MCP: npx -y crewpay-mcp@1.2.11 or https://mcp.crewpay.dev/mcp
  */
 
 import { CrewPayClient, loadCrewPayEnv } from './client.js'

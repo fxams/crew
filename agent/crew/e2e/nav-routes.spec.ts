@@ -5,6 +5,7 @@ import { mockKolRegisterApis, resetKolClientState } from './helpers/kol-api-mock
 const NAV_ROUTES = [
   '/',
   '/agents',
+  '/agents/earn',
   '/kol',
   '/register',
   '/kol/leaderboard',

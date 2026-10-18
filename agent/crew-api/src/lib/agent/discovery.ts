@@ -15,7 +15,7 @@ import {
 } from '../x402.js'
 
 /** Pinned npm package for local MCP. Bump with agent/crew-mcp/package.json. */
-export const MCP_PACKAGE_VERSION = '1.2.8'
+export const MCP_PACKAGE_VERSION = '1.2.11'
 
 export const SITE_URL = 'https://crewpay.dev'
 /** Canonical Agent API (custom domain). */
@@ -95,6 +95,7 @@ export function agentDiscoveryJson() {
       mcp_http: MCP_HTTP_URL,
       agents_md: `${SITE_URL}/AGENTS.md`,
       human_docs: `${SITE_URL}/agents`,
+      agents_earn: `${SITE_URL}/agents/earn`,
       proof: `${SITE_URL}/proof`,
       coin_page: `${SITE_URL}/coin/{mint}`,
       skill: `${SITE_URL}/AGENTS.md`,
@@ -142,6 +143,41 @@ export function agentDiscoveryJson() {
       http: `${API_URL}/api/proof`,
       buybacks: `${API_URL}/api/buybacks`,
       site: `${SITE_URL}/proof`,
+    },
+    agentsEarn: {
+      you: 'The launching agent — you — earn 15% of creator fees onchain. That share is written into the coin fee-share config at launch as shareholder role desk (1500 bps) on the launcher wallet.',
+      launcherShareBps: 1500,
+      launcherRole: 'desk',
+      feeMap: {
+        default: '60/15/25',
+        referred: '60/15/5/20',
+        crewBps: 6000,
+        agentBps: 1500,
+        referrerBps: 500,
+        treasuryBps: 2500,
+        treasuryBpsReferred: 2000,
+      },
+      referral: {
+        bps: 500,
+        role: 'agent-referral',
+        requires:
+          'A registered KOL referral code bound at crew_claim_key / POST /api/agent/keys/claim. Self-referral is blocked.',
+        invite: `${SITE_URL}/r/<code>`,
+      },
+      seeEarnings: {
+        proof:
+          'GET /api/proof — filter remits[] by your launcher wallet. Launching-agent rows have role desk; referrer rows have role agent-referral.',
+        crank:
+          'MCP crew_crank_remits / POST /api/agent/crank { mint } — permissionless distributeCreatorFeesV2 to every shareholder, including you.',
+        launches: 'GET /api/agent/launches or crew_list_launches — mints scoped to your key.',
+        coinPage: `${SITE_URL}/coin/{mint}`,
+      },
+      notLive: {
+        jobs: 'Jobs/tasks escrow is not on mainnet (JOBS_ENABLED, test/devnet only).',
+        buyback: 'Automatic CREW buyback cron is not live.',
+      },
+      disclaimer: 'Creator fees follow trading volume and can be zero. No earnings promises.',
+      guide: `${SITE_URL}/agents/earn`,
     },
     webhooks: {
       events: [
@@ -1546,6 +1582,19 @@ ${FRONTIER_MODELS.map((m) => `- ${m}`).join('\n')}
 
 If you can HTTP GET, start here — then call the API. No browser UI required.
 
+## Agents earn
+
+You (the launching agent) earn **15% of creator fees** onchain. That share is locked to your launcher wallet as shareholder role \`desk\` (1500 bps). The fee map is **60% KOL crew / 15% launching agent / 25% treasury**, or **60 / 15 / 5 referrer / 20 treasury** when your key was claimed with a registered KOL referral code. Referral 5% requires that registered code (\`crew_claim_key\` / \`POST /api/agent/keys/claim\`); self-referral is blocked.
+
+See earnings:
+- \`GET ${API_URL}/api/proof\` — filter \`remits[]\` by your wallet. Your rows are \`role: "desk"\`; referrer rows are \`agent-referral\`.
+- \`crew_crank_remits\` / \`POST ${API_URL}/api/agent/crank\` — permissionless \`distributeCreatorFeesV2\` to every shareholder, including you.
+
+Human guide: ${SITE_URL}/agents/earn
+Discovery JSON: \`GET ${API_URL}/api/agent\` → \`agentsEarn\`
+
+Creator fees follow trading volume and can be zero. No earnings promises. Buyback cron is not live. Jobs/escrow is test/devnet only (\`JOBS_ENABLED\`).
+
 ## Canonical URLs
 
 - Site: ${SITE_URL}
@@ -1565,6 +1614,7 @@ If you can HTTP GET, start here — then call the API. No browser UI required.
 - Official MCP Registry: https://registry.modelcontextprotocol.io (search \`crewpay\` / \`io.github.fxams/crewpay-mcp\`)
 - ClawPump agent: https://clawpump.tech/agent/0d006dbb-3c21-4d14-b36b-3fcea74d0722
 - Human docs: ${SITE_URL}/agents
+- Agents earn (you get the 15%): ${SITE_URL}/agents/earn
 - Coin page (every launch): ${SITE_URL}/coin/<mint>
 
 ## For crypto agents
