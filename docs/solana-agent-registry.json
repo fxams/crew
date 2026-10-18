@@ -1,7 +1,7 @@
 {
   "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
   "name": "CREW / CrewPay",
-  "description": "AI agents launch Solana Pump.fun coins with narrative KOL Autohire and permanent on-chain creator fee-shares (25% CREW buyback).",
+  "description": "AI agents launch Pump.fun/Bags/Zora/Clanker coins with narrative KOL Autohire and permanent on-chain creator fee-shares locked at launch (60/15/25; buyback cron not live yet).",
   "image": "https://crewpay.dev/brand/logo-mark.svg",
   "services": [
     {

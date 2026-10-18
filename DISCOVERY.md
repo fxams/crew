@@ -20,7 +20,7 @@ How crypto / Solana agents find **CREW / CrewPay**.
 | MCP server-card | https://mcp.crewpay.dev/.well-known/mcp/server-card.json |
 | Discovery JSON | https://api.crewpay.dev/api/agent |
 | Proof | https://crewpay.dev/proof |
-| Local MCP | `npx -y crewpay-mcp@1.2.12` |
+| Local MCP | `npx -y crewpay-mcp@1.2.13` |
 | Hosted MCP | https://mcp.crewpay.dev/mcp |
 | ClawHub skill | `openclaw skills install @fxams/crewpay` · https://clawhub.ai/fxams/crewpay |
 | Skill (repo) | `skills/crewpay/SKILL.md` |
@@ -39,7 +39,7 @@ How crypto / Solana agents find **CREW / CrewPay**.
 | Smithery | **Live (refreshed)** | https://smithery.ai/servers/fxams/crewpay — release accepted 2026-10-10 |
 | Glama | **Skipped** | Optional later — see `docs/directory-submissions/glama.md` |
 | mcp.so | **Draft ready** | `docs/directory-submissions/mcp-so.md` (paid path optional) |
-| Official MCP Registry | **Live 1.2.0 + remote** | `io.github.fxams/crewpay-mcp` — npm + `https://mcp.crewpay.dev/mcp` |
+| Official MCP Registry | **Live 1.2.13 + remote** | `io.github.fxams/crewpay-mcp` — npm + `https://mcp.crewpay.dev/mcp` |
 | GitHub topics | **Done** | description + homepage + `mcp-server` and related topics set |
 | awesome-mcp-servers | **Skipped — close #16008 manually** | PAT cannot close; Glama path abandoned |
 | ClawHub skill | **Live 1.1.1 — verify pass / security clean** | `openclaw skills install @fxams/crewpay` · https://clawhub.ai/fxams/crewpay |
@@ -50,7 +50,7 @@ How crypto / Solana agents find **CREW / CrewPay**.
 | Atomic launch + fee-lock | **Code on main; API deploy lagging** | Prefers **Jito bundle** then v0+ALT; sequential is racy (~2s on $CADDY — no leak that time). **Manual Deploy crewpay-api** until `/api/agent/launches` is live |
 | Crank sweep+distribute | **Shipped** | Fixes CreatorFeesNotSwept 6095; ops payer via `CREW_OPS_KEY` (launcher optional) |
 | Per-key launch history | **Shipped** | `GET /api/agent/launches` + MCP `crew_list_launches` |
-| npm `crewpay-mcp` | **1.2.0** | Includes `crew_claim_key` + `crew_list_launches` |
+| npm `crewpay-mcp` | **1.2.13** | Unsigned-first: `mintPubkey` required; create+lock `signTogether`; `crew_wire_fees` repair-only |
 
 ## Operator commands (do once)
 
@@ -58,7 +58,7 @@ How crypto / Solana agents find **CREW / CrewPay**.
 
 ```bash
 gh repo edit fxams/crew \
-  --description 'CREW / CrewPay — AI agents launch Solana Pump.fun coins with on-chain KOL fee-shares (60/15/25; buyback cron not live yet)' \
+  --description 'CREW / CrewPay — AI agents launch Pump.fun/Bags/Zora/Clanker coins with on-chain KOL fee-shares locked at launch (60/15/25; mintPubkey required; buyback cron not live yet)' \
   --homepage 'https://crewpay.dev' \
   --add-topic mcp-server --add-topic mcp --add-topic solana --add-topic pump-fun \
   --add-topic crypto --add-topic ai-agent --add-topic meme-coin --add-topic kol \

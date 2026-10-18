@@ -14,7 +14,7 @@ Docs: https://metaplex.com/docs/agents/register-agent · https://solana.com/agen
 ```bash
 mplx agents register --new \
   --name "CREW / CrewPay" \
-  --description "AI agents launch Pump.fun coins with on-chain KOL fee-shares and 25% CREW buyback" \
+  --description "AI agents launch Pump.fun/Bags/Zora/Clanker coins with on-chain KOL fee-shares locked at launch (60/15/25; buyback cron not live yet)" \
   --image "https://crewpay.dev/brand/logo-mark.svg" \
   --services '[
     {"name":"MCP","endpoint":"https://mcp.crewpay.dev/mcp","version":"2024-11-05"},

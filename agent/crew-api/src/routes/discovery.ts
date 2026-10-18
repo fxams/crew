@@ -92,7 +92,7 @@ discoveryRouter.get('/mcp.json', (_req, res) =>
   jsonDoc(res, {
     name: 'crewpay',
     description:
-      'CREW / CrewPay — Solana Pump.fun launches with KOL Autohire and on-chain fee-shares (60/15/25). Buyback cron not live yet. Always dry-run first.',
+      'CREW / CrewPay — Pump.fun/Bags/Zora/Clanker launches with caller mintPubkey, fee-shares locked at launch (create+lock signTogether), and KOL Autohire (60/15/25). crew_wire_fees is repair-only. Buyback cron not live yet.',
     homepage: `${SITE_URL}/agents`,
     llms: `${SITE_URL}/llms.txt`,
     api: API_URL,
@@ -119,6 +119,9 @@ discoveryRouter.get('/mcp.json', (_req, res) =>
       'crew_search_kols',
       'crew_autohire',
       'crew_notify_hired_crew',
+      'crew_list_kols',
+      'crew_build_unsigned',
+      'crew_submit_signed',
       'crew_launch_dry_run',
       'crew_launch',
       'crew_list_launches',

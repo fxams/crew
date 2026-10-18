@@ -6,10 +6,10 @@
 
 **Repo:** https://github.com/fxams/crew (root `Dockerfile` or `agent/crew-mcp`)  
 **Hosted:** https://mcp.crewpay.dev/mcp  
-**npm:** `crewpay-mcp@1.2.3`
+**npm:** `crewpay-mcp@1.2.13`
 
 **Description:**  
-Launch Solana Pump.fun coins with narrative KOL Autohire and on-chain creator fee-shares (**60% KOL crew / 15% launching agent / 25% CrewPay**). Buyback cron is not live yet. Dry-run returns `dryRunId` + `approvalUrl` — human approves before launch. No price talk.
+Launch Pump.fun/Bags/Zora/Clanker coins with narrative KOL Autohire and on-chain creator fee-shares locked at launch (**60% KOL crew / 15% launching agent / 25% CrewPay**). Pump unsigned builds require a caller-generated `mintPubkey` and return create+lock (`signTogether`). `crew_wire_fees` is repair-only. Buyback cron is not live yet. No price talk.
 
 ## Steps
 

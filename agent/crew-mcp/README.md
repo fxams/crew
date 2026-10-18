@@ -1,6 +1,6 @@
 # crewpay-mcp
 
-MCP server for **CREW / CrewPay** — discover Autohire, dry-run, and build unsigned launches on **Pump.fun**, **Bags.fm**, **Zora**, and **Clanker (Base)** with on-chain fee-shares (60% KOL crew / 15% launching agent / 25% treasury), repair fee locks, crank remits, and read the proof tape.
+MCP server for **CREW / CrewPay** — discover Autohire, then build unsigned launches on **Pump.fun**, **Bags.fm**, **Zora**, and **Clanker (Base)** with on-chain fee-shares (60% KOL crew / 15% launching agent / 25% treasury). Pump.fun requires a caller-generated `mintPubkey` and returns `create` + `lock` with `signTogether: true` (sign in one `signAllTransactions`, or one atomic-v0 tx when it fits). Fees lock at launch. `crew_wire_fees` is repair-only for older launches or a failed lock.
 
 **Official MCP Registry:** `io.github.fxams/crewpay-mcp` · hosted remote `https://mcp.crewpay.dev/mcp`
 
@@ -15,11 +15,11 @@ Works with **Cursor**, **Claude Desktop**, **Claude Code**, **ChatGPT MCP**, **G
 | `crew_autohire` | Narrative KOL pack preview |
 | `crew_launch_dry_run` | Validate + plan (PNG/JPEG/WebP/GIF; no SOL) |
 | `crew_list_kols` | Browse/select explicit crew (preferred before launch) |
-| `crew_build_unsigned` | UNSIGNED txs (`platform`: pumpfun / bags / zora / clanker / vibevibe). Pump.fun requires `mintPubkey`. Pump fee-share is included — sign every step together (`signAllTransactions`). |
+| `crew_build_unsigned` | UNSIGNED txs (`platform`: pumpfun / bags / zora / clanker / vibevibe). Pump.fun **requires** `mintPubkey`. Returns create+lock (`signTogether`) or one atomic-v0 tx; `feesLockedAtLaunch: true`. Sign every step together (`signAllTransactions`). |
 | `crew_submit_signed` | Broadcast signed txs (Pump: submit create+lock together; do not skip lock) |
-| `crew_launch` | MAINNET Pump create + CREW fee-shares |
+| `crew_launch` | MAINNET custodial Pump create + fee-share lock at launch |
 | `crew_status` | feeShareLocked / Holder KOL status |
-| `crew_wire_fees` | Repair / lock fee-shares (unsigned + launcher signer, non-custodial) |
+| `crew_wire_fees` | Repair-only for older launches or a failed lock (not a normal launch step) |
 | `crew_lock_holder_kol` | Lock top holders ∩ KOL DB |
 | `crew_crank_remits` | distributeCreatorFeesV2 |
 | `crew_proof` | Public proof tape (launches, remits, buybacks) |
@@ -38,7 +38,7 @@ Works with **Cursor**, **Claude Desktop**, **Claude Code**, **ChatGPT MCP**, **G
   "mcpServers": {
     "crewpay": {
       "command": "npx",
-      "args": ["-y", "crewpay-mcp"],
+      "args": ["-y", "crewpay-mcp@1.2.13"],
       "env": {
         "CREW_AGENT_API_KEY": "…",
         "CREW_LAUNCHER_KEY": "your-solana-secret-base58",
@@ -71,7 +71,7 @@ cd agent/crew-mcp && npm ci && npm run build
 }
 ```
 
-When published to npm: `npx -y crewpay-mcp@latest` with the same env.
+When published to npm: `npx -y crewpay-mcp@1.2.13` (pin the version — do not use unpinned `@latest`).
 
 ## Remote HTTP MCP
 

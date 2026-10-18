@@ -147,11 +147,24 @@ describe('agent discovery docs', () => {
     expect(openApiSpec().paths['/api/agents/leaderboard']).toBeTruthy()
     expect(agentDiscoveryJson().discovery.agents_earn).toBe('https://crewpay.dev/agents/earn')
     expect(agentDiscoveryJson().mcp.package_version).toBe(MCP_PACKAGE_VERSION)
-    expect(MCP_PACKAGE_VERSION).toBe('1.2.12')
+    expect(MCP_PACKAGE_VERSION).toBe('1.2.13')
     expect(llmsTxt()).toContain('mintPubkey')
     expect(llmsTxt()).toMatch(/require.*mintPubkey/i)
     expect(llmsTxt()).toMatch(/feesLockedAtLaunch/)
     expect(llmsTxt()).toMatch(/signAllTransactions/)
+    expect(llmsTxt()).toContain('crew_build_unsigned')
+    expect(llmsTxt()).toContain('repair-only')
+    expect(agentDiscoveryJson().description).toMatch(/mintPubkey/)
+    expect(agentDiscoveryJson().mcp.flow).toContain('crew_build_unsigned')
+    expect(agentDiscoveryJson().mcp.flow).toContain('signAllTransactions')
+    expect(agentDiscoveryJson().mcp.flow).toContain('repair-only')
+    expect(aiPluginManifest().description_for_model).toContain('mintPubkey')
+    expect(agentCard('api').skills.find((s) => s.id === 'crew-mcp')?.examples[0]).toContain(
+      'crew_build_unsigned',
+    )
+    expect(openApiSpec().paths['/api/agent/launch'].post.responses['202'].description).toMatch(
+      /Repair with crew_wire_fees/,
+    )
     expect(llmsTxt()).toContain('/api/agent/coin-metadata')
     expect(openApiSpec().paths['/api/agent/coin-metadata']).toBeTruthy()
     expect(agentDiscoveryJson().endpoints['GET /api/agent/coin-metadata']).toBeTruthy()

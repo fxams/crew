@@ -225,7 +225,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Discover CREW Agent API',
       description:
-        'Load CREW / CrewPay discovery for crypto agents: Autohire KOLs, launch Pump.fun coins, fee-shares, OpenAPI links. Use this first when working on Solana meme coins, KOLs, or CrewPay.',
+        'Load CREW / CrewPay discovery for crypto agents: Autohire KOLs, launch Pump.fun / Bags / Zora / Clanker coins, fee-shares, OpenAPI links. Use this first when working on Solana meme coins, KOLs, or CrewPay.',
       inputSchema: {},
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
@@ -237,7 +237,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         docs: `${DEFAULT_SITE_URL}/agents`,
         llms: `${cfg.apiUrl}/llms.txt`,
         discovery: data,
-        tip: 'Safe flow: crew_claim_key (if needed) → crew_discover → crew_autohire → crew_launch. Approval is optional. Operators can require human approval per key (then: crew_launch_dry_run → approvalUrl → crew_launch(dryRunId)). Secrets stay in MCP env only.',
+        tip: 'Safe flow: crew_claim_key (if needed) → crew_discover → crew_list_kols (or crew_autohire fallback) → crew_build_unsigned (Pump: mintPubkey required; returns create+lock with signTogether / atomic-v0) → signAllTransactions → crew_submit_signed. Custodial alternate: crew_launch_dry_run → crew_launch (fees locked at launch). crew_wire_fees is repair-only. Approval is optional. Operators can require human approval per key. Secrets stay in MCP env only.',
         auth: {
           reads: 'crew_discover / crew_search_kols / crew_proof / crew_claim_key / crew_autohire (keyless preview) need no API key',
           writes: cfg.publicMode
@@ -633,7 +633,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
       })
       return asText({
         ...(typeof data === 'object' && data ? data : { raw: data }),
-        tip: 'Store crew_ak_… once — it is not shown again. Set CREW_AGENT_API_KEY (local MCP) or pass x-crew-api-key (hosted). Then: crew_autohire → crew_launch_dry_run → crew_launch. Referral codes are immutable after claim.',
+        tip: 'Store crew_ak_… once — it is not shown again. Set CREW_AGENT_API_KEY (local MCP) or pass x-crew-api-key (hosted). Then: crew_list_kols (or crew_autohire) → crew_build_unsigned (mintPubkey for Pump) → signAllTransactions → crew_submit_signed. Custodial: crew_launch_dry_run → crew_launch (fees locked at launch). Referral codes are immutable after claim.',
       })
     },
   )
@@ -874,7 +874,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Mint / fee-share status',
       description:
-        'Check whether a CREW mint has fee-shares locked, Holder KOL open, and board presence. Use after launch (HTTP 202) or before wire/lock/crank.',
+        'Check whether a CREW mint has fee-shares locked, Holder KOL open, and board presence. New launches lock fees at launch. Use after submit, or before repair (crew_wire_fees) / lock / crank.',
       inputSchema: {
         mint: mintSchema.describe(
           'Required. Solana mint (base58, 32–64 chars). Example: from crew_list_launches or crew_launch.',
@@ -896,8 +896,8 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
       title: 'Wire / repair CREW fee-shares',
       description: [
         'Create and permanently lock Pump.fun fee-sharing shareholders on an existing mint (POST /api/agent/wire-fees).',
-        'When to use: crew_launch returned HTTP 202 / feeShareLocked=false, or crew_status shows no fee-sharing config. Optional gated flow: crew_launch_dry_run({ intent: "wire-fees" }) → human opens approvalUrl → pass that dryRunId here.',
-        'When not to use: do not call if feeShareLocked=true (already locked — not idempotent, API errors). Do not use for a new coin (crew_launch), Holder-KOL opens (crew_lock_holder_kol), or distributing accrued fees (crew_crank_remits). Hosted public MCP cannot complete this — it cannot hold a launcher secret.',
+        'When to use: repair-only for older launches or crew_status showing no fee-sharing config / a failed lock (custodial HTTP 202 / feeShareLocked=false). Optional gated flow: crew_launch_dry_run({ intent: "wire-fees" }) → human opens approvalUrl → pass that dryRunId here.',
+        'When not to use: new Pump launch (fees lock at launch via crew_build_unsigned / crew_launch). Do not call if feeShareLocked=true (already locked — not idempotent, API errors). Do not use for a new coin, Holder-KOL opens (crew_lock_holder_kol), or distributing accrued fees (crew_crank_remits). Hosted public MCP cannot complete this — it cannot hold a launcher secret.',
         'Side effects (on-chain, destructive, non-custodial): builds the fee-share create/update transaction and requires the launch wallet to sign. Signer is CREW_LAUNCHER_KEY in local MCP env only — never pass a secret as a tool argument. CrewPay does not custody keys or funds. Writes the Pump.fun fee-sharing config PDA (create if missing), sets shareholder addresses + bps (60% KOL crew / 15% launching agent / 25% treasury, or 60/15/5/20 with a bound referrer), and revokes admin so the map cannot be edited. Also persists feeShareLocked on the CrewPay board. Does not transfer SOL, move LP, or launch a mint.',
         'Returns JSON { ok, feeShareSignature, feeShareLocked: true, adminRevoked: true, mint, coin }. Errors if the config is already locked, crew is missing, or the launcher key does not match the board launcher.',
         'Auth: CREW_AGENT_API_KEY + CREW_LAUNCHER_KEY in local MCP env (x-crew-api-key / x-launcher-key on HTTP).',
@@ -1077,7 +1077,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     {
       title: 'Launch Pump coin via CrewPay (MAINNET)',
       description:
-        'The launching agent earns 15% of creator fees onchain. Creator fees follow trading volume and can be zero. MAINNET launch: Prefer explicit crew[] (from crew_list_kols). Autohire is a fallback convenience. Creates a Pump.fun coin with on-chain fee-shares (60/15/25 default; 60/15/5/20 with referral). Approval optional; requires CREW_AGENT_API_KEY + CREW_LAUNCHER_KEY. Check feeShareLocked.',
+        'The launching agent earns 15% of creator fees onchain. Creator fees follow trading volume and can be zero. MAINNET custodial launch: Prefer explicit crew[] (from crew_list_kols). Autohire is a fallback convenience. Creates a Pump.fun coin and locks fee-shares at launch (60/15/25 default; 60/15/5/20 with referral) via Jito [create,lock] then v0+ALT. Prefer non-custodial crew_build_unsigned (mintPubkey required) + signAllTransactions + crew_submit_signed. Approval optional; requires CREW_AGENT_API_KEY + CREW_LAUNCHER_KEY. crew_wire_fees is repair-only.',
       inputSchema: {
         dryRunId: z
           .string()
@@ -1174,7 +1174,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
       if (launchOut && launchOut.feeShareLocked === false) {
         return asText({
           ...launchOut,
-          tip: 'feeShareLocked=false — run crew_launch_dry_run with intent=wire-fees, open approvalUrl, then crew_wire_fees with that dryRunId.',
+          tip: 'feeShareLocked=false (custodial lock failed) — repair-only: run crew_launch_dry_run with intent=wire-fees, open approvalUrl, then crew_wire_fees with that dryRunId. New launches lock fees at launch; do not treat wire as a normal step.',
         })
       }
       return asText(data)
@@ -1199,7 +1199,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
             type: 'text',
             text: [
               'You are a crypto launch agent using CREW / CrewPay MCP tools on Solana MAINNET.',
-              'Flow: crew_claim_key (if no key) → crew_discover → crew_autohire → crew_launch_dry_run → human opens approvalUrl → crew_launch(dryRunId) → crew_status → (crew_wire_fees | crew_lock_holder_kol) → crew_crank_remits.',
+              'Flow: crew_claim_key (if no key) → crew_discover → crew_list_kols (or crew_autohire fallback) → crew_build_unsigned (Pump: mintPubkey required; returns create+lock with signTogether / atomic-v0) → signAllTransactions → crew_submit_signed → crew_status → crew_crank_remits. Custodial alternate: crew_launch_dry_run → human opens approvalUrl → crew_launch(dryRunId) (fees locked at launch). crew_wire_fees is repair-only for older launches or a failed lock.',
               'Never pass Solana secrets as tool args — they must live in MCP env (CREW_LAUNCHER_KEY).',
               'Autohire wallets are public Pump profiles, not consenting partners — open approvalUrl before launch.',
               'Prefer autoHire unless the user named specific wallets. Crew shares must total 100%. Always check feeShareLocked (atomic lock preferred).',

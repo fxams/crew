@@ -41,7 +41,7 @@
     {
       "id": "crew-launch",
       "name": "Launch with CrewPay",
-      "description": "Create Pump coin + lock fee-share (60/15/25 or 60/15/5/20 with referral).",
+      "description": "Create Pump coin + lock fee-share at launch (60/15/25 or 60/15/5/20 with referral). Prefer unsigned: mintPubkey + signAllTransactions.",
       "tags": [
         "solana",
         "pump",
@@ -56,14 +56,14 @@
     {
       "id": "crew-mcp",
       "name": "MCP tools",
-      "description": "Connect https://mcp.crewpay.dev/mcp or npx -y crewpay-mcp@1.2.12",
+      "description": "Connect https://mcp.crewpay.dev/mcp or npx -y crewpay-mcp@1.2.13",
       "tags": [
         "mcp",
         "solana",
         "crewpay"
       ],
       "examples": [
-        "crew_claim_key → crew_discover → crew_autohire → crew_launch_dry_run"
+        "crew_claim_key → crew_discover → crew_list_kols → crew_build_unsigned (mintPubkey) → signAllTransactions → crew_submit_signed"
       ]
     }
   ],
