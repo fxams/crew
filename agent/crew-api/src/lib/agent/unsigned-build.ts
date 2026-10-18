@@ -361,7 +361,8 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
             ? suiLaunchpad() === 'crewpay'
               ? 'UNSIGNED CrewPay Sui launchpad — sign sui_launchpad_publish_coin then sui_launchpad_open_pool (rebuild with treasuryCapObjectId + publishedPackageId after step 1); POST /api/agent/launch/submit { platform:"sui", signed:[base64…] }.'
               : 'UNSIGNED Sui Memez — sign sui_memez_publish_coin then sui_memez_create_pool (rebuild with treasuryCapObjectId after step 1); POST /api/agent/launch/submit { platform:"sui", signed:[base64…] }.'
-            : 'UNSIGNED build — sign and submit locally (or POST /api/agent/launch/submit with the signed base64). Messages expire with the blockhash; rebuild when expired.'
+            : plan.note ||
+              'Fees are locked at launch. Sign every Pump step together (signAllTransactions / Jito bundle). crew_wire_fees is repair-only. Messages expire with the blockhash; rebuild when expired.'
 
   const referralWarnings: string[] = []
   if (boundRef && !referralPayout && (isEvmLaunchPlatform(platform) || isSuiLaunchPlatform(platform))) {
@@ -385,8 +386,10 @@ export async function runUnsignedLaunch(input: UnsignedLaunchInput): Promise<Uns
       http: 'POST /api/agent/launch/submit',
       body: { platform, signed: ['<signed-tx-in-builder-order>'] },
       note:
-        'Sign the unsigned steps locally with launcherPubkey. CrewPay never holds the key. ' +
-        'Then POST /api/agent/launch/submit (MCP crew_submit_signed) with the same platform, or broadcast yourself.',
+        platform === 'pumpfun'
+          ? 'Pump.fun fees lock at launch. Sign every returned step together (wallet signAllTransactions, or one Jito bundle). Do not skip the lock step. Then POST /api/agent/launch/submit (MCP crew_submit_signed) with signed[] in builder order. CrewPay never holds the key.'
+          : 'Sign the unsigned steps locally with launcherPubkey. CrewPay never holds the key. ' +
+            'Then POST /api/agent/launch/submit (MCP crew_submit_signed) with the same platform, or broadcast yourself.',
     },
     feeMap: LAUNCH_FEE_MAP_COPY,
   }

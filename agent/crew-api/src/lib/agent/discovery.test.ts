@@ -150,6 +150,8 @@ describe('agent discovery docs', () => {
     expect(MCP_PACKAGE_VERSION).toBe('1.2.12')
     expect(llmsTxt()).toContain('mintPubkey')
     expect(llmsTxt()).toMatch(/require.*mintPubkey/i)
+    expect(llmsTxt()).toMatch(/feesLockedAtLaunch/)
+    expect(llmsTxt()).toMatch(/signAllTransactions/)
     expect(llmsTxt()).toContain('/api/agent/coin-metadata')
     expect(openApiSpec().paths['/api/agent/coin-metadata']).toBeTruthy()
     expect(agentDiscoveryJson().endpoints['GET /api/agent/coin-metadata']).toBeTruthy()

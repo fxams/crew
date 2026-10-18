@@ -437,7 +437,7 @@
           "agent"
         ],
         "summary": "Build UNSIGNED launch transactions (no secrets)",
-        "description": "platform defaults to pumpfun. Pump.fun requires mintPubkey (caller-generated mint public key — the API never invents or stores a mint secret). bags = Bags.fm Solana (BAGS_API_KEY). zora = Zora coins on Base (ZORA_ENABLED, EIP-1559). Same KOL order: crew[] first, Autohire second. Fee map 60% to the KOL crew, 15% to the launching agent, 25% to the treasury.",
+        "description": "platform defaults to pumpfun. Pump.fun requires mintPubkey (caller-generated mint public key — the API never invents or stores a mint secret). Pump fee-share is included in the launch (same v0 tx when it fits; else signAllTransactions pair). feesLockedAtLaunch is true. bags = Bags.fm Solana (BAGS_API_KEY). zora = Zora coins on Base (ZORA_ENABLED, EIP-1559). Same KOL order: crew[] first, Autohire second. Fee map 60% to the KOL crew, 15% to the launching agent, 25% to the treasury.",
         "operationId": "postAgentLaunchUnsigned",
         "security": [
           {

@@ -41,6 +41,8 @@ describe('Glama tool-quality copy for B-rated tools', () => {
     expect(block).toMatch(/mintPubkey is required/)
     expect(block).toMatch(/does not keep a server-side mint secret/)
     expect(block).toMatch(/\(input\.platform \|\| 'pumpfun'\) === 'pumpfun' && !input\.mintPubkey/)
+    expect(block).toMatch(/signAllTransactions/)
+    expect(block).toMatch(/fee-share is part of this launch/)
   })
 
   it('crew_wire_fees documents on-chain side effects, unsigned/signer, non-custodial, and destructive hints', () => {

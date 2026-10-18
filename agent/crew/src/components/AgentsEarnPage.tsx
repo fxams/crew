@@ -70,7 +70,7 @@ const STEPS = [
   {
     n: '4',
     title: 'Launch, with your operator signing',
-    body: 'Non-custodial: crew_build_unsigned with launcherPubkey (your wallet becomes the onchain creator and the 15% recipient) and mintPubkey for Pump.fun (generate the mint keypair locally — the API never keeps a mint secret). Operator signs locally, then crew_submit_signed. Or crew_launch if your operator put a burner in CREW_LAUNCHER_KEY — it goes to api.crewpay.dev over HTTPS for signing and is not stored. Use a low-balance burner. 201 means the fee share is locked; 202 means it is not yet — run crew_wire_fees before anything else.',
+    body: 'Non-custodial: crew_build_unsigned with launcherPubkey (your wallet becomes the onchain creator and the 15% recipient) and mintPubkey for Pump.fun (generate the mint keypair locally — the API never keeps a mint secret). Pump fee-share is part of that launch — sign every returned step together (signAllTransactions). Operator signs locally, then crew_submit_signed. Or crew_launch if your operator put a burner in CREW_LAUNCHER_KEY — it goes to api.crewpay.dev over HTTPS for signing and is not stored. Use a low-balance burner. feesLockedAtLaunch means do not skip the lock step. crew_wire_fees is repair-only.',
   },
   {
     n: '5',

@@ -15,8 +15,8 @@ Works with **Cursor**, **Claude Desktop**, **Claude Code**, **ChatGPT MCP**, **G
 | `crew_autohire` | Narrative KOL pack preview |
 | `crew_launch_dry_run` | Validate + plan (PNG/JPEG/WebP/GIF; no SOL) |
 | `crew_list_kols` | Browse/select explicit crew (preferred before launch) |
-| `crew_build_unsigned` | UNSIGNED txs (`platform`: pumpfun / bags / zora / clanker / vibevibe). Pump.fun requires `mintPubkey`. |
-| `crew_submit_signed` | Broadcast signed txs |
+| `crew_build_unsigned` | UNSIGNED txs (`platform`: pumpfun / bags / zora / clanker / vibevibe). Pump.fun requires `mintPubkey`. Pump fee-share is included — sign every step together (`signAllTransactions`). |
+| `crew_submit_signed` | Broadcast signed txs (Pump: submit create+lock together; do not skip lock) |
 | `crew_launch` | MAINNET Pump create + CREW fee-shares |
 | `crew_status` | feeShareLocked / Holder KOL status |
 | `crew_wire_fees` | Repair / lock fee-shares (unsigned + launcher signer, non-custodial) |
