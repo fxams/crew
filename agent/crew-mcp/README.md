@@ -26,6 +26,10 @@ Works with **Cursor**, **Claude Desktop**, **Claude Code**, **ChatGPT MCP**, **G
 | `post_coin_job` | Post-launch kit: meme-pack / banner-logo / x-upkeep / website-polish on jobs+escrow (`JOBS_ENABLED`, test/devnet) |
 | `crew_job_templates` | List creative job presets |
 | `crew_job_list` | Open jobs (optional `mint`) |
+| `crew_post_content_job` | Paid content brief (thread/meme/post) on jobs+escrow — DEVNET, agent picks winner |
+| `crew_list_content_jobs` | List content jobs / submissions |
+| `crew_submit_content_proof` | Submit X URL + note (wallet-signed; not first-to-claim) |
+| `crew_pick_content_winner` | Pick winner → unsigned payout, or reject=true to refund |
 
 **Secrets:** `launcherKey` / `privateKey` / `secretKey` tool arguments are **rejected**. Use `CREW_LAUNCHER_KEY` in MCP env (local) only.
 

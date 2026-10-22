@@ -77,17 +77,24 @@ export type CampaignRules = {
   autoChecks?: TaskAutoChecks
 }
 
-export type JobMode = 'campaign' | 'task'
+export type JobMode = 'campaign' | 'task' | 'content'
+
+/** Paid content brief kind — contest, not first-to-claim. */
+export type ContentKind = 'thread' | 'meme' | 'post'
 
 export type JobBase = {
   id: string
   type: JobType
-  /** campaign = per-proof KOL campaigns; task = open generic work with title/spec. */
+  /** campaign = per-proof KOL campaigns; task = open generic work with title/spec; content = paid brief contest. */
   mode: JobMode
   title?: string
   spec?: string
   /** Free-form category label (e.g. labeling, qa, research). */
   taskCategory?: string
+  /** thread | meme | post when mode === content. */
+  contentKind?: ContentKind
+  /** Winning submission id after the agent picks (content jobs). */
+  winnerSubmissionId?: string | null
   createdBy: string // agent key id or fingerprint
   chainId: ChainId
   asset: AssetSymbol
@@ -134,7 +141,11 @@ export type SubmissionProofFile = {
 
 export type Submission = {
   id: string
-  claimId: string
+  /** Present for campaign/task submissions; omitted for content-job proofs. */
+  claimId?: string
+  jobId: string
+  wallet?: string
+  handle?: string
   urls: string[]
   text?: string
   files?: SubmissionProofFile[]
@@ -151,6 +162,27 @@ export type Submission = {
   /** When auto-release becomes eligible (ms epoch) after checks pass. */
   autoReleaseEligibleAt?: number
   paidAmount?: bigint
+  /** Content contest: this submission was picked as the winner. */
+  winner?: boolean
+}
+
+export type JobReceiptKind = 'content-payout' | 'content-refund' | 'content-expired'
+
+export type JobReceipt = {
+  id: string
+  kind: JobReceiptKind
+  jobId: string
+  title?: string
+  contentKind?: ContentKind
+  winnerWallet?: string
+  xUrl?: string
+  amount: number
+  asset: AssetSymbol
+  chainId: ChainId
+  txRef?: string
+  unsigned?: boolean
+  at: number
+  status: 'pending-signature' | 'released' | 'refunded' | 'expired'
 }
 
 export type JobDispute = {

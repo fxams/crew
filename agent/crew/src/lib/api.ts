@@ -146,6 +146,23 @@ export type ProofBundle = {
     detail: string | null
     at: number
   }[]
+  jobReceipts?: {
+    id: string
+    kind: string
+    jobId: string
+    title?: string | null
+    contentKind?: string | null
+    winnerWallet?: string | null
+    xUrl?: string | null
+    amount: number
+    asset: string
+    chainId: string
+    txRef?: string | null
+    unsigned?: boolean
+    at: number
+    status: string
+    jobUrl?: string
+  }[]
 }
 
 export async function fetchProof(limit = 40): Promise<ProofBundle> {

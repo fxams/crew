@@ -1,3 +1,8 @@
+export function jobsFeatureEnabled(): boolean {
+  const v = (process.env.JOBS_ENABLED || '').trim().toLowerCase()
+  return v === '1' || v === 'true'
+}
+
 export function jobsPlatformFeeBps(): number {
   const raw = (process.env.JOBS_PLATFORM_FEE_BPS || '').trim()
   const n = Number(raw)

@@ -2,10 +2,12 @@ import { randomBytes } from 'node:crypto'
 import {
   type AssetSymbol,
   type CampaignJob,
+  type ContentKind,
   type FundingRecord,
   type Job,
   type JobClaim,
   type JobDispute,
+  type JobReceipt,
   type Submission,
   type SubmissionProofFile,
   type ChainId,
@@ -32,6 +34,17 @@ export type CreateCampaignInput = {
   templateId?: string
 }
 
+export type CreateContentJobInput = {
+  createdBy: string
+  title: string
+  spec: string
+  contentKind: ContentKind
+  chainId: ChainId
+  asset: AssetSymbol
+  reward: bigint
+  deadline: number
+}
+
 export type CreateTaskInput = {
   createdBy: string
   title: string
@@ -55,6 +68,7 @@ export class InMemoryJobStore {
   private submissions = new Map<string, Submission>()
   private fundings = new Map<string, FundingRecord>()
   private disputes = new Map<string, JobDispute>()
+  private receipts = new Map<string, JobReceipt>()
 
   clearAll(): void {
     this.jobs.clear()
@@ -62,6 +76,7 @@ export class InMemoryJobStore {
     this.submissions.clear()
     this.fundings.clear()
     this.disputes.clear()
+    this.receipts.clear()
   }
 
   createCampaign(input: CreateCampaignInput): CampaignJob {
@@ -124,6 +139,47 @@ export class InMemoryJobStore {
     }
     this.jobs.set(id, job)
     return job
+  }
+
+  createContentJob(input: CreateContentJobInput): CampaignJob {
+    const id = genId('job')
+    const now = nowMs()
+    const job: CampaignJob = {
+      id,
+      type: 'content',
+      mode: 'content',
+      title: input.title.trim(),
+      spec: input.spec.trim(),
+      contentKind: input.contentKind,
+      winnerSubmissionId: null,
+      createdBy: input.createdBy,
+      chainId: input.chainId,
+      asset: input.asset,
+      budget: input.reward,
+      perProofAmount: input.reward,
+      maxProofs: 1,
+      perKOLCap: 1,
+      deadline: input.deadline,
+      rules: { platform: 'x' },
+      status: 'created',
+      escrowRef: null,
+      escrowFrom: null,
+      createdAt: now,
+      updatedAt: now,
+    }
+    this.jobs.set(id, job)
+    return job
+  }
+
+  listContentJobs(opts?: { status?: string; kind?: ContentKind }): Job[] {
+    const out: Job[] = []
+    for (const j of this.jobs.values()) {
+      if (j.mode !== 'content') continue
+      if (opts?.status && j.status !== opts.status) continue
+      if (opts?.kind && j.contentKind !== opts.kind) continue
+      out.push(j)
+    }
+    return out.sort((a, b) => b.createdAt - a.createdAt)
   }
 
   listTasks(opts?: { status?: string; category?: string }): Job[] {
@@ -211,16 +267,18 @@ export class InMemoryJobStore {
   ): Submission {
     const id = genId('sub')
     const urls = Array.from(new Set((proof.urls || []).map((u) => String(u || '').trim()).filter(Boolean)))
+    const claim = this.claims.get(claimId)
     const sub: Submission = {
       id,
       claimId,
+      jobId: claim?.jobId || '',
+      wallet: claim?.kolWallet,
       urls,
       text: proof.text?.trim() || undefined,
       files: proof.files?.length ? proof.files : undefined,
       createdAt: nowMs(),
     }
     this.submissions.set(id, sub)
-    const claim = this.claims.get(claimId)
     if (claim) {
       claim.status = 'submitted'
       claim.updatedAt = nowMs()
@@ -245,6 +303,68 @@ export class InMemoryJobStore {
 
   listSubmissionsForClaim(claimId: string): Submission[] {
     return [...this.submissions.values()].filter((s) => s.claimId === claimId)
+  }
+
+  submitContentProof(
+    jobId: string,
+    input: { wallet: string; xUrl: string; note?: string; handle?: string },
+  ): Submission {
+    const job = this.getJob(jobId)
+    if (!job || job.mode !== 'content') throw new Error('Content job not found')
+    const id = genId('sub')
+    const xUrl = String(input.xUrl || '').trim()
+    const sub: Submission = {
+      id,
+      jobId,
+      wallet: input.wallet,
+      handle: input.handle?.trim() || undefined,
+      urls: [xUrl],
+      text: input.note?.trim() || undefined,
+      createdAt: nowMs(),
+    }
+    this.submissions.set(id, sub)
+    if (job.status === 'funded' || job.status === 'open' || job.status === 'created') {
+      job.status = 'submitted'
+      this.setJob(job)
+    }
+    return sub
+  }
+
+  listSubmissionsForJob(jobId: string): Submission[] {
+    return [...this.submissions.values()]
+      .filter((s) => s.jobId === jobId)
+      .sort((a, b) => a.createdAt - b.createdAt)
+  }
+
+  pickWinner(jobId: string, submissionId: string): Submission {
+    const job = this.getJob(jobId)
+    if (!job || job.mode !== 'content') throw new Error('Content job not found')
+    if (job.winnerSubmissionId) throw new Error('Winner already picked')
+    const sub = this.submissions.get(submissionId)
+    if (!sub || sub.jobId !== jobId) throw new Error('Submission not found')
+    job.winnerSubmissionId = submissionId
+    job.status = 'verified'
+    this.setJob(job)
+    sub.winner = true
+    sub.verifiedAt = nowMs()
+    sub.verification = { ok: true, acceptedUrls: sub.urls.slice(0, 1), details: { pickedByAgent: true } }
+    this.submissions.set(sub.id, sub)
+    return sub
+  }
+
+  addReceipt(input: Omit<JobReceipt, 'id' | 'at'> & { id?: string; at?: number }): JobReceipt {
+    const rec: JobReceipt = {
+      ...input,
+      id: input.id || genId('rcpt'),
+      at: input.at || nowMs(),
+    }
+    this.receipts.set(rec.id, rec)
+    return rec
+  }
+
+  listReceipts(limit = 40): JobReceipt[] {
+    const n = Math.min(200, Math.max(1, limit))
+    return [...this.receipts.values()].sort((a, b) => b.at - a.at).slice(0, n)
   }
 
   openDispute(input: {

@@ -245,6 +245,44 @@ export function ProofPage() {
               )}
             </div>
 
+            <h2 className="proof-section-title">Content job receipts</h2>
+            <div className="proof-table" role="table" aria-label="Content job receipts">
+              <div className="proof-row proof-row-head" role="row">
+                <span role="columnheader">When</span>
+                <span role="columnheader">Kind</span>
+                <span role="columnheader">Job</span>
+                <span role="columnheader">Amount</span>
+                <span role="columnheader">Proof</span>
+              </div>
+              {!(data.jobReceipts && data.jobReceipts.length) ? (
+                <p className="section-sub">
+                  No content-job receipts yet — agent-picked winners and refunds show here (devnet).
+                </p>
+              ) : (
+                data.jobReceipts.map((r) => (
+                  <div className="proof-row" role="row" key={r.id}>
+                    <span role="cell">{fmtTime(r.at)}</span>
+                    <span role="cell">{r.kind}</span>
+                    <span role="cell">
+                      <Link to={r.jobUrl || `/jobs/${r.jobId}`}>{r.title || r.jobId}</Link>
+                    </span>
+                    <span role="cell">
+                      {r.amount} {r.asset}
+                    </span>
+                    <span role="cell">
+                      {r.xUrl ? (
+                        <a href={r.xUrl} target="_blank" rel="noreferrer">
+                          X
+                        </a>
+                      ) : (
+                        r.status
+                      )}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+
             <h2 className="proof-section-title">Launches</h2>
             <PlatformFilter venues={venues} value={platFilter} onChange={setPlatFilter} />
             <div className="proof-table" role="table" aria-label="Launches">

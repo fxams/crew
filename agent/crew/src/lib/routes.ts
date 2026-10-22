@@ -222,6 +222,28 @@ export function isTasksPath(pathname: string): boolean {
   return path === '/tasks' || path.endsWith('/tasks')
 }
 
+/** Paid content jobs list (`/jobs` only — not `/jobs/:id`). */
+export function isJobsListPath(pathname: string): boolean {
+  const path = normalizePath(pathname)
+  return path === '/jobs' || path.endsWith('/jobs')
+}
+
+/** Content job id from `/jobs/:id`. */
+export function jobIdFromPath(pathname: string): string | null {
+  const path = normalizePath(pathname)
+  const match = path.match(/(?:^|\/)jobs\/([A-Za-z0-9_-]{8,80})$/)
+  return match?.[1] ?? null
+}
+
+export function jobPagePath(jobId: string): string {
+  return `/jobs/${encodeURIComponent(jobId.trim())}`
+}
+
+/** Paid content jobs board + detail. */
+export function isJobsPath(pathname: string): boolean {
+  return isJobsListPath(pathname) || Boolean(jobIdFromPath(pathname))
+}
+
 export function isAdminKickoffPath(pathname: string): boolean {
   const path = normalizePath(pathname)
   return path === '/admin/kickoff' || path.endsWith('/admin/kickoff')
