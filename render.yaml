@@ -2,13 +2,9 @@
 # Services: static site + API + Postgres + buyback cron + MCP
 # Note: app.crewpay.dev needs a DNS CNAME at the registrar; until then use crewpay.dev.
 #
-# IMPORTANT (crewpay site): repo root only — do NOT set Root Directory to agent/crew.
-# Runtime is Node (scripts/crewpay-static-server.mjs) so /kol/:handle and /ref/:handle
-# get dynamic og:image for any handle. Reserved product paths (/kol/tasks, …) stay
-# on the SPA shell — they are not treated as X handles. Render cannot convert
-# static_site → web in place; if the dashboard still shows static_site, create a
-# web service from this blueprint (or scripts/render-crewpay-node-site.mjs) and
-# move crewpay.dev to it. Do not run the provision script without approval.
+# IMPORTANT (static site): do NOT set Root Directory in the Render dashboard.
+# Publish directory must be `render-site` (repo-root). Blueprint sync often lags —
+# if the live site stays on an old bundle, set these manually then Clear cache & deploy.
 
 databases:
   - name: crewpay-db
@@ -22,12 +18,12 @@ databases:
 services:
   - type: web
     name: crewpay
-    runtime: node
+    runtime: static
     branch: main
-    plan: starter
-    region: oregon
-    buildCommand: npm ci --legacy-peer-deps && npm test && npm run build && test -f dist/index.html && node scripts/test-kol-og-server.mjs
-    startCommand: node scripts/crewpay-static-server.mjs
+    # Prerender dist/kol/:handle/index.html + dist/ref/:handle/index.html at build (crawler OG).
+    # Optional: switch runtime to node + scripts/crewpay-static-server.mjs for any handle.
+    buildCommand: npm ci --legacy-peer-deps && npm test && npm run build && test -f dist/kol/VitalikButerin.html
+    staticPublishPath: dist
     healthCheckPath: /
     pullRequestPreviewsEnabled: false
     renderSubdomainPolicy: disabled
@@ -71,8 +67,45 @@ services:
       - path: /index.html
         name: Cache-Control
         value: no-cache, no-store, must-revalidate
-    # Static `routes:` do not apply to runtime: node. The Node host injects
-    # per-handle OG, skips reserved /kol product words, and SPA-falls back.
+    routes:
+      # Product routes first so /kol/tasks is never rewritten as handle @tasks.
+      - type: rewrite
+        source: /kol/tasks
+        destination: /index.html
+      - type: rewrite
+        source: /kol/leaderboard
+        destination: /index.html
+      - type: rewrite
+        source: /kol/founders
+        destination: /index.html
+      - type: rewrite
+        source: /kol/alerts
+        destination: /index.html
+      - type: rewrite
+        source: /kol/battles
+        destination: /index.html
+      - type: rewrite
+        source: /kol/me
+        destination: /index.html
+      - type: rewrite
+        source: /kol/hub
+        destination: /index.html
+      - type: rewrite
+        source: /kol/card
+        destination: /index.html
+      - type: rewrite
+        source: /kol/settings
+        destination: /index.html
+      # Per-handle OG + SPA shell from the API (any X handle, not just prerendered files).
+      - type: rewrite
+        source: /kol/*
+        destination: https://api.crewpay.dev/kol/*
+      - type: rewrite
+        source: /ref/*
+        destination: https://api.crewpay.dev/ref/*
+      - type: rewrite
+        source: /*
+        destination: /index.html
 
   - type: web
     name: crewpay-api

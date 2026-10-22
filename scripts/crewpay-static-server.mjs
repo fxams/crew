@@ -1,9 +1,6 @@
 /**
  * Production static host for crewpay.dev — serves Vite dist with injected OG meta
  * on /kol/:handle and /ref/:handle (crawlers do not run JS).
- *
- * Reserved /kol/<word> product routes (tasks, leaderboard, …) stay on the SPA
- * shell so they are never treated as X handles.
  */
 import { createServer } from 'node:http'
 import { readFileSync, statSync, createReadStream } from 'node:fs'
@@ -18,64 +15,6 @@ const indexTemplate = readFileSync(indexPath, 'utf8')
 const SITE = (process.env.VITE_SITE_URL || 'https://crewpay.dev').replace(/\/$/, '')
 const API = (process.env.VITE_CREW_API_URL || 'https://api.crewpay.dev').replace(/\/$/, '')
 const PORT = Number(process.env.PORT || 10000)
-const HOST = process.env.HOST || '0.0.0.0'
-
-/** Keep in sync with agent/crew-api/src/lib/kol-program/reserved-paths.ts */
-const KOL_RESERVED_PATH_WORDS = new Set([
-  'tasks',
-  'leaderboard',
-  'founders',
-  'alerts',
-  'battles',
-  'me',
-  'hub',
-  'card',
-  'settings',
-  'register',
-  'login',
-  'logout',
-  'signin',
-  'signup',
-  'auth',
-  'oauth',
-  'callback',
-  'admin',
-  'api',
-  'home',
-  'board',
-  'desk',
-  'profile',
-  'notifications',
-  'notifs',
-  'share',
-  'download',
-  'wallet',
-  'payout',
-  'onboarding',
-  'today',
-  'verify',
-  'claim',
-  'referrals',
-  'referral',
-  'invite',
-  'season',
-  'pool',
-  'program',
-  'index',
-  'status',
-  'help',
-  'support',
-  'about',
-])
-
-const SECURITY_HEADERS = {
-  'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
-  'Content-Security-Policy':
-    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; frame-src 'self' https://verify.walletconnect.org https://verify.walletconnect.com https://secure.walletconnect.com https://secure.walletconnect.org; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",
-  'X-Frame-Options': 'DENY',
-  'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
-}
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -98,21 +37,6 @@ function escapeAttr(s) {
     .replace(/>/g, '&gt;')
 }
 
-function isKolReservedPathWord(word) {
-  const w = String(word || '')
-    .replace(/^@+/, '')
-    .trim()
-    .toLowerCase()
-  return KOL_RESERVED_PATH_WORDS.has(w)
-}
-
-function stripMeta(html, attr, key) {
-  // One tag only — never span from an earlier <meta charset> across <title>.
-  const re = new RegExp(`<meta\\b[^>]*?\\b${attr}="${key}"[^>]*?\\/>`, 'i')
-  return html.replace(re, '')
-}
-
-/** Strip-then-insert, matching API injectSpaIndexMeta so multiline index tags stay intact. */
 function injectMeta(indexHtml, meta) {
   const t = escapeAttr(meta.title)
   const d = escapeAttr(meta.description)
@@ -120,40 +44,27 @@ function injectMeta(indexHtml, meta) {
   const img = escapeAttr(meta.imageUrl)
   let h = indexHtml
   h = h.replace(/<title>[\s\S]*?<\/title>/, `<title>${t}</title>`)
-  for (const [attr, key] of [
-    ['name', 'description'],
-    ['property', 'og:title'],
-    ['property', 'og:description'],
-    ['property', 'og:url'],
-    ['property', 'og:image'],
-    ['property', 'og:image:width'],
-    ['property', 'og:image:height'],
-    ['property', 'og:image:type'],
-    ['name', 'twitter:title'],
-    ['name', 'twitter:description'],
-    ['name', 'twitter:image'],
-    ['name', 'twitter:card'],
-  ]) {
-    h = stripMeta(h, attr, key)
-  }
-  const block = `    <meta name="description" content="${d}" />
-    <link rel="canonical" href="${u}" />
-    <meta property="og:title" content="${t}" />
-    <meta property="og:description" content="${d}" />
-    <meta property="og:url" content="${u}" />
-    <meta property="og:image" content="${img}" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:type" content="image/png" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="${t}" />
-    <meta name="twitter:description" content="${d}" />
-    <meta name="twitter:image" content="${img}" />`
-  if (/<\/title>/i.test(h)) {
-    h = h.replace(/<\/title>/i, `</title>\n${block}`)
-  } else {
-    h = h.replace(/<head[^>]*>/i, (open) => `${open}\n    <title>${t}</title>\n${block}`)
-  }
+  h = h.replace(/<meta name="description"[\s\S]*?\/>/, `<meta name="description" content="${d}" />`)
+  h = h.replace(/<meta property="og:title"[\s\S]*?\/>/m, `<meta property="og:title" content="${t}" />`)
+  h = h.replace(
+    /<meta property="og:description"[\s\S]*?\/>/m,
+    `<meta property="og:description" content="${d}" />`,
+  )
+  h = h.replace(/<meta property="og:url"[\s\S]*?\/>/m, `<meta property="og:url" content="${u}" />`)
+  h = h.replace(
+    /<meta property="og:image"[\s\S]*?\/>/m,
+    `<meta property="og:image" content="${img}" />\n    <meta property="og:image:width" content="1200" />\n    <meta property="og:image:height" content="630" />\n    <meta property="og:image:type" content="image/png" />`,
+  )
+  h = h.replace(/<meta name="twitter:title"[\s\S]*?\/>/m, `<meta name="twitter:title" content="${t}" />`)
+  h = h.replace(
+    /<meta name="twitter:description"[\s\S]*?\/>/m,
+    `<meta name="twitter:description" content="${d}" />`,
+  )
+  h = h.replace(/<meta name="twitter:image"[\s\S]*?\/>/m, `<meta name="twitter:image" content="${img}" />`)
+  h = h.replace(
+    /<meta name="twitter:card"[\s\S]*?\/>/m,
+    `<meta name="twitter:card" content="summary_large_image" />`,
+  )
   return h
 }
 
@@ -182,10 +93,7 @@ async function fetchShareMeta(handle, kind) {
 function matchKolRef(pathname) {
   const m = pathname.match(/^\/(kol|ref)\/([A-Za-z0-9_]{1,15})$/)
   if (!m) return null
-  const kind = m[1] === 'ref' ? 'ref' : 'kol'
-  const handle = m[2]
-  if (kind === 'kol' && isKolReservedPathWord(handle)) return null
-  return { kind, handle }
+  return { kind: m[1] === 'ref' ? 'ref' : 'kol', handle: m[2] }
 }
 
 function safePath(urlPath) {
@@ -194,31 +102,17 @@ function safePath(urlPath) {
   return p
 }
 
-function writeHead(res, status, extra = {}) {
-  res.writeHead(status, { ...SECURITY_HEADERS, ...extra })
-}
-
 function serveFile(res, filePath) {
   const ext = extname(filePath)
-  const extra = { 'Content-Type': MIME[ext] || 'application/octet-stream' }
-  if (ext === '.html') extra['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-  writeHead(res, 200, extra)
+  res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' })
   createReadStream(filePath).pipe(res)
-}
-
-function serveSpa(res) {
-  writeHead(res, 200, {
-    'Content-Type': 'text/html; charset=utf-8',
-    'Cache-Control': 'no-cache, no-store, must-revalidate',
-  })
-  res.end(indexTemplate)
 }
 
 const server = createServer(async (req, res) => {
   try {
     const urlPath = safePath(req.url || '/')
     if (!urlPath) {
-      writeHead(res, 400)
+      res.writeHead(400)
       res.end('Bad path')
       return
     }
@@ -227,10 +121,7 @@ const server = createServer(async (req, res) => {
     if (kolRef) {
       const meta = await fetchShareMeta(kolRef.handle, kolRef.kind)
       const html = injectMeta(indexTemplate, meta)
-      writeHead(res, 200, {
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-      })
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' })
       res.end(html)
       return
     }
@@ -246,14 +137,15 @@ const server = createServer(async (req, res) => {
       /* spa fallback */
     }
 
-    serveSpa(res)
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+    res.end(indexTemplate)
   } catch (err) {
     console.error('crewpay-static-server', err)
-    writeHead(res, 500)
+    res.writeHead(500)
     res.end('Server error')
   }
 })
 
-server.listen(PORT, HOST, () => {
-  console.log(`crewpay static+og server on ${HOST}:${PORT} dist=${dist}`)
+server.listen(PORT, () => {
+  console.log(`crewpay static+og server on :${PORT} dist=${dist}`)
 })

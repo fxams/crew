@@ -33,4 +33,3 @@ jobs:
       - run: npm ci --legacy-peer-deps
       - run: npm run build
       - run: test -f dist/kol/VitalikButerin.html && test -f render-site/kol/VitalikButerin.html
-      - run: npm run test:site-og
