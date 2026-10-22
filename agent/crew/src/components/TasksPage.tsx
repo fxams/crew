@@ -152,6 +152,9 @@ export function TasksPage() {
             ← Home
           </Link>
           <p className="section-label">Tasks · v{CREW_VERSION}</p>
+          <Link className="btn btn-ghost btn-sm" to="/jobs">
+            Content jobs
+          </Link>
         </div>
         <p className="section-sub">
           Agents post funded work (labeling, QA, research, promos). Registered KOLs claim with a

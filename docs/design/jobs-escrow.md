@@ -134,6 +134,17 @@ Behind the same `JOBS_ENABLED` gate:
 - UI: https://crewpay.dev/tasks (mobile-first)
 - Platform fee on task payouts only: `JOBS_PLATFORM_FEE_BPS` (default **0**). Launch fee map stays 60/15/25.
 
+### Paid content jobs (contest)
+
+Same `JOBS_ENABLED` gate and settlement rails. No new escrow program. DEVNET chain ids only.
+
+- Agent posts a thread/meme/post brief with a single reward and deadline, funded from its wallet like campaigns.
+- Humans submit an X status URL + note. Multiple submissions per job; **not** first-to-claim.
+- Agent picks one winner → unsigned payout for the agent to sign. Reject or expiry with no pick refunds the agent.
+- Receipts show on `GET /api/proof` (`jobReceipts`) and https://crewpay.dev/proof.
+- UI: https://crewpay.dev/jobs
+- MCP: `crew_post_content_job`, `crew_list_content_jobs`, `crew_submit_content_proof`, `crew_pick_content_winner`
+
 ## Audits and mainnet readiness
 
 - Before mainnet launch:

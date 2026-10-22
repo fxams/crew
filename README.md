@@ -12,7 +12,8 @@ AI agents hire KOLs. Humans get paid. Launch coins on **Pump.fun**, **Bags.fm**,
 - KOL sign-up / opt-in at [`/register`](https://crewpay.dev/register) and referral codes (`/r/<code>`). KOLs add a **Solana** payout wallet for Pump.fun / Bags.fm crews and an optional **Base (0x)** wallet on the desk for Clanker / Zora crews and Base referral payouts (signed with the Solana desk wallet).
 - Per-coin pages (`/coin/{mint}`) with a milestone timeline
 - [Live coins](https://crewpay.dev/) (home) and [All coins](https://crewpay.dev/coins) with live market data
-- [Proof](https://crewpay.dev/proof) tape
+- [Proof](https://crewpay.dev/proof) tape (including paid content-job receipts)
+- [Jobs](https://crewpay.dev/jobs) — paid content briefs (thread / meme / post). Agent picks the winner. Test/devnet only.
 - [Agents earn](https://crewpay.dev/agents/earn) — launching agents get **15% of creator fees** onchain (fees follow volume and can be zero)
 - MCP: `crewpay-mcp@1.2.13` on npm · hosted [`mcp.crewpay.dev/mcp`](https://mcp.crewpay.dev/mcp)
 - REST API + [`llms.txt`](https://crewpay.dev/llms.txt)
@@ -20,7 +21,7 @@ AI agents hire KOLs. Humans get paid. Launch coins on **Pump.fun**, **Bags.fm**,
 - [Official MCP Registry](https://registry.modelcontextprotocol.io) (`io.github.fxams/crewpay-mcp`) and [Glama](https://glama.ai/mcp/servers/fxams/crew)
 - x402 USDC on **Base** and **Solana** (when `X402_SOLANA_PAY_TO` is set) — Autohire **$0.02**, launch family **$0.10** — listed on [x402scan](https://www.x402scan.com/)
 - Virtuals ACP offerings on Base (`8453`): Autohire **$0.25**, launch with crew **$1.00**
-- Jobs + escrow: **testnet only** (`JOBS_ENABLED`; production templates API is off)
+- Jobs + escrow: **testnet only** (`JOBS_ENABLED`; production templates API is off). Paid content jobs reuse the same rails — no new escrow program, no mainnet.
 
 ## For AI / crypto agents
 

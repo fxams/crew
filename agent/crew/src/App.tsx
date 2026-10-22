@@ -96,7 +96,7 @@ import { launchCrew } from "./lib/launch";
 import { useOwnRegisteredHandle } from "./lib/registered-kol";
 import { NO_CRYPTO_NEEDED } from "./lib/kol-onboarding";
 import { headerKolLinks, mobileStickyCta } from "./lib/nav";
-import { isAdminFarcasterPath, isAdminKickoffPath, isAdminOpsPath, isAgentsEarnPath, isAgentsPath, isApprovePath, isClaimPath, isCoinPath, isCoinsPath, isHomePath, isKolAlertsPath, isKolFoundersPath, isKolHubPath, isKolLeaderboardPath, isKolRefPath, isKolReservedRedirectPath, isKolTasksPath, isKolsPath, isLaunchPath, isOnepagerPath, isProofPath, isReferralPath, isRegisterPath, isSuiLaunchpadPath, isSuiPoolDetailPath, isTasksPath, kolHandleFromPath, kolRefFromPath, referralCodeFromPath } from "./lib/routes";
+import { isAdminFarcasterPath, isAdminKickoffPath, isAdminOpsPath, isAgentsEarnPath, isAgentsPath, isApprovePath, isClaimPath, isCoinPath, isCoinsPath, isHomePath, isJobsPath, isKolAlertsPath, isKolFoundersPath, isKolHubPath, isKolLeaderboardPath, isKolRefPath, isKolReservedRedirectPath, isKolTasksPath, isKolsPath, isLaunchPath, isOnepagerPath, isProofPath, isReferralPath, isRegisterPath, isSuiLaunchpadPath, isSuiPoolDetailPath, isTasksPath, kolHandleFromPath, kolRefFromPath, referralCodeFromPath } from "./lib/routes";
 import { KolFoundersPage } from "./components/KolFoundersPage";
 import { KolTasksPage } from "./components/KolTasksPage";
 import { KolAlertsPage } from "./components/KolAlertsPage";
@@ -110,6 +110,7 @@ import { AdminKickoffPage } from "./components/AdminKickoffPage";
 import { AdminOpsPage } from "./components/AdminOpsPage";
 import { AdminFarcasterPage } from "./components/AdminFarcasterPage";
 import { TasksPage } from "./components/TasksPage";
+import { JobsPage } from "./components/JobsPage";
 import {
   buildWireCrewFeeSharePlan,
   distributeCreatorFees,
@@ -237,6 +238,7 @@ export default function App() {
   const isSuiPoolPage = SHOW_SUI_LAUNCHPAD && isSuiPoolDetailPath(path);
   const isHiddenSuiUrl = !SHOW_SUI_LAUNCHPAD && isSuiLaunchpadPath(path);
   const isTasksPage = isTasksPath(path);
+  const isJobsPage = isJobsPath(path);
   const isAdminKickoffPage = isAdminKickoffPath(path);
   const isAdminFarcasterPage = isAdminFarcasterPath(path);
   const isAdminOpsPage = isAdminOpsPath(path);
@@ -1476,6 +1478,7 @@ export default function App() {
       isSuiPage ||
       isSuiPoolPage ||
       isTasksPage ||
+      isJobsPage ||
       isKolHubPage ||
       isKolLeaderboardPage ||
       isKolFoundersPage ||
@@ -1573,6 +1576,9 @@ export default function App() {
                 Tasks
               </Link>
             ) : null}
+            <Link className={isJobsPage ? "is-active-nav-text" : undefined} to="/jobs">
+              Jobs
+            </Link>
             <Link
               className={isProofPage ? "is-active-nav-text" : undefined}
               to="/proof"
@@ -1625,11 +1631,12 @@ export default function App() {
       {isSuiPage && !isSuiPoolPage ? <SuiLaunchpadPage /> : null}
       {isSuiPoolPage ? <SuiPoolDetailPage /> : null}
       {isTasksPage ? <TasksPage /> : null}
+      {isJobsPage ? <JobsPage /> : null}
       {isAdminKickoffPage ? <AdminKickoffPage /> : null}
       {isAdminFarcasterPage ? <AdminFarcasterPage /> : null}
       {isAdminOpsPage ? <AdminOpsPage /> : null}
 
-      {!isLaunchPage && !isKolsPage && !isRegisterPage && !isKolHubPage && !isKolRefPage && !isKolLeaderboardPage && !isKolFoundersPage && !isKolTasksPage && !isKolAlertsPage && !isKolProfilePage && !isClaimPage && !isAgentsPage && !isAgentsEarnPage && !isProofPage && !isOnepagerPage && !isApprovePage && !isCoinPage && !isCoinsPage && !isSuiPage && !isTasksPage && !isAdminKickoffPage && !isAdminFarcasterPage && !isAdminOpsPage ? (
+      {!isLaunchPage && !isKolsPage && !isRegisterPage && !isKolHubPage && !isKolRefPage && !isKolLeaderboardPage && !isKolFoundersPage && !isKolTasksPage && !isKolAlertsPage && !isKolProfilePage && !isClaimPage && !isAgentsPage && !isAgentsEarnPage && !isProofPage && !isOnepagerPage && !isApprovePage && !isCoinPage && !isCoinsPage && !isSuiPage && !isTasksPage && !isJobsPage && !isAdminKickoffPage && !isAdminFarcasterPage && !isAdminOpsPage ? (
         <>
       <div className="app-shell">
         <main id="top">
@@ -3141,7 +3148,7 @@ export default function App() {
           </div>
         </footer>
       </div>
-      ) : isAgentsPage || isAgentsEarnPage || isKolsPage || isRegisterPage || isKolHubPage || isKolRefPage || isKolLeaderboardPage || isKolFoundersPage || isKolTasksPage || isKolAlertsPage || isKolProfilePage || isClaimPage || isProofPage || isOnepagerPage || isApprovePage || isCoinPage || isCoinsPage || isSuiPage || isSuiPoolPage || isTasksPage || isAdminKickoffPage || isAdminFarcasterPage || isAdminOpsPage ? null : (
+      ) : isAgentsPage || isAgentsEarnPage || isKolsPage || isRegisterPage || isKolHubPage || isKolRefPage || isKolLeaderboardPage || isKolFoundersPage || isKolTasksPage || isKolAlertsPage || isKolProfilePage || isClaimPage || isProofPage || isOnepagerPage || isApprovePage || isCoinPage || isCoinsPage || isSuiPage || isSuiPoolPage || isTasksPage || isJobsPage || isAdminKickoffPage || isAdminFarcasterPage || isAdminOpsPage ? null : (
       <div className="app-shell">
         <section className="section" id="brand">
           <p className="section-label">Assets</p>

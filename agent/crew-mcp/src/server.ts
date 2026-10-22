@@ -319,6 +319,143 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
         return asText(data)
       },
     )
+    const contentChain = z.enum(['solana-devnet', 'evm:base-sepolia', 'flop-testnet'])
+    server.registerTool(
+      'crew_post_content_job',
+      {
+        title: 'Post a paid content brief (thread/meme/post)',
+        description:
+          'Agent-funded content contest on existing jobs+escrow. Humans submit an X status URL + note; you pick one winner (not first-to-claim). Approving builds an unsigned payout for you to sign. DEVNET only. Non-custodial. No new escrow program.',
+        inputSchema: {
+          kind: z.enum(['thread', 'meme', 'post']).describe('Brief kind'),
+          title: z.string().min(3).max(120),
+          brief: z.string().min(8).max(20_000).describe('What to post'),
+          chainId: contentChain.describe('Test/devnet only — mainnet rejected'),
+          asset: z.enum(['SOL', 'USDC', 'ETH', 'USDT']),
+          reward: z.number().positive().describe('Single winner reward (test units)'),
+          deadlineHours: z.number().int().min(1).max(720).optional(),
+          fund: z.boolean().optional().describe('Fund sim/devnet escrow on create'),
+          rail: z.string().max(32).optional(),
+          from: z.string().max(128).optional().describe('Creator wallet for non-custodial rails'),
+        },
+        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+      },
+      async (input) => {
+        const data = await crewFetch(cfg, '/api/jobs/content', {
+          method: 'POST',
+          auth: true,
+          body: JSON.stringify({
+            kind: input.kind,
+            title: input.title,
+            brief: input.brief,
+            chainId: input.chainId,
+            asset: input.asset,
+            reward: input.reward,
+            deadlineHours: input.deadlineHours ?? 24,
+            fund: input.fund,
+            rail: input.rail,
+            from: input.from,
+          }),
+        })
+        return asText(data)
+      },
+    )
+    server.registerTool(
+      'crew_list_content_jobs',
+      {
+        title: 'List paid content jobs and submissions',
+        description:
+          'Browse content contests (thread/meme/post) and optional job detail with submissions. Test/devnet. Behind JOBS_ENABLED.',
+        inputSchema: {
+          jobId: z.string().min(8).max(64).optional().describe('If set, return that job + submissions'),
+          kind: z.enum(['thread', 'meme', 'post']).optional(),
+          status: z.string().max(32).optional(),
+        },
+        annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+      },
+      async (input) => {
+        if (input.jobId) {
+          const data = await crewFetch(cfg, `/api/jobs/content/${encodeURIComponent(input.jobId)}`)
+          return asText(data)
+        }
+        const q = new URLSearchParams()
+        if (input.kind) q.set('kind', input.kind)
+        if (input.status) q.set('status', input.status)
+        const qs = q.toString() ? `?${q.toString()}` : ''
+        const data = await crewFetch(cfg, `/api/jobs${qs}`)
+        return asText(data)
+      },
+    )
+    server.registerTool(
+      'crew_submit_content_proof',
+      {
+        title: 'Submit X proof for a content job',
+        description:
+          'Human proof: X/Twitter status URL + note. Multiple submissions allowed; the agent picks the winner. Requires wallet, timestamp, and signature of crew-content-submit:{jobId}:{ts}. MCP cannot sign.',
+        inputSchema: {
+          jobId: z.string().min(8).max(64),
+          xUrl: z.string().url().describe('https X/Twitter status URL'),
+          note: z.string().max(4000).optional(),
+          handle: z.string().max(32).optional(),
+          wallet: z.string().min(20).max(128).optional(),
+          timestamp: z.number().int().optional(),
+          signature: z.string().min(20).optional(),
+        },
+        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+      },
+      async (input) => {
+        if (!input.wallet || !input.timestamp || !input.signature) {
+          throw new Error(
+            'Submit requires wallet, timestamp, and signature (crew-content-submit:{jobId}:{ts}). Sign off-device.',
+          )
+        }
+        const data = await crewFetch(cfg, `/api/jobs/content/${encodeURIComponent(input.jobId)}/submit`, {
+          method: 'POST',
+          headers: {
+            'x-crew-wallet': input.wallet,
+            'x-crew-timestamp': String(input.timestamp),
+            'x-crew-signature': input.signature,
+          },
+          body: JSON.stringify({ xUrl: input.xUrl, note: input.note, handle: input.handle }),
+        })
+        return asText(data)
+      },
+    )
+    server.registerTool(
+      'crew_pick_content_winner',
+      {
+        title: 'Pick a content-job winner (unsigned payout)',
+        description:
+          'Agent selects one submission as the winner and builds an unsigned payout transaction to sign. Not first-to-claim. Reject with reject=true to refund. DEVNET only. Non-custodial — never send private keys.',
+        inputSchema: {
+          jobId: z.string().min(8).max(64),
+          submissionId: z.string().min(8).max(64).optional(),
+          from: z.string().max(128).optional().describe('Holder wallet for unsigned payout'),
+          reject: z.boolean().optional().describe('If true, refund the agent instead of picking'),
+          to: z.string().max(128).optional().describe('Refund address when reject=true'),
+        },
+        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+      },
+      async (input) => {
+        if (input.reject) {
+          const data = await crewFetch(cfg, `/api/jobs/content/${encodeURIComponent(input.jobId)}/reject`, {
+            method: 'POST',
+            auth: true,
+            body: JSON.stringify({ from: input.from, to: input.to }),
+          })
+          return asText(data)
+        }
+        if (!input.submissionId) {
+          throw new Error('Provide submissionId to pick a winner, or reject=true to refund.')
+        }
+        const data = await crewFetch(cfg, `/api/jobs/content/${encodeURIComponent(input.jobId)}/pick`, {
+          method: 'POST',
+          auth: true,
+          body: JSON.stringify({ submissionId: input.submissionId, from: input.from }),
+        })
+        return asText(data)
+      },
+    )
     server.registerTool(
       'crew_job_templates',
       {

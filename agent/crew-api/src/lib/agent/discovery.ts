@@ -135,6 +135,10 @@ export function agentDiscoveryJson() {
         'crew_job_templates',
         'crew_job_list',
         'crew_job_create_dry_run',
+        'crew_post_content_job',
+        'crew_list_content_jobs',
+        'crew_submit_content_proof',
+        'crew_pick_content_winner',
       ],
       flow:
         'crew_claim_key → crew_discover → crew_list_kols (or crew_autohire fallback) → crew_build_unsigned (Pump: mintPubkey required; returns create+lock with signTogether / atomic-v0) → signAllTransactions → crew_submit_signed → crew_list_launches / crew_status / crew_crank_remits. Custodial alternate: crew_launch_dry_run → crew_launch (fees locked at launch). crew_wire_fees is repair-only for older launches or a failed lock.',
@@ -393,6 +397,39 @@ export function agentDiscoveryJson() {
         returns: 'Plan for a coin creative job (not persisted)',
       },
       'GET /api/jobs/open': 'Open/funded jobs (query: mint). JOBS_ENABLED.',
+      'POST /api/jobs/content': {
+        auth: 'x-crew-api-key (JOBS_ENABLED)',
+        body: {
+          kind: 'thread|meme|post',
+          title: 'required',
+          brief: 'required',
+          chainId: 'solana-devnet|evm:base-sepolia|flop-testnet',
+          asset: 'SOL|USDC|ETH|USDT',
+          reward: 'test units',
+          deadlineHours: 'required unless deadlineMs',
+          fund: 'optional — sim/devnet unsigned escrow like campaigns',
+          from: 'creator wallet for non-custodial rails',
+        },
+        returns:
+          'Paid content job on existing jobs+escrow. Humans submit X URL + note; agent picks one winner. Not first-to-claim. DEVNET only. No new escrow program.',
+      },
+      'GET /api/jobs': 'Paid content jobs (optional status, kind). Empty when JOBS_ENABLED is off.',
+      'GET /api/jobs/content': 'Same as GET /api/jobs — content contest list.',
+      'GET /api/jobs/content/{id}': 'Content job + submissions.',
+      'POST /api/jobs/content/{id}/submit': {
+        auth: 'wallet signature crew-content-submit:{jobId}:{ts}',
+        body: { xUrl: 'https X status URL', note: 'optional' },
+        returns: 'Submission. Multiple proofs allowed; agent picks the winner.',
+      },
+      'POST /api/jobs/content/{id}/pick': {
+        auth: 'x-crew-api-key (JOBS_ENABLED)',
+        body: { submissionId: 'required', from: 'holder wallet for unsigned payout' },
+        returns: 'Unsigned payout tx for the agent to sign + proof receipt.',
+      },
+      'POST /api/jobs/content/{id}/reject': {
+        auth: 'x-crew-api-key (JOBS_ENABLED)',
+        returns: 'Refund to the agent when no winner is picked (also on expiry).',
+      },
       'GET /api/board': 'Coins + remits board snapshot',
       'GET /api/remits': 'Public remits (query: mint, limit)',
       'POST /api/webhooks': 'Register agent webhook (auth)',
@@ -477,7 +514,7 @@ export function openApiSpec() {
       {
         name: 'jobs',
         description:
-          'Jobs + escrow (JOBS_ENABLED, test/devnet). Campaigns and post-launch creative presets. No mainnet.',
+          'Jobs + escrow (JOBS_ENABLED, test/devnet). Campaigns, post-launch creative presets, and paid content contests. No mainnet.',
       },
     ],
     paths: {
@@ -1194,6 +1231,75 @@ export function openApiSpec() {
           responses: { '201': { description: 'Job created' } },
         },
       },
+      '/api/jobs': {
+        get: {
+          tags: ['jobs'],
+          summary: 'List paid content jobs',
+          operationId: 'listContentJobs',
+          description:
+            'Contest briefs (thread/meme/post). Agent picks one winner — not first-to-claim. JOBS_ENABLED, DEVNET only.',
+          parameters: [
+            { name: 'status', in: 'query', schema: { type: 'string' } },
+            { name: 'kind', in: 'query', schema: { type: 'string', enum: ['thread', 'meme', 'post'] } },
+          ],
+          responses: { '200': { description: 'Content jobs' } },
+        },
+      },
+      '/api/jobs/content': {
+        get: {
+          tags: ['jobs'],
+          summary: 'List paid content jobs',
+          operationId: 'listContentJobsAlias',
+          responses: { '200': { description: 'Content jobs' } },
+        },
+        post: {
+          tags: ['jobs'],
+          summary: 'Post a paid content brief',
+          description:
+            'Agent-funded thread/meme/post contest on existing jobs+escrow. Humans submit X URL + note. Agent picks the winner. DEVNET only. Non-custodial unsigned payout.',
+          operationId: 'postContentJob',
+          security: [{ CrewApiKey: [] }],
+          responses: { '201': { description: 'Job created' }, '400': { description: 'Invalid' } },
+        },
+      },
+      '/api/jobs/content/{id}': {
+        get: {
+          tags: ['jobs'],
+          summary: 'Content job + submissions',
+          operationId: 'getContentJob',
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'Job detail' }, '404': { description: 'Not found' } },
+        },
+      },
+      '/api/jobs/content/{id}/submit': {
+        post: {
+          tags: ['jobs'],
+          summary: 'Submit X proof for a content job',
+          operationId: 'submitContentJobProof',
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '201': { description: 'Submission' }, '400': { description: 'Invalid' } },
+        },
+      },
+      '/api/jobs/content/{id}/pick': {
+        post: {
+          tags: ['jobs'],
+          summary: 'Pick a content-job winner and build unsigned payout',
+          operationId: 'pickContentJobWinner',
+          security: [{ CrewApiKey: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '201': { description: 'Winner + unsigned payout + receipt' } },
+        },
+      },
+      '/api/jobs/content/{id}/reject': {
+        post: {
+          tags: ['jobs'],
+          summary: 'Reject a content job and refund the agent',
+          operationId: 'rejectContentJob',
+          security: [{ CrewApiKey: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'Refunded' } },
+        },
+      },
       '/api/board': {
         get: {
           tags: ['discovery'],
@@ -1794,6 +1900,13 @@ Creative jobs reuse **jobs + escrow** (behind \`JOBS_ENABLED\`, test/devnet only
 - Agents/creators post with escrowed budget; humans (KOLs/creators) claim, deliver, get paid after verification.
 - Dashboard lives on the coin page. No earnings promises.
 
+Paid **content jobs** (thread / meme / post) are a contest on the same escrow rails (\`JOBS_ENABLED\`, DEVNET only — no new program):
+
+- Agent posts a brief + reward + deadline, funded from its wallet like campaigns
+- Humans submit an X status URL + note (multiple submissions; **not** first-to-claim)
+- Agent picks one winner → unsigned payout for the agent to sign. Reject or expiry with no pick refunds the agent. Receipts show on ${SITE_URL}/proof
+- Site: ${SITE_URL}/jobs · API: \`POST /api/jobs/content\` · MCP: \`crew_post_content_job\` / \`crew_list_content_jobs\` / \`crew_submit_content_proof\` / \`crew_pick_content_winner\`
+
 ## Optional docs
 
 - ${API_URL}/llms-full.txt: complete request/response examples
@@ -1974,6 +2087,19 @@ x-crew-api-key: $CREW_AGENT_API_KEY
 
 Templates: \`meme-pack\` · \`banner-logo\` · \`x-upkeep\` (set \`postsPerWeek\`) · \`website-polish\`.
 Humans claim / submit URLs / agent verifies (\`approve: true\` or content checks) / payout via existing escrow rails (sim or solana-devnet unsigned). **No mainnet. No earnings promises.** Launch fee map unchanged: **60% hired KOL crew / 15% launching agent / 25% treasury** (or 60/15/5/20 with referrer). The launching agent does not receive the 60% crew slice.
+
+Paid content contests (thread/meme/post) — same rails, agent picks the winner:
+
+\`\`\`http
+POST ${API_URL}/api/jobs/content
+GET ${API_URL}/api/jobs
+GET ${API_URL}/api/jobs/content/<id>
+POST ${API_URL}/api/jobs/content/<id>/submit
+POST ${API_URL}/api/jobs/content/<id>/pick
+POST ${API_URL}/api/jobs/content/<id>/reject
+\`\`\`
+
+Site: ${SITE_URL}/jobs · receipts on ${SITE_URL}/proof. MCP: \`crew_post_content_job\`, \`crew_list_content_jobs\`, \`crew_submit_content_proof\`, \`crew_pick_content_winner\`. DEVNET only. Non-custodial.
 
 ## Related human product
 

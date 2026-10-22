@@ -1,4 +1,6 @@
 import { buybackStats, listBuybackRuns } from './buyback-exec.js'
+import { receiptToJson } from './jobs/content.js'
+import { memoryJobs } from './jobs/store.js'
 import { isHouseHandle } from './agent/optout.js'
 import { listCoins, listRemits, type ApiCoin, type ApiRemit } from './coins.js'
 import { query } from './db.js'
@@ -215,6 +217,7 @@ const roleTotals = sumByRole(classified)
       platform: c.platform || 'pumpfun',
     })),
     modeActions,
+    jobReceipts: memoryJobs.listReceipts(safeLimit).map(receiptToJson),
   }
 }
 

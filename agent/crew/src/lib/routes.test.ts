@@ -17,9 +17,13 @@ import {
   isKolsPath,
   isLaunchPath,
   isOnepagerPath,
+  isJobsListPath,
+  isJobsPath,
   isProofPath,
   isReferralPath,
   isRegisterPath,
+  jobIdFromPath,
+  jobPagePath,
   kolHandleFromPath,
   kolRefFromPath,
   referralCodeFromPath,
@@ -152,6 +156,21 @@ describe("isCoinsPath", () => {
     expect(isCoinsPath("/")).toBe(false);
     expect(isCoinsPath("/coin/So11111111111111111111111111111111111111112")).toBe(false);
     expect(isCoinsPath("/agents")).toBe(false);
+  });
+});
+
+describe("jobs paths", () => {
+  it("matches the content jobs board and detail", () => {
+    expect(isJobsListPath("/jobs")).toBe(true);
+    expect(isJobsListPath("/jobs/")).toBe(true);
+    expect(isJobsPath("/jobs")).toBe(true);
+    expect(isJobsPath("/jobs/job_abc12345")).toBe(true);
+    expect(jobIdFromPath("/jobs/job_abc12345")).toBe("job_abc12345");
+    expect(jobPagePath("job_abc12345")).toBe("/jobs/job_abc12345");
+    expect(isJobsListPath("/jobs/job_abc12345")).toBe(false);
+    expect(isJobsPath("/tasks")).toBe(false);
+    expect(isJobsPath("/")).toBe(false);
+    expect(jobIdFromPath("/jobs")).toBe(null);
   });
 });
 

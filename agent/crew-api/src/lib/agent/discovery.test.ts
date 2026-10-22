@@ -45,6 +45,9 @@ describe('agent discovery docs', () => {
     expect(spec.paths['/api/jobs/templates']).toBeTruthy()
     expect(spec.paths['/api/jobs/coin']).toBeTruthy()
     expect(spec.paths['/api/jobs/coin/dry-run']).toBeTruthy()
+    expect(spec.paths['/api/jobs/content']).toBeTruthy()
+    expect(spec.paths['/api/jobs/content/{id}/pick']).toBeTruthy()
+    expect(spec.paths['/api/jobs'].get).toBeTruthy()
     expect(spec.components.schemas.PostCoinJobRequest.properties.template.enum).toEqual([
       'meme-pack',
       'banner-logo',
@@ -109,6 +112,9 @@ describe('agent discovery docs', () => {
     expect(llmsTxt()).toContain('meme-pack')
     expect(llmsTxt()).toContain('does **not** receive the 60%')
     expect(llmsFullTxt()).toContain('POST /api/jobs/coin')
+    expect(llmsFullTxt()).toContain('/api/jobs/content')
+    expect(llmsTxt()).toContain('crew_post_content_job')
+    expect(agentDiscoveryJson().mcp.tools).toContain('crew_pick_content_winner')
     expect(llmsFullTxt().toLowerCase()).not.toMatch(/launcher gets 60/)
     expect(llmsTxt()).not.toMatch(/guaranteed/i)
     expect(agentDiscoveryJson().endpoints['GET /api/agent/launches']).toBeTruthy()

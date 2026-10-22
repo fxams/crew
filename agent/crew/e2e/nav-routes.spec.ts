@@ -14,6 +14,7 @@ const NAV_ROUTES = [
   '/ref/CrewPayHQ',
   '/kol/e2eKol',
   '/coins',
+  '/jobs',
   '/proof',
   '/launch',
 ]
@@ -37,6 +38,9 @@ async function mockDesk(page: import('@playwright/test').Page) {
   )
   await page.route('**/api/agent*', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) }),
+  )
+  await page.route('**/api/jobs**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, jobs: [] }) }),
   )
 }
 

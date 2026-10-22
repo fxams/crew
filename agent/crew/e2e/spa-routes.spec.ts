@@ -59,6 +59,9 @@ async function mockCommonApis(page: import('@playwright/test').Page) {
   await page.route('**/api/coins*', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ coins: [] }) }),
   )
+  await page.route('**/api/jobs**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, jobs: [] }) }),
+  )
   await page.route('**/api/agents/leaderboard*', (route) =>
     route.fulfill({
       status: 200,
@@ -78,7 +81,7 @@ async function mockCommonApis(page: import('@playwright/test').Page) {
   )
 }
 
-const paths = ['/', '/agents', '/agents/earn', '/kol', '/kol/leaderboard', '/kol/tasks', '/kol/alerts', '/coins', '/proof', '/register', '/ref/CrewPayHQ']
+const paths = ['/', '/agents', '/agents/earn', '/kol', '/kol/leaderboard', '/kol/tasks', '/kol/alerts', '/coins', '/jobs', '/proof', '/register', '/ref/CrewPayHQ']
 
 test.describe('SPA route smoke', () => {
   test.beforeEach(async ({ page }) => {
