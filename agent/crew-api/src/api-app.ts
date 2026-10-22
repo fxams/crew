@@ -12,6 +12,7 @@ import { kolsRouter } from './routes/kols.js'
 import { proofRouter } from './routes/proof.js'
 import { webhooksRouter } from './routes/webhooks.js'
 import { jobsRouter } from './routes/jobs.js'
+import { contentJobsRouter } from './routes/content-jobs.js'
 import { tasksRouter } from './routes/tasks.js'
 import { postLaunchRouter } from './routes/post-launch.js'
 import { farcasterRouter } from './routes/farcaster.js'
@@ -76,21 +77,24 @@ export function createApiApp(): Express {
   app.use('/api', coinsRouter)
   app.use('/api', kolsRouter)
   app.use('/api', kolRegisterRouter)
+
+  const jobsEnabled =
+    (process.env.JOBS_ENABLED || '').trim().toLowerCase() === '1' ||
+    (process.env.JOBS_ENABLED || '').trim().toLowerCase() === 'true'
+  // Jobs/tasks must be mounted before kolProgramRouter: that router 404s all
+  // remaining /api traffic when KOL_PROGRAM_ENABLED is off.
+  app.use('/api', tasksRouter)
+  if (jobsEnabled) {
+    app.use('/api', jobsRouter)
+  }
+  app.use('/api', contentJobsRouter)
+
   app.use('/api', kolProgramRouter)
   app.use('/api', walletConnectRouter)
   app.use('/api', telegramRouter)
   app.use('/api', agentRouter)
   app.use('/api', proofRouter)
   app.use('/api', webhooksRouter)
-
-  const jobsEnabled =
-    (process.env.JOBS_ENABLED || '').trim().toLowerCase() === '1' ||
-    (process.env.JOBS_ENABLED || '').trim().toLowerCase() === 'true'
-  // Task list/claim must respond even when JOBS_ENABLED is off (empty in-memory list).
-  app.use('/api', tasksRouter)
-  if (jobsEnabled) {
-    app.use('/api', jobsRouter)
-  }
 
   app.get('/', (_req, res) => {
     res.json({

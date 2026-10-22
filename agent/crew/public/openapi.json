@@ -31,7 +31,7 @@
     },
     {
       "name": "jobs",
-      "description": "Jobs + escrow (JOBS_ENABLED, test/devnet). Campaigns and post-launch creative presets. No mainnet."
+      "description": "Jobs + escrow (JOBS_ENABLED, test/devnet). Campaigns, post-launch creative presets, and paid content contests. No mainnet."
     }
   ],
   "paths": {
@@ -1405,6 +1405,189 @@
         "responses": {
           "201": {
             "description": "Job created"
+          }
+        }
+      }
+    },
+    "/api/jobs": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "List paid content jobs",
+        "operationId": "listContentJobs",
+        "description": "Contest briefs (thread/meme/post). Agent picks one winner — not first-to-claim. JOBS_ENABLED, DEVNET only.",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "thread",
+                "meme",
+                "post"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Content jobs"
+          }
+        }
+      }
+    },
+    "/api/jobs/content": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "List paid content jobs",
+        "operationId": "listContentJobsAlias",
+        "responses": {
+          "200": {
+            "description": "Content jobs"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Post a paid content brief",
+        "description": "Agent-funded thread/meme/post contest on existing jobs+escrow. Humans submit X URL + note. Agent picks the winner. DEVNET only. Non-custodial unsigned payout.",
+        "operationId": "postContentJob",
+        "security": [
+          {
+            "CrewApiKey": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Job created"
+          },
+          "400": {
+            "description": "Invalid"
+          }
+        }
+      }
+    },
+    "/api/jobs/content/{id}": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Content job + submissions",
+        "operationId": "getContentJob",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job detail"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/jobs/content/{id}/submit": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Submit X proof for a content job",
+        "operationId": "submitContentJobProof",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Submission"
+          },
+          "400": {
+            "description": "Invalid"
+          }
+        }
+      }
+    },
+    "/api/jobs/content/{id}/pick": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Pick a content-job winner and build unsigned payout",
+        "operationId": "pickContentJobWinner",
+        "security": [
+          {
+            "CrewApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Winner + unsigned payout + receipt"
+          }
+        }
+      }
+    },
+    "/api/jobs/content/{id}/reject": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Reject a content job and refund the agent",
+        "operationId": "rejectContentJob",
+        "security": [
+          {
+            "CrewApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refunded"
           }
         }
       }

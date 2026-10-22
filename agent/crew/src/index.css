@@ -6829,6 +6829,118 @@ ol.coin-timeline.coin-panel {
   gap: 0.5rem;
 }
 
+.page-jobs {
+  padding-bottom: 2.5rem;
+  background: #050806;
+}
+
+.section-jobs .section-title {
+  color: #c8ff3d;
+}
+
+.jobs-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.jobs-card {
+  width: 100%;
+  text-align: left;
+  padding: 0.9rem 1rem;
+  border: 1px solid color-mix(in srgb, #c8ff3d 28%, transparent);
+  border-radius: 0.75rem;
+  background: rgba(8, 16, 12, 0.85);
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.jobs-card:hover,
+.jobs-sub.is-winner {
+  box-shadow: 0 0 0 1px #c8ff3d;
+}
+
+.jobs-kind {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #c8ff3d;
+}
+
+.jobs-title {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.jobs-meta,
+.jobs-deadline {
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.jobs-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.jobs-brief {
+  white-space: pre-wrap;
+  font-size: 0.88rem;
+  margin: 0;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background: rgba(200, 255, 61, 0.06);
+  border: 1px solid color-mix(in srgb, #c8ff3d 18%, transparent);
+}
+
+.jobs-h2 {
+  margin: 1rem 0 0.25rem;
+  font-size: 1rem;
+  color: #c8ff3d;
+}
+
+.jobs-subs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.jobs-sub {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.6rem;
+  border: 1px solid rgba(200, 255, 61, 0.14);
+}
+
+.jobs-sub a {
+  color: #c8ff3d;
+  word-break: break-all;
+}
+
+.jobs-sub-note {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.jobs-agent {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border: 1px dashed color-mix(in srgb, #c8ff3d 30%, transparent);
+  border-radius: 0.6rem;
+}
+
 /* —— Admin ops dashboard (unlisted /admin/ops) —— */
 .site-admin-ops .nav-shell,
 .site-admin-ops .tape-top {
