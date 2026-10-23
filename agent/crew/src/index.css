@@ -9104,3 +9104,260 @@ ol.coin-timeline.coin-panel {
     padding-bottom: 1rem;
   }
 }
+
+/* —— Squads contest tab —— */
+.page-squads {
+  padding-bottom: 3rem;
+  background: #050806;
+}
+
+.section-squads .section-title {
+  color: #c8ff3d;
+}
+
+.squads-h2 {
+  margin: 1.4rem 0 0.4rem;
+  font-size: 1.05rem;
+  color: #c8ff3d;
+}
+
+.squads-h3 {
+  margin: 0.85rem 0 0.3rem;
+  font-size: 0.88rem;
+  color: #c8ff3d;
+}
+
+.squads-block {
+  margin-top: 1.25rem;
+}
+
+.squads-banner {
+  margin: 0.75rem 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.6rem;
+  border: 1px solid color-mix(in srgb, #c8ff3d 28%, transparent);
+  background: rgba(200, 255, 61, 0.08);
+}
+
+.squads-banner-pre,
+.squads-banner-stale {
+  font-size: 0.9rem;
+}
+
+.squads-disclaimer {
+  margin: 0.4rem 0 0.75rem;
+  padding: 0.75rem 0.85rem;
+  border-left: 3px solid #c8ff3d;
+  background: rgba(200, 255, 61, 0.06);
+  font-size: 0.9rem;
+}
+
+.squads-notes {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.squads-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.squads-table,
+.squads-mini {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.squads-mini {
+  min-width: 320px;
+}
+
+.squads-table th,
+.squads-table td,
+.squads-mini th,
+.squads-mini td {
+  text-align: left;
+  padding: 0.55rem 0.45rem;
+  border-bottom: 1px solid rgba(200, 255, 61, 0.1);
+  vertical-align: top;
+}
+
+.squads-table th,
+.squads-mini th {
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+}
+
+.squads-name {
+  background: none;
+  border: 0;
+  color: #c8ff3d;
+  font: inherit;
+  font-weight: 600;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.squads-pill {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.08rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, #c8ff3d 35%, transparent);
+  font-size: 0.62rem;
+  letter-spacing: 0.03em;
+  color: #c8ff3d;
+}
+
+.squads-collecting {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.squads-source {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.95rem;
+  height: 0.95rem;
+  margin-left: 0.28rem;
+  border-radius: 999px;
+  border: 1px solid rgba(200, 255, 61, 0.35);
+  font-size: 0.62rem;
+  color: var(--muted);
+  cursor: help;
+}
+
+.is-pos {
+  color: #c8ff3d;
+}
+
+.is-neg {
+  color: #ff7a7a;
+}
+
+.squads-expand td {
+  background: rgba(8, 16, 12, 0.7);
+}
+
+.squads-expand-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1.1rem;
+}
+
+.squads-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.squads-list a,
+.squads-method,
+.squads-disclaimer a,
+.squads-member a {
+  color: #c8ff3d;
+}
+
+.squads-evidence {
+  margin: 0.35rem 0;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.45rem;
+  background: rgba(0, 0, 0, 0.25);
+  font-size: 0.78rem;
+}
+
+.squads-flag-head {
+  margin: 0 0 0.25rem;
+}
+
+.squads-copy-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0.6rem 0;
+}
+
+.squads-kill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+}
+
+.squads-copy-ui {
+  border: 1px solid rgba(200, 255, 61, 0.16);
+  border-radius: 0.7rem;
+  padding: 0.8rem;
+  margin: 0;
+}
+
+.squads-copy-ui:disabled {
+  opacity: 0.55;
+}
+
+.squads-live-note {
+  margin: 0.55rem 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.squads-copy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.squads-signals {
+  max-height: 18rem;
+  overflow: auto;
+  font-size: 0.8rem;
+}
+
+.squads-strat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0.55rem 0;
+  padding: 0.65rem;
+  border-radius: 0.55rem;
+  border: 1px solid rgba(200, 255, 61, 0.14);
+}
+
+.squads-curve {
+  color: #c8ff3d;
+}
+
+.squads-curve svg {
+  width: min(100%, 320px);
+  height: auto;
+}
+
+@media (max-width: 720px) {
+  .squads-expand-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .squads-table,
+  .squads-mini {
+    font-size: 0.75rem;
+  }
+
+  .squads-pill {
+    display: block;
+    margin: 0.25rem 0 0;
+    width: fit-content;
+  }
+}

@@ -244,6 +244,12 @@ export function isJobsPath(pathname: string): boolean {
   return isJobsListPath(pathname) || Boolean(jobIdFromPath(pathname))
 }
 
+/** Pump.fun Squads contest tab. */
+export function isSquadsPath(pathname: string): boolean {
+  const path = normalizePath(pathname)
+  return path === '/squads' || path.endsWith('/squads')
+}
+
 export function isAdminKickoffPath(pathname: string): boolean {
   const path = normalizePath(pathname)
   return path === '/admin/kickoff' || path.endsWith('/admin/kickoff')
