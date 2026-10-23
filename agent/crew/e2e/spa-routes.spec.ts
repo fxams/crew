@@ -62,7 +62,7 @@ async function mockCommonApis(page: import('@playwright/test').Page) {
   await page.route('**/api/jobs**', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, jobs: [] }) }),
   )
-  await page.route('**/upstream-feed/v1/squads/**', (route) =>
+  await page.route('**/api/squads/**', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -72,8 +72,6 @@ async function mockCommonApis(page: import('@playwright/test').Page) {
         refresh_seconds: 600,
         disclaimer:
           'Automated statistical analysis of public on-chain data. Indicates unusual trading patterns only, not proof of wrongdoing or an accusation against any person or squad. May contain errors.',
-        methodology_url: 'upstream-feed
-        dispute_contact: 'crewpay@mail.grokbot.com',
         competition: { name: 'Squad Invitiational' },
         squads: [],
         overlap: { shared_open_tokens: [], cotrade_pairs: [] },
@@ -101,7 +99,7 @@ async function mockCommonApis(page: import('@playwright/test').Page) {
   )
 }
 
-const paths = ['/', '/agents', '/agents/earn', '/kol', '/kol/leaderboard', '/kol/tasks', '/kol/alerts', '/coins', '/jobs', '/squads', '/proof', '/register', '/ref/CrewPayHQ']
+const paths = ['/', '/agents', '/agents/earn', '/kol', '/kol/leaderboard', '/kol/tasks', '/kol/alerts', '/coins', '/jobs', '/squads', '/squads/methodology', '/proof', '/register', '/ref/CrewPayHQ']
 
 test.describe('SPA route smoke', () => {
   test.beforeEach(async ({ page }) => {

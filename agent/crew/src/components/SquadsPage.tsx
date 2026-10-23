@@ -12,6 +12,7 @@ import { shortAddr } from '../lib/wallet'
 import {
   SQUADS_COLLECTING,
   SQUADS_LIVE_COPY_NOTE,
+  SQUADS_METHODOLOGY_PATH,
   SQUADS_PRESTART_BADGE,
   copySignalsOf,
   fetchSquadsCopy,
@@ -37,7 +38,6 @@ import {
   squadNameById,
   squadsDisclaimer,
   squadsDisputeContact,
-  squadsMethodologyUrl,
   squadsRefreshMs,
   writeLocalKillSwitch,
   xHandleHref,
@@ -108,11 +108,11 @@ function MemberPublic({ member }: { member: { username?: string | null; x_handle
   )
 }
 
-function MethodologyLink({ href }: { href: string }) {
+function MethodologyLink() {
   return (
-    <a className="squads-method" href={href} target="_blank" rel="noreferrer">
+    <Link className="squads-method" to={SQUADS_METHODOLOGY_PATH}>
       Methodology
-    </a>
+    </Link>
   )
 }
 
@@ -317,9 +317,8 @@ export function SquadsPage() {
   }, [picked])
 
   const names = useMemo(() => squadNameById(feed?.squads), [feed])
-  const methodology = squadsMethodologyUrl(feed)
   const disclaimer = squadsDisclaimer(feed)
-  const dispute = squadsDisputeContact(feed)
+  const dispute = squadsDisputeContact()
   const prestart = isSquadsPreStart(feed?.status)
   const stale = isSquadsFeedStale(feed?.updated_at, now)
   const contestStart = feed?.competition?.start
@@ -405,11 +404,7 @@ export function SquadsPage() {
         <h1 className="section-title">{feed?.competition?.name || 'Squad Invitational'}</h1>
         <p className="section-sub">
           Public pump.fun squad board. Wallets and public pump.fun usernames or X handles only. No
-          earnings promises. Data from{' '}
-          <a href="upstream-feed target="_blank" rel="noreferrer">
-            upstream-feed
-          </a>
-          , refreshed every 10 minutes.
+          earnings promises. Refreshed every 10 minutes.
         </p>
 
         {prestart ? (
@@ -472,7 +467,6 @@ export function SquadsPage() {
                     squad={squad}
                     open={openId === squad.id}
                     prestart={prestart}
-                    methodology={methodology}
                     names={names}
                     onToggle={() => setOpenId(openId === squad.id ? null : squad.id)}
                   />
@@ -489,7 +483,7 @@ export function SquadsPage() {
           </h2>
           <p className="squads-disclaimer" data-testid="squads-disclaimer">
             {disclaimer}{' '}
-            <MethodologyLink href={methodology} />
+            <MethodologyLink />
             {' · '}
             <a href={`mailto:${dispute}`}>Corrections: {dispute}</a>
           </p>
@@ -513,7 +507,7 @@ export function SquadsPage() {
                       <td>{squad.name}</td>
                       <td>
                         {squad.anomaly?.anomaly_score ?? 0} / 100{' '}
-                        <MethodologyLink href={methodology} />
+                        <MethodologyLink />
                       </td>
                       <td>{squad.anomaly?.anomaly_rank ?? '—'}</td>
                       <td>{squad.anomaly?.flag_count ?? 0}</td>
@@ -703,14 +697,12 @@ function SquadLeaderRow({
   squad,
   open,
   prestart,
-  methodology,
   names,
   onToggle,
 }: {
   squad: SquadRow
   open: boolean
   prestart: boolean
-  methodology: string
   names: Map<string, string>
   onToggle: () => void
 }) {
@@ -880,7 +872,7 @@ function SquadLeaderRow({
                   </p>
                 )}
                 <h3 className="squads-h3">
-                  Anomaly score <MethodologyLink href={methodology} />
+                  Anomaly score <MethodologyLink />
                 </h3>
                 <p>
                   {squad.anomaly?.anomaly_score ?? 0} / 100

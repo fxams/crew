@@ -250,6 +250,12 @@ export function isSquadsPath(pathname: string): boolean {
   return path === '/squads' || path.endsWith('/squads')
 }
 
+/** CrewPay-hosted anomaly score notes. */
+export function isSquadsMethodologyPath(pathname: string): boolean {
+  const path = normalizePath(pathname)
+  return path === '/squads/methodology' || path.endsWith('/squads/methodology')
+}
+
 export function isAdminKickoffPath(pathname: string): boolean {
   const path = normalizePath(pathname)
   return path === '/admin/kickoff' || path.endsWith('/admin/kickoff')

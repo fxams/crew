@@ -20,6 +20,7 @@ import { adminOpsRouter } from './routes/admin-ops.js'
 import { suiLaunchpadRouter } from './routes/sui-launchpad.js'
 import { kolProgramRouter } from './routes/kol-program.js'
 import { kolSharePagesRouter } from './routes/kol-share-pages.js'
+import { squadsRouter } from './routes/squads.js'
 import { configureTrustProxy } from './lib/client-ip.js'
 
 const defaultOrigins =
@@ -88,6 +89,9 @@ export function createApiApp(): Express {
     app.use('/api', jobsRouter)
   }
   app.use('/api', contentJobsRouter)
+  // Squads proxy before kolProgramRouter: that router 404s remaining /api
+  // traffic when KOL_PROGRAM_ENABLED is off.
+  app.use('/api', squadsRouter)
 
   app.use('/api', kolProgramRouter)
   app.use('/api', walletConnectRouter)

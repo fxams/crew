@@ -1,9 +1,10 @@
+import { CREW_AGENT_API_URL } from './config'
 import { formatUtc } from './format-utc'
 import { shortAddr } from './wallet'
 
-export const SQUADS_DASHBOARD_URL = 'upstream-feed
-export const SQUADS_COPY_URL = 'upstream-feed
-export const SQUADS_METHODOLOGY_URL = 'upstream-feed
+export const SQUADS_DASHBOARD_PATH = '/api/squads/dashboard'
+export const SQUADS_COPY_PATH = '/api/squads/copy'
+export const SQUADS_METHODOLOGY_PATH = '/squads/methodology'
 export const SQUADS_DISPUTE_CONTACT = 'crewpay@mail.grokbot.com'
 export const SQUADS_DISCLAIMER_FALLBACK =
   'Automated statistical analysis of public on-chain data. Indicates unusual trading patterns only, not proof of wrongdoing or an accusation against any person or squad. May contain errors.'
@@ -319,8 +320,6 @@ export type SquadsDashboard = {
   paper_copy?: SquadsPaperCopy | null
   copy_signals?: CopySignal[] | null
   disclaimer?: string | null
-  methodology_url?: string | null
-  dispute_contact?: string | null
   notes?: string[] | null
   caveat?: string | null
 }
@@ -346,14 +345,12 @@ export function squadsDisclaimer(feed?: Pick<SquadsDashboard, 'disclaimer'> | nu
   return text || SQUADS_DISCLAIMER_FALLBACK
 }
 
-export function squadsMethodologyUrl(feed?: Pick<SquadsDashboard, 'methodology_url'> | null): string {
-  const url = feed?.methodology_url?.trim()
-  return url || SQUADS_METHODOLOGY_URL
+export function squadsMethodologyUrl(): string {
+  return SQUADS_METHODOLOGY_PATH
 }
 
-export function squadsDisputeContact(feed?: Pick<SquadsDashboard, 'dispute_contact'> | null): string {
-  const email = feed?.dispute_contact?.trim()
-  return email || SQUADS_DISPUTE_CONTACT
+export function squadsDisputeContact(): string {
+  return SQUADS_DISPUTE_CONTACT
 }
 
 export function isSquadsPreStart(status: SquadsStatus | null | undefined): boolean {
@@ -557,8 +554,16 @@ async function readJson(res: Response): Promise<Record<string, unknown>> {
   }
 }
 
+export function squadsDashboardUrl(): string {
+  return `${CREW_AGENT_API_URL}${SQUADS_DASHBOARD_PATH}`
+}
+
+export function squadsCopyUrl(squad: string): string {
+  return `${CREW_AGENT_API_URL}${SQUADS_COPY_PATH}?squad=${encodeURIComponent(squad)}`
+}
+
 export async function fetchSquadsDashboard(signal?: AbortSignal): Promise<SquadsDashboard> {
-  const res = await fetch(SQUADS_DASHBOARD_URL, { signal })
+  const res = await fetch(squadsDashboardUrl(), { signal })
   const data = await readJson(res)
   if (res.status === 503) {
     throw new Error(typeof data.error === 'string' ? data.error : 'feed not available yet')
@@ -569,11 +574,8 @@ export async function fetchSquadsDashboard(signal?: AbortSignal): Promise<Squads
   return data as SquadsDashboard
 }
 
-export async function fetchSquadsCopy(squad?: string, signal?: AbortSignal): Promise<SquadsCopyFeed> {
-  const url = squad
-    ? `${SQUADS_COPY_URL}?squad=${encodeURIComponent(squad)}`
-    : SQUADS_COPY_URL
-  const res = await fetch(url, { signal })
+export async function fetchSquadsCopy(squad: string, signal?: AbortSignal): Promise<SquadsCopyFeed> {
+  const res = await fetch(squadsCopyUrl(squad), { signal })
   const data = await readJson(res)
   if (res.status === 404 || data.error) {
     throw new Error(typeof data.error === 'string' ? data.error : 'Unknown squad')

@@ -157,6 +157,9 @@ services:
       # Probe: GET /health/jito (also logged at API startup).
       - key: CREW_ATOMIC_REQUIRED
         value: "1"
+      # Squads feed origin only (scheme + host, no path). Unset → /api/squads/* 503.
+      - key: SQUADS_UPSTREAM_URL
+        sync: false
 
   - type: web
     name: crewpay-mcp
