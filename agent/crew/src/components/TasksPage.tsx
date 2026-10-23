@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useWallet } from '@solana/wallet-adapter-react'
 import bs58 from 'bs58'
 import { CREW_AGENT_API_URL, CREW_VERSION } from '../lib/config'
+import { formatUtc } from '../lib/format-utc'
 import { JoinTelegramBox } from './JoinTelegramBox'
 
 type TaskRow = {
@@ -184,7 +185,7 @@ export function TasksPage() {
                   {t.taskCategory ? <p className="muted">Category: {t.taskCategory}</p> : null}
                   <pre className="tasks-spec">{t.spec}</pre>
                   <p className="muted">
-                    Deadline {new Date(t.deadline).toLocaleString()} · {t.chainId}
+                    Deadline {formatUtc(t.deadline)} · {t.chainId}
                   </p>
                   <div className="tasks-actions">
                     <button

@@ -6,6 +6,7 @@ import { ConnectButton } from './ConnectButton'
 import { useWalletAuth } from './WalletAuthProvider'
 import { XLink } from './XLink'
 import { CREW_VERSION, PUMP_COIN_URL, SQUADS_ENABLED } from '../lib/config'
+import { formatUtc, formatUtcCountdown, leaksNonUtcZone } from '../lib/format-utc'
 import { persistExplicitDisconnect } from '../lib/wallet-session'
 import { shortAddr } from '../lib/wallet'
 import {
@@ -321,6 +322,11 @@ export function SquadsPage() {
   const dispute = squadsDisputeContact(feed)
   const prestart = isSquadsPreStart(feed?.status)
   const stale = isSquadsFeedStale(feed?.updated_at, now)
+  const contestStart = feed?.competition?.start
+  const contestEnd = feed?.competition?.end
+  const startLeft = formatUtcCountdown(contestStart, now)
+  const endLeft = formatUtcCountdown(contestEnd, now)
+  const publicNotes = (feed?.notes || []).filter((n) => !leaksNonUtcZone(n))
   const paper = feed?.paper_copy
   const feedKill = Boolean(paper?.kill_switch_engaged)
   const copyOff = paperCopyBlocked({
@@ -409,18 +415,34 @@ export function SquadsPage() {
         {prestart ? (
           <p className="squads-banner squads-banner-pre" data-testid="squads-prestart">
             Contest has not started. Rank and P&amp;L are placeholders ({SQUADS_PRESTART_BADGE}).
+            {contestStart ? (
+              <>
+                {' '}
+                Starts {formatUtc(contestStart)}
+                {startLeft ? ` · ${startLeft} left` : ''}.
+              </>
+            ) : null}{' '}
             Hover a rank or P&amp;L cell for <code>rank_source</code> / <code>pnl_source</code>.
           </p>
+        ) : feed?.status === 'live' && contestEnd ? (
+          <p className="squads-banner" data-testid="squads-live">
+            Contest is live. Ends {formatUtc(contestEnd)}
+            {endLeft ? ` · ${endLeft} left` : ''}.
+          </p>
+        ) : feed?.status === 'ended' && contestEnd ? (
+          <p className="squads-banner">Contest ended {formatUtc(contestEnd)}.</p>
         ) : null}
         {stale && feed ? (
-          <p className="squads-banner squads-banner-stale">Feed is stale. Last update {feed.updated_at}.</p>
+          <p className="squads-banner squads-banner-stale">
+            Feed is stale. Last update {formatUtc(feed.updated_at)}.
+          </p>
         ) : null}
         {loading ? <p className="muted">Loading squads…</p> : null}
         {error ? <p className="form-error">{error}</p> : null}
 
-        {feed?.notes?.length ? (
+        {publicNotes.length ? (
           <ul className="squads-notes">
-            {feed.notes.map((n) => (
+            {publicNotes.map((n) => (
               <li key={n}>{n}</li>
             ))}
           </ul>

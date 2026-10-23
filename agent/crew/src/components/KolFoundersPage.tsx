@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { KOL_PROGRAM_ENABLED } from '../lib/config'
+import { formatUtc } from '../lib/format-utc'
 import { KOL_PROGRAM_POINTS_DISCLAIMER, fetchKolFounders } from '../lib/kol-program'
 import { kolProfilePath } from '../lib/routes'
 import { KolMobileTabBar } from './KolMobileTabBar'
@@ -38,7 +39,7 @@ export function KolFoundersPage() {
           Founding KOL #NNN.
         </p>
         {snapshotAt ? (
-          <p className="hint">Snapshot: {new Date(snapshotAt).toLocaleString()}</p>
+          <p className="hint">Snapshot: {formatUtc(snapshotAt)}</p>
         ) : (
           <p className="hint">Snapshot has not run yet — see countdown on /kol.</p>
         )}

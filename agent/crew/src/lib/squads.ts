@@ -1,3 +1,4 @@
+import { formatUtc } from './format-utc'
 import { shortAddr } from './wallet'
 
 export const SQUADS_DASHBOARD_URL = 'upstream-feed
@@ -452,27 +453,7 @@ export function formatHoldMin(n: number | null | undefined): string {
 }
 
 export function formatWhen(iso: string | number | null | undefined): string {
-  if (iso == null || iso === '') return '—'
-  if (typeof iso === 'number' && iso > 1e12) {
-    try {
-      return new Date(iso).toLocaleString()
-    } catch {
-      return String(iso)
-    }
-  }
-  if (typeof iso === 'number') {
-    const ms = iso > 1e10 ? iso : iso * 1000
-    try {
-      return new Date(ms).toLocaleString()
-    } catch {
-      return String(iso)
-    }
-  }
-  try {
-    return new Date(iso).toLocaleString()
-  } catch {
-    return String(iso)
-  }
+  return formatUtc(iso)
 }
 
 export function squadNameById(squads: SquadRow[] | null | undefined): Map<string, string> {

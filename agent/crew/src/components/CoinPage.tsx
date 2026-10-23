@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { CREW_AGENT_API_URL, CREW_VERSION, SOLSCAN_TX_URL } from '../lib/config'
+import { formatUtc } from '../lib/format-utc'
 import type { AgentEarnedOnCoin } from '../lib/api'
 import {
   agentBoardIdentity,
@@ -105,7 +106,7 @@ function shortAddr(addr: string) {
 
 function fmtStamp(ms?: number | null) {
   if (!ms || !Number.isFinite(ms)) return null
-  return new Date(ms).toISOString().replace('T', ' ').slice(0, 16) + ' UTC'
+  return formatUtc(ms)
 }
 
 export function CoinPage() {
