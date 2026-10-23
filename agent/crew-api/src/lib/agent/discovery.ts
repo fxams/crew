@@ -15,7 +15,7 @@ import {
 } from '../x402.js'
 
 /** Pinned npm package for local MCP. Bump with agent/crew-mcp/package.json. */
-export const MCP_PACKAGE_VERSION = '1.2.13'
+export const MCP_PACKAGE_VERSION = '1.2.14'
 
 export const SITE_URL = 'https://crewpay.dev'
 /** Canonical Agent API (custom domain). */

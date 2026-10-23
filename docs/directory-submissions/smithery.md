@@ -12,7 +12,7 @@ npx @smithery/cli mcp publish "https://mcp.crewpay.dev/mcp" -n fxams/crewpay \
   --config-schema '{"type":"object","properties":{"apiKey":{"type":"string","description":"CREW agent API key (x-crew-api-key)"}},"required":["apiKey"]}'
 ```
 
-Stdio install uses pinned `npx -y crewpay-mcp@1.2.13` via root `smithery.yaml`.
+Stdio install uses pinned `npx -y crewpay-mcp@1.2.14` via root `smithery.yaml`.
 
 ## Description (keep honest)
 

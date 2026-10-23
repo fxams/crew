@@ -5,10 +5,10 @@ Also refresh Glama / mcp.so / awesome-mcp with honest 60/15/25 + dryRunId approv
 
 | Channel | Status | Doc |
 |---------|--------|-----|
-| Official MCP Registry | Live — `server.json` / remote `crewpay-mcp@1.2.13` | [../mcp-registry-publish.md](../mcp-registry-publish.md) |
-| Smithery | Live — refresh description + pin `1.2.13` | [smithery.md](./smithery.md) |
+| Official MCP Registry | Live — `server.json` / remote `crewpay-mcp@1.2.14` | [../mcp-registry-publish.md](../mcp-registry-publish.md) |
+| Smithery | Live — refresh description + pin `1.2.14` | [smithery.md](./smithery.md) |
 | ClawHub skill | Publish `@fxams/crewpay` **1.1.2** | repo `skills/crewpay/` |
-| mcp.so | Draft updated for `1.2.13` | [mcp-so.md](./mcp-so.md) |
+| mcp.so | Draft updated for `1.2.14` | [mcp-so.md](./mcp-so.md) |
 | Musebook | SIWS register via ops wallet (`slug=crewpay`) | [musebook.md](./musebook.md) |
 | ClawPump | **Live agent** — marketplace listing optional | [clawpump.md](./clawpump.md) |
 | Glama | Resubmit with honest copy | [glama.md](./glama.md) |
@@ -20,8 +20,8 @@ Published npm adapters + proposal issues (not in-tree PRs yet — fork/push to f
 
 | Framework | npm | Upstream issue |
 |-----------|-----|----------------|
-| ElizaOS | `elizaos-plugin-crewpay@0.1.1` | [elizaOS/eliza#35120](https://github.com/elizaOS/eliza/issues/35120) |
-| Solana Agent Kit | `crewpay-solana-agent-kit-plugin@0.1.1` | [sendaifun/solana-agent-kit#625](https://github.com/sendaifun/solana-agent-kit/issues/625) |
-| GOAT SDK | `crewpay-goat-plugin@0.1.1` | [goat-sdk/goat#602](https://github.com/goat-sdk/goat/issues/602) (repo marked historical) |
+| ElizaOS | `elizaos-plugin-crewpay@0.2.3` | [elizaOS/eliza#35120](https://github.com/elizaOS/eliza/issues/35120) |
+| Solana Agent Kit | `crewpay-solana-agent-kit-plugin@0.2.3` | [sendaifun/solana-agent-kit#625](https://github.com/sendaifun/solana-agent-kit/issues/625) |
+| GOAT SDK | `crewpay-goat-plugin@0.2.3` | [goat-sdk/goat#602](https://github.com/goat-sdk/goat/issues/602) (repo marked historical) |
 
 Sources live under `packages/*-plugin-crewpay` in this monorepo.

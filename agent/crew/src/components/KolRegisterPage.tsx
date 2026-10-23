@@ -60,7 +60,7 @@ import {
 import { JoinTelegramBox } from './JoinTelegramBox'
 import { normalizeRegisterSrc, registerPageQuery } from '../lib/register-attribution'
 
-const MCP_PIN = '1.2.13'
+const MCP_PIN = '1.2.14'
 
 const API = (
   (import.meta.env.VITE_CREW_API_URL as string | undefined)?.replace(/\/$/, '') ||

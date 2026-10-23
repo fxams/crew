@@ -1,10 +1,10 @@
-# Official MCP Registry — publish `crewpay-mcp@1.2.13` + hosted remote
+# Official MCP Registry — publish `crewpay-mcp@1.2.14` + hosted remote
 
 **Primary discovery channel** (with Smithery + ClawHub). Glama / awesome-mcp are skipped.
 
 `package.json` `mcpName` must match `server.json` `name`: **`io.github.fxams/crewpay-mcp`**.
 
-Repo `agent/crew-mcp/server.json` targets **1.2.13**:
+Repo `agent/crew-mcp/server.json` targets **1.2.14**:
 
 Confirm anytime:
 ```bash
@@ -14,7 +14,7 @@ curl -sS 'https://registry.modelcontextprotocol.io/v0/servers?search=crewpay&ver
 
 Card includes:
 
-- npm package `crewpay-mcp@1.2.13` (stdio)
+- npm package `crewpay-mcp@1.2.14` (stdio)
 - remote `streamable-http` → `https://mcp.crewpay.dev/mcp`
 
 ## Install the official CLI (not npm)
@@ -45,4 +45,4 @@ mcp-publisher login github
 mcp-publisher publish ./server.json
 ```
 
-After publish, confirm `version` is `1.2.13` and remotes include `https://mcp.crewpay.dev/mcp`.
+After publish, confirm `version` is `1.2.14` and remotes include `https://mcp.crewpay.dev/mcp`.
