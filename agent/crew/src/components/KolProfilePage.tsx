@@ -13,6 +13,7 @@ import {
   REFERRAL_POINTS_REGISTER_DAILY_CAP,
 } from '../lib/config'
 import { formatSol } from '../lib/format-sol'
+import { formatUtc } from '../lib/format-utc'
 import { useOwnRegisteredHandle } from '../lib/registered-kol'
 import {
   fetchKolProgramProfile,
@@ -146,14 +147,7 @@ function deskAvatarSrc(profile: Profile): string | null {
 }
 
 function formatWhen(iso: string) {
-  const t = Date.parse(iso)
-  if (!Number.isFinite(t)) return ''
-  return new Date(t).toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return formatUtc(iso)
 }
 
 type PaidPitch = {

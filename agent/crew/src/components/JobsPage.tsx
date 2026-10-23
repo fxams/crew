@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useWallet } from '@solana/wallet-adapter-react'
 import bs58 from 'bs58'
 import { CREW_AGENT_API_URL, CREW_VERSION } from '../lib/config'
+import { formatUtc } from '../lib/format-utc'
 import { jobIdFromPath, jobPagePath } from '../lib/routes'
 import { JoinTelegramBox } from './JoinTelegramBox'
 
@@ -46,11 +47,7 @@ async function readJsonBody(res: Response): Promise<Record<string, unknown>> {
 }
 
 function fmtWhen(ms: number) {
-  try {
-    return new Date(ms).toLocaleString()
-  } catch {
-    return '—'
-  }
+  return formatUtc(ms)
 }
 
 function shortAddr(addr: string) {

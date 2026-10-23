@@ -4,6 +4,7 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import bs58 from 'bs58'
 import { CREW_AGENT_API_URL, CREW_VERSION } from '../lib/config'
 import { formatSol } from '../lib/format-sol'
+import { formatUtc } from '../lib/format-utc'
 import { adminSecretFromSearch, farcasterAdminHeaders } from '../lib/neynar-siwn'
 import { useConnectModal } from './ConnectModal'
 
@@ -74,12 +75,7 @@ function fmtSol(v: number | null | undefined) {
 }
 
 function fmtTime(ms: number | null | undefined) {
-  return na(ms, (n) => {
-    const d = new Date(n)
-    const age = Date.now() - n
-    if (age < 86_400_000) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    return d.toLocaleString()
-  })
+  return na(ms, (n) => formatUtc(n))
 }
 
 function roleGlyph(id: string): string {
@@ -235,7 +231,7 @@ export function AdminOpsPage() {
     return () => window.clearInterval(id)
   }, [data, load])
 
-  const clock = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  const clock = formatUtc(Date.now())
 
   return (
     <div className="admin-ops app-shell">

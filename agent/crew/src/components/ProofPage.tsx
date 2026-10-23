@@ -11,6 +11,7 @@ import {
 } from '../lib/config'
 import { fetchProof, type ProofBundle } from '../lib/api'
 import { formatSol } from '../lib/format-sol'
+import { formatUtc } from '../lib/format-utc'
 import { PlatformBadge } from './PlatformBadge'
 import { PlatformFilter } from './PlatformFilter'
 import { useLaunchVenues } from '../lib/use-launch-venues'
@@ -32,11 +33,7 @@ function fmtSol(n: number | null | undefined) {
 }
 
 function fmtTime(ms: number) {
-  try {
-    return new Date(ms).toLocaleString()
-  } catch {
-    return '—'
-  }
+  return formatUtc(ms)
 }
 
 function remitExplorerUrl(
