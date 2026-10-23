@@ -43,7 +43,7 @@ async function mockDesk(page: import('@playwright/test').Page) {
   await page.route('**/api/jobs**', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, jobs: [] }) }),
   )
-  await page.route('**/deepcounterfeit.com/v1/squads/**', (route) =>
+  await page.route('**/api/squads/**', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -53,8 +53,6 @@ async function mockDesk(page: import('@playwright/test').Page) {
         refresh_seconds: 600,
         disclaimer:
           'Automated statistical analysis of public on-chain data. Indicates unusual trading patterns only, not proof of wrongdoing or an accusation against any person or squad. May contain errors.',
-        methodology_url: 'https://deepcounterfeit.com/squads/methodology',
-        dispute_contact: 'ceo@deepcounterfeit.com',
         competition: { name: 'Squad Invitiational' },
         squads: [],
         overlap: { shared_open_tokens: [], cotrade_pairs: [] },

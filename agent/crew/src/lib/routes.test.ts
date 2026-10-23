@@ -20,6 +20,7 @@ import {
   isJobsListPath,
   isJobsPath,
   isProofPath,
+  isSquadsMethodologyPath,
   isSquadsPath,
   isReferralPath,
   isRegisterPath,
@@ -180,9 +181,20 @@ describe("isSquadsPath", () => {
     expect(isSquadsPath("/squads")).toBe(true);
     expect(isSquadsPath("/squads/")).toBe(true);
     expect(isSquadsPath("/crew/squads")).toBe(true);
+    expect(isSquadsPath("/squads/methodology")).toBe(false);
     expect(isSquadsPath("/")).toBe(false);
     expect(isSquadsPath("/jobs")).toBe(false);
     expect(isSquadsPath("/proof")).toBe(false);
+  });
+});
+
+describe("isSquadsMethodologyPath", () => {
+  it("matches the CrewPay methodology page", () => {
+    expect(isSquadsMethodologyPath("/squads/methodology")).toBe(true);
+    expect(isSquadsMethodologyPath("/squads/methodology/")).toBe(true);
+    expect(isSquadsMethodologyPath("/crew/squads/methodology")).toBe(true);
+    expect(isSquadsMethodologyPath("/squads")).toBe(false);
+    expect(isSquadsMethodologyPath("/")).toBe(false);
   });
 });
 

@@ -179,6 +179,7 @@ npm run dev
 | `CREW_BUYBACK_PRIVATE_KEY` | Buyback cron only |
 | `CREW_BUYBACK_MINT` | Buyback cron only |
 | `CORS_ORIGINS` | Browser origins |
+| `SQUADS_UPSTREAM_URL` | Squads feed origin (scheme + host, no path). `GET /api/squads/dashboard` and `GET /api/squads/copy?squad=` proxy it. Unset → 503 `squads feed not configured`. |
 | `ACP_INPROCESS` | When `1`, start the ACP listener in this process (still no-op unless `ACP_ENABLED=1`) |
 | `ACP_ENABLED` | When `1`, the ACP listener may connect (default off) |
 

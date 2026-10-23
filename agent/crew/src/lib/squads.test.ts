@@ -4,11 +4,15 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   SQUADS_COLLECTING,
+  SQUADS_COPY_PATH,
+  SQUADS_DASHBOARD_PATH,
   SQUADS_DISCLAIMER_FALLBACK,
   SQUADS_DISPUTE_CONTACT,
   SQUADS_LIVE_COPY_NOTE,
-  SQUADS_METHODOLOGY_URL,
+  SQUADS_METHODOLOGY_PATH,
   SQUADS_PRESTART_BADGE,
+  squadsCopyUrl,
+  squadsDashboardUrl,
   isCapitalFlowsCollecting,
   isMomentumCollecting,
   isSquadsFeedStale,
@@ -35,6 +39,7 @@ describe('squads wording', () => {
     const files = [
       join(here, 'squads.ts'),
       join(here, '../components/SquadsPage.tsx'),
+      join(here, '../components/SquadsMethodologyPage.tsx'),
     ]
     const banned = /\bcheat(ing|s|ed)?\b|\bcheat rank\b/i
     for (const file of files) {
@@ -49,6 +54,23 @@ describe('squads wording', () => {
     expect(src).toContain('formatUtcCountdown')
   })
 
+  it('fetches only the CrewPay squads proxy and hosts methodology locally', () => {
+    const src = [
+      readFileSync(join(here, 'squads.ts'), 'utf8'),
+      readFileSync(join(here, '../components/SquadsPage.tsx'), 'utf8'),
+      readFileSync(join(here, '../components/SquadsMethodologyPage.tsx'), 'utf8'),
+    ].join('\n')
+    const needle = ['deep', 'counter', 'feit'].join('')
+    expect(src.toLowerCase()).not.toContain(needle)
+    expect(SQUADS_DASHBOARD_PATH).toBe('/api/squads/dashboard')
+    expect(SQUADS_COPY_PATH).toBe('/api/squads/copy')
+    expect(squadsDashboardUrl()).toMatch(/\/api\/squads\/dashboard$/)
+    expect(squadsCopyUrl('alpha-1')).toContain('/api/squads/copy?squad=alpha-1')
+    expect(squadsMethodologyUrl()).toBe('/squads/methodology')
+    expect(src).toContain('SQUADS_METHODOLOGY_PATH')
+    expect(src).toContain('crewpay@mail.grokbot.com')
+  })
+
   it('does not build, sign, or send swaps', () => {
     const src = readFileSync(join(here, '../components/SquadsPage.tsx'), 'utf8')
     expect(src).not.toMatch(/signTransaction|sendTransaction|jupiter|VersionedTransaction/i)
@@ -60,10 +82,15 @@ describe('squads wording', () => {
   it('uses the required disclaimer fallback and dispute contact', () => {
     expect(squadsDisclaimer({})).toBe(SQUADS_DISCLAIMER_FALLBACK)
     expect(squadsDisclaimer({ disclaimer: '  ' })).toBe(SQUADS_DISCLAIMER_FALLBACK)
-    expect(squadsMethodologyUrl({})).toBe(SQUADS_METHODOLOGY_URL)
-    expect(squadsDisputeContact({})).toBe(SQUADS_DISPUTE_CONTACT)
+    expect(squadsMethodologyUrl()).toBe(SQUADS_METHODOLOGY_PATH)
+    expect(squadsDisputeContact()).toBe(SQUADS_DISPUTE_CONTACT)
+    expect(SQUADS_DISPUTE_CONTACT).toBe('crewpay@mail.grokbot.com')
     expect(SQUADS_PRESTART_BADGE).toBe('pre-start, not contest PnL')
     expect(SQUADS_LIVE_COPY_NOTE).toBe('Live copy coming later')
+    const methodSrc = readFileSync(join(here, '../components/SquadsMethodologyPage.tsx'), 'utf8')
+    expect(methodSrc).toContain('Anomaly score')
+    expect(methodSrc).toContain('SQUADS_DISCLAIMER_FALLBACK')
+    expect(methodSrc).toContain('SQUADS_DISPUTE_CONTACT')
   })
 })
 
