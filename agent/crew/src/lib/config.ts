@@ -15,6 +15,14 @@ export const KOL_PROGRAM_ENABLED =
   import.meta.env.VITE_KOL_PROGRAM_ENABLED === '1' ||
   import.meta.env.VITE_KOL_PROGRAM_ENABLED === 'true'
 
+/**
+ * Pump.fun Squads contest tab at /squads (nav + route). Off unless VITE_SQUADS_ENABLED=1.
+ * Also accepted as SQUADS_ENABLED in operator notes — the Vite build reads VITE_SQUADS_ENABLED.
+ */
+export const SQUADS_ENABLED =
+  import.meta.env.VITE_SQUADS_ENABLED === '1' ||
+  import.meta.env.VITE_SQUADS_ENABLED === 'true'
+
 /** Official CREW / CrewPay HQ account on X. */
 export const CREW_X_URL = 'https://x.com/CrewPayHQ'
 

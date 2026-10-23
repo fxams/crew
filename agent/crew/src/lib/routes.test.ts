@@ -20,6 +20,7 @@ import {
   isJobsListPath,
   isJobsPath,
   isProofPath,
+  isSquadsPath,
   isReferralPath,
   isRegisterPath,
   jobIdFromPath,
@@ -171,6 +172,17 @@ describe("jobs paths", () => {
     expect(isJobsPath("/tasks")).toBe(false);
     expect(isJobsPath("/")).toBe(false);
     expect(jobIdFromPath("/jobs")).toBe(null);
+  });
+});
+
+describe("isSquadsPath", () => {
+  it("matches the squads contest tab only", () => {
+    expect(isSquadsPath("/squads")).toBe(true);
+    expect(isSquadsPath("/squads/")).toBe(true);
+    expect(isSquadsPath("/crew/squads")).toBe(true);
+    expect(isSquadsPath("/")).toBe(false);
+    expect(isSquadsPath("/jobs")).toBe(false);
+    expect(isSquadsPath("/proof")).toBe(false);
   });
 });
 

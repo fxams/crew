@@ -24,7 +24,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `VITE_KOL_PROGRAM_ENABLED=1 npm run build && npm run preview -- --host 127.0.0.1 --port ${port}`,
+    command: `VITE_KOL_PROGRAM_ENABLED=1 VITE_SQUADS_ENABLED=1 npm run build && npm run preview -- --host 127.0.0.1 --port ${port}`,
     url: baseURL,
     reuseExistingServer: false,
     timeout: 240_000,
