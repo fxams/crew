@@ -284,7 +284,6 @@ export type SquadsOverlap = {
 export type SquadsDashboard = {
   schema_version?: number
   updated_at?: string | null
-  updated_at_ast?: string | null
   refresh_seconds?: number | null
   status?: SquadsStatus | null
   competition?: {
@@ -296,8 +295,6 @@ export type SquadsDashboard = {
     registration_closes?: string
     start?: string
     end?: string
-    start_ast?: string
-    end_ast?: string
     prize_pool_usd?: number
     prizes?: Array<{ rankFrom?: number; rankTo?: number; amount?: string | number }>
     min_members?: number
