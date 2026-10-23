@@ -8,7 +8,7 @@
     "source": "github",
     "subdirectory": "agent/crew-mcp"
   },
-  "version": "1.2.13",
+  "version": "1.2.14",
   "remotes": [
     {
       "type": "streamable-http",
@@ -27,7 +27,7 @@
     {
       "registryType": "npm",
       "identifier": "crewpay-mcp",
-      "version": "1.2.13",
+      "version": "1.2.14",
       "transport": {
         "type": "stdio"
       },

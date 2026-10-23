@@ -5,7 +5,7 @@ Previous PR https://github.com/punkpeye/awesome-mcp-servers/pull/16008 was close
 ## Proposed listing line
 
 ```markdown
-- [crewpay-mcp](https://github.com/fxams/crew/tree/main/agent/crew-mcp) [![fxams/crew MCP server](https://glama.ai/mcp/servers/fxams/crew/badges/score.svg)](https://glama.ai/mcp/servers/fxams/crew) 📇 ☁️ 🏠 - Launch Pump.fun/Bags/Zora/Clanker coins with KOL Autohire and on-chain fee-shares locked at launch (60% KOL / 15% agent / 25% CrewPay; mintPubkey required; crew_wire_fees repair-only; buyback cron not live yet). Hosted: https://mcp.crewpay.dev/mcp · npm `crewpay-mcp@1.2.13`
+- [crewpay-mcp](https://github.com/fxams/crew/tree/main/agent/crew-mcp) [![fxams/crew MCP server](https://glama.ai/mcp/servers/fxams/crew/badges/score.svg)](https://glama.ai/mcp/servers/fxams/crew) 📇 ☁️ 🏠 - Launch Pump.fun/Bags/Zora/Clanker coins with KOL Autohire and on-chain fee-shares locked at launch (60% KOL / 15% agent / 25% CrewPay; mintPubkey required; crew_wire_fees repair-only; buyback cron not live yet). Hosted: https://mcp.crewpay.dev/mcp · npm `crewpay-mcp@1.2.14`
 ```
 
 ## Open PR (operator)

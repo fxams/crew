@@ -42,7 +42,7 @@ Works with **Cursor**, **Claude Desktop**, **Claude Code**, **ChatGPT MCP**, **G
   "mcpServers": {
     "crewpay": {
       "command": "npx",
-      "args": ["-y", "crewpay-mcp@1.2.13"],
+      "args": ["-y", "crewpay-mcp@1.2.14"],
       "env": {
         "CREW_AGENT_API_KEY": "…",
         "CREW_LAUNCHER_KEY": "your-solana-secret-base58",
@@ -75,7 +75,7 @@ cd agent/crew-mcp && npm ci && npm run build
 }
 ```
 
-When published to npm: `npx -y crewpay-mcp@1.2.13` (pin the version — do not use unpinned `@latest`).
+When published to npm: `npx -y crewpay-mcp@1.2.14` (pin the version — do not use unpinned `@latest`).
 
 ## Remote HTTP MCP
 

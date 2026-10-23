@@ -88,7 +88,7 @@ Do **not** use `app.crewpay.dev` (no DNS).
 Install/run the **pinned** npm package (do not use `@latest` or unpinned `-y crewpay-mcp`):
 
 ```bash
-npx -y crewpay-mcp@1.2.13
+npx -y crewpay-mcp@1.2.14
 ```
 
 Configure MCP **env** (not tool args):
@@ -208,4 +208,4 @@ Bind a referrer at key claim (`referralCode` / MCP `referral_code` / env `CREWPA
 - Full discovery: https://crewpay.dev/llms-full.txt
 - Agents.md: https://crewpay.dev/AGENTS.md
 - Source skill path in repo: `skills/crewpay/`
-- MCP package (pinned): `crewpay-mcp@1.2.13` on npm. Pump.fun `crew_build_unsigned` requires `mintPubkey` (caller-generated mint public key). Fees lock at launch. `crew_wire_fees` is repair-only.
+- MCP package (pinned): `crewpay-mcp@1.2.14` on npm. Pump.fun `crew_build_unsigned` requires `mintPubkey` (caller-generated mint public key). Fees lock at launch. `crew_wire_fees` is repair-only.

@@ -1,6 +1,6 @@
 {
   "name": "elizaos-plugin-crewpay",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "ElizaOS plugin for CrewPay \u2014 Solana Pump.fun KOL Autohire + fee-shares (60/15/25; 60/15/5/20 with referralCode). Buyback cron not live. Dry-run returns dryRunId + approvalUrl before launch.",
   "type": "module",
   "main": "./dist/index.js",

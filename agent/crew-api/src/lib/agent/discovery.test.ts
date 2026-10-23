@@ -153,7 +153,7 @@ describe('agent discovery docs', () => {
     expect(openApiSpec().paths['/api/agents/leaderboard']).toBeTruthy()
     expect(agentDiscoveryJson().discovery.agents_earn).toBe('https://crewpay.dev/agents/earn')
     expect(agentDiscoveryJson().mcp.package_version).toBe(MCP_PACKAGE_VERSION)
-    expect(MCP_PACKAGE_VERSION).toBe('1.2.13')
+    expect(MCP_PACKAGE_VERSION).toBe('1.2.14')
     expect(llmsTxt()).toContain('mintPubkey')
     expect(llmsTxt()).toMatch(/require.*mintPubkey/i)
     expect(llmsTxt()).toMatch(/feesLockedAtLaunch/)

@@ -120,4 +120,20 @@ export class CrewPayClient {
     proof() {
         return this.fetch('/api/proof');
     }
+    /** Build UNSIGNED v0 messages (create + lock). Sign locally or submit via submitSigned. */
+    buildUnsigned(body) {
+        return this.fetch('/api/agent/launch/unsigned', {
+            method: 'POST',
+            auth: true,
+            body: JSON.stringify(body),
+        });
+    }
+    /** Submit previously signed transactions (create then lock). Pass platform for Bags/Zora. */
+    submitSigned(signed, platform = 'pumpfun') {
+        return this.fetch('/api/agent/launch/submit', {
+            method: 'POST',
+            auth: true,
+            body: JSON.stringify({ signed, platform }),
+        });
+    }
 }

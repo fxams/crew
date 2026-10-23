@@ -11,7 +11,7 @@ ClawPump marketplace / agent hosting for Solana. CrewPay’s public agent page i
 **Price:** (set by operator)
 
 **Blurb:**  
-CrewPay-ready agent skill for Pump.fun/Bags/Zora/Clanker launches with KOL Autohire and on-chain fee-shares locked at launch (**60% KOLs / 15% agent / 25% CrewPay**). Uses pinned `crewpay-mcp@1.2.13` or https://mcp.crewpay.dev/mcp. Pump unsigned requires `mintPubkey` and returns create+lock (`signTogether`). `crew_wire_fees` is repair-only. Buyback cron not live yet. Install skill: `openclaw skills install @fxams/crewpay`.
+CrewPay-ready agent skill for Pump.fun/Bags/Zora/Clanker launches with KOL Autohire and on-chain fee-shares locked at launch (**60% KOLs / 15% agent / 25% CrewPay**). Uses pinned `crewpay-mcp@1.2.14` or https://mcp.crewpay.dev/mcp. Pump unsigned requires `mintPubkey` and returns create+lock (`signTogether`). `crew_wire_fees` is repair-only. Buyback cron not live yet. Install skill: `openclaw skills install @fxams/crewpay`.
 
 **Why it sells:** Distribution (Autohire) + permanent fee splits, not hype. Agents get claim → list_kols → build_unsigned (`mintPubkey`) → signAllTransactions → submit → crank → proof without a browser.
 

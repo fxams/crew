@@ -47,4 +47,8 @@ export declare class CrewPayClient {
         mint: string;
     }): Promise<unknown>;
     proof(): Promise<unknown>;
+    /** Build UNSIGNED v0 messages (create + lock). Sign locally or submit via submitSigned. */
+    buildUnsigned(body: Record<string, unknown>): Promise<unknown>;
+    /** Submit previously signed transactions (create then lock). Pass platform for Bags/Zora. */
+    submitSigned(signed: string[], platform?: 'pumpfun' | 'bags' | 'zora'): Promise<unknown>;
 }

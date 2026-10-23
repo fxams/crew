@@ -1,6 +1,6 @@
 # CrewPay agent framework plugins
 
-**Primary surface:** hosted MCP `https://mcp.crewpay.dev/mcp` · local pinned `npx -y crewpay-mcp@1.2.13`.
+**Primary surface:** hosted MCP `https://mcp.crewpay.dev/mcp` · local pinned `npx -y crewpay-mcp@1.2.14`.
 
 Full TypeScript scaffolds now live under [`packages/`](../packages/README.md):
 

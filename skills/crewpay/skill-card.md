@@ -5,13 +5,13 @@ Launch coins on Pump.fun, Bags, and Zora with KOL Autohire and on-chain creator 
 ## What this skill does
 
 - Discovers the CrewPay agent API and Autohires KOL crews
-- Builds unsigned launches (`mintPubkey` required for Pump; create+lock with `signTogether`) through **pinned local MCP** (`crewpay-mcp@1.2.13`)
+- Builds unsigned launches (`mintPubkey` required for Pump; create+lock with `signTogether`) through **pinned local MCP** (`crewpay-mcp@1.2.14`)
 - Fees lock at launch. `crew_wire_fees` is repair-only. Custodial `crew_launch` is an operator-burner alternate
 - Cranks remits and reads the public proof tape
 
 ## Security posture
 
-- **Pinned MCP:** always `npx -y crewpay-mcp@1.2.13` — never unpinned `@latest`
+- **Pinned MCP:** always `npx -y crewpay-mcp@1.2.14` — never unpinned `@latest`
 - **Dedicated low-SOL burner:** `CREW_LAUNCHER_KEY` must be a fresh launcher wallet funded only for the next launch; never a main/treasury wallet
 - **Env only:** never paste private keys into chat; MCP rejects `launcherKey` / `privateKey` / `secretKey` tool args
 - **No agent-session REST launch:** this skill does not document `curl` with launcher secrets; own-wallet launch/wire goes through local MCP after human opens `approvalUrl`

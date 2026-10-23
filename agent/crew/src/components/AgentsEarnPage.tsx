@@ -4,7 +4,7 @@ import { CREW_MCP_HTTP_URL, CREW_PUBLIC_API_URL, CREW_VERSION } from '../lib/con
 import { usePageMeta } from '../lib/page-meta'
 import { AgentLeaderboard } from './AgentLeaderboard'
 
-const MCP_PIN = '1.2.13'
+const MCP_PIN = '1.2.14'
 
 const CURL = `# 0. Free preview: no key, no wallet, nothing created
 curl "${CREW_PUBLIC_API_URL}/api/agent/quickstart?name=Night%20Owl&ticker=HOOT"
