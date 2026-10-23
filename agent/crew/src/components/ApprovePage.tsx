@@ -4,6 +4,7 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import { useConnectModal } from './ConnectModal'
 import bs58 from 'bs58'
 import { CREW_AGENT_API_URL } from '../lib/config'
+import { formatUtc } from '../lib/format-utc'
 import { dryRunIdFromApprovePath } from '../lib/routes'
 
 type DryRunView = {
@@ -187,7 +188,7 @@ export function ApprovePage() {
                 : data.approved
                   ? 'approved'
                   : 'awaiting wallet confirmation'}{' '}
-              · expires {new Date(data.expiresAt).toLocaleString()}
+              · expires {formatUtc(data.expiresAt)}
             </p>
 
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '1rem' }}>
