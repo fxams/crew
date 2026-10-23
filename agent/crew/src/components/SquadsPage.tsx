@@ -6,7 +6,7 @@ import { ConnectButton } from './ConnectButton'
 import { useWalletAuth } from './WalletAuthProvider'
 import { XLink } from './XLink'
 import { CREW_VERSION, PUMP_COIN_URL, SQUADS_ENABLED } from '../lib/config'
-import { formatUtc, formatUtcCountdown, leaksNonUtcZone } from '../lib/format-utc'
+import { formatUtc, formatUtcCountdown } from '../lib/format-utc'
 import { persistExplicitDisconnect } from '../lib/wallet-session'
 import { shortAddr } from '../lib/wallet'
 import {
@@ -326,7 +326,7 @@ export function SquadsPage() {
   const contestEnd = feed?.competition?.end
   const startLeft = formatUtcCountdown(contestStart, now)
   const endLeft = formatUtcCountdown(contestEnd, now)
-  const publicNotes = (feed?.notes || []).filter((n) => !leaksNonUtcZone(n))
+  const publicNotes = feed?.notes || []
   const paper = feed?.paper_copy
   const feedKill = Boolean(paper?.kill_switch_engaged)
   const copyOff = paperCopyBlocked({

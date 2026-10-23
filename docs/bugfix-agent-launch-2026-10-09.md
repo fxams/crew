@@ -1,4 +1,4 @@
-# Agent launch bugfix — 2026-10-09 (UTC)
+# Agent launch bugfix — 2026-10-09
 
 Sources: STRAW2GOLD + CATMEETING (against `0b0e2d6`), then $CADDY (fee-lock OK, atomic still sequential), plus code fixes on `main` that **production `crewpay-api` had not deployed** when $CADDY launched.
 
