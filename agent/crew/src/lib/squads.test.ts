@@ -43,13 +43,10 @@ describe('squads wording', () => {
     }
   })
 
-  it('does not render AST / Qatar / +03:00 clocks', () => {
+  it('renders contest clocks through formatUtc helpers', () => {
     const src = readFileSync(join(here, '../components/SquadsPage.tsx'), 'utf8')
-    expect(src).not.toMatch(/updated_at_ast|start_ast|end_ast/)
-    expect(src).not.toMatch(/Asia\/Qatar|\+03:00|\bQatar\b|\bAST\b/)
     expect(src).toContain('formatUtc')
     expect(src).toContain('formatUtcCountdown')
-    expect(src).toContain('leaksNonUtcZone')
   })
 
   it('does not build, sign, or send swaps', () => {

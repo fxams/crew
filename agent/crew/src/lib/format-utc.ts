@@ -53,8 +53,3 @@ export function formatUtcCountdown(
   if (h > 0) return `${h}h ${m}m`
   return `${Math.max(1, m)}m`
 }
-
-export function leaksNonUtcZone(text: string | null | undefined): boolean {
-  if (!text) return false
-  return /\bAST\b|Qatar|Asia\/Qatar|\+03:00/i.test(text)
-}

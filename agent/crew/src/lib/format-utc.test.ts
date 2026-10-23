@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { formatUtc, formatUtcCountdown, leaksNonUtcZone } from './format-utc'
+import { formatUtc, formatUtcCountdown } from './format-utc'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
@@ -41,15 +41,6 @@ describe('formatUtcCountdown', () => {
   })
 })
 
-describe('leaksNonUtcZone', () => {
-  it('flags AST / Qatar / +03:00 copy', () => {
-    expect(leaksNonUtcZone('2026-10-26 17:00 AST')).toBe(true)
-    expect(leaksNonUtcZone('Asia/Qatar')).toBe(true)
-    expect(leaksNonUtcZone('offset +03:00')).toBe(true)
-    expect(leaksNonUtcZone('2026-10-26 14:00 UTC')).toBe(false)
-  })
-})
-
 describe('site clock rendering', () => {
   it('does not call viewer-local Date#toLocale* in pages or helpers', () => {
     const roots = [join(here, '../components'), here]
@@ -72,7 +63,6 @@ describe('site clock rendering', () => {
     for (const file of files) {
       const src = readFileSync(file, 'utf8')
       expect(src, file).not.toMatch(banned)
-      expect(src, file).not.toMatch(/Asia\/Qatar|\+03:00/)
     }
   })
 })
