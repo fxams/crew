@@ -69,6 +69,7 @@ Set in the Render dashboard (or via API). **Do not commit API keys to git.**
 | `VITE_CREW_MCAP_USD` | Optional — hero market cap placeholder (e.g. `120k`) |
 | `VITE_WALLETCONNECT_PROJECT_ID` | Optional — WalletConnect Cloud / Reown project id. If unset, WalletConnect QR / mobile deep-link is hidden. Injected, in-app, and Wallet Standard wallets still work. Also accepted: `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` |
 | `VITE_ROBINHOOD_CHAIN` | Optional — set `1` / `true` / `4663` to advertise Robinhood Chain alongside Base |
+| `VITE_SQUADS_ENABLED` | Optional — set `1` / `true` to show the `/squads` tab (pump.fun Squads contest). Off by default. Frontend-only; no API env. |
 
 ### API / cron secrets (never `VITE_*`)
 

@@ -142,6 +142,9 @@ describe('header and footer socials', () => {
     const nav = app.slice(app.indexOf('<nav className="nav-links"'), app.indexOf('</nav>'))
     expect(nav).toContain('<NavSocialLinks />')
     expect(nav).not.toContain('/admin/farcaster')
+    expect(nav).toContain('to="/squads"')
+    expect(nav).toContain('Squads')
+    expect(nav).toContain('SQUADS_ENABLED')
 
     const socials = readFileSync(join(here, '../components/SocialIcons.tsx'), 'utf8')
     const xIdx = socials.indexOf('nav-link-x')
