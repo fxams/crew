@@ -4,6 +4,8 @@ import { shortAddr } from './wallet'
 
 export const SQUADS_DASHBOARD_PATH = '/api/squads/dashboard'
 export const SQUADS_COPY_PATH = '/api/squads/copy'
+export const SQUADS_CHARTS_PATH = '/api/squads/charts'
+export const SQUADS_TOKEN_CHART_PATH = '/api/squads/token-chart'
 export const SQUADS_METHODOLOGY_PATH = '/squads/methodology'
 export const SQUADS_DISPUTE_CONTACT = 'crewpay@mail.grokbot.com'
 export const SQUADS_DISCLAIMER_FALLBACK =
@@ -324,6 +326,100 @@ export type SquadsDashboard = {
   caveat?: string | null
 }
 
+export type SquadChartToken = {
+  mint: string
+  symbol?: string | null
+  events?: {
+    launch?: number | null
+    buy?: number | null
+    sell?: number | null
+    call?: number | null
+  } | null
+  buy_sol?: number | null
+  sell_sol?: number | null
+  net_sol?: number | null
+  first_event?: string | number | null
+  last_event?: string | number | null
+  graduated?: boolean | null
+}
+
+export type SquadChartsRow = {
+  id: string
+  name: string
+  rank?: number | null
+  anomaly_score?: number | null
+  tokens?: SquadChartToken[] | null
+}
+
+export type SquadsChartsFeed = {
+  meta?: Record<string, unknown> | null
+  squads?: SquadChartsRow[] | null
+  disclaimer?: string | null
+}
+
+export type SquadCandle = [number, number, number, number, number, number]
+
+export type SquadChartMarkerType = 'launch' | 'buy' | 'sell' | 'call' | string
+
+export type SquadChartMarker = {
+  t?: number | string | null
+  ts?: number | string | null
+  type?: SquadChartMarkerType | null
+  wallet?: string | null
+  username?: string | null
+  x_handle?: string | null
+  sol?: number | null
+  price?: number | null
+  trades?: number | null
+  venue?: string | null
+  note?: string | null
+}
+
+export type SquadTokenChart = {
+  squad?: string | null
+  mint?: string | null
+  symbol?: string | null
+  creator?: string | null
+  created_at?: string | number | null
+  graduated_at?: string | number | null
+  interval_sec?: number | null
+  price_unit?: string | null
+  supply?: number | null
+  candle_fields?: string[] | null
+  candles?: SquadCandle[] | null
+  markers?: SquadChartMarker[] | null
+  summary?: Record<string, unknown> | null
+}
+
+export type SquadsTokenChartFeed = {
+  meta?: Record<string, unknown> | null
+  chart?: SquadTokenChart | null
+  disclaimer?: string | null
+  error?: string | null
+}
+
+export type SquadCandlePoint = {
+  time: number
+  open: number
+  high: number
+  low: number
+  close: number
+  volume: number
+}
+
+export type SquadMarkerPoint = {
+  time: number
+  type: SquadChartMarkerType
+  wallet?: string | null
+  username?: string | null
+  x_handle?: string | null
+  sol?: number | null
+  price?: number | null
+  trades?: number | null
+  venue?: string | null
+  note?: string | null
+}
+
 export type SquadsCopyFeed = {
   updated_at?: string | null
   status?: string | null
@@ -562,6 +658,97 @@ export function squadsCopyUrl(squad: string): string {
   return `${CREW_AGENT_API_URL}${SQUADS_COPY_PATH}?squad=${encodeURIComponent(squad)}`
 }
 
+export function squadsChartsUrl(): string {
+  return `${CREW_AGENT_API_URL}${SQUADS_CHARTS_PATH}`
+}
+
+export function squadsTokenChartUrl(squad: string, mint: string): string {
+  return `${CREW_AGENT_API_URL}${SQUADS_TOKEN_CHART_PATH}?squad=${encodeURIComponent(squad)}&mint=${encodeURIComponent(mint)}`
+}
+
+/** Unix seconds from ISO / unix s / unix ms. */
+export function toUnixSeconds(input: string | number | null | undefined): number | null {
+  if (input == null || input === '') return null
+  if (typeof input === 'number') {
+    if (!Number.isFinite(input)) return null
+    if (input >= 1e12) return Math.floor(input / 1000)
+    if (input >= 1e9) return Math.floor(input)
+    return null
+  }
+  const raw = String(input).trim()
+  if (!raw) return null
+  if (/^\d+$/.test(raw)) return toUnixSeconds(Number(raw))
+  const parsed = Date.parse(raw)
+  return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : null
+}
+
+/** Floor a marker timestamp onto the latest candle time at or before it. */
+export function snapUnixToCandle(unixS: number, candleTimes: number[]): number | null {
+  if (!candleTimes.length || !Number.isFinite(unixS)) return null
+  let snapped: number | null = null
+  for (const t of candleTimes) {
+    if (t <= unixS) snapped = t
+    else break
+  }
+  return snapped ?? candleTimes[0]
+}
+
+export function scaleSquadCandles(
+  candles: SquadCandle[] | null | undefined,
+  supply: number | null | undefined,
+  mode: 'price' | 'mcap',
+): SquadCandlePoint[] {
+  const factor = mode === 'mcap' && supply != null && Number.isFinite(supply) && supply > 0 ? supply : 1
+  const out: SquadCandlePoint[] = []
+  for (const row of candles || []) {
+    if (!Array.isArray(row) || row.length < 5) continue
+    const time = toUnixSeconds(row[0])
+    const open = Number(row[1]) * factor
+    const high = Number(row[2]) * factor
+    const low = Number(row[3]) * factor
+    const close = Number(row[4]) * factor
+    const volume = Number(row[5] ?? 0)
+    if (time == null || ![open, high, low, close].every((n) => Number.isFinite(n) && n > 0)) continue
+    out.push({ time, open, high, low, close, volume: Number.isFinite(volume) ? volume : 0 })
+  }
+  out.sort((a, b) => a.time - b.time)
+  return out
+}
+
+export function snapSquadMarkers(
+  markers: SquadChartMarker[] | null | undefined,
+  candleTimes: number[],
+): SquadMarkerPoint[] {
+  const out: SquadMarkerPoint[] = []
+  for (const marker of markers || []) {
+    const raw = toUnixSeconds(marker.t ?? marker.ts ?? null)
+    if (raw == null) continue
+    const time = snapUnixToCandle(raw, candleTimes)
+    if (time == null) continue
+    out.push({
+      time,
+      type: marker.type || 'call',
+      wallet: marker.wallet,
+      username: marker.username,
+      x_handle: marker.x_handle,
+      sol: marker.sol,
+      price: marker.price,
+      trades: marker.trades,
+      venue: marker.venue,
+      note: marker.note,
+    })
+  }
+  return out
+}
+
+export function publicMarkerLabel(marker: Pick<SquadMarkerPoint, 'username' | 'x_handle' | 'wallet'>): string {
+  return publicMemberLabel({
+    username: marker.username,
+    x_handle: marker.x_handle,
+    wallet: marker.wallet,
+  })
+}
+
 export async function fetchSquadsDashboard(signal?: AbortSignal): Promise<SquadsDashboard> {
   const res = await fetch(squadsDashboardUrl(), { signal })
   const data = await readJson(res)
@@ -572,6 +759,37 @@ export async function fetchSquadsDashboard(signal?: AbortSignal): Promise<Squads
     throw new Error(typeof data.error === 'string' ? data.error : `Squads feed unavailable (${res.status})`)
   }
   return data as SquadsDashboard
+}
+
+export async function fetchSquadsCharts(signal?: AbortSignal): Promise<SquadsChartsFeed> {
+  const res = await fetch(squadsChartsUrl(), { signal })
+  const data = await readJson(res)
+  if (res.status === 503) {
+    throw new Error(typeof data.error === 'string' ? data.error : 'feed not available yet')
+  }
+  if (!res.ok) {
+    throw new Error(typeof data.error === 'string' ? data.error : `Squads charts unavailable (${res.status})`)
+  }
+  return data as SquadsChartsFeed
+}
+
+export async function fetchSquadsTokenChart(
+  squad: string,
+  mint: string,
+  signal?: AbortSignal,
+): Promise<SquadsTokenChartFeed> {
+  const res = await fetch(squadsTokenChartUrl(squad, mint), { signal })
+  const data = await readJson(res)
+  if (res.status === 404) {
+    throw new Error(typeof data.error === 'string' ? data.error : 'Chart not found')
+  }
+  if (res.status === 503) {
+    throw new Error(typeof data.error === 'string' ? data.error : 'feed not available yet')
+  }
+  if (!res.ok) {
+    throw new Error(typeof data.error === 'string' ? data.error : `Token chart unavailable (${res.status})`)
+  }
+  return data as SquadsTokenChartFeed
 }
 
 export async function fetchSquadsCopy(squad: string, signal?: AbortSignal): Promise<SquadsCopyFeed> {

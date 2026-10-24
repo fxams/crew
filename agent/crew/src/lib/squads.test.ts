@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
+  SQUADS_CHARTS_PATH,
   SQUADS_COLLECTING,
   SQUADS_COPY_PATH,
   SQUADS_DASHBOARD_PATH,
@@ -11,8 +12,14 @@ import {
   SQUADS_LIVE_COPY_NOTE,
   SQUADS_METHODOLOGY_PATH,
   SQUADS_PRESTART_BADGE,
+  SQUADS_TOKEN_CHART_PATH,
+  scaleSquadCandles,
+  snapSquadMarkers,
+  snapUnixToCandle,
+  squadsChartsUrl,
   squadsCopyUrl,
   squadsDashboardUrl,
+  squadsTokenChartUrl,
   isCapitalFlowsCollecting,
   isMomentumCollecting,
   isSquadsFeedStale,
@@ -39,9 +46,10 @@ describe('squads wording', () => {
     const files = [
       join(here, 'squads.ts'),
       join(here, '../components/SquadsPage.tsx'),
+      join(here, '../components/SquadActivityChart.tsx'),
       join(here, '../components/SquadsMethodologyPage.tsx'),
     ]
-    const banned = /\bcheat(ing|s|ed)?\b|\bcheat rank\b/i
+    const banned = /\bcheat(ing|s|ed)?\b|\bcheat rank\b|\bpump and dump\b|\bmanipulation\b/i
     for (const file of files) {
       const src = readFileSync(file, 'utf8')
       expect(src, file).not.toMatch(banned)
@@ -58,14 +66,25 @@ describe('squads wording', () => {
     const src = [
       readFileSync(join(here, 'squads.ts'), 'utf8'),
       readFileSync(join(here, '../components/SquadsPage.tsx'), 'utf8'),
+      readFileSync(join(here, '../components/SquadActivityChart.tsx'), 'utf8'),
       readFileSync(join(here, '../components/SquadsMethodologyPage.tsx'), 'utf8'),
     ].join('\n')
     const needle = ['deep', 'counter', 'feit'].join('')
     expect(src.toLowerCase()).not.toContain(needle)
     expect(SQUADS_DASHBOARD_PATH).toBe('/api/squads/dashboard')
     expect(SQUADS_COPY_PATH).toBe('/api/squads/copy')
+    expect(SQUADS_CHARTS_PATH).toBe('/api/squads/charts')
+    expect(SQUADS_TOKEN_CHART_PATH).toBe('/api/squads/token-chart')
     expect(squadsDashboardUrl()).toMatch(/\/api\/squads\/dashboard$/)
     expect(squadsCopyUrl('alpha-1')).toContain('/api/squads/copy?squad=alpha-1')
+    expect(squadsChartsUrl()).toMatch(/\/api\/squads\/charts$/)
+    expect(squadsTokenChartUrl('alpha-1', '4ugDhHJ8XDXAeABmrNmGffFaLbJb9BkPyiFGVSV9ocwo')).toContain(
+      '/api/squads/token-chart?squad=alpha-1&mint=4ugDhHJ8XDXAeABmrNmGffFaLbJb9BkPyiFGVSV9ocwo',
+    )
+    const chartSrc = readFileSync(join(here, '../components/SquadActivityChart.tsx'), 'utf8')
+    expect(chartSrc).toContain('fetchSquadsCharts')
+    expect(chartSrc).toContain('fetchSquadsTokenChart')
+    expect(chartSrc).not.toMatch(/https?:\/\//)
     expect(squadsMethodologyUrl()).toBe('/squads/methodology')
     expect(src).toContain('SQUADS_METHODOLOGY_PATH')
     expect(src).toContain('crewpay@mail.grokbot.com')
@@ -167,5 +186,31 @@ describe('squads privacy + helpers', () => {
     expect(isSquadsPreStart('live')).toBe(false)
     expect(isSquadsFeedStale('2026-10-23T18:00:00Z', Date.parse('2026-10-23T18:10:00Z'))).toBe(false)
     expect(isSquadsFeedStale('2026-10-23T18:00:00Z', Date.parse('2026-10-23T18:40:00Z'))).toBe(true)
+  })
+})
+
+describe('squads activity candles', () => {
+  it('snaps markers down to candle time and scales market cap', () => {
+    const times = [1_761_000_000, 1_761_000_300, 1_761_000_600]
+    expect(snapUnixToCandle(1_761_000_450, times)).toBe(1_761_000_300)
+    expect(snapUnixToCandle(1_760_999_000, times)).toBe(1_761_000_000)
+    const candles = scaleSquadCandles(
+      [
+        [1_761_000_000, 1, 2, 0.5, 1.5, 10],
+        [1_761_000_300, 1.5, 2.5, 1.2, 2, 4],
+      ],
+      100,
+      'mcap',
+    )
+    expect(candles[0]).toMatchObject({ time: 1_761_000_000, open: 100, high: 200, low: 50, close: 150 })
+    const marks = snapSquadMarkers(
+      [
+        { t: 1_761_000_410, type: 'buy', username: 'owl', sol: 2, price: 1.6, venue: 'pump.fun' },
+        { ts: '2025-10-21T00:05:10Z', type: 'launch', x_handle: 'owl' },
+      ],
+      times,
+    )
+    expect(marks[0].time).toBe(1_761_000_300)
+    expect(marks[0].type).toBe('buy')
   })
 })
