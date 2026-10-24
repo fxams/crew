@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { squadsActivityCardPng } from '../lib/squads-share.js'
 import {
   SQUADS_CACHE_CONTROL,
   chartsUpstreamUrl,
@@ -98,4 +99,29 @@ squadsRouter.get('/squads/token-chart', async (req, res) => {
   }
   res.setHeader('Cache-Control', SQUADS_CACHE_CONTROL)
   res.json(result.body)
+})
+
+squadsRouter.get('/squads/activity-card.png', async (req, res) => {
+  const origin = squadsUpstreamOrigin()
+  if (!origin) {
+    notConfigured(res)
+    return
+  }
+  const squadId = validateSquadId(req.query.squad)
+  const mint = validateMint(req.query.mint)
+  if (!squadId || !mint) {
+    res.setHeader('Cache-Control', 'no-store')
+    res.status(400).json({ error: !squadId ? 'invalid squad' : 'invalid mint' })
+    return
+  }
+  try {
+    const png = await squadsActivityCardPng(squadId, mint)
+    res.setHeader('Content-Type', 'image/png')
+    res.setHeader('Cache-Control', 'public, max-age=120')
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
+    res.send(png)
+  } catch {
+    res.setHeader('Cache-Control', 'no-store')
+    res.status(503).json({ error: 'Squads feed is unavailable.' })
+  }
 })

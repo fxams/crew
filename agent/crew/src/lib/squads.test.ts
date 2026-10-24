@@ -10,11 +10,18 @@ import {
   SQUADS_DISCLAIMER_FALLBACK,
   SQUADS_DISPUTE_CONTACT,
   SQUADS_LIVE_COPY_NOTE,
+  SQUADS_ACTIVITY_PATH,
   SQUADS_METHODOLOGY_PATH,
   SQUADS_PRESTART_BADGE,
   SQUADS_TOKEN_CHART_PATH,
+  markerWalletCount,
+  publicBundleMembers,
   scaleSquadCandles,
   snapSquadMarkers,
+  squadsActivityPermalink,
+  squadsShareIntentUrl,
+  squadsShareText,
+  tokenBundleCount,
   snapUnixToCandle,
   squadsChartsUrl,
   squadsCopyUrl,
@@ -48,8 +55,9 @@ describe('squads wording', () => {
       join(here, '../components/SquadsPage.tsx'),
       join(here, '../components/SquadActivityChart.tsx'),
       join(here, '../components/SquadsMethodologyPage.tsx'),
+      join(here, 'theme.ts'),
     ]
-    const banned = /\bcheat(ing|s|ed)?\b|\bcheat rank\b|\bpump and dump\b|\bmanipulation\b/i
+    const banned = /\bcheat(ing|s|ed)?\b|\bcheat rank\b|\bpump and dump\b|\bmanipulation\b|\bscam\b|\brug\b/i
     for (const file of files) {
       const src = readFileSync(file, 'utf8')
       expect(src, file).not.toMatch(banned)
@@ -68,6 +76,7 @@ describe('squads wording', () => {
       readFileSync(join(here, '../components/SquadsPage.tsx'), 'utf8'),
       readFileSync(join(here, '../components/SquadActivityChart.tsx'), 'utf8'),
       readFileSync(join(here, '../components/SquadsMethodologyPage.tsx'), 'utf8'),
+      readFileSync(join(here, 'theme.ts'), 'utf8'),
     ].join('\n')
     const needle = ['deep', 'counter', 'feit'].join('')
     expect(src.toLowerCase()).not.toContain(needle)
@@ -86,6 +95,7 @@ describe('squads wording', () => {
     expect(chartSrc).toContain('fetchSquadsTokenChart')
     expect(chartSrc).not.toMatch(/https?:\/\//)
     expect(squadsMethodologyUrl()).toBe('/squads/methodology')
+    expect(SQUADS_ACTIVITY_PATH).toBe('/squads/activity')
     expect(src).toContain('SQUADS_METHODOLOGY_PATH')
     expect(src).toContain('crewpay@mail.grokbot.com')
   })
@@ -110,6 +120,9 @@ describe('squads wording', () => {
     expect(methodSrc).toContain('Anomaly score')
     expect(methodSrc).toContain('SQUADS_DISCLAIMER_FALLBACK')
     expect(methodSrc).toContain('SQUADS_DISPUTE_CONTACT')
+    expect(methodSrc).toContain('launch bundle')
+    expect(methodSrc).toContain('same-slot cluster')
+    expect(methodSrc.toLowerCase()).not.toMatch(/jito/)
   })
 })
 
@@ -212,5 +225,54 @@ describe('squads activity candles', () => {
     )
     expect(marks[0].time).toBe(1_761_000_300)
     expect(marks[0].type).toBe('buy')
+    const bundles = snapSquadMarkers(
+      [
+        {
+          t: 1_761_000_410,
+          type: 'bundle',
+          kind: 'launch',
+          side: 'buy',
+          slot: 12,
+          wallets: ['Aa', 'Bb'],
+          sol: 4.2,
+          supply_pct: 1.5,
+          squad_members: [{ username: 'owl' }, { x_handle: 'night' }],
+        },
+      ],
+      times,
+    )
+    expect(bundles[0]).toMatchObject({ type: 'bundle', kind: 'launch', side: 'buy', sol: 4.2 })
+    expect(markerWalletCount(bundles[0])).toBe(2)
+    expect(publicBundleMembers(bundles[0].squad_members)).toEqual(['owl', 'night'])
+    expect(tokenBundleCount({ mint: 'x', bundles: 3 })).toBe(3)
+  })
+
+  it('builds CrewPay permalinks and X compose links without auto-posting', () => {
+    const permalink = squadsActivityPermalink({
+      squad: 'alpha-1',
+      mint: '4ugDhHJ8XDXAeABmrNmGffFaLbJb9BkPyiFGVSV9ocwo',
+      section: 'chart',
+    })
+    expect(permalink).toBe(
+      'https://crewpay.dev/squads/activity?squad=alpha-1&mint=4ugDhHJ8XDXAeABmrNmGffFaLbJb9BkPyiFGVSV9ocwo#chart',
+    )
+    expect(squadsShareText({ squadName: 'Night Owls', symbol: 'OWL', section: 'summary' })).toBe(
+      'Squad activity summary · Night Owls · OWL',
+    )
+    const intent = squadsShareIntentUrl({
+      squad: 'alpha-1',
+      mint: '4ugDhHJ8XDXAeABmrNmGffFaLbJb9BkPyiFGVSV9ocwo',
+      section: 'analysis',
+      squadName: 'Night Owls',
+      symbol: 'OWL',
+    })
+    expect(intent.startsWith('https://x.com/intent/post?')).toBe(true)
+    expect(intent).toContain('url=')
+    expect(intent).toContain(encodeURIComponent('https://crewpay.dev/squads/activity'))
+    expect(intent.toLowerCase()).not.toMatch(/qatar|jito|cheat|scam|rug/)
+    const chartSrc = readFileSync(join(here, '../components/SquadActivityChart.tsx'), 'utf8')
+    expect(chartSrc).toContain('squadsShareIntentUrl')
+    expect(chartSrc).toContain('target="_blank"')
+    expect(chartSrc).not.toMatch(/statuses\/update|auto-?post/i)
   })
 })

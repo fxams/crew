@@ -32,7 +32,21 @@ describe('squads HTTP proxy', () => {
           return new Response(
             JSON.stringify({
               meta: { methodology_url: `https://${host}.example/m` },
-              squads: [{ id: 'alpha-1', name: 'Alpha', tokens: [] }],
+              squads: [
+                {
+                  id: 'alpha-1',
+                  name: 'Alpha',
+                  tokens: [
+                    {
+                      mint: '4ugDhHJ8XDXAeABmrNmGffFaLbJb9BkPyiFGVSV9ocwo',
+                      symbol: 'OWL',
+                      bundles: 2,
+                      bundled_buy_sol: 6.6,
+                      bundled_sell_sol: 1.2,
+                    },
+                  ],
+                },
+              ],
             }),
             { status: 200, headers: { 'content-type': 'application/json' } },
           )
@@ -52,7 +66,19 @@ describe('squads HTTP proxy', () => {
                 mint: '4ugDhHJ8XDXAeABmrNmGffFaLbJb9BkPyiFGVSV9ocwo',
                 symbol: 'OWL',
                 candles: [[1_761_000_000, 1, 2, 0.5, 1.5, 10]],
-                markers: [],
+                markers: [
+                  {
+                    t: 1_761_000_020,
+                    type: 'bundle',
+                    kind: 'launch',
+                    side: 'buy',
+                    slot: 3,
+                    wallets: 2,
+                    sol: 4.2,
+                    supply_pct: 1.1,
+                    squad_members: ['owl'],
+                  },
+                ],
               },
             }),
             { status: 200, headers: { 'content-type': 'application/json' } },
@@ -130,7 +156,13 @@ describe('squads HTTP proxy', () => {
     const res = await request(createApiApp()).get('/api/squads/charts')
     expect(res.status).toBe(200)
     expect(res.headers['cache-control']).toBe('public, max-age=300')
-    expect(res.body).toEqual({ meta: {}, squads: [{ id: 'alpha-1', name: 'Alpha', tokens: [] }] })
+    expect(res.body.squads[0].tokens[0]).toMatchObject({
+      symbol: 'OWL',
+      bundles: 2,
+      bundled_buy_sol: 6.6,
+      bundled_sell_sol: 1.2,
+    })
+    expect(res.body.meta).toEqual({})
     expect(JSON.stringify(res.body).toLowerCase()).not.toContain(host)
     expect(fetch).toHaveBeenCalledWith(
       'https://squads-upstream.test/v1/squads/charts.json',
@@ -160,6 +192,7 @@ describe('squads HTTP proxy', () => {
     )
     expect(ok.status).toBe(200)
     expect(ok.body.chart.symbol).toBe('OWL')
+    expect(ok.body.chart.markers[0]).toMatchObject({ type: 'bundle', kind: 'launch', side: 'buy' })
     expect(ok.body.meta).toEqual({})
     expect(JSON.stringify(ok.body).toLowerCase()).not.toContain(host)
     expect(fetch).toHaveBeenCalledWith(
@@ -173,5 +206,31 @@ describe('squads HTTP proxy', () => {
     const res = await request(createApiApp()).get('/api/squads/charts')
     expect(res.status).toBe(503)
     expect(res.body).toEqual({ error: 'squads feed not configured' })
+  })
+
+  it('serves share HTML and a PNG card for a squad + mint', async () => {
+    const html = await request(createApiApp()).get(
+      '/squads/activity?squad=alpha-1&mint=4ugDhHJ8XDXAeABmrNmGffFaLbJb9BkPyiFGVSV9ocwo',
+    )
+    expect(html.status).toBe(200)
+    expect(html.headers['content-type']).toMatch(/text\/html/)
+    expect(html.text).toContain('summary_large_image')
+    expect(html.text).toContain('og:image')
+    expect(html.text).toContain('/api/squads/activity-card.png')
+    expect(html.text).toContain('https://crewpay.dev/squads/activity?squad=alpha-1')
+    expect(html.text.toLowerCase()).not.toContain(host)
+    expect(html.text).not.toMatch(/\bcheat|\bscam|\brug\b|pump and dump|manipulation|jito/i)
+
+    const bad = await request(createApiApp()).get('/squads/activity?squad=../x&mint=short')
+    expect(bad.status).toBe(400)
+
+    const card = await request(createApiApp()).get(
+      '/api/squads/activity-card.png?squad=alpha-1&mint=4ugDhHJ8XDXAeABmrNmGffFaLbJb9BkPyiFGVSV9ocwo',
+    )
+    expect(card.status).toBe(200)
+    expect(card.headers['content-type']).toBe('image/png')
+    expect(card.body.length).toBeGreaterThan(100)
+    expect(card.body[0]).toBe(0x89)
+    expect(card.body[1]).toBe(0x50)
   })
 })

@@ -21,6 +21,7 @@ import {
   isJobsPath,
   isProofPath,
   isSquadsMethodologyPath,
+  isSquadsActivityPath,
   isSquadsPath,
   isReferralPath,
   isRegisterPath,
@@ -182,9 +183,20 @@ describe("isSquadsPath", () => {
     expect(isSquadsPath("/squads/")).toBe(true);
     expect(isSquadsPath("/crew/squads")).toBe(true);
     expect(isSquadsPath("/squads/methodology")).toBe(false);
+    expect(isSquadsPath("/squads/activity")).toBe(false);
     expect(isSquadsPath("/")).toBe(false);
     expect(isSquadsPath("/jobs")).toBe(false);
     expect(isSquadsPath("/proof")).toBe(false);
+  });
+});
+
+describe("isSquadsActivityPath", () => {
+  it("matches the activity permalink only", () => {
+    expect(isSquadsActivityPath("/squads/activity")).toBe(true);
+    expect(isSquadsActivityPath("/squads/activity/")).toBe(true);
+    expect(isSquadsActivityPath("/crew/squads/activity")).toBe(true);
+    expect(isSquadsActivityPath("/squads")).toBe(false);
+    expect(isSquadsActivityPath("/squads/methodology")).toBe(false);
   });
 });
 

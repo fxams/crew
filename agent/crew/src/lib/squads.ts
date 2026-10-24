@@ -7,6 +7,9 @@ export const SQUADS_COPY_PATH = '/api/squads/copy'
 export const SQUADS_CHARTS_PATH = '/api/squads/charts'
 export const SQUADS_TOKEN_CHART_PATH = '/api/squads/token-chart'
 export const SQUADS_METHODOLOGY_PATH = '/squads/methodology'
+export const SQUADS_ACTIVITY_PATH = '/squads/activity'
+export const SQUADS_SITE_ORIGIN = 'https://crewpay.dev'
+export const SQUADS_X_INTENT_ORIGIN = 'https://x.com/intent/post'
 export const SQUADS_DISPUTE_CONTACT = 'crewpay@mail.grokbot.com'
 export const SQUADS_DISCLAIMER_FALLBACK =
   'Automated statistical analysis of public on-chain data. Indicates unusual trading patterns only, not proof of wrongdoing or an accusation against any person or squad. May contain errors.'
@@ -334,10 +337,14 @@ export type SquadChartToken = {
     buy?: number | null
     sell?: number | null
     call?: number | null
+    bundle?: number | null
   } | null
   buy_sol?: number | null
   sell_sol?: number | null
   net_sol?: number | null
+  bundles?: number | null
+  bundled_buy_sol?: number | null
+  bundled_sell_sol?: number | null
   first_event?: string | number | null
   last_event?: string | number | null
   graduated?: boolean | null
@@ -359,7 +366,15 @@ export type SquadsChartsFeed = {
 
 export type SquadCandle = [number, number, number, number, number, number]
 
-export type SquadChartMarkerType = 'launch' | 'buy' | 'sell' | 'call' | string
+export type SquadChartMarkerType = 'launch' | 'buy' | 'sell' | 'call' | 'bundle' | string
+
+export type SquadShareSection = 'chart' | 'summary' | 'analysis'
+
+export type SquadBundleMember = {
+  username?: string | null
+  x_handle?: string | null
+  wallet?: string | null
+}
 
 export type SquadChartMarker = {
   t?: number | string | null
@@ -373,6 +388,12 @@ export type SquadChartMarker = {
   trades?: number | null
   venue?: string | null
   note?: string | null
+  kind?: string | null
+  side?: string | null
+  slot?: number | null
+  wallets?: string[] | number | null
+  supply_pct?: number | null
+  squad_members?: Array<string | SquadBundleMember> | number | null
 }
 
 export type SquadTokenChart = {
@@ -418,6 +439,12 @@ export type SquadMarkerPoint = {
   trades?: number | null
   venue?: string | null
   note?: string | null
+  kind?: string | null
+  side?: string | null
+  slot?: number | null
+  wallets?: string[] | number | null
+  supply_pct?: number | null
+  squad_members?: Array<string | SquadBundleMember> | number | null
 }
 
 export type SquadsCopyFeed = {
@@ -443,6 +470,82 @@ export function squadsDisclaimer(feed?: Pick<SquadsDashboard, 'disclaimer'> | nu
 
 export function squadsMethodologyUrl(): string {
   return SQUADS_METHODOLOGY_PATH
+}
+
+export function squadsActivityPath(): string {
+  return SQUADS_ACTIVITY_PATH
+}
+
+export function squadsActivityPermalink(opts: {
+  squad: string
+  mint: string
+  section?: SquadShareSection
+  origin?: string
+}): string {
+  const origin = (opts.origin || SQUADS_SITE_ORIGIN).replace(/\/$/, '')
+  const qs = new URLSearchParams({ squad: opts.squad, mint: opts.mint })
+  const hash = opts.section ? `#${opts.section}` : ''
+  return `${origin}${SQUADS_ACTIVITY_PATH}?${qs.toString()}${hash}`
+}
+
+export function squadsShareText(opts: {
+  squadName?: string | null
+  symbol?: string | null
+  section?: SquadShareSection
+}): string {
+  const who = [opts.squadName?.trim(), opts.symbol?.trim()].filter(Boolean).join(' · ')
+  const part =
+    opts.section === 'summary' ? 'summary' : opts.section === 'analysis' ? 'analysis' : 'chart'
+  return who ? `Squad activity ${part} · ${who}` : `Squad activity ${part}`
+}
+
+export function squadsShareIntentUrl(opts: {
+  squad: string
+  mint: string
+  section: SquadShareSection
+  squadName?: string | null
+  symbol?: string | null
+  origin?: string
+}): string {
+  const permalink = squadsActivityPermalink(opts)
+  const params = new URLSearchParams({
+    text: squadsShareText(opts),
+    url: permalink,
+  })
+  return `${SQUADS_X_INTENT_ORIGIN}?${params.toString()}`
+}
+
+export function tokenBundleCount(token: SquadChartToken | null | undefined): number {
+  const n = token?.bundles
+  return n != null && Number.isFinite(n) ? Number(n) : 0
+}
+
+export function markerWalletCount(
+  marker: Pick<SquadMarkerPoint, 'wallets' | 'wallet'>,
+): number {
+  if (typeof marker.wallets === 'number' && Number.isFinite(marker.wallets)) return marker.wallets
+  if (Array.isArray(marker.wallets)) return marker.wallets.length
+  return marker.wallet ? 1 : 0
+}
+
+export function publicBundleMembers(
+  members: SquadMarkerPoint['squad_members'],
+): string[] {
+  if (typeof members === 'number' && Number.isFinite(members)) {
+    return members > 0 ? [`${members} members`] : []
+  }
+  if (!Array.isArray(members)) return []
+  const out: string[] = []
+  for (const row of members) {
+    if (typeof row === 'string') {
+      const label = row.replace(/^@+/, '').trim()
+      if (label) out.push(label)
+      continue
+    }
+    const label = publicMemberLabel(row)
+    if (label && label !== '—') out.push(label)
+  }
+  return out
 }
 
 export function squadsDisputeContact(): string {
@@ -736,6 +839,12 @@ export function snapSquadMarkers(
       trades: marker.trades,
       venue: marker.venue,
       note: marker.note,
+      kind: marker.kind,
+      side: marker.side,
+      slot: marker.slot,
+      wallets: marker.wallets,
+      supply_pct: marker.supply_pct,
+      squad_members: marker.squad_members,
     })
   }
   return out
