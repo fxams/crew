@@ -48,6 +48,19 @@ export function SquadsMethodologyPage() {
             The score can be wrong, incomplete, or stale. It is statistical only. It is not proof
             of wrongdoing and not an accusation against any person or squad.
           </p>
+          <h2 className="squads-h2">Bundles</h2>
+          <p>
+            A bundle is a slot-based cluster of public on-chain buys or sells on the same token. Two
+            rules:
+          </p>
+          <ul>
+            <li>
+              A launch bundle is two or more wallets buying within two slots of the token create
+              transaction.
+            </li>
+            <li>A same-slot cluster is three or more wallets on the same side in one slot.</li>
+          </ul>
+          <p>Bundle counts use public chain data only. They can be incomplete or wrong.</p>
           <p className="squads-disclaimer" data-testid="squads-disclaimer">
             {SQUADS_DISCLAIMER_FALLBACK}
           </p>

@@ -1,6 +1,14 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
+    <script>
+      try {
+        var t = localStorage.getItem('crew.theme')
+        document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark')
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'dark')
+      }
+    </script>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="%VITE_BASE_URL%brand/favicon-32.png" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />

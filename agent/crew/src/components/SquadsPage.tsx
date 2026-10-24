@@ -6,6 +6,7 @@ import { ConnectButton } from './ConnectButton'
 import { useWalletAuth } from './WalletAuthProvider'
 import { XLink } from './XLink'
 import { CREW_VERSION, PUMP_COIN_URL, SQUADS_ENABLED } from '../lib/config'
+import { SquadActivityChart } from './SquadActivityChart'
 import { formatUtc, formatUtcCountdown } from '../lib/format-utc'
 import { persistExplicitDisconnect } from '../lib/wallet-session'
 import { shortAddr } from '../lib/wallet'
@@ -476,6 +477,8 @@ export function SquadsPage() {
           </div>
           {!loading && !squads.length ? <p className="muted">No squads in the latest feed.</p> : null}
         </section>
+
+        <SquadActivityChart disclaimer={disclaimer} />
 
         <section className="squads-block" aria-labelledby="squads-anomaly">
           <h2 id="squads-anomaly" className="squads-h2">

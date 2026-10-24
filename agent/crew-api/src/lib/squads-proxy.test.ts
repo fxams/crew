@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  chartsUpstreamUrl,
   copyUpstreamUrl,
   dashboardUpstreamUrl,
   fetchSquadsUpstream,
@@ -7,6 +8,8 @@ import {
   squadsProviderNeedle,
   squadsUpstreamOrigin,
   stripSquadsPayload,
+  tokenChartUpstreamUrl,
+  validateMint,
   validateSquadId,
 } from './squads-proxy.js'
 
@@ -67,6 +70,19 @@ describe('validateSquadId', () => {
   })
 })
 
+describe('validateMint', () => {
+  it('accepts base58 32-44 and rejects everything else', () => {
+    expect(validateMint('4ugDhHJ8XDXAeABmrNmGffFaLbJb9BkPyiFGVSV9ocwo')).toBe(
+      '4ugDhHJ8XDXAeABmrNmGffFaLbJb9BkPyiFGVSV9ocwo',
+    )
+    expect(validateMint('11111111111111111111111111111112')).toBe('11111111111111111111111111111112')
+    expect(validateMint('short')).toBe(null)
+    expect(validateMint('0OIl00000000000000000000000000000000')).toBe(null)
+    expect(validateMint('../x')).toBe(null)
+    expect(validateMint('')).toBe(null)
+  })
+})
+
 describe('upstream paths', () => {
   it('appends the v1 squads paths to the origin', () => {
     expect(dashboardUpstreamUrl('https://squads-upstream.test')).toBe(
@@ -74,6 +90,18 @@ describe('upstream paths', () => {
     )
     expect(copyUpstreamUrl('https://squads-upstream.test', 'alpha-1')).toBe(
       'https://squads-upstream.test/v1/squads/copy?squad=alpha-1',
+    )
+    expect(chartsUpstreamUrl('https://squads-upstream.test')).toBe(
+      'https://squads-upstream.test/v1/squads/charts.json',
+    )
+    expect(
+      tokenChartUpstreamUrl(
+        'https://squads-upstream.test',
+        'alpha-1',
+        '4ugDhHJ8XDXAeABmrNmGffFaLbJb9BkPyiFGVSV9ocwo',
+      ),
+    ).toBe(
+      'https://squads-upstream.test/v1/squads/token_chart.json?squad=alpha-1&mint=4ugDhHJ8XDXAeABmrNmGffFaLbJb9BkPyiFGVSV9ocwo',
     )
   })
 })
