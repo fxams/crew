@@ -4,6 +4,8 @@ export const SQUADS_CACHE_TTL_MS = 5 * 60 * 1000
 export const SQUADS_FETCH_TIMEOUT_MS = 8_000
 export const SQUADS_CACHE_CONTROL = 'public, max-age=300'
 export const SQUADS_SQUAD_ID = /^[A-Za-z0-9_-]{1,80}$/
+/** Solana mint / pubkey: base58, 32–44 chars (no 0/O/I/l). */
+export const SQUADS_MINT = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/
 const DROP_KEYS = new Set(['methodology_url', 'dispute_contact'])
 
 type CacheEntry = { expiresAt: number; body: unknown }
@@ -60,12 +62,26 @@ export function validateSquadId(raw: unknown): string | null {
   return SQUADS_SQUAD_ID.test(id) ? id : null
 }
 
+export function validateMint(raw: unknown): string | null {
+  const mint = typeof raw === 'string' ? raw.trim() : ''
+  return SQUADS_MINT.test(mint) ? mint : null
+}
+
 export function dashboardUpstreamUrl(origin: string): string {
   return `${origin.replace(/\/+$/, '')}/v1/squads/dashboard.json`
 }
 
 export function copyUpstreamUrl(origin: string, squadId: string): string {
   return `${origin.replace(/\/+$/, '')}/v1/squads/copy?squad=${encodeURIComponent(squadId)}`
+}
+
+export function chartsUpstreamUrl(origin: string): string {
+  return `${origin.replace(/\/+$/, '')}/v1/squads/charts.json`
+}
+
+export function tokenChartUpstreamUrl(origin: string, squadId: string, mint: string): string {
+  const base = origin.replace(/\/+$/, '')
+  return `${base}/v1/squads/token_chart.json?squad=${encodeURIComponent(squadId)}&mint=${encodeURIComponent(mint)}`
 }
 
 export async function fetchSquadsUpstream(

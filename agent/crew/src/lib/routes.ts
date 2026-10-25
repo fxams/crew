@@ -250,6 +250,12 @@ export function isSquadsPath(pathname: string): boolean {
   return path === '/squads' || path.endsWith('/squads')
 }
 
+/** Deep-linked squad + token activity (chart / summary / analysis). */
+export function isSquadsActivityPath(pathname: string): boolean {
+  const path = normalizePath(pathname)
+  return path === '/squads/activity' || path.endsWith('/squads/activity')
+}
+
 /** CrewPay-hosted anomaly score notes. */
 export function isSquadsMethodologyPath(pathname: string): boolean {
   const path = normalizePath(pathname)

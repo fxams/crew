@@ -97,7 +97,8 @@ import { launchCrew } from "./lib/launch";
 import { useOwnRegisteredHandle } from "./lib/registered-kol";
 import { NO_CRYPTO_NEEDED } from "./lib/kol-onboarding";
 import { headerKolLinks, mobileStickyCta } from "./lib/nav";
-import { isAdminFarcasterPath, isAdminKickoffPath, isAdminOpsPath, isAgentsEarnPath, isAgentsPath, isApprovePath, isClaimPath, isCoinPath, isCoinsPath, isHomePath, isJobsPath, isKolAlertsPath, isKolFoundersPath, isKolHubPath, isKolLeaderboardPath, isKolRefPath, isKolReservedRedirectPath, isKolTasksPath, isKolsPath, isLaunchPath, isOnepagerPath, isProofPath, isReferralPath, isRegisterPath, isSquadsMethodologyPath, isSquadsPath, isSuiLaunchpadPath, isSuiPoolDetailPath, isTasksPath, kolHandleFromPath, kolRefFromPath, referralCodeFromPath } from "./lib/routes";
+import { isAdminFarcasterPath, isAdminKickoffPath, isAdminOpsPath, isAgentsEarnPath, isAgentsPath, isApprovePath, isClaimPath, isCoinPath, isCoinsPath, isHomePath, isJobsPath, isKolAlertsPath, isKolFoundersPath, isKolHubPath, isKolLeaderboardPath, isKolRefPath, isKolReservedRedirectPath, isKolTasksPath, isKolsPath, isLaunchPath, isOnepagerPath, isProofPath, isReferralPath, isRegisterPath, isSquadsActivityPath, isSquadsMethodologyPath, isSquadsPath, isSuiLaunchpadPath, isSuiPoolDetailPath, isTasksPath, kolHandleFromPath, kolRefFromPath, referralCodeFromPath } from "./lib/routes";
+import { applyTheme, readTheme } from "./lib/theme";
 import { KolFoundersPage } from "./components/KolFoundersPage";
 import { KolTasksPage } from "./components/KolTasksPage";
 import { KolAlertsPage } from "./components/KolAlertsPage";
@@ -242,13 +243,17 @@ export default function App() {
   const isHiddenSuiUrl = !SHOW_SUI_LAUNCHPAD && isSuiLaunchpadPath(path);
   const isTasksPage = isTasksPath(path);
   const isJobsPage = isJobsPath(path);
-  const isSquadsPage = SQUADS_ENABLED && isSquadsPath(path);
+  const isSquadsPage = SQUADS_ENABLED && (isSquadsPath(path) || isSquadsActivityPath(path));
   const isSquadsMethodologyPage = SQUADS_ENABLED && isSquadsMethodologyPath(path);
   const isAnySquadsPage = isSquadsPage || isSquadsMethodologyPage;
-  const isHiddenSquadsUrl = !SQUADS_ENABLED && (isSquadsPath(path) || isSquadsMethodologyPath(path));
+  const isHiddenSquadsUrl = !SQUADS_ENABLED && (isSquadsPath(path) || isSquadsActivityPath(path) || isSquadsMethodologyPath(path));
   const isAdminKickoffPage = isAdminKickoffPath(path);
   const isAdminFarcasterPage = isAdminFarcasterPath(path);
   const isAdminOpsPage = isAdminOpsPath(path);
+
+  useEffect(() => {
+    applyTheme(readTheme())
+  }, [])
 
   useEffect(() => {
     if (!referralInviteCode || !isReferralPath(path)) return
