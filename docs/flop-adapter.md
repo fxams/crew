@@ -2,50 +2,116 @@
 
 Independent community adapter. Not a partnership or endorsement. No branding.
 
-Maps tclk HTLC lock / reveal / refund onto CrewPay's `SettlementRail` from the jobs + escrow system (`agent/crew-api/src/lib/jobs/settlement.ts`).
+Maps tclk HTLC lock / reveal / refund onto CrewPay's `SettlementRail` from the jobs + escrow system (`agent/crew-api/src/lib/jobs/settlement.ts`). Two backends:
+
+- **memory** (default): `@flop-labs/tclk` `MemoryRail`. Process-local, no chain.
+- **flop-htlc** (opt-in): community client for the public FLOP disposable **devnet** `hasStation` pallet.
 
 ## Mapping
 
-| CrewPay job / rail step | tclk memory rail |
-|---|---|
-| `fund` | `MemoryRail.lock` (hash lock created) |
-| `lock` / `verifyFunding` | `MemoryRail.verifyLock` |
-| accept / submit / verify | Off-rail (jobs store + HTTP routes) |
-| `release` | unsigned `tclk:reveal` — client holds the preimage |
-| `reveal` (local / tests) | `MemoryRail.claim` |
-| `refund` / timeout | `MemoryRail.refund` after `refundAfterMs` |
+| CrewPay job / rail step | tclk memory rail | flop-htlc (devnet) |
+|---|---|---|
+| `fund` | `MemoryRail.lock` | `hasStation.openEscrow` with policy `And[Hash(h)]` |
+| `lock` / `verifyFunding` | `MemoryRail.verifyLock` | `query.hasStation.escrows` (`Open`) |
+| accept / submit / verify | Off-rail (jobs store + HTTP routes) | same |
+| `release` | unsigned `tclk:reveal` | unsigned `hasStation.satisfyEscrow` |
+| `reveal` (local / tests) | `MemoryRail.claim` | `hasStation.satisfyEscrow` (needs `FLOP_SIGNING_URI`) |
+| `refund` / timeout | `MemoryRail.refund` after `refundAfterMs` | `hasStation.refundEscrow` after the deadline block |
 
 Job HTTP states stay `created → funded → assigned → submitted → verified → paid | refunded`.
 
 ## Flags (all off by default)
 
-Jobs endpoints remain behind `JOBS_ENABLED`. The FLOP rail is not the default.
+Jobs endpoints remain behind `JOBS_ENABLED`. The FLOP rail is not the default. Unset the live flags to stay on the memory rail — no behavior change.
 
 | Env | Default | Role |
 |---|---|---|
-| `FLOP_ENABLED` | unset / false | When true, `chainId=flop-testnet` (or `FLOP_CHAIN_ID`) selects this rail |
+| `FLOP_ENABLED` | unset / false | When true, `chainId=flop-testnet` or `flop-devnet` (or `FLOP_CHAIN_ID`) selects this rail |
 | `JOBS_RAIL` / `POST /fund` `rail` | — | Set `flop-tclk` (or `flop`, `tclk-memory`) to opt in explicitly |
-| `FLOP_RAIL` | `memory` | `memory` uses `@flop-labs/tclk` `MemoryRail`. `flop-htlc` is reserved |
-| `FLOP_RPC_URL` | unset | When set (with `FLOP_RAIL=flop-htlc`), points at the future testnet RPC |
-| `FLOP_CHAIN_ID` | `flop-testnet` | Logical / future public chain id |
+| `FLOP_RAIL` | `memory` | `memory` uses the tclk memory rail. `flop-htlc` selects the community has-station client |
+| `FLOP_RPC_URL` | unset | Public HTTPS or WSS RPC. Required for `flop-htlc` |
+| `FLOP_CHAIN_ID` | `flop-testnet` | Must be `flop-devnet` for the live client |
+| `FLOP_SIGNING_URI` | unset | Optional sr25519 URI used only in-process to sign extrinsics. Never sent to the API, never generated, never logged, never committed |
+| `FLOP_EXPECTED_GENESIS_HASH` | pinned flop-devnet hash | If set, must equal the pin or the client refuses to start |
 
-Selecting `flop-htlc` or setting `FLOP_RPC_URL` without a published binding throws. Unset those to stay on the memory rail.
+Selecting `FLOP_RAIL=flop-htlc` with any chain id other than `flop-devnet` throws. A genesis mismatch (reset or wrong network) throws.
+
+## Enable the community flop-htlc client (devnet only)
+
+Devnet earns nothing, has no rewards, and may reset. Test FLOP has no value.
+
+1. Point at the public disposable network:
+
+   ```bash
+   export FLOP_RAIL=flop-htlc
+   export FLOP_CHAIN_ID=flop-devnet
+   export FLOP_RPC_URL=https://rpc.devnet.flop.network
+   ```
+
+2. Create a **throwaway** SS58 address (prefix 42) in a wallet that speaks Substrate, or use the faucet "Generate a test address" control. Keep that key off this repo and out of logs.
+
+3. Fund it from [faucet.flop.network](https://faucet.flop.network): paste the address and request the quick grant (25 FLOP). The faucet also accepts `POST /fund` with `{ "address": "<ss58>" }`. Do not send a signing URI to the faucet.
+
+4. Optional, only if this process should submit signed extrinsics:
+
+   ```bash
+   export FLOP_SIGNING_URI='<throwaway sr25519 URI>'
+   ```
+
+   Without that variable the rail returns unsigned `hasStation.openEscrow` / `satisfyEscrow` / `refundEscrow` payloads. HTTP routes still reject `privateKey`, `preimage`, `mnemonic`, and similar fields.
+
+5. Amounts on this rail are raw Planck (`1 FLOP = 10^18`). `deadlineBlocks` is a relative block count (devnet authors ~1s blocks).
+
+### Identity pin
+
+The client pins genesis `0x99c172c095340ace980631f9123544c6bebd4839f3437e463533422d8be2d631` (read from `chain_getBlockHash(0)` and independently from faucet `/chain` on 2026-11-03 UTC). A reset or a different RPC fails closed.
+
+Read-only smoke (no key, no funds):
+
+```bash
+cd agent/crew-api
+npm run flop:devnet-smoke
+```
 
 ## Non-custodial
 
-The API never accepts private keys, seeds, or hash-lock preimages. `release` returns an unsigned reveal payload. Tests keep a preimage in-process only when `retainPreimageForTests` is set on the rail constructor — that helper is not an HTTP surface.
+The API never accepts private keys, seeds, or hash-lock preimages. `release` returns an unsigned satisfy payload. Tests keep a preimage in-process only when `retainPreimageForTests` is set on the rail constructor — that helper is not an HTTP surface.
+
+## On-chain surface (verified against the live RPC)
+
+Pallet `hasStation` (`pallet_has_station`):
+
+| Job step | Extrinsic | Args (metadata) |
+|---|---|---|
+| lock | `openEscrow` | `payee: AccountId32`, `amount: u128`, `policy: Policy`, `deadlineBlocks: u32` |
+| claim | `satisfyEscrow` | `escrowId: H256`, `preimages: Vec<Bytes>` (hex strings, not raw `Uint8Array`) |
+| refund | `refundEscrow` | `escrowId: H256` |
+
+Status:
+
+- Job escrow: `query.hasStation.escrows` → `{ id, funder, payee, amount, policy, deadline, status: Open\|Released\|Refunded, createdBlock }`
+- Inference HTLC (not used for CrewPay jobs): `hasStation_checkHTLCStatus` (`H256` hash lock). Missing → RPC `32004 HTLC not found`. Invalid encoding → `32002`.
+
+`hasStation_getHtlcByHashLock` is advertised by `rpc_methods` but this node rejects a single `hash_lock` argument (`-32602 Invalid params`). The client uses `checkHTLCStatus` plus `htlcsByHashLock` storage.
+
+Policy for job escrow is the runtime's documented HTLC shape: `And[Hash(h)]`. Deadline is a separate relative block count; after it the funder may `refundEscrow`.
 
 ## Files
 
 - `agent/crew-api/src/lib/jobs/flop-rail.ts` — `FlopTclkSettlementRail` implements `SettlementRail`
+- `agent/crew-api/src/lib/jobs/flop-htlc-client.ts` — lock / claim / refund orchestration
+- `agent/crew-api/src/lib/jobs/flop-htlc-rpc.ts` — JSON-RPC identity + HTLC status
+- `agent/crew-api/src/lib/jobs/flop-htlc-polkadot.ts` — metadata-driven submit (optional signer)
 - `agent/crew-api/src/lib/jobs/flop-config.ts` — flags + secret rejection
 - `agent/crew-api/src/lib/jobs/settlement.ts` — `railFor(...)` wiring
 - `agent/crew-api/src/lib/jobs/flop-rail.test.ts` — memory-rail tests
+- `agent/crew-api/src/lib/jobs/flop-htlc-*.test.ts` — mocked RPC / client tests
+- `agent/crew-api/scripts/flop-devnet-smoke.ts` — read-only live identity check
 - `integrations/flop-tclk/` — existing paper-rail demo / harness (unchanged choreography)
 
-## When the FLOP testnet RPC is public
+## What is not included
 
-1. Set `FLOP_RPC_URL` and `FLOP_CHAIN_ID` to the published values.
-2. Implement the `flop-htlc` client behind `FLOP_RAIL=flop-htlc` (unsigned lock / claim / refund).
-3. Add a gated integration test that talks to the live RPC (not the default CI path).
-4. Keep memory-rail tests as the hermetic suite.
+- No funded live lock / claim / refund in CI (that needs a throwaway key and faucet FLOP).
+- Inference `createHtlc` / `redeemHtlc` (TEE appraisal) is a different pallet path and is not used for CrewPay jobs.
+- Agent DID registry (`agentIdentity`) is on the same runtime and is not wired here.
+- Mainnet / testnet are refused. This is a disposable-devnet community adapter only.

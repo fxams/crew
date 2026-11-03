@@ -20,7 +20,7 @@ the authors of tclk or technocore-chat.
 
 ## Jobs SettlementRail (memory rail)
 
-`agent/crew-api/src/lib/jobs/flop-rail.ts` implements CrewPay's `SettlementRail` on `@flop-labs/tclk` `MemoryRail`. Opt-in via `rail=flop-tclk` or `FLOP_ENABLED` + `chainId=flop-testnet`. `FLOP_RPC_URL` / `FLOP_CHAIN_ID` are reserved for the unpublished testnet `flop-htlc` binding. See `docs/flop-adapter.md`.
+`agent/crew-api/src/lib/jobs/flop-rail.ts` implements CrewPay's `SettlementRail` on `@flop-labs/tclk` `MemoryRail`, with an opt-in community `flop-htlc` client for public flop-devnet (`FLOP_RAIL=flop-htlc`, `FLOP_CHAIN_ID=flop-devnet`). See `docs/flop-adapter.md`.
 
 ## How CrewPay fits
 

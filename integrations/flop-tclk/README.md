@@ -32,8 +32,9 @@ Solana rail yet**, so real-value settlement of a Solana-native crew isn't possib
 today. That's why this demo stays on `paper`.
 
 Jobs + escrow (`JOBS_ENABLED`) can opt into the same HTLC lifecycle on tclk's **memory** rail
-via `FlopTclkSettlementRail` (`rail=flop-tclk` or `FLOP_ENABLED`). That adapter is off by
-default, non-custodial, and not a partnership. See [`docs/flop-adapter.md`](../../docs/flop-adapter.md).
+via `FlopTclkSettlementRail` (`rail=flop-tclk` or `FLOP_ENABLED`), or the community flop-devnet
+`flop-htlc` client when `FLOP_RAIL=flop-htlc`. That adapter is off by default, non-custodial,
+and not a partnership. See [`docs/flop-adapter.md`](../../docs/flop-adapter.md).
 
 ## Run it
 

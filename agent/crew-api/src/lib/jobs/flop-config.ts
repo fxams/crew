@@ -1,5 +1,8 @@
 /** Env + flags for the FLOP / tclk settlement rail. Off by default. */
 
+import { FLOP_DEVNET_CHAIN_ID, FLOP_DEVNET_GENESIS_HASH, normalizeHex } from './flop-devnet.js'
+import { FlopHtlcError } from './flop-htlc-errors.js'
+
 export type FlopRailMode = 'memory' | 'flop-htlc'
 
 function envFlag(name: string): boolean {
@@ -27,6 +30,28 @@ export function flopRailMode(): FlopRailMode {
   return 'memory'
 }
 
+/**
+ * Signing URI for the community flop-htlc client. Read from env only.
+ * Never generate, commit, or log this value.
+ */
+export function flopSigningUri(): string | null {
+  const uri = (process.env.FLOP_SIGNING_URI || process.env.FLOP_SIGNING_KEY || '').trim()
+  return uri || null
+}
+
+export function flopExpectedGenesisHash(): string {
+  const raw = (process.env.FLOP_EXPECTED_GENESIS_HASH || '').trim()
+  if (!raw) return FLOP_DEVNET_GENESIS_HASH
+  const hex = normalizeHex(raw)
+  if (hex !== FLOP_DEVNET_GENESIS_HASH) {
+    throw new FlopHtlcError(
+      'NETWORK_MISMATCH',
+      `FLOP_EXPECTED_GENESIS_HASH does not match the pinned flop-devnet genesis ${FLOP_DEVNET_GENESIS_HASH}`,
+    )
+  }
+  return FLOP_DEVNET_GENESIS_HASH
+}
+
 export function isFlopRailName(name: string | undefined): boolean {
   const n = (name || '').trim().toLowerCase()
   return n === 'flop' || n === 'flop-tclk' || n === 'tclk-memory' || n === 'flop-htlc'
@@ -35,7 +60,7 @@ export function isFlopRailName(name: string | undefined): boolean {
 export function isFlopChainId(chainId: string | undefined): boolean {
   if (!chainId) return false
   const id = chainId.trim().toLowerCase()
-  return id === 'flop-testnet' || id === flopChainId().toLowerCase()
+  return id === 'flop-testnet' || id === FLOP_DEVNET_CHAIN_ID || id === flopChainId().toLowerCase()
 }
 
 /** Names that must never appear in API/rail request bodies (non-custodial). */

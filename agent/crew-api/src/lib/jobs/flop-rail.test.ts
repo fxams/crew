@@ -4,6 +4,9 @@ import { memoryJobs } from './store.js'
 import { parseAmountToBigint } from './types.js'
 import { defaultVerifier } from './verifier.js'
 import { rejectCustodialSecrets } from './flop-config.js'
+import { FLOP_DEVNET_CHAIN_ID, FLOP_DEVNET_GENESIS_HASH } from './flop-devnet.js'
+import { FlopHtlcClient, type EscrowRecord, type FlopChainIo, type FlopHtlcCall, type SubmitResult } from './flop-htlc-client.js'
+import type { FlopNetworkIdentity } from './flop-htlc-rpc.js'
 import { FlopTclkSettlementRail, resetSharedFlopRail, sharedFlopRail } from './flop-rail.js'
 import { railFor } from './settlement.js'
 
@@ -109,21 +112,115 @@ describe('FlopTclkSettlementRail (tclk memory rail)', () => {
     expect(sim.name).toBe('sim')
   })
 
-  it('throws when FLOP_RPC_URL selects unpublished flop-htlc', async () => {
+  it('refuses flop-htlc unless FLOP_CHAIN_ID is flop-devnet', async () => {
     const prevUrl = process.env.FLOP_RPC_URL
     const prevRail = process.env.FLOP_RAIL
+    const prevChain = process.env.FLOP_CHAIN_ID
     process.env.FLOP_RPC_URL = 'https://example.invalid/flop-rpc'
     process.env.FLOP_RAIL = 'flop-htlc'
+    delete process.env.FLOP_CHAIN_ID
     try {
       const rail = new FlopTclkSettlementRail()
       await expect(rail.fund({ chainId: 'flop-testnet', asset: 'USDC' }, { amount: 1n })).rejects.toThrow(
-        /not published/,
+        /flop-devnet only/,
       )
     } finally {
       if (prevUrl === undefined) delete process.env.FLOP_RPC_URL
       else process.env.FLOP_RPC_URL = prevUrl
       if (prevRail === undefined) delete process.env.FLOP_RAIL
       else process.env.FLOP_RAIL = prevRail
+      if (prevChain === undefined) delete process.env.FLOP_CHAIN_ID
+      else process.env.FLOP_CHAIN_ID = prevChain
+    }
+  })
+
+  it('maps fund → verifyFunding → unsigned satisfy on an injected flop-htlc client', async () => {
+    const prevUrl = process.env.FLOP_RPC_URL
+    const prevRail = process.env.FLOP_RAIL
+    const prevChain = process.env.FLOP_CHAIN_ID
+    process.env.FLOP_RPC_URL = 'https://rpc.devnet.flop.network'
+    process.env.FLOP_RAIL = 'flop-htlc'
+    process.env.FLOP_CHAIN_ID = FLOP_DEVNET_CHAIN_ID
+    try {
+      const io = new (class implements FlopChainIo {
+        rpcUrl = 'https://rpc.devnet.flop.network'
+        chainId = FLOP_DEVNET_CHAIN_ID
+        canSign = false
+        escrows = new Map<string, EscrowRecord>()
+        async assertIdentity(): Promise<FlopNetworkIdentity> {
+          return {
+            chain: 'FLOP Devnet',
+            genesisHash: FLOP_DEVNET_GENESIS_HASH,
+            specName: 'tzkv-runtime',
+            specVersion: 1014003,
+            ss58Format: 42,
+            tokenDecimals: 18,
+            tokenSymbol: 'FLOP',
+          }
+        }
+        async getEscrow(id: string) {
+          return this.escrows.get(id) ?? null
+        }
+        async checkHtlcStatus() {
+          return null
+        }
+        async currentBlock() {
+          return 10
+        }
+        async submit(call: FlopHtlcCall): Promise<SubmitResult> {
+          const id = `0x${'aa'.repeat(32)}`
+          if (call.method === 'openEscrow') {
+            this.escrows.set(id, {
+              id,
+              funder: '5Funder',
+              payee: call.payee,
+              amount: call.amount,
+              policy: call.policy,
+              deadline: 100,
+              status: 'Open',
+              createdBlock: 1,
+            })
+            return { txHash: '0xopen', escrowId: id }
+          }
+          return { txHash: '0xother' }
+        }
+        async disconnect() {}
+      })()
+      const rail = new FlopTclkSettlementRail({
+        htlc: new FlopHtlcClient(io),
+        retainPreimageForTests: true,
+      })
+      const ctx = { chainId: FLOP_DEVNET_CHAIN_ID, asset: 'USDC' }
+      const funded = await rail.fund(ctx, {
+        amount: 1n,
+        from: '5DRhi7dvWicmgUPfKpxdV5p4kxXiQUbLUFXtwp4EcAWLtu4D',
+        to: '5FjCGp7SM7QB7ZsysTR4pTFVd2oY4KGbRAV48h4nWavoPtV6',
+      })
+      expect(funded.unsigned).toMatchObject({ kind: 'flop-htlc:call', method: 'openEscrow', rail: 'flop-htlc' })
+      expect(JSON.stringify(funded)).not.toMatch(/preimage/i)
+      expect(funded.escrow.ref).toMatch(/^flop-htlc:pending:/)
+
+      const vf = await rail.verifyFunding(ctx, funded.escrow)
+      expect(vf.ok).toBe(false)
+      expect(vf.detail).toMatch(/pending/)
+
+      const unsigned = await rail.release(ctx, funded.escrow, { to: 'kol', amount: 1n })
+      expect(unsigned.unsigned).toMatchObject({ method: 'satisfyEscrow' })
+
+      const refund = await rail.refund(ctx, funded.escrow, { to: 'payer' })
+      expect(refund.unsigned).toMatchObject({ method: 'refundEscrow' })
+      expect(rail.connectionHint()).toMatchObject({
+        mode: 'flop-htlc',
+        chainId: FLOP_DEVNET_CHAIN_ID,
+        genesisHash: FLOP_DEVNET_GENESIS_HASH,
+      })
+    } finally {
+      if (prevUrl === undefined) delete process.env.FLOP_RPC_URL
+      else process.env.FLOP_RPC_URL = prevUrl
+      if (prevRail === undefined) delete process.env.FLOP_RAIL
+      else process.env.FLOP_RAIL = prevRail
+      if (prevChain === undefined) delete process.env.FLOP_CHAIN_ID
+      else process.env.FLOP_CHAIN_ID = prevChain
     }
   })
 

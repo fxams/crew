@@ -10,10 +10,14 @@
     "migrate": "tsx src/migrate.ts",
     "seed:kols": "tsx scripts/seed-kols.ts",
     "buyback": "tsx src/buyback.ts",
+    "flop:devnet-smoke": "tsx scripts/flop-devnet-smoke.ts",
     "test": "vitest run"
   },
   "dependencies": {
     "@flop-labs/tclk": "0.1.0",
+    "@polkadot/api": "^17.0.1",
+    "@polkadot/keyring": "^14.0.3",
+    "@polkadot/util-crypto": "^14.0.3",
     "@interest-protocol/memez-fun-sdk": "^19.1.0",
     "@mysten/sui": "^1.45.2",
     "@pump-fun/pump-sdk": "^2.0.0",
