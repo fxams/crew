@@ -19,6 +19,8 @@ export type EscrowRef = {
 export type FundRequest = {
   amount: bigint
   from?: string // agent funding wallet (optional in sim)
+  /** Payee SS58 for flop-htlc `openEscrow` (required on the live rail). */
+  to?: string
 }
 
 export type ReleaseRequest = {

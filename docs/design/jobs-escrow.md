@@ -58,7 +58,7 @@ Adapter interface (test-only implementation first):
 Notes:
 - Solana first: devnet or simulated program stub; final mainnet requires an audited program PDA model.
 - EVM stubs: Base/Ethereum placeholders; real release/refund need audited escrow contracts.
-- TCLK rails: `FlopTclkSettlementRail` implements the adapter on tclk's memory rail (opt-in; `docs/flop-adapter.md`). `flop-htlc` waits on a public testnet RPC.
+- TCLK rails: `FlopTclkSettlementRail` implements the adapter on tclk's memory rail (opt-in; `docs/flop-adapter.md`). `FLOP_RAIL=flop-htlc` is a community flop-devnet has-station client (off by default).
 
 ## Proof-of-work verification (campaigns)
 
@@ -162,7 +162,7 @@ Same `JOBS_ENABLED` gate and settlement rails. No new escrow program. DEVNET cha
 - `release` → unsigned `tclk:reveal` (client-held preimage; API never takes secrets)
 - `refund` → `MemoryRail.refund` after `refundAfterMs`
 
-Opt-in only: `rail=flop-tclk` or `FLOP_ENABLED` + `chainId=flop-testnet`. Memory rail until `FLOP_RPC_URL` / `FLOP_CHAIN_ID` point at a published testnet; `flop-htlc` is reserved and throws until that binding exists. Independent community adapter — not a partnership.
+Opt-in only: `rail=flop-tclk` or `FLOP_ENABLED` + `chainId=flop-testnet` / `flop-devnet`. Memory rail unless `FLOP_RAIL=flop-htlc` with `FLOP_CHAIN_ID=flop-devnet` and `FLOP_RPC_URL`. Independent community adapter — not a partnership.
 
 See `docs/flop-adapter.md`.
 
@@ -170,7 +170,7 @@ See `docs/flop-adapter.md`.
 
 - `JOBS_ENABLED` (default off) gates endpoints and MCP tools.
 - `JOBS_RAIL` may default to 'sim' in dev/tests.
-- `FLOP_ENABLED` (default off) selects the tclk memory rail for `flop-testnet`; `FLOP_RPC_URL` / `FLOP_CHAIN_ID` reserved for later.
+- `FLOP_ENABLED` (default off) selects the tclk memory rail for `flop-testnet` / `flop-devnet`; `FLOP_RPC_URL` + `FLOP_CHAIN_ID=flop-devnet` enable the community has-station client.
 - All code is test/devnet only in this step; no mainnet funds moved.
 
 ## Addendum: Non-custodial rails and multichain defaults (v0 update)
