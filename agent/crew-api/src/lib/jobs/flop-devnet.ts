@@ -55,3 +55,19 @@ export function assertHex32(name: string, value: string): string {
   }
   return hex
 }
+
+/** JSON-RPC reads use HTTP(S). Signed submit needs a subscription (WS/WSS). */
+export function toHttpRpcUrl(url: string): string {
+  const u = url.trim()
+  if (u.startsWith('wss://')) return `https://${u.slice('wss://'.length)}`
+  if (u.startsWith('ws://')) return `http://${u.slice('ws://'.length)}`
+  return u
+}
+
+/** HttpProvider cannot watch in-block status; rewrite https → wss for submit. */
+export function toWsRpcUrl(url: string): string {
+  const u = url.trim()
+  if (u.startsWith('https://')) return `wss://${u.slice('https://'.length)}`
+  if (u.startsWith('http://')) return `ws://${u.slice('http://'.length)}`
+  return u
+}
