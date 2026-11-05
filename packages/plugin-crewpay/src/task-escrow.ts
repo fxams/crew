@@ -5,7 +5,7 @@ import type { CrewPayApiClient } from './client.js'
  * Today: jobs + /fund. Swap implementation when unified escrow-for-any-task lands.
  */
 export interface TaskEscrowBackend {
-  postBounty(body: Record<string, unknown>, opts?: { fund?: boolean; rail?: string; from?: string }): Promise<unknown>
+  postBounty(body: Record<string, unknown>, opts?: { fund?: boolean; rail?: string; from?: string; to?: string }): Promise<unknown>
   postTask(body: Record<string, unknown>, opts?: { dryRun?: boolean; fund?: boolean }): Promise<unknown>
   payAgent(jobId: string, body: Record<string, unknown>): Promise<unknown>
 }
@@ -15,7 +15,7 @@ export class JobsEscrowBackend implements TaskEscrowBackend {
 
   async postBounty(
     body: Record<string, unknown>,
-    opts?: { fund?: boolean; rail?: string; from?: string },
+    opts?: { fund?: boolean; rail?: string; from?: string; to?: string },
   ): Promise<unknown> {
     const created = (await this.api.createCampaign(body)) as { job?: { id?: string } }
     const jobId = created?.job?.id
@@ -25,6 +25,7 @@ export class JobsEscrowBackend implements TaskEscrowBackend {
     const funding = await this.api.fundJob(jobId, {
       rail: opts.rail,
       from: opts.from,
+      to: opts.to,
     })
     return { phase: 'jobs+campaigns', created, funding }
   }

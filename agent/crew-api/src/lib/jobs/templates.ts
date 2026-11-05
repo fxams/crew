@@ -10,7 +10,7 @@ export const COIN_JOB_TEMPLATE_IDS = [
 export type CoinJobTemplateId = (typeof COIN_JOB_TEMPLATE_IDS)[number]
 
 /** Test/devnet chains only — coin jobs never target mainnet. */
-export const COIN_JOB_CHAIN_IDS = ['solana-devnet', 'evm:base-sepolia', 'flop-testnet'] as const
+export const COIN_JOB_CHAIN_IDS = ['solana-devnet', 'evm:base-sepolia', 'flop-testnet', 'flop-devnet'] as const
 export type CoinJobChainId = (typeof COIN_JOB_CHAIN_IDS)[number]
 
 export type CoinJobTemplate = {
@@ -132,7 +132,7 @@ export function applyCoinJobTemplate(input: {
   asset: AssetSymbol
 }): AppliedCoinJob {
   if (!isCoinJobChainId(input.chainId)) {
-    throw new Error('Coin jobs are test/devnet only (solana-devnet, evm:base-sepolia, flop-testnet)')
+    throw new Error('Coin jobs are test/devnet only (solana-devnet, evm:base-sepolia, flop-testnet, flop-devnet)')
   }
   const tmpl = getCoinJobTemplate(input.template)
   const postsPerWeek =

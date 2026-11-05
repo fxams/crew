@@ -6,11 +6,14 @@ import { memoryJobs } from '../lib/jobs/store.js'
 import {
   type ChainId,
   type AssetSymbol,
+  JOB_ASSET_SYMBOLS,
+  JOB_CHAIN_IDS,
   clampBigint,
-  formatAmountFromBigint,
+  formatAssetAmount,
   nowMs,
-  parseAmountToBigint,
+  parseAssetAmount,
 } from '../lib/jobs/types.js'
+import { isFlopChainId, isFlopRailName } from '../lib/jobs/flop-config.js'
 import { defaultVerifier } from '../lib/jobs/verifier.js'
 import { railFor } from '../lib/jobs/settlement.js'
 import { jobsPlatformFeeBps, jobsPlatformFeeWallet } from '../lib/jobs/config.js'
@@ -20,23 +23,15 @@ import {
   isCoinJobTemplateId,
   listCoinJobTemplates,
 } from '../lib/jobs/templates.js'
-import { jobToJson } from '../lib/jobs/serialize.js'
+import { fundingToJson, jobToJson } from '../lib/jobs/serialize.js'
 import { coinPageUrl } from '../lib/coin-page.js'
 import { getCoin } from '../lib/coins.js'
 import { notifyJobOpenTelegram } from '../lib/telegram-kol.js'
 
 export const jobsRouter = Router()
 
-const chainIdSchema = z.enum([
-  'solana-devnet',
-  'solana',
-  'evm:base-sepolia',
-  'evm:base',
-  'evm:ethereum',
-  'flop-testnet',
-]) as unknown as z.ZodType<ChainId>
-
-const assetSchema = z.enum(['SOL', 'USDC', 'ETH', 'USDT']) as unknown as z.ZodType<AssetSymbol>
+const chainIdSchema = z.enum(JOB_CHAIN_IDS) as unknown as z.ZodType<ChainId>
+const assetSchema = z.enum(JOB_ASSET_SYMBOLS) as unknown as z.ZodType<AssetSymbol>
 
 const rulesSchema = z
   .object({
@@ -84,6 +79,7 @@ const postCoinJobSchema = z.object({
   fund: z.boolean().optional(),
   rail: z.string().max(32).optional(),
   from: z.string().max(128).optional(),
+  to: z.string().max(128).optional(),
 })
 
 function resolveDeadlineMs(input: { deadlineMs?: number; deadlineHours?: number }): number {
@@ -95,8 +91,8 @@ function resolveDeadlineMs(input: { deadlineMs?: number; deadlineHours?: number 
 jobsRouter.post('/jobs/campaigns/dry-run', requireAgentApiKey, (req, res) => {
   try {
     const body = createCampaignSchema.parse(req.body ?? {})
-    const budget = parseAmountToBigint(body.budget)
-    const per = parseAmountToBigint(body.perProofAmount)
+    const budget = parseAssetAmount(body.budget, body.asset)
+    const per = parseAssetAmount(body.perProofAmount, body.asset)
     if (per <= 0n) throw new Error('perProofAmount must be > 0')
     const maxByBudget = Number(budget / per)
     const deadline = resolveDeadlineMs(body)
@@ -105,8 +101,8 @@ jobsRouter.post('/jobs/campaigns/dry-run', requireAgentApiKey, (req, res) => {
       plan: {
         chainId: body.chainId,
         asset: body.asset,
-        budget: formatAmountFromBigint(budget),
-        perProofAmount: formatAmountFromBigint(per),
+        budget: formatAssetAmount(budget, body.asset),
+        perProofAmount: formatAssetAmount(per, body.asset),
         maxProofs: Math.min(body.maxProofs, maxByBudget),
         perKOLCap: body.perKOLCap,
         deadline,
@@ -122,8 +118,8 @@ jobsRouter.post('/jobs/campaigns/dry-run', requireAgentApiKey, (req, res) => {
 jobsRouter.post('/jobs/campaigns', requireAgentApiKey, (req, res) => {
   try {
     const body = createCampaignSchema.parse(req.body ?? {})
-    const budget = parseAmountToBigint(body.budget)
-    const per = parseAmountToBigint(body.perProofAmount)
+    const budget = parseAssetAmount(body.budget, body.asset)
+    const per = parseAssetAmount(body.perProofAmount, body.asset)
     if (per <= 0n) throw new Error('perProofAmount must be > 0')
     // Strictly create the job record (escrow is separate /fund call)
     const job = memoryJobs.createCampaign({
@@ -157,16 +153,28 @@ jobsRouter.post('/jobs/:id/fund', requireAgentApiKey, async (req, res) => {
     const railName = (typeof req.body?.rail === 'string' ? req.body.rail : '').trim().toLowerCase()
     const rail = railFor(job.chainId, railName || process.env.JOBS_RAIL)
     const ctx = { chainId: job.chainId, asset: job.asset }
-    const from = typeof req.body?.from === 'string' ? req.body.from : undefined
-    const { escrow } = await rail.fund(ctx, { amount: job.budget, from })
-    const locked = await rail.lock(ctx, escrow)
-    const vf = await rail.verifyFunding(ctx, escrow)
-    job.escrowRef = escrow.ref || escrow.id
+    const from = typeof req.body?.from === 'string' ? req.body.from.trim() : undefined
+    const to = typeof req.body?.to === 'string' ? req.body.to.trim() : ''
+    if ((isFlopChainId(job.chainId) || isFlopRailName(railName)) && !to) {
+      throw new Error('Provide payee SS58 in body.to — flop-htlc openEscrow requires a payee')
+    }
+    const funded = await rail.fund(ctx, { amount: job.budget, from, to: to || undefined })
+    const locked = await rail.lock(ctx, funded.escrow)
+    const vf = await rail.verifyFunding(ctx, funded.escrow)
+    job.escrowRef = funded.escrow.ref || funded.escrow.id
     job.escrowFrom = from || null
+    job.escrowTo = to || null
     job.status = vf.ok ? 'funded' : 'created'
     memoryJobs.setJob(job)
     const rec = memoryJobs.addFunding(job.id, rail.name, job.budget, vf.ok, vf.detail)
-    res.status(201).json({ ok: true, job: jobToJson(job), funding: rec, locked, verify: vf })
+    res.status(201).json({
+      ok: true,
+      job: jobToJson(job),
+      funding: fundingToJson(rec),
+      locked: { ...locked, unsigned: funded.unsigned },
+      unsigned: funded.unsigned,
+      verify: vf,
+    })
   } catch (err) {
     res.status(400).json({ ok: false, error: err instanceof Error ? err.message : 'fund failed' })
   }
@@ -188,7 +196,7 @@ jobsRouter.get('/jobs/open', (req, res) => {
 
 function applyPostedCoinJob(body: z.infer<typeof postCoinJobSchema>, coin: { ticker: string; mint: string } | null) {
   if (!isCoinJobChainId(body.chainId)) {
-    throw new Error('Coin jobs are test/devnet only (solana-devnet, evm:base-sepolia, flop-testnet)')
+    throw new Error('Coin jobs are test/devnet only (solana-devnet, evm:base-sepolia, flop-testnet, flop-devnet)')
   }
   if (!isCoinJobTemplateId(body.template)) {
     throw new Error('Unknown template')
@@ -238,8 +246,8 @@ jobsRouter.post('/jobs/coin', requireAgentApiKey, async (req, res) => {
       createdBy: req.crewAgentAuth?.keyId || req.crewAgentAuth?.fingerprint || 'unknown',
       chainId: plan.chainId,
       asset: plan.asset,
-      budget: parseAmountToBigint(plan.budget),
-      perProofAmount: parseAmountToBigint(plan.perProofAmount),
+      budget: parseAssetAmount(plan.budget, plan.asset),
+      perProofAmount: parseAssetAmount(plan.perProofAmount, plan.asset),
       maxProofs: plan.maxProofs,
       perKOLCap: plan.perKOLCap,
       deadline: nowMs() + plan.deadlineHours * 60 * 60_000,
@@ -251,18 +259,20 @@ jobsRouter.post('/jobs/coin', requireAgentApiKey, async (req, res) => {
     let funding: unknown
     if (body.fund) {
       const railName = (body.rail || process.env.JOBS_RAIL || 'sim').trim().toLowerCase()
-      if (railName !== 'sim' && railName !== 'flop-tclk') {
+      if (railName !== 'sim' && railName !== 'flop-tclk' && railName !== 'flop-htlc') {
         throw new Error('Optional fund on post_coin_job is sim/flop-tclk only (no mainnet)')
       }
       const rail = railFor(job.chainId, railName)
       const ctx = { chainId: job.chainId, asset: job.asset }
-      const funded = await rail.fund(ctx, { amount: job.budget, from: body.from })
+      const funded = await rail.fund(ctx, { amount: job.budget, from: body.from, to: body.to })
       await rail.lock(ctx, funded.escrow)
       const vf = await rail.verifyFunding(ctx, funded.escrow)
       job.escrowRef = funded.escrow.ref || funded.escrow.id
+      job.escrowFrom = body.from || null
+      job.escrowTo = body.to || null
       job.status = vf.ok ? 'funded' : 'created'
       memoryJobs.setJob(job)
-      funding = memoryJobs.addFunding(job.id, rail.name, job.budget, vf.ok, vf.detail)
+      funding = fundingToJson(memoryJobs.addFunding(job.id, rail.name, job.budget, vf.ok, vf.detail))
     }
     void notifyJobOpenTelegram({
       mint: body.mint,
@@ -474,8 +484,8 @@ jobsRouter.post('/jobs/:id/payout', requireAgentApiKey, async (req, res) => {
       ok: true,
       requiresSignature: Boolean(rel.unsigned),
       paidProofs: proofsToPay,
-      kolAmount: formatAmountFromBigint(kolAmount),
-      platformFee: feeAmount > 0n ? { bps: feeBps, wallet: feeWallet, amount: formatAmountFromBigint(feeAmount) } : null,
+      kolAmount: formatAssetAmount(kolAmount, job.asset),
+      platformFee: feeAmount > 0n ? { bps: feeBps, wallet: feeWallet, amount: formatAssetAmount(feeAmount, job.asset) } : null,
       unsigned: rel.unsigned,
       txRef: rel.txRef,
       claimId: claim.id,
@@ -505,12 +515,20 @@ jobsRouter.post('/jobs/:id/refund', requireAgentApiKey, async (req, res) => {
       res.status(400).json({ ok: false, error: 'Provide refund address in body.to' })
       return
     }
+    const from = typeof req.body?.from === 'string' ? req.body.from.trim() : undefined
     const rail = railFor(job.chainId, process.env.JOBS_RAIL)
     const ctx = { chainId: job.chainId, asset: job.asset }
-    const out = await rail.refund(ctx, { id: job.escrowRef, rail: rail.name }, { to })
-    job.status = 'refunded'
-    memoryJobs.setJob(job)
-    res.json({ ok: true, txRef: out.txRef })
+    const out = await rail.refund(ctx, { id: job.escrowRef, rail: rail.name }, { to, from })
+    if (!out.unsigned) {
+      job.status = 'refunded'
+      memoryJobs.setJob(job)
+    }
+    res.json({
+      ok: true,
+      txRef: out.txRef,
+      unsigned: out.unsigned,
+      requiresSignature: Boolean(out.unsigned),
+    })
   } catch (err) {
     res.status(400).json({ ok: false, error: err instanceof Error ? err.message : 'refund failed' })
   }

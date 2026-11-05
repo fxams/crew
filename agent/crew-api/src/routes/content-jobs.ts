@@ -15,12 +15,18 @@ import {
 } from '../lib/jobs/content.js'
 import { jobToJson, submissionToJson } from '../lib/jobs/serialize.js'
 import { memoryJobs } from '../lib/jobs/store.js'
-import { nowMs, parseAmountToBigint, type AssetSymbol, type ChainId } from '../lib/jobs/types.js'
+import {
+  JOB_ASSET_SYMBOLS,
+  nowMs,
+  parseAssetAmount,
+  type AssetSymbol,
+  type ChainId,
+} from '../lib/jobs/types.js'
 
 export const contentJobsRouter = Router()
 
-const chainIdSchema = z.enum(['solana-devnet', 'evm:base-sepolia', 'flop-testnet']) as unknown as z.ZodType<ChainId>
-const assetSchema = z.enum(['SOL', 'USDC', 'ETH', 'USDT']) as unknown as z.ZodType<AssetSymbol>
+const chainIdSchema = z.enum(['solana-devnet', 'evm:base-sepolia', 'flop-testnet', 'flop-devnet']) as unknown as z.ZodType<ChainId>
+const assetSchema = z.enum(JOB_ASSET_SYMBOLS) as unknown as z.ZodType<AssetSymbol>
 
 const postContentJobSchema = z.object({
   kind: z.enum(['thread', 'meme', 'post']),
@@ -34,6 +40,7 @@ const postContentJobSchema = z.object({
   fund: z.boolean().optional(),
   rail: z.string().max(32).optional(),
   from: z.string().max(128).optional(),
+  to: z.string().max(128).optional(),
 })
 
 function resolveDeadlineMs(input: { deadlineMs?: number; deadlineHours?: number }): number {
@@ -90,9 +97,9 @@ contentJobsRouter.post('/jobs/content', requireAgentApiKey, async (req, res) => 
   try {
     const body = postContentJobSchema.parse(req.body ?? {})
     if (!isContentJobChainId(body.chainId)) {
-      throw new Error('Content jobs are DEVNET only (solana-devnet, evm:base-sepolia, flop-testnet)')
+      throw new Error('Content jobs are DEVNET only (solana-devnet, evm:base-sepolia, flop-testnet, flop-devnet)')
     }
-    const reward = parseAmountToBigint(body.reward)
+    const reward = parseAssetAmount(body.reward, body.asset)
     if (reward <= 0n) throw new Error('reward must be > 0')
     const job = memoryJobs.createContentJob({
       createdBy: req.crewAgentAuth?.keyId || req.crewAgentAuth?.fingerprint || 'unknown',
@@ -106,7 +113,7 @@ contentJobsRouter.post('/jobs/content', requireAgentApiKey, async (req, res) => 
     })
     let fundPayload: Awaited<ReturnType<typeof fundContentJob>> | null = null
     if (body.fund) {
-      fundPayload = await fundContentJob(job.id, { rail: body.rail, from: body.from })
+      fundPayload = await fundContentJob(job.id, { rail: body.rail, from: body.from, to: body.to })
     }
     res.status(201).json({
       ok: true,

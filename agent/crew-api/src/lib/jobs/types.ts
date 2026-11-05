@@ -9,7 +9,20 @@ export type ChainId =
   /** Public FLOP disposable devnet (`FLOP_CHAIN_ID=flop-devnet`). */
   | 'flop-devnet'
 
-export type AssetSymbol = 'SOL' | 'USDC' | 'ETH' | 'USDT'
+export type AssetSymbol = 'SOL' | 'USDC' | 'ETH' | 'USDT' | 'FLOP'
+
+/** HTTP / MCP job chain ids. Live flop-htlc requires `flop-devnet`. */
+export const JOB_CHAIN_IDS = [
+  'solana-devnet',
+  'solana',
+  'evm:base-sepolia',
+  'evm:base',
+  'evm:ethereum',
+  'flop-testnet',
+  'flop-devnet',
+] as const
+
+export const JOB_ASSET_SYMBOLS = ['SOL', 'USDC', 'ETH', 'USDT', 'FLOP'] as const
 
 export type JobType =
   | 'campaign'
@@ -110,6 +123,8 @@ export type JobBase = {
   escrowRef?: string | null
   /** Funding wallet for non-custodial rails (unsigned release/refund). */
   escrowFrom?: string | null
+  /** Payee SS58 / wallet for flop-htlc `openEscrow` (required on that rail). */
+  escrowTo?: string | null
   createdAt: number
   updatedAt: number
   /** CrewPay-launched mint this job is for (post-launch kit). */
@@ -241,12 +256,21 @@ export function clampBigint(n: bigint, min: bigint, max: bigint): bigint {
   return n
 }
 
-export function parseAmountToBigint(n: number | string): bigint {
-  const v = typeof n === 'string' ? Number(n) : n
-  if (!Number.isFinite(v) || v < 0) throw new Error('Invalid amount')
-  // Base units for tests: treat as 1e9 for SOL, 1e6 for USDC — leave exact unit scaling to rails.
-  // Here we store canonical bigint as lamports-like test units (1e9).
-  return BigInt(Math.round(v * 1e9))
+export function decimalsForAsset(asset: string | undefined): number {
+  return asset === 'FLOP' ? 18 : 9
+}
+
+export function parseAmountToBigint(n: number | string, decimals = 9): bigint {
+  if (typeof n === 'number' && (!Number.isFinite(n) || n < 0)) throw new Error('Invalid amount')
+  const raw = typeof n === 'number' ? n.toString() : String(n).trim()
+  if (!/^\d+(\.\d+)?$/.test(raw)) throw new Error('Invalid amount')
+  const [intPart, fracRaw = ''] = raw.split('.')
+  const frac = fracRaw.length > decimals ? fracRaw.slice(0, decimals) : fracRaw.padEnd(decimals, '0')
+  return BigInt(`${intPart}${frac}`)
+}
+
+export function parseAssetAmount(n: number | string, asset: string | undefined): bigint {
+  return parseAmountToBigint(n, decimalsForAsset(asset))
 }
 
 export function formatAmountFromBigint(v: bigint, decimals = 9): number {
@@ -255,5 +279,9 @@ export function formatAmountFromBigint(v: bigint, decimals = 9): number {
   const int = s.slice(0, -decimals)
   const frac = s.slice(-decimals).replace(/0+$/, '')
   return Number(frac ? `${int}.${frac}` : int)
+}
+
+export function formatAssetAmount(v: bigint, asset: string | undefined): number {
+  return formatAmountFromBigint(v, decimalsForAsset(asset))
 }
 
