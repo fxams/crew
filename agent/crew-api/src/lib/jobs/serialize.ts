@@ -1,4 +1,4 @@
-import { formatAmountFromBigint, type FundingRecord, type Job, type Submission } from './types.js'
+import { formatAssetAmount, type FundingRecord, type Job, type Submission } from './types.js'
 
 /** JSON-safe job (bigint amounts → display numbers). */
 export function jobToJson(job: Job) {
@@ -14,10 +14,10 @@ export function jobToJson(job: Job) {
     createdBy: job.createdBy,
     chainId: job.chainId,
     asset: job.asset,
-    budget: formatAmountFromBigint(job.budget),
-    perProofAmount: formatAmountFromBigint(job.perProofAmount),
-    rewardPerSlot: formatAmountFromBigint(job.perProofAmount),
-    reward: formatAmountFromBigint(job.budget),
+    budget: formatAssetAmount(job.budget, job.asset),
+    perProofAmount: formatAssetAmount(job.perProofAmount, job.asset),
+    rewardPerSlot: formatAssetAmount(job.perProofAmount, job.asset),
+    reward: formatAssetAmount(job.budget, job.asset),
     maxProofs: job.maxProofs,
     slots: job.maxProofs,
     perKOLCap: job.perKOLCap,
@@ -27,6 +27,7 @@ export function jobToJson(job: Job) {
     status: job.status,
     escrowRef: job.escrowRef ?? null,
     escrowFrom: job.escrowFrom ?? null,
+    escrowTo: job.escrowTo ?? null,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
     mint: job.mint,
@@ -39,7 +40,7 @@ export function fundingToJson(rec: FundingRecord) {
     id: rec.id,
     jobId: rec.jobId,
     rail: rec.rail,
-    amount: formatAmountFromBigint(rec.amount),
+    amount: formatAssetAmount(rec.amount, undefined),
     createdAt: rec.createdAt,
     verified: rec.verified,
     verifyDetail: rec.verifyDetail,

@@ -25,6 +25,7 @@ describe('paid content jobs (contest, not first-to-claim)', () => {
     expect(isContentJobChainId('solana-devnet')).toBe(true)
     expect(isContentJobChainId('evm:base-sepolia')).toBe(true)
     expect(isContentJobChainId('flop-testnet')).toBe(true)
+    expect(isContentJobChainId('flop-devnet')).toBe(true)
     expect(isContentJobChainId('solana')).toBe(false)
     expect(isContentJobChainId('evm:base')).toBe(false)
     expect(isContentJobChainId('evm:ethereum')).toBe(false)

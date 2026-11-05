@@ -253,73 +253,179 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
     },
   )
 
-  // Jobs + escrow (test/devnet only) — gated by JOBS_ENABLED
+  // Campaign jobs (including flop-devnet / FLOP) — always advertised. API still requires JOBS_ENABLED.
+  const jobChain = z
+    .enum(['solana-devnet', 'solana', 'evm:base-sepolia', 'evm:base', 'evm:ethereum', 'flop-testnet', 'flop-devnet'])
+    .describe('Target chain. Live flop-htlc escrow is flop-devnet only.')
+  const jobAsset = z.enum(['SOL', 'USDC', 'ETH', 'USDT', 'FLOP']).describe('Payout asset. Use FLOP on flop-devnet.')
+  const campaignJobFields = {
+    type: z.enum(['campaign', 'content', 'design', 'research', 'community', 'feedback']).optional(),
+    chainId: jobChain,
+    asset: jobAsset,
+    budget: z.number().positive().describe('Total budget (FLOP display units on flop-devnet; 1 FLOP = 10^18 Planck)'),
+    perProofAmount: z.number().positive().describe('Per verified proof amount'),
+    maxProofs: z.number().int().min(1).max(10000),
+    perKOLCap: z.number().int().min(1).max(1000).optional().describe('Max proofs per KOL'),
+    deadlineHours: z.number().int().min(1).max(720).optional().describe('Deadline in hours (UTC)'),
+    requiredTicker: z.string().max(24).optional(),
+    requiredLink: z.string().url().optional(),
+    minPostAgeHours: z.number().int().min(0).max(72).optional(),
+  }
+  function campaignJobBody(input: {
+    type?: string
+    chainId: string
+    asset: string
+    budget: number
+    perProofAmount: number
+    maxProofs: number
+    perKOLCap?: number
+    deadlineHours?: number
+    requiredTicker?: string
+    requiredLink?: string
+    minPostAgeHours?: number
+  }) {
+    return {
+      type: input.type,
+      chainId: input.chainId,
+      asset: input.asset,
+      budget: input.budget,
+      perProofAmount: input.perProofAmount,
+      maxProofs: input.maxProofs,
+      perKOLCap: input.perKOLCap ?? 5,
+      deadlineHours: input.deadlineHours ?? 24,
+      rules: {
+        requiredTicker: input.requiredTicker,
+        requiredLink: input.requiredLink,
+        minPostAgeHours: input.minPostAgeHours ?? 0,
+      },
+    }
+  }
+  server.registerTool(
+    'crew_job_create_dry_run',
+    {
+      title: 'Dry-run: create a campaign job (test/devnet only)',
+      description:
+        'Plan a paid campaign job (multichain, per-proof payouts). Includes flop-devnet + FLOP. Test/devnet only; no funds moved. Community flop-htlc adapter, no partnership.',
+      inputSchema: campaignJobFields,
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    },
+    async (input) => {
+      const data = await crewFetch(cfg, '/api/jobs/campaigns/dry-run', {
+        method: 'POST',
+        auth: true,
+        body: JSON.stringify(campaignJobBody(input)),
+      })
+      return asText(data)
+    },
+  )
+  server.registerTool(
+    'crew_job_create',
+    {
+      title: 'Create a campaign job (test/devnet)',
+      description:
+        'Persist a campaign or content job. Use chainId=flop-devnet and asset=FLOP for the community flop-htlc rail. Non-custodial — fund separately. No partnership.',
+      inputSchema: campaignJobFields,
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    },
+    async (input) => {
+      const data = await crewFetch(cfg, '/api/jobs/campaigns', {
+        method: 'POST',
+        auth: true,
+        body: JSON.stringify(campaignJobBody(input)),
+      })
+      return asText(data)
+    },
+  )
+  server.registerTool(
+    'crew_job_fund',
+    {
+      title: 'Fund a job escrow (unsigned on flop-htlc)',
+      description:
+        'POST /jobs/:id/fund. flop-devnet requires body.to (payee SS58) and from (funder SS58). Returns unsigned hasStation.openEscrow — sign locally. Never send keys or preimages. Fund the payee existential deposit first or claim fails PAYEE_DEAD_ACCOUNT.',
+      inputSchema: {
+        jobId: z.string().min(8).max(64),
+        rail: z.string().max(32).optional().describe('flop-tclk / flop-htlc / sim'),
+        from: z.string().max(128).describe('Funder SS58 or wallet'),
+        to: z.string().max(128).describe('Payee SS58 (required for flop-htlc openEscrow)'),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    },
+    async (input) => {
+      const data = await crewFetch(cfg, `/api/jobs/${encodeURIComponent(input.jobId)}/fund`, {
+        method: 'POST',
+        auth: true,
+        body: JSON.stringify({ rail: input.rail, from: input.from, to: input.to }),
+      })
+      return asText(data)
+    },
+  )
+  server.registerTool(
+    'crew_job_list',
+    {
+      title: 'List open jobs (test/devnet only)',
+      description: 'List open/funded campaign jobs. Optional mint filter. Includes flop-devnet jobs when posted.',
+      inputSchema: {
+        mint: z.string().min(32).max(64).optional().describe('Filter jobs for a CrewPay-launched mint'),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    },
+    async (input) => {
+      const q = input.mint ? `?mint=${encodeURIComponent(input.mint)}` : ''
+      const data = await crewFetch(cfg, `/api/jobs/open${q}`)
+      return asText(data)
+    },
+  )
+  server.registerTool(
+    'crew_job_payout',
+    {
+      title: 'Build unsigned job payout',
+      description:
+        'POST /jobs/:id/payout after verify. flop-htlc returns unsigned hasStation.satisfyEscrow. Non-custodial — never send keys or preimages.',
+      inputSchema: {
+        jobId: z.string().min(8).max(64),
+        claimId: z.string().min(8).max(64).optional(),
+        from: z.string().max(128).optional().describe('Funder SS58 for the unsigned payload'),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    },
+    async (input) => {
+      const data = await crewFetch(cfg, `/api/jobs/${encodeURIComponent(input.jobId)}/payout`, {
+        method: 'POST',
+        auth: true,
+        body: JSON.stringify({ claimId: input.claimId, from: input.from }),
+      })
+      return asText(data)
+    },
+  )
+  server.registerTool(
+    'crew_job_refund',
+    {
+      title: 'Build unsigned job refund',
+      description:
+        'POST /jobs/:id/refund after the deadline. flop-htlc returns unsigned hasStation.refundEscrow. Non-custodial.',
+      inputSchema: {
+        jobId: z.string().min(8).max(64),
+        to: z.string().max(128).describe('Refund destination SS58'),
+        from: z.string().max(128).optional(),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    },
+    async (input) => {
+      const data = await crewFetch(cfg, `/api/jobs/${encodeURIComponent(input.jobId)}/refund`, {
+        method: 'POST',
+        auth: true,
+        body: JSON.stringify({ to: input.to, from: input.from }),
+      })
+      return asText(data)
+    },
+  )
+
+  // Other jobs surfaces stay behind JOBS_ENABLED on this process.
   const jobsEnabled =
     (process.env.JOBS_ENABLED || '').trim().toLowerCase() === '1' ||
     (process.env.JOBS_ENABLED || '').trim().toLowerCase() === 'true'
   if (jobsEnabled) {
-    server.registerTool(
-      'crew_job_create_dry_run',
-      {
-        title: 'Dry-run: create a campaign job (test/devnet only)',
-        description:
-          'Plan a paid campaign job (multichain, per-proof payouts). Test/devnet only; no funds moved. Returns computed caps and plan. Behind JOBS_ENABLED.',
-        inputSchema: {
-          chainId: z
-            .enum(['solana-devnet', 'solana', 'evm:base-sepolia', 'evm:base', 'evm:ethereum', 'flop-testnet'])
-            .describe('Target chain'),
-          asset: z.enum(['SOL', 'USDC', 'ETH', 'USDT']).describe('Payout asset'),
-          budget: z.number().positive().describe('Total budget (test units)'),
-          perProofAmount: z.number().positive().describe('Per verified post amount (test units)'),
-          maxProofs: z.number().int().min(1).max(10000),
-          perKOLCap: z.number().int().min(1).max(1000).optional().describe('Max proofs per KOL'),
-          deadlineHours: z.number().int().min(1).max(720).optional().describe('Deadline in hours'),
-          requiredTicker: z.string().max(24).optional(),
-          requiredLink: z.string().url().optional(),
-          minPostAgeHours: z.number().int().min(0).max(72).optional(),
-        },
-        annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-      },
-      async (input) => {
-        const body: Record<string, unknown> = {
-          chainId: input.chainId,
-          asset: input.asset,
-          budget: input.budget,
-          perProofAmount: input.perProofAmount,
-          maxProofs: input.maxProofs,
-          perKOLCap: input.perKOLCap ?? 5,
-          deadlineHours: input.deadlineHours ?? 24,
-          rules: {
-            requiredTicker: input.requiredTicker,
-            requiredLink: input.requiredLink,
-            minPostAgeHours: input.minPostAgeHours ?? 0,
-          },
-        }
-        const data = await crewFetch(cfg, '/api/jobs/campaigns/dry-run', {
-          method: 'POST',
-          auth: true,
-          body: JSON.stringify(body),
-        })
-        return asText(data)
-      },
-    )
-    server.registerTool(
-      'crew_job_list',
-      {
-        title: 'List open jobs (test/devnet only)',
-        description: 'List open/funded campaign jobs. Test-only; behind JOBS_ENABLED. Optional mint filter.',
-        inputSchema: {
-          mint: z.string().min(32).max(64).optional().describe('Filter jobs for a CrewPay-launched mint'),
-        },
-        annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-      },
-      async (input) => {
-        const q = input.mint ? `?mint=${encodeURIComponent(input.mint)}` : ''
-        const data = await crewFetch(cfg, `/api/jobs/open${q}`)
-        return asText(data)
-      },
-    )
-    const contentChain = z.enum(['solana-devnet', 'evm:base-sepolia', 'flop-testnet'])
+    const contentChain = z.enum(['solana-devnet', 'evm:base-sepolia', 'flop-testnet', 'flop-devnet'])
     server.registerTool(
       'crew_post_content_job',
       {
@@ -331,12 +437,13 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
           title: z.string().min(3).max(120),
           brief: z.string().min(8).max(20_000).describe('What to post'),
           chainId: contentChain.describe('Test/devnet only — mainnet rejected'),
-          asset: z.enum(['SOL', 'USDC', 'ETH', 'USDT']),
+          asset: z.enum(['SOL', 'USDC', 'ETH', 'USDT', 'FLOP']),
           reward: z.number().positive().describe('Single winner reward (test units)'),
           deadlineHours: z.number().int().min(1).max(720).optional(),
           fund: z.boolean().optional().describe('Fund sim/devnet escrow on create'),
           rail: z.string().max(32).optional(),
           from: z.string().max(128).optional().describe('Creator wallet for non-custodial rails'),
+          to: z.string().max(128).optional().describe('Payee SS58 when funding flop-htlc'),
         },
         annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       },
@@ -355,6 +462,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
             fund: input.fund,
             rail: input.rail,
             from: input.from,
+            to: input.to,
           }),
         })
         return asText(data)
@@ -482,9 +590,9 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
             .enum(['meme-pack', 'banner-logo', 'x-upkeep', 'website-polish'])
             .describe('Creative job preset'),
           chainId: z
-            .enum(['solana-devnet', 'evm:base-sepolia', 'flop-testnet'])
+            .enum(['solana-devnet', 'evm:base-sepolia', 'flop-testnet', 'flop-devnet'])
             .describe('Test/devnet only'),
-          asset: z.enum(['SOL', 'USDC', 'ETH', 'USDT']).describe('Payout asset'),
+          asset: z.enum(['SOL', 'USDC', 'ETH', 'USDT', 'FLOP']).describe('Payout asset'),
           budget: z.number().positive().optional().describe('Total budget (test units)'),
           perProofAmount: z.number().positive().optional(),
           postsPerWeek: z.number().int().min(1).max(21).optional().describe('X upkeep: posts per week'),
@@ -525,8 +633,9 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
       'evm:base',
       'evm:ethereum',
       'flop-testnet',
+      'flop-devnet',
     ])
-    const taskAsset = z.enum(['SOL', 'USDC', 'ETH', 'USDT'])
+    const taskAsset = z.enum(['SOL', 'USDC', 'ETH', 'USDT', 'FLOP'])
     const autoChecksInput = z
       .object({
         requireHttpsUrls: z.boolean().optional(),
@@ -566,6 +675,7 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
           fund: z.boolean().optional().describe('Fund sim/flop-tclk escrow on create (never custodial mainnet spend)'),
           rail: z.string().max(32).optional(),
           from: z.string().max(128).optional().describe('Funding wallet for non-custodial rails'),
+          to: z.string().max(128).optional().describe('Payee SS58 when funding flop-htlc'),
         },
         annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       },

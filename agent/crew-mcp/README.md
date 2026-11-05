@@ -25,7 +25,12 @@ Works with **Cursor**, **Claude Desktop**, **Claude Code**, **ChatGPT MCP**, **G
 | `crew_proof` | Public proof tape (launches, remits, buybacks) |
 | `post_coin_job` | Post-launch kit: meme-pack / banner-logo / x-upkeep / website-polish on jobs+escrow (`JOBS_ENABLED`, test/devnet) |
 | `crew_job_templates` | List creative job presets |
+| `crew_job_create_dry_run` | Plan a campaign job (`flop-devnet` + `FLOP` accepted) |
+| `crew_job_create` | Persist a campaign job |
+| `crew_job_fund` | Fund escrow (`to` payee required on flop-htlc; unsigned `openEscrow`) |
 | `crew_job_list` | Open jobs (optional `mint`) |
+| `crew_job_payout` | Unsigned `satisfyEscrow` / release after verify |
+| `crew_job_refund` | Unsigned `refundEscrow` after deadline |
 | `crew_post_content_job` | Paid content brief (thread/meme/post) on jobs+escrow — DEVNET, agent picks winner |
 | `crew_list_content_jobs` | List content jobs / submissions |
 | `crew_submit_content_proof` | Submit X URL + note (wallet-signed; not first-to-claim) |

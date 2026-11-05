@@ -10,9 +10,11 @@ import { memoryJobs } from '../lib/jobs/store.js'
 import { jobToJson } from '../lib/jobs/serialize.js'
 import { railFor } from '../lib/jobs/settlement.js'
 import {
-  formatAmountFromBigint,
+  JOB_ASSET_SYMBOLS,
+  JOB_CHAIN_IDS,
+  formatAssetAmount,
   nowMs,
-  parseAmountToBigint,
+  parseAssetAmount,
   type ChainId,
   type AssetSymbol,
 } from '../lib/jobs/types.js'
@@ -26,16 +28,8 @@ import { clampBigint } from '../lib/jobs/types.js'
 
 export const tasksRouter = Router()
 
-const chainIdSchema = z.enum([
-  'solana-devnet',
-  'solana',
-  'evm:base-sepolia',
-  'evm:base',
-  'evm:ethereum',
-  'flop-testnet',
-]) as unknown as z.ZodType<ChainId>
-
-const assetSchema = z.enum(['SOL', 'USDC', 'ETH', 'USDT']) as unknown as z.ZodType<AssetSymbol>
+const chainIdSchema = z.enum(JOB_CHAIN_IDS) as unknown as z.ZodType<ChainId>
+const assetSchema = z.enum(JOB_ASSET_SYMBOLS) as unknown as z.ZodType<AssetSymbol>
 
 const autoChecksSchema = z
   .object({
@@ -72,6 +66,7 @@ const postTaskSchema = z.object({
   fund: z.boolean().optional(),
   rail: z.string().max(32).optional(),
   from: z.string().max(128).optional(),
+  to: z.string().max(128).optional(),
 })
 
 function resolveDeadlineMs(input: { deadlineMs?: number; deadlineHours?: number }): number {
@@ -128,22 +123,24 @@ async function attachAgentAuthIfPresent(req: import('express').Request) {
 
 async function fundTaskJob(
   jobId: string,
-  opts: { rail?: string; from?: string },
+  opts: { rail?: string; from?: string; to?: string },
 ): Promise<{ job: ReturnType<typeof jobToJson>; funding: unknown; unsigned?: unknown }> {
   const job = memoryJobs.getJob(jobId)
   if (!job || job.mode !== 'task') throw new Error('Task not found')
   const railName = (opts.rail || process.env.JOBS_RAIL || 'sim').trim().toLowerCase()
-  if (railName !== 'sim' && railName !== 'flop-tclk' && !job.chainId.startsWith('solana') && !job.chainId.startsWith('evm:')) {
+  if (railName !== 'sim' && railName !== 'flop-tclk' && railName !== 'flop-htlc' && !job.chainId.startsWith('solana') && !job.chainId.startsWith('evm:')) {
     throw new Error('Unsupported rail for task fund')
   }
   const rail = railFor(job.chainId, railName)
   const ctx = { chainId: job.chainId, asset: job.asset }
   const from = opts.from?.trim()
-  const { escrow, unsigned } = await rail.fund(ctx, { amount: job.budget, from })
+  const to = opts.to?.trim()
+  const { escrow, unsigned } = await rail.fund(ctx, { amount: job.budget, from, to })
   await rail.lock(ctx, escrow)
   const vf = await rail.verifyFunding(ctx, escrow)
   job.escrowRef = escrow.ref || escrow.id
   job.escrowFrom = from || null
+  job.escrowTo = to || null
   job.status = vf.ok ? 'funded' : 'created'
   memoryJobs.setJob(job)
   const funding = memoryJobs.addFunding(job.id, rail.name, job.budget, vf.ok, vf.detail)
@@ -153,8 +150,8 @@ async function fundTaskJob(
 tasksRouter.post('/tasks', requireAgentApiKey, async (req, res) => {
   try {
     const body = postTaskSchema.parse(req.body ?? {})
-    const budget = parseAmountToBigint(body.budget)
-    const reward = parseAmountToBigint(body.rewardPerSlot)
+    const budget = parseAssetAmount(body.budget, body.asset)
+    const reward = parseAssetAmount(body.rewardPerSlot, body.asset)
     const maxPay = reward * BigInt(body.slots)
     if (maxPay > budget) {
       throw new Error('budget must cover rewardPerSlot × slots')
@@ -177,7 +174,7 @@ tasksRouter.post('/tasks', requireAgentApiKey, async (req, res) => {
     })
     let fundPayload: Awaited<ReturnType<typeof fundTaskJob>> | null = null
     if (body.fund) {
-      fundPayload = await fundTaskJob(job.id, { rail: body.rail, from: body.from })
+      fundPayload = await fundTaskJob(job.id, { rail: body.rail, from: body.from, to: body.to })
     }
     res.status(201).json({
       ok: true,
@@ -237,6 +234,7 @@ tasksRouter.post('/tasks/:id/fund', requireAgentApiKey, async (req, res) => {
     const out = await fundTaskJob(id, {
       rail: typeof req.body?.rail === 'string' ? req.body.rail : undefined,
       from: typeof req.body?.from === 'string' ? req.body.from : undefined,
+      to: typeof req.body?.to === 'string' ? req.body.to : undefined,
     })
     res.status(201).json({ ok: true, ...out })
   } catch (err) {
@@ -409,7 +407,7 @@ tasksRouter.post('/tasks/:id/approve', requireAgentApiKey, async (req, res) => {
     res.status(201).json({
       ok: true,
       requiresSignature: Boolean(rel.unsigned),
-      kolAmount: formatAmountFromBigint(kolAmount),
+      kolAmount: formatAssetAmount(kolAmount, job.asset),
       platformFeeBps: feeBps,
       unsigned: rel.unsigned,
       txRef: rel.txRef,

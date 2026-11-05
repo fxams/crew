@@ -13,7 +13,7 @@ import {
 } from './types.js'
 
 /** Test/devnet only — paid content jobs never target mainnet. */
-export const CONTENT_JOB_CHAIN_IDS = ['solana-devnet', 'evm:base-sepolia', 'flop-testnet'] as const
+export const CONTENT_JOB_CHAIN_IDS = ['solana-devnet', 'evm:base-sepolia', 'flop-testnet', 'flop-devnet'] as const
 export type ContentJobChainId = (typeof CONTENT_JOB_CHAIN_IDS)[number]
 
 export const CONTENT_KINDS: ContentKind[] = ['thread', 'meme', 'post']
@@ -90,7 +90,7 @@ export async function expireContentJobIfNeeded(
 
 export async function fundContentJob(
   jobId: string,
-  opts: { rail?: string; from?: string },
+  opts: { rail?: string; from?: string; to?: string },
 ): Promise<{ job: ReturnType<typeof jobToJson>; funding: unknown; unsigned?: unknown }> {
   const job = memoryJobs.getJob(jobId)
   if (!job || job.mode !== 'content') throw new Error('Content job not found')
@@ -101,12 +101,14 @@ export async function fundContentJob(
   const rail = railFor(job.chainId, railName)
   const ctx = { chainId: job.chainId, asset: job.asset }
   const from = opts.from?.trim()
-  const { escrow, unsigned } = await rail.fund(ctx, { amount: job.budget, from })
+  const to = opts.to?.trim()
+  const { escrow, unsigned } = await rail.fund(ctx, { amount: job.budget, from, to })
   await rail.lock(ctx, escrow)
   const vf = await rail.verifyFunding(ctx, escrow)
   // Rails key balances by escrow.id (ref is a display prefix like sim:…).
   job.escrowRef = escrow.id
   job.escrowFrom = from || null
+  job.escrowTo = to || null
   job.status = vf.ok ? 'funded' : 'created'
   memoryJobs.setJob(job)
   const funding = memoryJobs.addFunding(job.id, rail.name, job.budget, vf.ok, vf.detail)

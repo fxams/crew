@@ -32,6 +32,7 @@ describe('coin job templates', () => {
     expect(isCoinJobChainId('solana')).toBe(false)
     expect(isCoinJobChainId('evm:base')).toBe(false)
     expect(isCoinJobChainId('solana-devnet')).toBe(true)
+    expect(isCoinJobChainId('flop-devnet')).toBe(true)
     expect(() =>
       applyCoinJobTemplate({
         template: 'meme-pack',

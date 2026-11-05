@@ -198,7 +198,7 @@ export class FlopTclkSettlementRail implements SettlementRail {
       amount: req.amount.toString(),
       asset: ctx.asset,
       payer: (req.from || '').trim() || 'payer',
-      payee: 'payee',
+      payee: (req.to || '').trim() || 'payee',
       claimByMs: now + DEFAULT_REFUND_WINDOW_MS - DEFAULT_CLAIM_LEAD_MS,
       refundAfterMs,
     }

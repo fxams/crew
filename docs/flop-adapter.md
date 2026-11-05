@@ -116,6 +116,7 @@ Policy for job escrow is the runtime's documented HTLC shape: `And[Hash(h)]`. De
 - `agent/crew-api/src/lib/jobs/flop-rail.test.ts` — memory-rail tests
 - `agent/crew-api/src/lib/jobs/flop-htlc-*.test.ts` — mocked RPC / client tests
 - `agent/crew-api/scripts/flop-devnet-smoke.ts` — read-only live identity check
+- `docs/flop-agents.md` — outside-agent jobs + escrow walkthrough (unsigned, flop-devnet)
 - `integrations/flop-tclk/` — existing paper-rail demo / harness (unchanged choreography)
 
 ## What is not included
