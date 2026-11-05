@@ -167,6 +167,12 @@ describe('FlopTclkSettlementRail (tclk memory rail)', () => {
         async currentBlock() {
           return 10
         }
+        async getFreeBalance() {
+          return 10n
+        }
+        async getExistentialDeposit() {
+          return 1n
+        }
         async submit(call: FlopHtlcCall): Promise<SubmitResult> {
           const id = `0x${'aa'.repeat(32)}`
           if (call.method === 'openEscrow') {

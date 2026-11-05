@@ -1,9 +1,9 @@
-import { ApiPromise, HttpProvider, WsProvider } from '@polkadot/api'
+import { ApiPromise, WsProvider } from '@polkadot/api'
 import type { SubmittableExtrinsic } from '@polkadot/api/types'
 import { Keyring } from '@polkadot/keyring'
 import type { KeyringPair } from '@polkadot/keyring/types'
 import { cryptoWaitReady } from '@polkadot/util-crypto'
-import { FLOP_DEVNET_CHAIN_ID, FLOP_SS58_FORMAT, HAS_STATION_PALLET, normalizeHex } from './flop-devnet.js'
+import { FLOP_DEVNET_CHAIN_ID, FLOP_SS58_FORMAT, HAS_STATION_PALLET, normalizeHex, toWsRpcUrl } from './flop-devnet.js'
 import {
   type EscrowRecord,
   type FlopChainIo,
@@ -13,8 +13,9 @@ import {
   type SubmitResult,
 } from './flop-htlc-client.js'
 import { decodeEscrowJson, escrowIdFromEvents } from './flop-htlc-decode.js'
-import { FlopHtlcError, publicErrorDetail } from './flop-htlc-errors.js'
+import { FlopHtlcError } from './flop-htlc-errors.js'
 import { FlopJsonRpc, type FlopNetworkIdentity } from './flop-htlc-rpc.js'
+import { waitForInBlock } from './flop-htlc-submit.js'
 
 const HAS_STATION_RPC_DEFS = {
   hasStation: {
@@ -40,10 +41,9 @@ export type PolkadotFlopHtlcOptions = {
   fetch?: typeof fetch
 }
 
-function providerFor(rpcUrl: string): HttpProvider | WsProvider {
-  const u = rpcUrl.trim()
-  if (u.startsWith('ws://') || u.startsWith('wss://')) return new WsProvider(u)
-  return new HttpProvider(u)
+/** Signed submit + event watch require a websocket. https is rewritten to wss. */
+function providerFor(rpcUrl: string): WsProvider {
+  return new WsProvider(toWsRpcUrl(rpcUrl))
 }
 
 function pairFromUri(uri: string): KeyringPair {
@@ -172,6 +172,23 @@ export class PolkadotFlopChainIo implements FlopChainIo {
     return (await api.rpc.chain.getHeader()).number.toNumber()
   }
 
+  async getFreeBalance(address: string): Promise<bigint> {
+    const api = await this.connect()
+    const account = await api.query.system.account(address)
+    const free = (account as { data?: { free?: { toString(): string } } }).data?.free
+    if (!free) return 0n
+    return BigInt(free.toString())
+  }
+
+  async getExistentialDeposit(): Promise<bigint> {
+    const api = await this.connect()
+    const ed = api.consts.balances?.existentialDeposit
+    if (ed == null) {
+      throw new FlopHtlcError('RPC_ERROR', 'Runtime has no balances.existentialDeposit')
+    }
+    return BigInt(ed.toString())
+  }
+
   async submit(call: FlopHtlcCall): Promise<SubmitResult> {
     if (!this.signingUri || !this.canSign) {
       throw new FlopHtlcError('MISSING_SIGNER', 'FLOP_SIGNING_URI is not set')
@@ -180,35 +197,34 @@ export class PolkadotFlopChainIo implements FlopChainIo {
     const pair = this.pair
     if (!pair) throw new FlopHtlcError('MISSING_SIGNER', 'Signing pair was not loaded')
     const tx = extrinsicFor(api, call)
-    return new Promise<SubmitResult>((resolve, reject) => {
-      let unsub: (() => void) | undefined
-      tx.signAndSend(pair, (result) => {
-        const { status, events, dispatchError, txHash } = result
-        if (dispatchError) {
-          unsub?.()
-          let detail = dispatchError.toString()
-          if (dispatchError.isModule) {
-            const meta = api.registry.findMetaError(dispatchError.asModule)
-            detail = `${meta.section}.${meta.name}: ${meta.docs.join(' ')}`.trim()
-          }
-          reject(new FlopHtlcError('SUBMIT_FAILED', publicErrorDetail(detail)))
-          return
-        }
-        if (status.isInBlock || status.isFinalized) {
-          unsub?.()
-          resolve({
-            txHash: txHash.toHex(),
-            escrowId: escrowIdFromEvents(events as never),
+    const included = await waitForInBlock(
+      (cb) =>
+        tx.signAndSend(pair, (result) => {
+          cb({
+            status: result.status,
+            events: result.events,
+            dispatchError: result.dispatchError,
+            txHash: result.txHash,
           })
-        }
-      })
-        .then((u) => {
-          unsub = u
-        })
-        .catch((err) => {
-          reject(new FlopHtlcError('SUBMIT_FAILED', publicErrorDetail(err), { cause: err }))
-        })
-    })
+        }),
+      {
+        mapDispatchError: (dispatchError) => {
+          if (dispatchError.isModule && dispatchError.asModule) {
+            try {
+              const meta = api.registry.findMetaError(dispatchError.asModule as never)
+              return `${meta.section}.${meta.name}: ${meta.docs.join(' ')}`.trim()
+            } catch {
+              return dispatchError.toString()
+            }
+          }
+          return dispatchError.toString()
+        },
+      },
+    )
+    return {
+      txHash: included.txHash,
+      escrowId: escrowIdFromEvents(included.events as never),
+    }
   }
 
   async disconnect(): Promise<void> {

@@ -5,6 +5,7 @@ import {
   HAS_STATION_RPC,
   isFlopDevnetChainId,
   normalizeHex,
+  toHttpRpcUrl,
 } from './flop-devnet.js'
 import { FlopHtlcError, mapHasStationRpcError, publicErrorDetail } from './flop-htlc-errors.js'
 
@@ -38,9 +39,7 @@ export type FlopRpcOptions = {
 function rpcUrl(url: string): string {
   const u = url.trim()
   if (!u) throw new FlopHtlcError('INVALID_PARAMS', 'FLOP_RPC_URL is required')
-  if (u.startsWith('wss://')) return `https://${u.slice('wss://'.length)}`
-  if (u.startsWith('ws://')) return `http://${u.slice('ws://'.length)}`
-  return u
+  return toHttpRpcUrl(u)
 }
 
 export class FlopJsonRpc {

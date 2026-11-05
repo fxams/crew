@@ -51,6 +51,18 @@ class FakeIo implements FlopChainIo {
     return this.head
   }
 
+  payeeFree = 10n
+  existentialDeposit = 1n
+  omitEscrowId = false
+
+  async getFreeBalance(_address: string): Promise<bigint> {
+    return this.payeeFree
+  }
+
+  async getExistentialDeposit(): Promise<bigint> {
+    return this.existentialDeposit
+  }
+
   async submit(call: FlopHtlcCall): Promise<SubmitResult> {
     this.submitted.push(call)
     if (call.method === 'openEscrow') {
@@ -65,7 +77,7 @@ class FakeIo implements FlopChainIo {
         status: 'Open',
         createdBlock: this.head,
       })
-      return { txHash: '0xlock', escrowId: id }
+      return { txHash: '0xlock', escrowId: this.omitEscrowId ? '' : id }
     }
     if (call.method === 'satisfyEscrow') {
       const held = this.escrows.get(call.escrowId)
@@ -156,6 +168,27 @@ describe('FlopHtlcClient', () => {
     expect(unsigned.args.preimages).toEqual([])
     expect(JSON.stringify(unsigned.args)).not.toMatch(/hash-lock secret/)
     expect(unsigned.method).toBe('satisfyEscrow')
+  })
+
+  it('throws when openEscrow produces no escrow id', async () => {
+    const io = new FakeIo(true)
+    io.omitEscrowId = true
+    const client = new FlopHtlcClient(io)
+    await expect(client.lock({ payee: PAYEE, amount: 5n, hashLock: HASH, deadlineBlocks: 20 })).rejects.toMatchObject({
+      code: 'ESCROW_ID_MISSING',
+    })
+  })
+
+  it('fails claim early when the payee has no existential deposit', async () => {
+    const io = new FakeIo(true)
+    const client = new FlopHtlcClient(io)
+    const locked = await client.lock({ payee: PAYEE, amount: 5n, hashLock: HASH, deadlineBlocks: 20 })
+    io.payeeFree = 0n
+    io.existentialDeposit = 1n
+    await expect(client.claim(locked.escrowId!, `0x${'22'.repeat(32)}`)).rejects.toMatchObject({
+      code: 'PAYEE_DEAD_ACCOUNT',
+    })
+    expect(io.submitted).toHaveLength(1)
   })
 
   it('throws a typed error when payee or amount is missing', () => {

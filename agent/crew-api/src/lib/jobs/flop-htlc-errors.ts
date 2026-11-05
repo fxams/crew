@@ -12,8 +12,11 @@ export type FlopHtlcErrorCode =
   | 'MISSING_PAYEE'
   | 'INVALID_PARAMS'
   | 'SUBMIT_FAILED'
+  | 'SUBMIT_TIMEOUT'
   | 'POLICY_NOT_SATISFIED'
   | 'REFUND_NOT_READY'
+  | 'PAYEE_DEAD_ACCOUNT'
+  | 'ESCROW_ID_MISSING'
 
 export class FlopHtlcError extends Error {
   readonly code: FlopHtlcErrorCode

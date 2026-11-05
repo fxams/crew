@@ -1,6 +1,7 @@
 import { FLOP_DEVNET_CHAIN_ID, HAS_STATION_EXTRINSICS, HAS_STATION_PALLET, normalizeHex } from './flop-devnet.js'
 import { FlopHtlcError } from './flop-htlc-errors.js'
 import type { FlopNetworkIdentity } from './flop-htlc-rpc.js'
+import { assertPayeeHasExistentialDeposit, requireEscrowId } from './flop-htlc-submit.js'
 
 export type EscrowStatus = 'Open' | 'Released' | 'Refunded'
 export type HtlcLifecycle = 'Created' | 'Settled' | 'Refunded' | 'Committed'
@@ -78,6 +79,8 @@ export interface FlopChainIo {
   getEscrow(id: string): Promise<EscrowRecord | null>
   checkHtlcStatus(hashLock: string): Promise<HtlcRecord | null>
   currentBlock(): Promise<number>
+  getFreeBalance(address: string): Promise<bigint>
+  getExistentialDeposit(): Promise<bigint>
   submit(call: FlopHtlcCall): Promise<SubmitResult>
   disconnect(): Promise<void>
 }
@@ -207,7 +210,8 @@ export class FlopHtlcClient {
     const unsigned = this.unsigned(call)
     if (!this.io.canSign) return { unsigned }
     const submitted = await this.io.submit(call)
-    return { ...submitted, unsigned }
+    const escrowId = requireEscrowId(submitted.escrowId, submitted.txHash)
+    return { ...submitted, escrowId, unsigned }
   }
 
   async claim(escrowId: string, preimage: string): Promise<SubmitResult> {
@@ -220,10 +224,15 @@ export class FlopHtlcClient {
     if (held.status !== 'Open') {
       throw new FlopHtlcError('ESCROW_NOT_OPEN', `Escrow ${escrowId} is ${held.status}, not Open`)
     }
+    const [free, existentialDeposit] = await Promise.all([
+      this.io.getFreeBalance(held.payee),
+      this.io.getExistentialDeposit(),
+    ])
+    assertPayeeHasExistentialDeposit(held.payee, free, existentialDeposit)
     try {
       return await this.io.submit(this.buildSatisfy(escrowId, preimage))
     } catch (err) {
-      throw remapSubmit(err, 'POLICY_NOT_SATISFIED', /policy|satisf/i)
+      throw remapSubmit(err, 'POLICY_NOT_SATISFIED', /policy|satisf|DeadAccount/i)
     }
   }
 
