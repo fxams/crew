@@ -59,6 +59,9 @@ export function CreativePage() {
             <Link className="btn btn-ghost" to="/agents">
               Agents
             </Link>
+            <Link className="btn btn-ghost" to="/noid">
+              NOID
+            </Link>
           </div>
         </div>
       </section>
@@ -178,6 +181,8 @@ export function CreativePage() {
           <Link to="/">Home</Link>
           {' · '}
           <Link to="/agents">Agents</Link>
+          {' · '}
+          <Link to="/noid">NOID</Link>
           {' · '}
           <Link to="/coins">Coins</Link>
         </div>

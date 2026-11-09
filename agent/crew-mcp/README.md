@@ -24,6 +24,7 @@ Works with **Cursor**, **Claude Desktop**, **Claude Code**, **ChatGPT MCP**, **G
 | `crew_crank_remits` | distributeCreatorFeesV2 |
 | `crew_proof` | Public proof tape (launches, remits, buybacks) |
 | `crew_creative` | Pointer to creative-mcp (logos, memes, banners, stickers, music, teasers). Connect directly — does not proxy generate. |
+| `crew_noid` | Pointer to NOID Agent Kit (independent Parano1d checkout/alerts/launch checklist). Connect https://noid-agent-kit.onrender.com/mcp. Optional view=whale_moves\|new_tokens proxies through crew-api when `NOID_KIT_ENABLED`. Not affiliated with Parano1d. CrewPay never takes custody. |
 | `post_coin_job` | Post-launch kit: meme-pack / banner-logo / x-upkeep / website-polish on jobs+escrow (`JOBS_ENABLED`, test/devnet) |
 | `crew_job_templates` | List creative job presets |
 | `crew_job_create_dry_run` | Plan a campaign job (`flop-devnet` + `FLOP` accepted) |

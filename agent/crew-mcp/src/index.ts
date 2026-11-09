@@ -60,6 +60,7 @@ const MCP_WELL_KNOWN = {
     'crew_crank_remits',
     'crew_proof',
     'crew_creative',
+    'crew_noid',
     'post_coin_job',
     'crew_job_templates',
     'crew_job_create_dry_run',

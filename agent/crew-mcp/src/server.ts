@@ -257,6 +257,77 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
   )
 
   server.registerTool(
+    'crew_noid',
+    {
+      title: 'Discover CrewPay NOID Agent Kit',
+      description:
+        'Pointer to CrewPay’s NOID Agent Kit listing — an independent remote MCP for Parano1d (NOID) checkout invoices and receipt verification, whale and new-token alerts, and a native-asset launch checklist. Not affiliated with, partnered with, or audited by Parano1d. Connect Streamable HTTP at https://noid-agent-kit.onrender.com/mcp. initialize and tools/list work without a key; tools/call needs Authorization: Bearer nak_…. 50-credit trial; top-ups in USDC on Base (1 credit = $0.01). Live NOID/USD quotes use CoinPaprika. Merchants are paid in NOID to their own o1 address — the kit never holds keys or funds, and CrewPay never takes custody. When to use: Parano1d checkout, alerts, or a launch checklist. When not to use: Solana coin launches, human escrow jobs, or launch art (crew_creative). Optional CrewPay read proxies: GET /api/noid/whale-moves and GET /api/noid/new-tokens when NOID_KIT_ENABLED (this tool can request them via view=). Site: https://crewpay.dev/noid. No earnings promises.',
+      inputSchema: {
+        view: z
+          .enum(['catalog', 'whale_moves', 'new_tokens'])
+          .optional()
+          .describe(
+            'catalog (default) is the public service card. whale_moves / new_tokens call CrewPay read-only proxies when NOID_KIT_ENABLED.',
+          ),
+        limit: z.number().int().min(1).max(100).optional().describe('Optional row cap for proxied reads.'),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    },
+    async (input) => {
+      const fallback = {
+        service: 'noid-agent-kit',
+        site: 'https://noid-agent-kit.onrender.com',
+        mcp: 'https://noid-agent-kit.onrender.com/mcp',
+        serverCard: 'https://noid-agent-kit.onrender.com/.well-known/mcp/server-card.json',
+        page: `${DEFAULT_SITE_URL}/noid`,
+        trialCredits: 50,
+        pay: 'USDC on Base (1 credit = $0.01)',
+        connect: {
+          mcpServers: {
+            'noid-agent-kit': {
+              url: 'https://noid-agent-kit.onrender.com/mcp',
+              headers: { Authorization: 'Bearer nak_YOUR_KEY' },
+            },
+          },
+        },
+        affiliation:
+          'Independent tooling. Not affiliated with, partnered with, or audited by Parano1d.',
+        custody: 'CrewPay never takes custody. Merchants are paid to their own o1 address.',
+        note: 'Checkout, alerts, and a native-asset launch checklist. No earnings promises.',
+      }
+      const view = input.view || 'catalog'
+      if (view === 'whale_moves' || view === 'new_tokens') {
+        const q = new URLSearchParams()
+        if (input.limit != null) q.set('limit', String(input.limit))
+        const path = view === 'whale_moves' ? '/api/noid/whale-moves' : '/api/noid/new-tokens'
+        const qs = q.toString() ? `?${q.toString()}` : ''
+        try {
+          const data = await crewFetch(cfg, `${path}${qs}`, { auth: true })
+          return asText(data)
+        } catch (err) {
+          let catalog: unknown = fallback
+          try {
+            catalog = await crewFetch(cfg, '/api/noid')
+          } catch {
+            /* use fallback */
+          }
+          return asText({
+            ...(typeof catalog === 'object' && catalog ? catalog : fallback),
+            proxyError: err instanceof Error ? err.message : 'proxy failed',
+            hint: 'Read proxy is off unless NOID_KIT_ENABLED=1 and NOID_KIT_API_KEY are set on crewpay-api. Connect to https://noid-agent-kit.onrender.com/mcp directly with a nak_ key.',
+          })
+        }
+      }
+      try {
+        const data = await crewFetch(cfg, '/api/noid')
+        return asText(data)
+      } catch {
+        return asText(fallback)
+      }
+    },
+  )
+
+  server.registerTool(
     'crew_discover',
     {
       title: 'Discover CREW Agent API',

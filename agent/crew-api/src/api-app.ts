@@ -16,6 +16,7 @@ import { contentJobsRouter } from './routes/content-jobs.js'
 import { tasksRouter } from './routes/tasks.js'
 import { postLaunchRouter } from './routes/post-launch.js'
 import { creativeRouter } from './routes/creative.js'
+import { noidRouter } from './routes/noid.js'
 import { farcasterRouter } from './routes/farcaster.js'
 import { adminOpsRouter } from './routes/admin-ops.js'
 import { suiLaunchpadRouter } from './routes/sui-launchpad.js'
@@ -76,6 +77,7 @@ export function createApiApp(): Express {
   app.use('/api', healthRouter)
   app.use('/api', postLaunchRouter)
   app.use('/api', creativeRouter)
+  app.use('/api', noidRouter)
   app.use('/api', farcasterRouter)
   app.use('/api', adminOpsRouter)
   app.use('/api', suiLaunchpadRouter)
