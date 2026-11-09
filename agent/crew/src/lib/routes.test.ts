@@ -5,6 +5,7 @@ import {
   isAdminOpsPath,
   isAgentsEarnPath,
   isAgentsPath,
+  isCreativePath,
   isClaimPath,
   isCoinsPath,
   isHomePath,
@@ -81,6 +82,17 @@ describe("isAgentsPath", () => {
     expect(isAgentsPath("/launch")).toBe(false);
     expect(isAgentsPath("/kols")).toBe(false);
     expect(isAgentsPath("/agents/earn")).toBe(false);
+  });
+});
+
+describe("isCreativePath", () => {
+  it("matches the Creative service page only", () => {
+    expect(isCreativePath("/creative")).toBe(true);
+    expect(isCreativePath("/creative/")).toBe(true);
+    expect(isCreativePath("/crew/creative")).toBe(true);
+    expect(isCreativePath("/")).toBe(false);
+    expect(isCreativePath("/agents")).toBe(false);
+    expect(isCreativePath("/coins")).toBe(false);
   });
 });
 

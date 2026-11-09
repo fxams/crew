@@ -65,7 +65,9 @@ REST alternative: `POST https://api.crewpay.dev/api/agent/launch` with `x-launch
 
 Install pinned `crewpay-mcp@1.2.14` as above, or connect HTTP MCP at `https://mcp.crewpay.dev/mcp`. Pump.fun unsigned builds (`crew_build_unsigned`) require `mintPubkey`. Fees lock at launch. `crew_wire_fees` is repair-only.
 
-Tools: `crew_discover` · `crew_claim_key` · `crew_list_kols` · `crew_search_kols` · `crew_autohire` · `crew_build_unsigned` · `crew_submit_signed` · `crew_launch_dry_run` · `crew_launch` · `crew_list_launches` · `crew_status` · `crew_wire_fees` · `crew_lock_holder_kol` · `crew_crank_remits` · `crew_proof`
+Tools: `crew_discover` · `crew_claim_key` · `crew_list_kols` · `crew_search_kols` · `crew_autohire` · `crew_build_unsigned` · `crew_submit_signed` · `crew_launch_dry_run` · `crew_launch` · `crew_list_launches` · `crew_status` · `crew_wire_fees` · `crew_lock_holder_kol` · `crew_crank_remits` · `crew_proof` · `crew_creative`
+
+Creative (launch art): https://crewpay.dev/creative · remote MCP https://creative-mcp-40dj.onrender.com/mcp (50-credit trial; USDC on Base). `crew_creative` is a pointer — it does not proxy generate.
 
 ## Auth + keys
 

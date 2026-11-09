@@ -97,7 +97,7 @@ import { launchCrew } from "./lib/launch";
 import { useOwnRegisteredHandle } from "./lib/registered-kol";
 import { NO_CRYPTO_NEEDED } from "./lib/kol-onboarding";
 import { headerKolLinks, mobileStickyCta } from "./lib/nav";
-import { isAdminFarcasterPath, isAdminKickoffPath, isAdminOpsPath, isAgentsEarnPath, isAgentsPath, isApprovePath, isClaimPath, isCoinPath, isCoinsPath, isHomePath, isJobsPath, isKolAlertsPath, isKolFoundersPath, isKolHubPath, isKolLeaderboardPath, isKolRefPath, isKolReservedRedirectPath, isKolTasksPath, isKolsPath, isLaunchPath, isOnepagerPath, isProofPath, isReferralPath, isRegisterPath, isSquadsActivityPath, isSquadsMethodologyPath, isSquadsPath, isSuiLaunchpadPath, isSuiPoolDetailPath, isTasksPath, kolHandleFromPath, kolRefFromPath, referralCodeFromPath } from "./lib/routes";
+import { isAdminFarcasterPath, isAdminKickoffPath, isAdminOpsPath, isAgentsEarnPath, isAgentsPath, isApprovePath, isClaimPath, isCoinPath, isCoinsPath, isCreativePath, isHomePath, isJobsPath, isKolAlertsPath, isKolFoundersPath, isKolHubPath, isKolLeaderboardPath, isKolRefPath, isKolReservedRedirectPath, isKolTasksPath, isKolsPath, isLaunchPath, isOnepagerPath, isProofPath, isReferralPath, isRegisterPath, isSquadsActivityPath, isSquadsMethodologyPath, isSquadsPath, isSuiLaunchpadPath, isSuiPoolDetailPath, isTasksPath, kolHandleFromPath, kolRefFromPath, referralCodeFromPath } from "./lib/routes";
 import { applyTheme, readTheme } from "./lib/theme";
 import { KolFoundersPage } from "./components/KolFoundersPage";
 import { KolTasksPage } from "./components/KolTasksPage";
@@ -113,6 +113,7 @@ import { AdminOpsPage } from "./components/AdminOpsPage";
 import { AdminFarcasterPage } from "./components/AdminFarcasterPage";
 import { TasksPage } from "./components/TasksPage";
 import { JobsPage } from "./components/JobsPage";
+import { CreativePage } from "./components/CreativePage";
 import { SquadsPage } from "./components/SquadsPage";
 import { SquadsMethodologyPage } from "./components/SquadsMethodologyPage";
 import {
@@ -233,6 +234,7 @@ export default function App() {
   const isClaimPage = isClaimPath(path);
   const isAgentsPage = isAgentsPath(path);
   const isAgentsEarnPage = isAgentsEarnPath(path);
+  const isCreativePage = isCreativePath(path);
   const isProofPage = isProofPath(path);
   const isOnepagerPage = isOnepagerPath(path);
   const isApprovePage = isApprovePath(path);
@@ -1491,6 +1493,7 @@ export default function App() {
       isSuiPoolPage ||
       isTasksPage ||
       isJobsPage ||
+      isCreativePage ||
       isAnySquadsPage ||
       isKolHubPage ||
       isKolLeaderboardPage ||
@@ -1596,6 +1599,9 @@ export default function App() {
             <Link className={isJobsPage ? "is-active-nav-text" : undefined} to="/jobs">
               Jobs
             </Link>
+            <Link className={isCreativePage ? "is-active-nav-text" : undefined} to="/creative">
+              Creative
+            </Link>
             {SQUADS_ENABLED ? (
               <Link className={isAnySquadsPage ? "is-active-nav-text" : undefined} to="/squads">
                 Squads
@@ -1654,13 +1660,14 @@ export default function App() {
       {isSuiPoolPage ? <SuiPoolDetailPage /> : null}
       {isTasksPage ? <TasksPage /> : null}
       {isJobsPage ? <JobsPage /> : null}
+      {isCreativePage ? <CreativePage /> : null}
       {isSquadsPage ? <SquadsPage /> : null}
       {isSquadsMethodologyPage ? <SquadsMethodologyPage /> : null}
       {isAdminKickoffPage ? <AdminKickoffPage /> : null}
       {isAdminFarcasterPage ? <AdminFarcasterPage /> : null}
       {isAdminOpsPage ? <AdminOpsPage /> : null}
 
-      {!isLaunchPage && !isKolsPage && !isRegisterPage && !isKolHubPage && !isKolRefPage && !isKolLeaderboardPage && !isKolFoundersPage && !isKolTasksPage && !isKolAlertsPage && !isKolProfilePage && !isClaimPage && !isAgentsPage && !isAgentsEarnPage && !isProofPage && !isOnepagerPage && !isApprovePage && !isCoinPage && !isCoinsPage && !isSuiPage && !isTasksPage && !isJobsPage && !isAnySquadsPage && !isAdminKickoffPage && !isAdminFarcasterPage && !isAdminOpsPage ? (
+      {!isLaunchPage && !isKolsPage && !isRegisterPage && !isKolHubPage && !isKolRefPage && !isKolLeaderboardPage && !isKolFoundersPage && !isKolTasksPage && !isKolAlertsPage && !isKolProfilePage && !isClaimPage && !isAgentsPage && !isAgentsEarnPage && !isProofPage && !isOnepagerPage && !isApprovePage && !isCoinPage && !isCoinsPage && !isSuiPage && !isTasksPage && !isJobsPage && !isCreativePage && !isAnySquadsPage && !isAdminKickoffPage && !isAdminFarcasterPage && !isAdminOpsPage ? (
         <>
       <div className="app-shell">
         <main id="top">
@@ -3172,7 +3179,7 @@ export default function App() {
           </div>
         </footer>
       </div>
-      ) : isAgentsPage || isAgentsEarnPage || isKolsPage || isRegisterPage || isKolHubPage || isKolRefPage || isKolLeaderboardPage || isKolFoundersPage || isKolTasksPage || isKolAlertsPage || isKolProfilePage || isClaimPage || isProofPage || isOnepagerPage || isApprovePage || isCoinPage || isCoinsPage || isSuiPage || isSuiPoolPage || isTasksPage || isJobsPage || isAnySquadsPage || isAdminKickoffPage || isAdminFarcasterPage || isAdminOpsPage ? null : (
+      ) : isAgentsPage || isAgentsEarnPage || isKolsPage || isRegisterPage || isKolHubPage || isKolRefPage || isKolLeaderboardPage || isKolFoundersPage || isKolTasksPage || isKolAlertsPage || isKolProfilePage || isClaimPage || isProofPage || isOnepagerPage || isApprovePage || isCoinPage || isCoinsPage || isSuiPage || isSuiPoolPage || isTasksPage || isJobsPage || isCreativePage || isAnySquadsPage || isAdminKickoffPage || isAdminFarcasterPage || isAdminOpsPage ? null : (
       <div className="app-shell">
         <section className="section" id="brand">
           <p className="section-label">Assets</p>

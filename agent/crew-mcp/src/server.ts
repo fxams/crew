@@ -221,6 +221,42 @@ export function createCrewMcpServer(overrides?: Partial<CrewApiConfig>) {
   )
 
   server.registerTool(
+    'crew_creative',
+    {
+      title: 'Discover CrewPay Creative (creative-mcp)',
+      description:
+        'Pointer to CrewPay’s Creative service — a remote MCP that makes logos, memes, banners, sticker packs, music, and short teaser videos for launches. Connect Streamable HTTP at https://creative-mcp-40dj.onrender.com/mcp. initialize and tools/list work without a key; tools/call needs Authorization: Bearer lk_…. 50-credit trial; top-ups in USDC on Base. When to use: you need launch art. When not to use: human escrow jobs (post_coin_job) or coin launches. This tool does not proxy generate calls or spend credits. Optional CrewPay stills: POST /api/coins/{mint}/creative (kind=logo|banner|meme) when CREATIVE_MCP_ENABLED. Site: https://crewpay.dev/creative. No earnings promises.',
+      inputSchema: {},
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    },
+    async () => {
+      try {
+        const data = await crewFetch(cfg, '/api/creative')
+        return asText(data)
+      } catch {
+        return asText({
+          service: 'creative-mcp',
+          site: 'https://creative-mcp-40dj.onrender.com',
+          mcp: 'https://creative-mcp-40dj.onrender.com/mcp',
+          serverCard: 'https://creative-mcp-40dj.onrender.com/.well-known/mcp/server-card.json',
+          page: `${DEFAULT_SITE_URL}/creative`,
+          trialCredits: 50,
+          pay: 'USDC on Base',
+          connect: {
+            mcpServers: {
+              'launchkit-mcp': {
+                url: 'https://creative-mcp-40dj.onrender.com/mcp',
+                headers: { Authorization: 'Bearer lk_YOUR_KEY' },
+              },
+            },
+          },
+          note: 'Logos, memes, banners, sticker packs, music, and short teaser videos for launches. Humans stay the core. No earnings promises.',
+        })
+      }
+    },
+  )
+
+  server.registerTool(
     'crew_discover',
     {
       title: 'Discover CREW Agent API',

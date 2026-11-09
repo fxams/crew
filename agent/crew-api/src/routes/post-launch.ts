@@ -20,6 +20,7 @@ import {
 import { listCoinJobTemplates } from '../lib/jobs/templates.js'
 import { memoryJobs } from '../lib/jobs/store.js'
 import { jobToJson } from '../lib/jobs/serialize.js'
+import { creativeKitBlock } from '../lib/creative-mcp.js'
 import { assertAllowlistedApprover } from '../lib/agent/approver.js'
 import { verifyWalletSignature } from '../lib/wallet-auth.js'
 
@@ -150,6 +151,7 @@ postLaunchRouter.get('/coins/:mint/kit', async (req, res) => {
         open: jobsEnabled() ? memoryJobs.listOpen(mint).map(jobToJson) : [],
         note: 'Creative jobs use existing escrow. Test/devnet when JOBS_ENABLED. Humans claim, deliver, get paid after verification. No earnings promises.',
       },
+      creative: creativeKitBlock(coin.mint),
     })
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : 'kit failed' })

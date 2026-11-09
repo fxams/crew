@@ -15,6 +15,7 @@ const NAV_ROUTES = [
   '/kol/e2eKol',
   '/coins',
   '/jobs',
+  '/creative',
   '/squads',
   '/proof',
   '/launch',

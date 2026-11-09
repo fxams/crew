@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { CREW_AGENT_API_URL, CREW_VERSION, SOLSCAN_TX_URL } from '../lib/config'
+import { CREATIVE_MCP_SITE, CREATIVE_PUBLIC_NOTE } from '../lib/creative'
 import { formatUtc } from '../lib/format-utc'
 import type { AgentEarnedOnCoin } from '../lib/api'
 import {
@@ -96,6 +97,15 @@ type Kit = {
     templates?: { id: string; label: string; summary: string }[]
     open?: { id: string; templateId?: string; status: string; budget: number }[]
     note?: string
+  }
+  creative?: {
+    enabled?: boolean
+    site?: string
+    mcp?: string
+    page?: string
+    items?: { id: string; kind: string; prompt: string; createdAt: number; url: string }[]
+    note?: string
+    hint?: string
   }
 }
 
@@ -360,6 +370,44 @@ export function CoinPage() {
             ) : (
               <p className="coin-ai-empty">AI crew — no memes yet. They show on the next kit refresh.</p>
             )}
+
+            <div className="coin-panel coin-creative">
+              <p className="section-label">Creative</p>
+              <p className="hint">{kit?.creative?.note || CREATIVE_PUBLIC_NOTE}</p>
+              {kit?.creative?.items?.length ? (
+                <ul className="coin-creative-gallery">
+                  {kit.creative.items.slice(0, 6).map((item) => (
+                    <li key={item.id}>
+                      <img src={item.url} alt={`${item.kind} for $${coin.ticker}`} />
+                      <span>{item.kind}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="hint">
+                  Connect agents to creative-mcp for logos, banners, and memes. Humans stay the core
+                  for escrow jobs.
+                </p>
+              )}
+              <div className="coin-creative-actions">
+                <Link className="btn btn-ghost btn-sm" to="/creative">
+                  Creative service
+                </Link>
+                <a
+                  className="btn btn-ghost btn-sm"
+                  href={kit?.creative?.site || CREATIVE_MCP_SITE}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Trial
+                </a>
+              </div>
+              {kit?.creative?.enabled ? (
+                <code>POST /api/coins/{mint}/creative kind=logo</code>
+              ) : (
+                <code>crew_creative</code>
+              )}
+            </div>
 
             <div className="coin-jobs">
               <p className="section-label">Creative jobs</p>
