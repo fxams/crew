@@ -16,6 +16,7 @@ const NAV_ROUTES = [
   '/coins',
   '/jobs',
   '/creative',
+  '/noid',
   '/squads',
   '/proof',
   '/launch',

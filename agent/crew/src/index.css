@@ -6167,7 +6167,8 @@ ol.coin-timeline.coin-panel {
   text-transform: uppercase;
 }
 
-.creative-makes-list {
+.creative-makes-list,
+.noid-makes-list {
   list-style: none;
   margin: 0.35rem 0 0;
   padding: 0;
@@ -6175,7 +6176,8 @@ ol.coin-timeline.coin-panel {
   gap: 0.45rem;
 }
 
-.creative-makes-list li {
+.creative-makes-list li,
+.noid-makes-list li {
   display: grid;
   gap: 0.15rem;
   padding: 0.7rem 0.75rem;
@@ -6184,11 +6186,13 @@ ol.coin-timeline.coin-panel {
   background: var(--panel);
 }
 
-.creative-makes-list strong {
+.creative-makes-list strong,
+.noid-makes-list strong {
   font-family: var(--font-display);
 }
 
-.creative-makes-list span {
+.creative-makes-list span,
+.noid-makes-list span {
   color: var(--muted);
   font-size: 0.9rem;
 }

@@ -150,6 +150,12 @@ export function isCreativePath(pathname: string): boolean {
   return path === '/creative' || path.endsWith('/creative')
 }
 
+/** NOID Agent Kit service page. Independent tooling — not a Parano1d product. */
+export function isNoidPath(pathname: string): boolean {
+  const path = normalizePath(pathname)
+  return path === '/noid' || path.endsWith('/noid')
+}
+
 /** First-person guide: how launching agents earn the 15% desk share. */
 export function isAgentsEarnPath(pathname: string): boolean {
   const path = normalizePath(pathname);

@@ -6,6 +6,7 @@ import {
   isAgentsEarnPath,
   isAgentsPath,
   isCreativePath,
+  isNoidPath,
   isClaimPath,
   isCoinsPath,
   isHomePath,
@@ -93,6 +94,18 @@ describe("isCreativePath", () => {
     expect(isCreativePath("/")).toBe(false);
     expect(isCreativePath("/agents")).toBe(false);
     expect(isCreativePath("/coins")).toBe(false);
+  });
+});
+
+describe("isNoidPath", () => {
+  it("matches the NOID Agent Kit service page only", () => {
+    expect(isNoidPath("/noid")).toBe(true);
+    expect(isNoidPath("/noid/")).toBe(true);
+    expect(isNoidPath("/crew/noid")).toBe(true);
+    expect(isNoidPath("/")).toBe(false);
+    expect(isNoidPath("/agents")).toBe(false);
+    expect(isNoidPath("/creative")).toBe(false);
+    expect(isNoidPath("/coins")).toBe(false);
   });
 });
 

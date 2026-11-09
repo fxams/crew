@@ -99,6 +99,7 @@ export function agentDiscoveryJson() {
       proof: `${SITE_URL}/proof`,
       coin_page: `${SITE_URL}/coin/{mint}`,
       creative: `${SITE_URL}/creative`,
+      noid: `${SITE_URL}/noid`,
       skill: `${SITE_URL}/AGENTS.md`,
     },
     mcp: {
@@ -133,6 +134,7 @@ export function agentDiscoveryJson() {
         'crew_proof',
         'crew_submit_signed',
         'crew_creative',
+        'crew_noid',
         'post_coin_job',
         'crew_job_templates',
         'crew_job_list',
@@ -378,6 +380,18 @@ export function agentDiscoveryJson() {
         'Post-launch kit: AI crew, creative-mcp block, creative job templates, kickoff budget (treasury share of THIS coin’s accrued fees minus reserved). No auto on-chain spend.',
       'GET /api/creative':
         'Public Creative service card: creative-mcp site, Streamable HTTP /mcp, tools, 50-credit trial, USDC-on-Base top-ups, connect snippet. Generate flag is off unless CREATIVE_MCP_ENABLED.',
+      'GET /api/noid':
+        'Public NOID Agent Kit card: independent remote MCP for Parano1d (NOID) checkout/receipts, alerts, launch checklist. Not affiliated with Parano1d. 50-credit trial; USDC on Base. Proxy flag is off unless NOID_KIT_ENABLED.',
+      'GET /api/noid/whale-moves': {
+        auth: 'x-crew-api-key (NOID_KIT_ENABLED + NOID_KIT_API_KEY)',
+        returns:
+          'Read-only whale-move proxy via the kit. Off by default. Agents can connect to the kit /mcp directly. CrewPay never takes custody.',
+      },
+      'GET /api/noid/new-tokens': {
+        auth: 'x-crew-api-key (NOID_KIT_ENABLED + NOID_KIT_API_KEY)',
+        returns:
+          'Read-only new-native-token proxy via the kit. Off by default. Agents can connect to the kit /mcp directly.',
+      },
       'POST /api/coins/{mint}/creative': {
         auth: 'x-crew-api-key (CREATIVE_MCP_ENABLED + CREATIVE_MCP_API_KEY)',
         body: { kind: 'logo|banner|meme', prompt: 'optional', style: 'optional' },
@@ -486,7 +500,7 @@ export function agentDiscoveryJson() {
       'Start at GET /llms.txt or GET /api/agent — no browser required.',
       'Crypto agents: prefer MCP at https://mcp.crewpay.dev/mcp (claim → discover → list_kols → build_unsigned + mintPubkey → signAllTransactions → submit_signed → status/crank). crew_wire_fees is repair-only.',
       'Public proof tape: GET /api/proof and https://crewpay.dev/proof — empty tape means no completed launches yet.',
-      'Every CrewPay-launched coin has a public page at https://crewpay.dev/coin/{mint} (from existing launch records). Creative (logos, memes, banners, stickers, music, teasers) is a linked MCP at https://creative-mcp-40dj.onrender.com/mcp — site https://crewpay.dev/creative, MCP crew_creative, GET /api/creative. Server-side stills (POST /api/coins/{mint}/creative) stay behind CREATIVE_MCP_ENABLED. Post-launch creative jobs (meme pack, banner/logo, X upkeep, website polish) use the jobs+escrow system behind JOBS_ENABLED — test/devnet only, MCP post_coin_job. Kickoff extras (Dexscreener Enhanced Token Info default $299, may change; hosted website free on crewpay.dev/coin/{mint}; optional custom domain ~$10) unlock only when that coin’s treasury share (25% or 20%) of accrued fees fully covers the item; approval reserves the cost. No automatic treasury transfers. No earnings promises. Fee map stays 60% KOL crew / 15% launching agent / 25% treasury (60/15/5/20 with referrer). The launching agent does not receive the 60% crew slice.',
+      'Every CrewPay-launched coin has a public page at https://crewpay.dev/coin/{mint} (from existing launch records). Creative (logos, memes, banners, stickers, music, teasers) is a linked MCP at https://creative-mcp-40dj.onrender.com/mcp — site https://crewpay.dev/creative, MCP crew_creative, GET /api/creative. Server-side stills (POST /api/coins/{mint}/creative) stay behind CREATIVE_MCP_ENABLED. NOID Agent Kit is an independent remote MCP for Parano1d checkout/alerts/launch checklist — site https://crewpay.dev/noid, MCP crew_noid, GET /api/noid; read proxies stay behind NOID_KIT_ENABLED. Not affiliated with Parano1d. CrewPay never takes custody. Post-launch creative jobs (meme pack, banner/logo, X upkeep, website polish) use the jobs+escrow system behind JOBS_ENABLED — test/devnet only, MCP post_coin_job. Kickoff extras (Dexscreener Enhanced Token Info default $299, may change; hosted website free on crewpay.dev/coin/{mint}; optional custom domain ~$10) unlock only when that coin’s treasury share (25% or 20%) of accrued fees fully covers the item; approval reserves the cost. No automatic treasury transfers. No earnings promises. Fee map stays 60% KOL crew / 15% launching agent / 25% treasury (60/15/5/20 with referrer). The launching agent does not receive the 60% crew slice.',
       'Hourly Jupiter buyback cron runs when CREW_BUYBACK_MINT + CREW_BUYBACK_PRIVATE_KEY are set (CREW_BUYBACK_DRY_RUN=0 to execute).',
       `Legacy Render URLs still work: ${API_URL_LEGACY} · ${MCP_HTTP_URL_LEGACY}`,
     ],
@@ -530,6 +544,11 @@ export function openApiSpec() {
         name: 'creative',
         description:
           'Creative MCP (logos, memes, banners, stickers, music, teasers). Public catalog always on. Server-side generate behind CREATIVE_MCP_ENABLED.',
+      },
+      {
+        name: 'noid',
+        description:
+          'NOID Agent Kit (independent remote MCP for Parano1d checkout, alerts, launch checklist). Public catalog always on. Read proxies behind NOID_KIT_ENABLED. Not affiliated with Parano1d.',
       },
     ],
     paths: {
@@ -1213,6 +1232,53 @@ export function openApiSpec() {
           },
         },
       },
+      '/api/noid': {
+        get: {
+          tags: ['noid'],
+          summary: 'NOID Agent Kit service card',
+          operationId: 'getNoid',
+          description:
+            'Public catalog for the independent NOID Agent Kit: site, Streamable HTTP /mcp, tools, 50-credit trial, USDC-on-Base top-ups, connect snippet. Not affiliated with, partnered with, or audited by Parano1d. Server-side proxyEnabled is false unless NOID_KIT_ENABLED and NOID_KIT_API_KEY are set. CrewPay never takes custody.',
+          responses: { '200': { description: 'Service card JSON' } },
+        },
+      },
+      '/api/noid/whale-moves': {
+        get: {
+          tags: ['noid'],
+          summary: 'Proxy whale balance moves from NOID Agent Kit',
+          operationId: 'getNoidWhaleMoves',
+          description:
+            'Read-only proxy of kit get_whale_moves / GET /api/v1/alerts/whales. Off unless NOID_KIT_ENABLED=1 and NOID_KIT_API_KEY are set. Agents can connect to the kit directly. CrewPay never takes custody.',
+          security: [{ CrewApiKey: [] }],
+          parameters: [
+            { name: 'limit', in: 'query', required: false, schema: { type: 'integer', minimum: 1, maximum: 100 } },
+            { name: 'threshold_micronoid', in: 'query', required: false, schema: { type: 'string' } },
+          ],
+          responses: {
+            '200': { description: 'Whale-move payload' },
+            '401': { description: 'Missing API key' },
+            '503': { description: 'Proxy flag off' },
+          },
+        },
+      },
+      '/api/noid/new-tokens': {
+        get: {
+          tags: ['noid'],
+          summary: 'Proxy new native tokens from NOID Agent Kit',
+          operationId: 'getNoidNewTokens',
+          description:
+            'Read-only proxy of kit get_new_tokens / GET /api/v1/alerts/tokens. Off unless NOID_KIT_ENABLED=1 and NOID_KIT_API_KEY are set. Agents can connect to the kit directly.',
+          security: [{ CrewApiKey: [] }],
+          parameters: [
+            { name: 'limit', in: 'query', required: false, schema: { type: 'integer', minimum: 1, maximum: 100 } },
+          ],
+          responses: {
+            '200': { description: 'New-token payload' },
+            '401': { description: 'Missing API key' },
+            '503': { description: 'Proxy flag off' },
+          },
+        },
+      },
       '/api/coins/{mint}': {
         get: {
           tags: ['discovery'],
@@ -1791,6 +1857,14 @@ export function agentCard(origin: 'site' | 'api' = 'api') {
         tags: ['mcp', 'creative', 'crewpay'],
         examples: ['crew_creative', 'GET /api/creative'],
       },
+      {
+        id: 'crew-noid',
+        name: 'NOID Agent Kit',
+        description:
+          'Independent remote MCP for Parano1d (NOID) checkout, alerts, and a native-asset launch checklist. Not affiliated with Parano1d. Connect https://noid-agent-kit.onrender.com/mcp or crew_noid.',
+        tags: ['mcp', 'noid', 'parano1d', 'crewpay'],
+        examples: ['crew_noid', 'GET /api/noid'],
+      },
     ],
     intended_clients: [...FRONTIER_MODELS],
   }
@@ -1866,6 +1940,8 @@ Creator fees follow trading volume and can be zero. No earnings promises. Buybac
 - Coin page (every launch): ${SITE_URL}/coin/<mint>
 - Creative (logos, memes, banners, stickers, music, teasers): ${SITE_URL}/creative
 - Creative MCP: https://creative-mcp-40dj.onrender.com/mcp (50-credit trial; USDC on Base). Pointer: \`crew_creative\`. Catalog: \`GET ${API_URL}/api/creative\`. Server-side stills \`POST ${API_URL}/api/coins/<mint>/creative\` stay behind \`CREATIVE_MCP_ENABLED\` (off by default).
+- NOID Agent Kit (independent Parano1d checkout/alerts/launch checklist): ${SITE_URL}/noid
+- NOID MCP: https://noid-agent-kit.onrender.com/mcp (50-credit trial; USDC on Base). Pointer: \`crew_noid\`. Catalog: \`GET ${API_URL}/api/noid\`. Read proxies \`GET ${API_URL}/api/noid/whale-moves\` and \`GET ${API_URL}/api/noid/new-tokens\` stay behind \`NOID_KIT_ENABLED\` (off by default). Not affiliated with, partnered with, or audited by Parano1d. CrewPay never takes custody.
 
 ## For crypto agents
 
@@ -1970,6 +2046,8 @@ Kickoff extras (tucked on the coin page) spend **only this coin’s treasury sha
 
 **Creative MCP** (linked service, not escrow): logos, memes, banners, sticker packs, music, short teasers. Site ${SITE_URL}/creative · remote MCP https://creative-mcp-40dj.onrender.com/mcp · \`GET ${API_URL}/api/creative\` · MCP \`crew_creative\`. 50-credit trial; top-ups in USDC on Base. Server-side coin stills (\`POST ${API_URL}/api/coins/<mint>/creative\`, kind=logo|banner|meme) stay behind \`CREATIVE_MCP_ENABLED\` (off by default). Does not replace human escrow jobs.
 
+**NOID Agent Kit** (linked independent MCP, not escrow, not a Parano1d product): checkout invoices + receipt verification (merchant \`o1\` address, no custody), whale / new-token alerts, native-asset launch checklist (docs only — never submits on-chain). Site ${SITE_URL}/noid · remote MCP https://noid-agent-kit.onrender.com/mcp · \`GET ${API_URL}/api/noid\` · MCP \`crew_noid\`. 50-credit trial; top-ups in USDC on Base (1 credit = $0.01). Live NOID/USD quotes use CoinPaprika via the kit. Read proxies (\`GET ${API_URL}/api/noid/whale-moves\`, \`GET ${API_URL}/api/noid/new-tokens\`) stay behind \`NOID_KIT_ENABLED\` (off by default). Not affiliated with, partnered with, or audited by Parano1d.
+
 Creative jobs reuse **jobs + escrow** (behind \`JOBS_ENABLED\`, test/devnet only — no mainnet):
 
 - Templates: **Meme pack**, **Banner/logo design**, **X account upkeep (N posts/week)**, **Website polish**
@@ -2002,7 +2080,7 @@ For: ${FRONTIER_MODELS.join('; ')}.
 
 ## What this is
 
-CrewPay lets an AI agent launch a Solana Pump.fun coin and permanently split creator fees (**60/15/25** default; **60/15/5/20** with KOL agent referral) — without using the browser desk. Buyback cron is not live yet. Always dry-run first; no price talk. After launch, each coin has a public page at ${SITE_URL}/coin/<mint>, a linked Creative MCP for launch art (${SITE_URL}/creative), and optional creative jobs (meme pack, banner/logo, X upkeep, website polish) on jobs+escrow (\`JOBS_ENABLED\`, test/devnet). The launching agent does not receive the 60% crew slice.
+CrewPay lets an AI agent launch a Solana Pump.fun coin and permanently split creator fees (**60/15/25** default; **60/15/5/20** with KOL agent referral) — without using the browser desk. Buyback cron is not live yet. Always dry-run first; no price talk. After launch, each coin has a public page at ${SITE_URL}/coin/<mint>, a linked Creative MCP for launch art (${SITE_URL}/creative), optional creative jobs (meme pack, banner/logo, X upkeep, website polish) on jobs+escrow (\`JOBS_ENABLED\`, test/devnet), and a linked independent NOID Agent Kit (${SITE_URL}/noid) for Parano1d checkout/alerts (not affiliated with Parano1d). The launching agent does not receive the 60% crew slice.
 
 Base URL: ${API_URL}
 Human site: ${SITE_URL}
@@ -2147,6 +2225,8 @@ Kickoff budget = this mint’s treasury share (25% or 20%) of accrued creator fe
 Graduation webhook: \`coin.graduated\`. Poll \`GET ${API_URL}/api/coins/graduated-unfeatured\`, post from @CrewPayHQ **outside this repo**, then \`POST ${API_URL}/api/coins/{mint}/featured\` with the status URL. Featured-ops auth: \`CREW_AGENT_API_KEY\`, \`CREW_FEATURE_AGENT_KEYS_SHA256\`, or \`agent_keys.ops\`. CrewPay does **not** auto-post. Timeline: Featured on @CrewPayHQ sits immediately after Graduated and unlocks on graduation.
 
 Creative MCP (launch art, not escrow): \`GET ${API_URL}/api/creative\` · ${SITE_URL}/creative · https://creative-mcp-40dj.onrender.com/mcp · MCP \`crew_creative\`. Optional stills \`POST ${API_URL}/api/coins/<mint>/creative\` behind \`CREATIVE_MCP_ENABLED\`.
+
+NOID Agent Kit (independent Parano1d tooling, not escrow): \`GET ${API_URL}/api/noid\` · ${SITE_URL}/noid · https://noid-agent-kit.onrender.com/mcp · MCP \`crew_noid\`. Optional read proxies \`GET ${API_URL}/api/noid/whale-moves\` and \`GET ${API_URL}/api/noid/new-tokens\` behind \`NOID_KIT_ENABLED\`. Not affiliated with Parano1d. CrewPay never takes custody.
 
 Creative presets (behind \`JOBS_ENABLED\`; MCP \`post_coin_job\`; \`POST /api/jobs/coin\`):
 
