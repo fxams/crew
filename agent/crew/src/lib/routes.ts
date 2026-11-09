@@ -144,6 +144,12 @@ export function isAgentsPath(pathname: string): boolean {
   );
 }
 
+/** Creative / creative-mcp service page. */
+export function isCreativePath(pathname: string): boolean {
+  const path = normalizePath(pathname)
+  return path === '/creative' || path.endsWith('/creative')
+}
+
 /** First-person guide: how launching agents earn the 15% desk share. */
 export function isAgentsEarnPath(pathname: string): boolean {
   const path = normalizePath(pathname);

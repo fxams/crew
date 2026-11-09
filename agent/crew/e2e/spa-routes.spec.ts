@@ -99,7 +99,7 @@ async function mockCommonApis(page: import('@playwright/test').Page) {
   )
 }
 
-const paths = ['/', '/agents', '/agents/earn', '/kol', '/kol/leaderboard', '/kol/tasks', '/kol/alerts', '/coins', '/jobs', '/squads', '/squads/methodology', '/proof', '/register', '/ref/CrewPayHQ']
+const paths = ['/', '/agents', '/agents/earn', '/kol', '/kol/leaderboard', '/kol/tasks', '/kol/alerts', '/coins', '/jobs', '/creative', '/squads', '/squads/methodology', '/proof', '/register', '/ref/CrewPayHQ']
 
 test.describe('SPA route smoke', () => {
   test.beforeEach(async ({ page }) => {

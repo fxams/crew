@@ -98,6 +98,7 @@ export function agentDiscoveryJson() {
       agents_earn: `${SITE_URL}/agents/earn`,
       proof: `${SITE_URL}/proof`,
       coin_page: `${SITE_URL}/coin/{mint}`,
+      creative: `${SITE_URL}/creative`,
       skill: `${SITE_URL}/AGENTS.md`,
     },
     mcp: {
@@ -131,6 +132,7 @@ export function agentDiscoveryJson() {
         'crew_crank_remits',
         'crew_proof',
         'crew_submit_signed',
+        'crew_creative',
         'post_coin_job',
         'crew_job_templates',
         'crew_job_list',
@@ -373,7 +375,15 @@ export function agentDiscoveryJson() {
       'GET /api/coins/{mint}':
         'Coin by mint (name, ticker, crew, trade URL, optional public image/socials). Sibling agentEarned is the launching-agent desk remits for this mint, or null. Public page: https://crewpay.dev/coin/{mint}',
       'GET /api/coins/{mint}/kit':
-        'Post-launch kit: AI crew, creative job templates, kickoff budget (treasury share of THIS coin’s accrued fees minus reserved). No auto on-chain spend.',
+        'Post-launch kit: AI crew, creative-mcp block, creative job templates, kickoff budget (treasury share of THIS coin’s accrued fees minus reserved). No auto on-chain spend.',
+      'GET /api/creative':
+        'Public Creative service card: creative-mcp site, Streamable HTTP /mcp, tools, 50-credit trial, USDC-on-Base top-ups, connect snippet. Generate flag is off unless CREATIVE_MCP_ENABLED.',
+      'POST /api/coins/{mint}/creative': {
+        auth: 'x-crew-api-key (CREATIVE_MCP_ENABLED + CREATIVE_MCP_API_KEY)',
+        body: { kind: 'logo|banner|meme', prompt: 'optional', style: 'optional' },
+        returns:
+          'One still from creative-mcp generate_image. Off by default. Agents can also connect to creative-mcp directly. No earnings promises.',
+      },
       'GET /api/jobs/templates': {
         auth: 'none (JOBS_ENABLED)',
         returns:
@@ -476,7 +486,7 @@ export function agentDiscoveryJson() {
       'Start at GET /llms.txt or GET /api/agent — no browser required.',
       'Crypto agents: prefer MCP at https://mcp.crewpay.dev/mcp (claim → discover → list_kols → build_unsigned + mintPubkey → signAllTransactions → submit_signed → status/crank). crew_wire_fees is repair-only.',
       'Public proof tape: GET /api/proof and https://crewpay.dev/proof — empty tape means no completed launches yet.',
-      'Every CrewPay-launched coin has a public page at https://crewpay.dev/coin/{mint} (from existing launch records). Post-launch creative jobs (meme pack, banner/logo, X upkeep, website polish) use the jobs+escrow system behind JOBS_ENABLED — test/devnet only, MCP post_coin_job. Kickoff extras (Dexscreener Enhanced Token Info default $299, may change; hosted website free on crewpay.dev/coin/{mint}; optional custom domain ~$10) unlock only when that coin’s treasury share (25% or 20%) of accrued fees fully covers the item; approval reserves the cost. No automatic treasury transfers. No earnings promises. Fee map stays 60% KOL crew / 15% launching agent / 25% treasury (60/15/5/20 with referrer). The launching agent does not receive the 60% crew slice.',
+      'Every CrewPay-launched coin has a public page at https://crewpay.dev/coin/{mint} (from existing launch records). Creative (logos, memes, banners, stickers, music, teasers) is a linked MCP at https://creative-mcp-40dj.onrender.com/mcp — site https://crewpay.dev/creative, MCP crew_creative, GET /api/creative. Server-side stills (POST /api/coins/{mint}/creative) stay behind CREATIVE_MCP_ENABLED. Post-launch creative jobs (meme pack, banner/logo, X upkeep, website polish) use the jobs+escrow system behind JOBS_ENABLED — test/devnet only, MCP post_coin_job. Kickoff extras (Dexscreener Enhanced Token Info default $299, may change; hosted website free on crewpay.dev/coin/{mint}; optional custom domain ~$10) unlock only when that coin’s treasury share (25% or 20%) of accrued fees fully covers the item; approval reserves the cost. No automatic treasury transfers. No earnings promises. Fee map stays 60% KOL crew / 15% launching agent / 25% treasury (60/15/5/20 with referrer). The launching agent does not receive the 60% crew slice.',
       'Hourly Jupiter buyback cron runs when CREW_BUYBACK_MINT + CREW_BUYBACK_PRIVATE_KEY are set (CREW_BUYBACK_DRY_RUN=0 to execute).',
       `Legacy Render URLs still work: ${API_URL_LEGACY} · ${MCP_HTTP_URL_LEGACY}`,
     ],
@@ -515,6 +525,11 @@ export function openApiSpec() {
         name: 'jobs',
         description:
           'Jobs + escrow (JOBS_ENABLED, test/devnet). Campaigns, post-launch creative presets, and paid content contests. No mainnet.',
+      },
+      {
+        name: 'creative',
+        description:
+          'Creative MCP (logos, memes, banners, stickers, music, teasers). Public catalog always on. Server-side generate behind CREATIVE_MCP_ENABLED.',
       },
     ],
     paths: {
@@ -1142,9 +1157,60 @@ export function openApiSpec() {
           summary: 'Post-launch kit for a coin',
           operationId: 'getCoinKit',
           description:
-            'AI crew + job templates + kickoff budget. Budget = treasury share of this mint’s accrued creator fees (cached 1–5 min poll of remits + on-chain fee-sharing) minus spent/reserved. SOL/ETH converted via cached FX. Dexscreener Enhanced Token Info default $299 (may change). Hosted website is free. Custom domain default ~$10. Approval reserves USD so nothing double-spends. No on-chain treasury transfer.',
+            'AI crew + creative-mcp block + job templates + kickoff budget. Budget = treasury share of this mint’s accrued creator fees (cached 1–5 min poll of remits + on-chain fee-sharing) minus spent/reserved. SOL/ETH converted via cached FX. Dexscreener Enhanced Token Info default $299 (may change). Hosted website is free. Custom domain default ~$10. Approval reserves USD so nothing double-spends. No on-chain treasury transfer.',
           parameters: [{ name: 'mint', in: 'path', required: true, schema: { type: 'string' } }],
           responses: { '200': { description: 'Kit payload' }, '404': { description: 'Not found' } },
+        },
+      },
+      '/api/creative': {
+        get: {
+          tags: ['creative'],
+          summary: 'Creative MCP service card',
+          operationId: 'getCreative',
+          description:
+            'Public catalog for creative-mcp: site, Streamable HTTP /mcp, tools, 50-credit trial, USDC-on-Base top-ups, connect snippet. Server-side generateEnabled is false unless CREATIVE_MCP_ENABLED and CREATIVE_MCP_API_KEY are set. No earnings promises.',
+          responses: { '200': { description: 'Service card JSON' } },
+        },
+      },
+      '/api/coins/{mint}/creative': {
+        get: {
+          tags: ['creative'],
+          summary: 'Creative stills for a coin',
+          operationId: 'getCoinCreative',
+          parameters: [{ name: 'mint', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'Creative kit block' }, '404': { description: 'Not found' } },
+        },
+        post: {
+          tags: ['creative'],
+          summary: 'Generate a logo, banner, or meme via creative-mcp',
+          operationId: 'postCoinCreative',
+          description:
+            'Calls creative-mcp generate_image server-side. Off unless CREATIVE_MCP_ENABLED=1 and CREATIVE_MCP_API_KEY are set. Agents can connect to creative-mcp directly. No earnings promises.',
+          security: [{ CrewApiKey: [] }],
+          parameters: [{ name: 'mint', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['kind'],
+                  properties: {
+                    kind: { type: 'string', enum: ['logo', 'banner', 'meme'] },
+                    prompt: { type: 'string' },
+                    style: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            '201': { description: 'Generated still' },
+            '400': { description: 'Invalid kind' },
+            '401': { description: 'Missing API key' },
+            '404': { description: 'Coin not found' },
+            '503': { description: 'Generate flag off' },
+          },
         },
       },
       '/api/coins/{mint}': {
@@ -1717,6 +1783,14 @@ export function agentCard(origin: 'site' | 'api' = 'api') {
           'crew_claim_key → crew_discover → crew_list_kols → crew_build_unsigned (mintPubkey) → signAllTransactions → crew_submit_signed',
         ],
       },
+      {
+        id: 'crew-creative',
+        name: 'Creative MCP',
+        description:
+          'Launch art via creative-mcp (logos, memes, banners, stickers, music, teasers). Connect https://creative-mcp-40dj.onrender.com/mcp or crew_creative.',
+        tags: ['mcp', 'creative', 'crewpay'],
+        examples: ['crew_creative', 'GET /api/creative'],
+      },
     ],
     intended_clients: [...FRONTIER_MODELS],
   }
@@ -1790,6 +1864,8 @@ Creator fees follow trading volume and can be zero. No earnings promises. Buybac
 - Human docs: ${SITE_URL}/agents
 - Agents earn (you get the 15%): ${SITE_URL}/agents/earn
 - Coin page (every launch): ${SITE_URL}/coin/<mint>
+- Creative (logos, memes, banners, stickers, music, teasers): ${SITE_URL}/creative
+- Creative MCP: https://creative-mcp-40dj.onrender.com/mcp (50-credit trial; USDC on Base). Pointer: \`crew_creative\`. Catalog: \`GET ${API_URL}/api/creative\`. Server-side stills \`POST ${API_URL}/api/coins/<mint>/creative\` stay behind \`CREATIVE_MCP_ENABLED\` (off by default).
 
 ## For crypto agents
 
@@ -1813,7 +1889,7 @@ Approval is optional. Operators can require human approval per key.
 8. GET ${API_URL}/api/agent/launches   (your mints — scoped to crew_ak_…)
 9. Optional: POST ${API_URL}/api/agent/crank  (body \`{ "mint" }\`; x-launcher-key optional when ops key set)
 10. GET ${API_URL}/api/proof
-11. Public coin page: ${SITE_URL}/coin/<mint> — then optional post-launch kit (JOBS_ENABLED, test/devnet): MCP \`post_coin_job\` / \`POST /api/jobs/coin\` with template \`meme-pack\` | \`banner-logo\` | \`x-upkeep\` | \`website-polish\`. Humans claim, deliver, get paid after verification on existing escrow. No earnings promises.
+11. Public coin page: ${SITE_URL}/coin/<mint> — then optional post-launch kit (JOBS_ENABLED, test/devnet): MCP \`post_coin_job\` / \`POST /api/jobs/coin\` with template \`meme-pack\` | \`banner-logo\` | \`x-upkeep\` | \`website-polish\`. Humans claim, deliver, get paid after verification on existing escrow. Launch art: connect to creative-mcp or \`crew_creative\`. No earnings promises.
 
 ## Auth
 
@@ -1892,6 +1968,8 @@ Kickoff extras (tucked on the coin page) spend **only this coin’s treasury sha
 - Graduation webhook: \`coin.graduated\`. Poll \`GET /api/coins/graduated-unfeatured\`, post from @CrewPayHQ **outside this repo**, then \`POST /api/coins/{mint}/featured\` with the status URL. Featured-ops auth: \`CREW_AGENT_API_KEY\`, \`CREW_FEATURE_AGENT_KEYS_SHA256\` (sha256 hex of dedicated keys), or \`agent_keys.ops\`. CrewPay does **not** auto-post.
 - Fee map stays **60% KOL crew / 15% launching agent / 25% treasury** (or **60/15/5/20** with referrer). The launching agent does **not** receive the 60% crew slice. No earnings promises.
 
+**Creative MCP** (linked service, not escrow): logos, memes, banners, sticker packs, music, short teasers. Site ${SITE_URL}/creative · remote MCP https://creative-mcp-40dj.onrender.com/mcp · \`GET ${API_URL}/api/creative\` · MCP \`crew_creative\`. 50-credit trial; top-ups in USDC on Base. Server-side coin stills (\`POST ${API_URL}/api/coins/<mint>/creative\`, kind=logo|banner|meme) stay behind \`CREATIVE_MCP_ENABLED\` (off by default). Does not replace human escrow jobs.
+
 Creative jobs reuse **jobs + escrow** (behind \`JOBS_ENABLED\`, test/devnet only — no mainnet):
 
 - Templates: **Meme pack**, **Banner/logo design**, **X account upkeep (N posts/week)**, **Website polish**
@@ -1924,7 +2002,7 @@ For: ${FRONTIER_MODELS.join('; ')}.
 
 ## What this is
 
-CrewPay lets an AI agent launch a Solana Pump.fun coin and permanently split creator fees (**60/15/25** default; **60/15/5/20** with KOL agent referral) — without using the browser desk. Buyback cron is not live yet. Always dry-run first; no price talk. After launch, each coin has a public page at ${SITE_URL}/coin/<mint> and optional creative jobs (meme pack, banner/logo, X upkeep, website polish) on jobs+escrow (\`JOBS_ENABLED\`, test/devnet). The launching agent does not receive the 60% crew slice.
+CrewPay lets an AI agent launch a Solana Pump.fun coin and permanently split creator fees (**60/15/25** default; **60/15/5/20** with KOL agent referral) — without using the browser desk. Buyback cron is not live yet. Always dry-run first; no price talk. After launch, each coin has a public page at ${SITE_URL}/coin/<mint>, a linked Creative MCP for launch art (${SITE_URL}/creative), and optional creative jobs (meme pack, banner/logo, X upkeep, website polish) on jobs+escrow (\`JOBS_ENABLED\`, test/devnet). The launching agent does not receive the 60% crew slice.
 
 Base URL: ${API_URL}
 Human site: ${SITE_URL}
@@ -2067,6 +2145,8 @@ Public coin page (no auth): \`${SITE_URL}/coin/<mint>\` — built from existing 
 Kickoff budget = this mint’s treasury share (25% or 20%) of accrued creator fees (cached 1–5 min poll of remits + on-chain fee-sharing) minus spent/reserved. Items unlock only when fully covered (Dexscreener Enhanced Token Info default $299, price may change; hosted website free; custom domain default ~$10). Approval reserves USD. No automatic on-chain treasury transfers. SOL/ETH converted with a cached FX feed.
 
 Graduation webhook: \`coin.graduated\`. Poll \`GET ${API_URL}/api/coins/graduated-unfeatured\`, post from @CrewPayHQ **outside this repo**, then \`POST ${API_URL}/api/coins/{mint}/featured\` with the status URL. Featured-ops auth: \`CREW_AGENT_API_KEY\`, \`CREW_FEATURE_AGENT_KEYS_SHA256\`, or \`agent_keys.ops\`. CrewPay does **not** auto-post. Timeline: Featured on @CrewPayHQ sits immediately after Graduated and unlocks on graduation.
+
+Creative MCP (launch art, not escrow): \`GET ${API_URL}/api/creative\` · ${SITE_URL}/creative · https://creative-mcp-40dj.onrender.com/mcp · MCP \`crew_creative\`. Optional stills \`POST ${API_URL}/api/coins/<mint>/creative\` behind \`CREATIVE_MCP_ENABLED\`.
 
 Creative presets (behind \`JOBS_ENABLED\`; MCP \`post_coin_job\`; \`POST /api/jobs/coin\`):
 

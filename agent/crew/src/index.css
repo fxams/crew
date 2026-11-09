@@ -6119,6 +6119,80 @@ ol.coin-timeline.coin-panel {
   color: var(--muted);
 }
 
+.coin-creative {
+  margin: 0 0 1rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.coin-creative code {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.coin-creative-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.coin-creative-gallery {
+  list-style: none;
+  margin: 0.35rem 0 0.25rem;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.coin-creative-gallery li {
+  display: grid;
+  gap: 0.25rem;
+  width: 7.5rem;
+}
+
+.coin-creative-gallery img {
+  width: 7.5rem;
+  height: 7.5rem;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.coin-creative-gallery span {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.creative-makes-list {
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.creative-makes-list li {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.creative-makes-list strong {
+  font-family: var(--font-display);
+}
+
+.creative-makes-list span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .coin-ai {
   margin: 0 0 1rem;
   padding: 0.7rem 0.75rem 0.75rem;

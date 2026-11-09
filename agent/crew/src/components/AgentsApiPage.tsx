@@ -243,6 +243,9 @@ export function AgentsApiPage() {
             <Link className="btn btn-ghost btn-sm" to="/proof">
               Proof tape
             </Link>
+            <Link className="btn btn-ghost btn-sm" to="/creative">
+              Creative
+            </Link>
             <a className="btn btn-ghost btn-sm" href="/mcp.json" target="_blank" rel="noreferrer">
               mcp.json
             </a>
