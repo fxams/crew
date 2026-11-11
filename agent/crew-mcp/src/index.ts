@@ -107,6 +107,39 @@ async function main() {
     const transports = new Map<string, InstanceType<typeof StreamableHTTPServerTransport>>()
     /** Per MCP session API key from x-crew-api-key (public mode). */
     const sessionKeys = new Map<string, string>()
+    /** Per session McpServer + last activity, so idle sessions can be evicted. */
+    const sessionServers = new Map<string, { server: { close: () => Promise<void> }; lastSeen: number }>()
+
+    // Sessions used to live until the client sent DELETE /mcp (which had no
+    // route), so every initialize from scanners / one-shot agents leaked a full
+    // McpServer + transport until V8 hit its heap limit (~252 MB) and aborted.
+    const SESSION_IDLE_MS = Math.max(60_000, Number(process.env.CREW_MCP_SESSION_IDLE_MS || 10 * 60_000))
+    const MAX_SESSIONS = Math.max(10, Number(process.env.CREW_MCP_MAX_SESSIONS || 100))
+
+    const dropSession = (id: string) => {
+      const t = transports.get(id)
+      const entry = sessionServers.get(id)
+      transports.delete(id)
+      sessionKeys.delete(id)
+      sessionServers.delete(id)
+      if (t) void t.close().catch(() => {})
+      if (entry) void entry.server.close().catch(() => {})
+    }
+    const touchSession = (id: string) => {
+      const entry = sessionServers.get(id)
+      if (entry) entry.lastSeen = Date.now()
+    }
+    const evictSessions = () => {
+      const now = Date.now()
+      for (const [id, entry] of sessionServers) {
+        if (now - entry.lastSeen > SESSION_IDLE_MS) dropSession(id)
+      }
+      if (sessionServers.size > MAX_SESSIONS) {
+        const oldest = [...sessionServers.entries()].sort((a, b) => a[1].lastSeen - b[1].lastSeen)
+        for (const [id] of oldest.slice(0, sessionServers.size - MAX_SESSIONS)) dropSession(id)
+      }
+    }
+    setInterval(evictSessions, 60_000).unref()
 
     app.get('/', (_req, res) => {
       res.json({
@@ -164,6 +197,7 @@ async function main() {
       try {
         if (sessionId && transports.has(sessionId)) {
           if (clientKey) sessionKeys.set(sessionId, clientKey)
+          touchSession(sessionId)
           await transports.get(sessionId)!.handleRequest(req, res, req.body)
           return
         }
@@ -172,7 +206,9 @@ async function main() {
             sessionIdGenerator: () => randomUUID(),
             onsessioninitialized: (id: string) => {
               transports.set(id, transport)
+              sessionServers.set(id, { server: mcp, lastSeen: Date.now() })
               if (clientKey) sessionKeys.set(id, clientKey)
+              if (sessionServers.size > MAX_SESSIONS) evictSessions()
             },
           })
           transport.onclose = () => {
@@ -180,6 +216,9 @@ async function main() {
             if (id) {
               transports.delete(id)
               sessionKeys.delete(id)
+              const entry = sessionServers.get(id)
+              sessionServers.delete(id)
+              if (entry) void entry.server.close().catch(() => {})
             }
           }
           const sessionApiKey = clientKey || undefined
@@ -207,7 +246,27 @@ async function main() {
         res.status(400).json({ error: 'Invalid session' })
         return
       }
+      touchSession(sessionId)
       await transports.get(sessionId)!.handleRequest(req, res)
+    })
+
+    // Explicit session teardown (Streamable HTTP spec). Previously unrouted, so
+    // well-behaved clients could not free their session either.
+    app.delete('/mcp', async (req, res) => {
+      const sessionId = req.headers['mcp-session-id'] as string | undefined
+      if (!sessionId || !transports.has(sessionId)) {
+        res.status(404).json({ error: 'Invalid session' })
+        return
+      }
+      try {
+        await transports.get(sessionId)!.handleRequest(req, res)
+      } finally {
+        dropSession(sessionId)
+      }
+    })
+
+    app.get('/healthz/sessions', (_req, res) => {
+      res.json({ ok: true, sessions: sessionServers.size, max: MAX_SESSIONS, idleMs: SESSION_IDLE_MS })
     })
 
     const port = Number(process.env.PORT || 3333)
